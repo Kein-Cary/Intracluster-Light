@@ -1,4 +1,87 @@
-######## test 7: change the coordinate system
+######## get the coordinate all of the pixel from the from itself
+y = np.linspace(0,1488,1489)
+x = np.linspace(0,2047,2048)
+vx, vy = np.meshgrid(x,y)
+cx, cy = wcs.all_pix2world(vx,vy,1)
+a0 = cir_data[1]['CD1_1']
+a1 = cir_data[1]['CD1_2']
+b0 = cir_data[1]['CD2_1']
+b1 = cir_data[1]['CD2_2']
+rax = vx - 1025
+ray = vy - 745
+x0 = cir_data[1]['CRVAL1']
+y0 = cir_data[1]['CRVAL2']
+ra_1 = rax*a0
+ra_2 = ray*a1
+dec_1 = rax*b0
+dec_2 = ray*b1
+##### some problem here : the figure is not complete ???????
+delta_ra = ra_1**2+ra_2**2
+ia = ra_1<0
+delta_ra[ia] = -1*delta_ra[ia]
+delta_dec = dec_1**2+dec_2**2
+ib = dec_1<0
+delta_dec[ib] = 1*delta_dec[ib]
+ic = dec_2>=0
+delta_dec[ic] = -1*delta_dec[ic]
+New_RA = x0+delta_ra
+New_Dec = y0+delta_dec
+plt.pcolormesh(New_RA,New_Dec,cir_data[0],cmap = 'Greys',vmin=1e-5,norm = mpl.colors.LogNorm())
+
+# distance calculate: calculate the pixel distance or the distance in ra-dec coordinate
+from astropy.coordinates import SkyCoord
+c0 = SkyCoord(Ra[k]*U.deg,Dec[k]*U.deg,frame = 'icrs')
+c1 = SkyCoord(cx*U.deg,cy*U.deg,frame = 'icrs')
+sep0 = c0.separation(c1)
+aa = R_A[1].value/3600
+ik = sep.value <= aa
+inrg = sep[ik]
+reference = len(inrg)
+
+t1, t2 = wcs.all_world2pix(Ra[k]*U.deg,Dec[k]*U.deg,1)
+dep = np.sqrt((vx-t1)**2+(vy-t2)**2)
+ad = R_A[k].value/0.396
+ig = dep <= ad
+al = dep[ig]
+npixel = len(al)
+
+######## test the result and fitting
+with h5py.File('cluster_record.h5') as f:
+    tot_sub = np.array(f['a'][0])
+    inr_sub = np.array(f['a'][1])
+    sub_ratio = np.array(f['a'][2])
+    area_ratio = np.array(f['a'][3])
+    reference_ratio = np.array(f['a'][4])
+sampl_tot = tot_sub[(z<=0.3) & (z>=0.2)]
+sampl_inr = inr_sub[(z<=0.3) & (z>=0.2)]
+sampl_S_ratio = area_ratio[(z<=0.3) & (z>=0.2)]
+sampl_refer = reference_ratio[(z<=0.3) & (z>=0.2)]
+sampl_rich = inr_sub[(z<=0.3) & (z>=0.2)]
+# how change is the S/S0 along z variables
+from scipy.stats import binned_statistic_2d as spd
+zx = z[(z<=0.3) & (z>=0.2)]
+status,zedgs,Sedgs,binnumber = spd(zx,sampl_S_ratio,sampl_S_ratio,statistic = 'mean',bins=10*10)
+plt.pcolormesh(zedgs,Sedgs,status.T)
+
+miu = np.mean(sampl_S_ratio)
+miu1 = np.median(sampl_S_ratio)
+std = np.std(sampl_S_ratio)
+fg, ax = plt.subplots()
+n, bins, patches = ax.hist(sampl_S_ratio,bins = 50,density = True,alpha = 0.75,label = 'origin_data')
+y = ((1 / (np.sqrt(2 * np.pi) * std)) *np.exp(-0.5 * (1 / std * (bins - miu))**2))
+y1 = ((1 / (np.sqrt(2 * np.pi) * std)) *np.exp(-0.5 * (1 / std * (bins - miu1))**2))
+ax.plot(bins,y,'r--',label = r'$fit-with-\bar{S/S0}-\sigma$')
+ax.plot(bins,y1,'g--',label = r'$fit-with-Median(S/S0)-\sigma$')
+ax.legend(loc = 1,fontsize = 7.5)
+ax.text(0.3,2.5,r'$\mu=%f$'%miu)
+ax.text(0.3,2.4,r'$\sigma=%f$'%std)
+ax.text(0.3,2.3,r'$Median=%f$'%miu1)
+ax.set_title(r'$S/S0$')
+ax.set_xlabel(r'$S/S0$')
+ax.set_ylabel(r'$Probability-density$')
+## this part shows the PDF fitting
+
+######## test 6: change the coordinate system
 fig = plt.figure(figsize = (10,10))
 ax = fig.add_subplot(111, projection = wcs)
 im = ax.imshow(hdu.data, cmap='viridis',vmin=1e-5,origin = 'lower',norm=mpl.colors.LogNorm())
@@ -10,34 +93,7 @@ overlay.grid(color='blue', ls='dotted', lw=1)
 overlay[0].set_axislabel('Galactic Longitude', fontsize=14)
 overlay[1].set_axislabel('Galactic Latitude', fontsize=14)
 
-######## test the result
-with h5py.File('cluster_record.h5') as f:
-    tot_sub = np.array(f['a'][0])
-    inr_sub = np.array(f['a'][1])
-    sub_ratio = np.array(f['a'][2])
-    area_ratio = np.array(f['a'][3])
-sampl_tot = tot_sub[(z<=0.3) & (z>=0.2)]
-sampl_inr = inr_sub[(z<=0.3) & (z>=0.2)]
-sampl_S_ratio = area_ratio[(z<=0.3) & (z>=0.2)]
-miu = np.mean(sampl_S_ratio)
-miu1 = np.median(sampl_S_ratio)
-std = np.std(sampl_S_ratio)
-fg, ax = plt.subplots()
-n, bins, patches = ax.hist(sampl_S_ratio,bins = 50,density = True,alpha = 0.75,label = 'origin_data')
-y = ((1 / (np.sqrt(2 * np.pi) * std)) *np.exp(-0.5 * (1 / std * (bins - miu))**2))
-y1 = ((1 / (np.sqrt(2 * np.pi) * std)) *np.exp(-0.5 * (1 / std * (bins - miu1))**2))
-ax.plot(bins,y,'r--',label = r'$fit-with-\bar{S/S0}-\sigma$')
-ax.plot(bins,y1,'g--',label = r'$fit-with-Median(S/S0)-\sigma$')
-ax.legend(loc = 1,fontsize = 7.5)
-ax.text(0.2,2.5,r'$\mu=%f$'%miu)
-ax.text(0.2,2.4,r'$\sigma=%f$'%std)
-ax.text(0.2,2.3,r'$Median=%f$'%miu1)
-ax.set_title(r'$S/S0$')
-ax.set_xlabel(r'$S/S0$')
-ax.set_ylabel(r'$Probability-density$')
-## this part shows the PDF fitting
- 
-############## coord test5 : fix the Ra-Dec coordinate
+############## test 5: fix the Ra-Dec coordinate
 from matplotlib import pyplot as plt
 from astropy.io import fits
 from astropy.utils.data import get_pkg_data_filename
@@ -52,12 +108,12 @@ x = np.linspace(0,2047,2048)
 vx, vy = np.meshgrid(x,y)
 cx, cy = wcs.all_pix2world(vx,vy,1)
 plt.pcolormesh(cx,cy,hdu.data,cmap='Greys',vmin=1e-5,norm=mpl.colors.LogNorm())
-
+##### point the BCG
 import mice_symbol 
 mice_symbol.mice_symble(Ra[k],Dec[k],2/3600,8/3600,8/3600,8/3600,8/3600,c='r')
-##### point the BCG
 hsc.circles(Ra[k],Dec[k],s = R_A[k].value/3600,fc = '',ec = 'r')
-plt.axis('scaled')
+plt.plot(cx[0,0],cy[0,0],'r*')
+#plt.axis('scaled')
 # select the pixels 
 ff = np.abs(cx-Ra[1])
 gg = np.abs(cy-Dec[1])

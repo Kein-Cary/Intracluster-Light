@@ -8,10 +8,11 @@ import astropy.units as U
 import astroquery.sdss as asds
 import astropy.io.fits as aft
 import scipy.stats as sts
-import find
+import h5py
 ##### section 1: read the redmapper data and the member data
 goal_data = aft.getdata(
         '/home/xkchen/mywork/ICL/data/redmapper/redmapper_dr8_public_v6.3_catalog.fits')
+'''
 sub_data = aft.getdata(
         '/home/xkchen/mywork/ICL/data/redmapper/redmapper_dr8_public_v6.3_members.fits')
 # find the member of each BGC -cluster, by find the repeat ID
@@ -19,7 +20,7 @@ repeat = sts.find_repeats(sub_data.ID)
 rept_ID = np.int0(repeat)
 ID_array = np.int0(sub_data.ID)
 sub_redshift = np.array(sub_data.Z_SPEC)
-
+'''
 RA = np.array(goal_data.RA)
 DEC = np.array(goal_data.DEC)
 redshift = np.array(goal_data.Z_SPEC)
@@ -31,61 +32,55 @@ dec_eff = DEC[redshift != -1]
 z = z_eff[z_eff <= 0.3]
 Ra = ra_eff[z_eff <= 0.3]
 Dec = dec_eff[z_eff <= 0.3]
-
-size_cluster = 2. # assumptiom: cluster size is 2.Mpc/h
-from ICL_angular_diameter_reshift import mark_by_self
-from ICL_angular_diameter_reshift import mark_by_plank
-A_size, A_d= mark_by_self(z,size_cluster)
-view_d = A_size*U.rad
-#### section 2: cite the data and save fits figure
-from astroquery.sdss import SDSS
-from astropy import coordinates as coords
-from astroML.plotting import setup_text_plots
-from astropy.table import Table
-R_A = 0.5*view_d.to(U.arcsec) # angular radius in angular second unit
-band = ['u','g','r','i','z']
-k = 1
-##### section 2: read the observation data, and point out the BCG and member
-cir_data = aft.getdata('area_test.fits',header = True)
-import handy.scatter as hsc
-from astropy.wcs import *
-import astropy.wcs as awc
-h = cir_data[0].shape[0]
-w = cir_data[0].shape[1]
-member_pos = np.array([sub_data.RA,sub_data.DEC])
-from matplotlib.patches import Circle
-
-use_z = redshift*1
-IA = find.find1d(use_z,z[k])
-rich_IA = rept_ID[1][IA]
-sum_IA = np.sum(rept_ID[1][:IA])
-
-wcs = awc.WCS(cir_data[1])
-fig = plt.figure(figsize = (10,10))
-ax = fig.add_axes([0.1,0.1,0.8,0.8*h/w],projection = wcs)
-ax.set_xlabel('RA')
-ax.set_ylabel('DEC')
-ax.imshow(cir_data[0],cmap = 'viridis',aspect = 'auto',vmin=1e-5,origin = 'lower',norm=mpl.colors.LogNorm())
-#ax.contour(cir_data[0],cmap = 'gist_heat',aspect = 'auto',vmin=1e-5,origin = 'lower',norm=mpl.colors.LogNorm())
-ra = ax.coords[0]
-#ra.set_major_formatter('dd:mm:ss')
-ra.set_major_formatter('d.ddddd')
-ra.grid(color = 'red')
-dec = ax.coords[1]
-#dec.set_major_formatter('dd:mm:ss')
-dec.set_major_formatter('d.ddddd')
-dec.grid(color = 'blue')
-xx = Ra[k]
-yy = Dec[k]
-ax.scatter(xx,yy,facecolors = 'r', marker = 'o',edgecolors = 'b',transform=ax.get_transform('world'))
-aa = ax.get_xlim()
-bb = ax.get_ylim()
-ax.scatter(member_pos[0][sum_IA:sum_IA+rept_ID[1][IA]],member_pos[1][sum_IA:sum_IA+rept_ID[1][IA]],facecolors = '', 
-           marker = 'o',edgecolors = 'r',transform=ax.get_transform('world'))
-r1 = Circle((xx,yy),R_A[k].value/3600,alpha = 0.25,transform=ax.get_transform('world'))
-ax.add_patch(r1)
-ax.set_xlim(aa[0],aa[1])
-ax.set_ylim(bb[0],bb[1])
-plt.savefig('cluster_area.png',dpi= 600)
-plt.show()
-plt.close()
+with h5py.File('cluster_record.h5') as f:
+    tot_sub = np.array(f['a'][0])
+    inr_sub = np.array(f['a'][1])
+    sub_ratio = np.array(f['a'][2])
+    area_ratio = np.array(f['a'][3])
+    reference_ratio = np.array(f['a'][4])
+sampl_tot = tot_sub[(z<=0.3) & (z>=0.2)]
+sampl_inr = inr_sub[(z<=0.3) & (z>=0.2)]
+sampl_S_ratio = area_ratio[(z<=0.3) & (z>=0.2)]
+sampl_refer = reference_ratio[(z<=0.3) & (z>=0.2)]
+sampl_rich = inr_sub[(z<=0.3) & (z>=0.2)]
+sampl_z = z[(z<=0.3) & (z>=0.2)]
+## devide the sampl_z into 5 bins: 0.20~0.22~0.24~0.26~0.28~0.30
+plt.scatter(inr_sub,area_ratio,s=10,alpha=0.25)
+plt.xlabel(r'$N-[in_{R=1mpc/h}]$')
+plt.ylabel(r'$S/S0$')
+plt.title(r'$S/S0-N$')
+## z0.20~0.22
+ta1 = sampl_S_ratio[(sampl_z>=0.20)&(sampl_z<0.22)]
+tb1 = sampl_rich[(sampl_z>=0.20)&(sampl_z<0.22)]
+plt.scatter(tb1,ta1,s=10,alpha=0.25)
+plt.xlabel(r'$N-[in_{R=1mpc/h}]$')
+plt.ylabel(r'$S/S0$')
+plt.title(r'$[S/S0-N]_{0.20\sim0.22}$')
+## z0.22~0.24
+ta2 = sampl_S_ratio[(sampl_z>=0.22)&(sampl_z<0.24)]
+tb2 = sampl_rich[(sampl_z>=0.22)&(sampl_z<0.24)]
+plt.scatter(tb2,ta2,s=10,alpha=0.25)
+plt.xlabel(r'$N-[in_{R=1mpc/h}]$')
+plt.ylabel(r'$S/S0$')
+plt.title(r'$[S/S0-N]_{0.22\sim0.24}$')
+## z0.24~0.26
+ta3 = sampl_S_ratio[(sampl_z>=0.24)&(sampl_z<0.26)]
+tb3 = sampl_rich[(sampl_z>=0.24)&(sampl_z<0.26)]
+plt.scatter(tb3,ta3,s=10,alpha=0.25)
+plt.xlabel(r'$N-[in_{R=1mpc/h}]$')
+plt.ylabel(r'$S/S0$')
+plt.title(r'$[S/S0-N]_{0.24\sim0.26}$')
+## z0.26~0.28
+ta4 = sampl_S_ratio[(sampl_z>=0.26)&(sampl_z<0.28)]
+tb4 = sampl_rich[(sampl_z>=0.26)&(sampl_z<0.28)]
+plt.scatter(tb4,ta4,s=10,alpha=0.25)
+plt.xlabel(r'$N-[in_{R=1mpc/h}]$')
+plt.ylabel(r'$S/S0$')
+plt.title(r'$[S/S0-N]_{0.26\sim0.28}$')
+## z0.28~0.30
+ta5 = sampl_S_ratio[(sampl_z>=0.28)&(sampl_z<=0.30)]
+tb5 = sampl_rich[(sampl_z>=0.28)&(sampl_z<=30)]
+plt.scatter(tb5,ta5,s=10,alpha=0.25)
+plt.xlabel(r'$N-[in_{R=1mpc/h}]$')
+plt.ylabel(r'$S/S0$')
+plt.title(r'$[S/S0-N]_{0.28\sim0.30}$')

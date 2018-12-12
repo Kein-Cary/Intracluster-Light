@@ -17,6 +17,7 @@ import handy.scatter as hsc
 from astropy.wcs import *
 import astropy.wcs as awc
 from matplotlib.patches import Circle
+from astropy.coordinates import SkyCoord
 '''
 goal_data = aft.getdata(
         '/home/xkchen/mywork/ICL/data/redmapper/redmapper_dr8_public_v6.3_catalog.fits')
@@ -54,12 +55,13 @@ A_size, A_d= mark_by_self(z,size_cluster)
 view_d = A_size*U.rad
 # set 'r' band as a test ('r' band is closer to visible range)
 R_A = 0.5*view_d.to(U.arcsec) # angular radius in angular second unit
-S0 = R_A.value**2*np.pi # use to estimate the effective area of each galaxy in the frame area
+S0 = R_A.value**2*np.pi/(0.396**2) # use to estimate the effective area of each galaxy in the frame area
 # select the number which the cluster total fall in the framefile
 tot_sub = np.zeros(len(z), dtype = np.int0)
 inr_sub = np.zeros(len(z), dtype = np.int0)
 sub_ratio = np.zeros(len(z), dtype = np.float)
 area_ratio = np.zeros(len(z), dtype = np.float)
+reference_ratio = np.zeros(len(z), dtype = np.float)
 for k in range(len(z)):
     cir_data = aft.getdata(
             '/mnt/ddnfs/data_users/cxkttwl/ICL/wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'%\
@@ -83,6 +85,7 @@ for k in range(len(z)):
     x = np.linspace(0,2047,2048)
     vx, vy = np.meshgrid(x,y)
     cx, cy = wcs.all_pix2world(vx,vy,1)
+    '''
     ff = np.abs(cx-Ra[k])
     gg = np.abs(cy-Dec[k])
     hh = np.sqrt((cx-Ra[k])**2+(cy-Dec[k])**2)
@@ -94,7 +97,22 @@ for k in range(len(z)):
     inpixel = Dpixel[Dpixel <= R_A[k].value/3600]
     npixel = len(inpixel)
     # calculate the area ratio
-    SK = npixel*0.396**2
+    SK = npixel*1
+    '''
+    c0 = SkyCoord(Ra[k]*U.deg,Dec[k]*U.deg,frame = 'icrs')
+    c1 = SkyCoord(cx*U.deg,cy*U.deg,frame = 'icrs')
+    sep = c0.separation(c1)
+    ak = R_A[k].value/3600
+    ik = sep.value <= ak
+    inrg = sep[ik]
+    referS = len(inrg)
+    reference_ratio[k] = referS/S0[k]
+    t1, t2 = wcs.all_world2pix(Ra[k]*U.deg,Dec[k]*U.deg,1)
+    dep = np.sqrt((vx-t1)**2+(vy-t2)**2)
+    ag = R_A[k].value/0.396
+    ig = dep <= ag
+    al = dep[ig]
+    SK = len(al)
     area_ratio[k] = SK/S0[k]
 
     xx = Ra[k]
@@ -123,7 +141,7 @@ for k in range(len(z)):
     ax.scatter(posx,posy,facecolors = '',marker = 'o',edgecolors = 'r',transform=ax.get_transform('world'))
     #r1 = Circle((xx,yy),radius = R_A[k].value/3600,facecolor = 'None',edgecolor = 'r',transform=ax.get_transform('world'))
     #ax.add_patch(r1)
-    hsc.circles(xg,yg,s = R_A[k].value/0.396,fc = '',ec = 'r')
+    hsc.circles(t1,t2,s = R_A[k].value/0.396,fc = '',ec = 'r')
     ra.set_ticks(spacing = 0.05*U.deg)
     ra.set_ticklabel(color = 'red')
     dec.set_ticks(spacing = 0.05*U.deg) 
@@ -140,10 +158,10 @@ for k in range(len(z)):
     ax.set_ylim(bb[0],bb[1])
     plt.colorbar(im,fraction = 0.035,pad = 0.03,label = r'$f_{flux}[nanoMaggy]$') # colorbar adjust
     ax.set_title(r'$Cluster-ra%.3f-dec%.3f-z%.3f-inr%.0f-rS%.3f$'%(Ra[k],Dec[k],z[k],inr_sub[k],area_ratio[k]))
-    #plt.savefig(
-    #       '/mnt/ddnfs/data_users/cxkttwl/ICL/fig/cluster_select_ra%.3f_dec%.3f_z%.3f_rich%.0f.png'%(Ra[k],Dec[k],z[k],inr_sub[k]),dpi= 600)
     plt.savefig(
-            '/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/cluster_select_ra%.3f_dec%.3f_z%.3f_rS%.3f_rich%.0f.png'%(Ra[k],Dec[k],z[k],area_ratio[k],inr_sub[k]),dpi= 600)
+           '/mnt/ddnfs/data_users/cxkttwl/ICL/fig/cluster_select_ra%.3f_dec%.3f_z%.3f_rS%.3f_rich%.0f.png'%(Ra[k],Dec[k],z[k],area_ratio[k],inr_sub[k]),dpi= 600)
+    #plt.savefig(
+    #        '/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/cluster_select_ra%.3f_dec%.3f_z%.3f_rS%.3f_rich%.0f.png'%(Ra[k],Dec[k],z[k],area_ratio[k],inr_sub[k]),dpi= 600)
     plt.show()
     plt.close()
     # after calculate, set the element as 0., avoid check the same cluster
@@ -153,10 +171,9 @@ for k in range(len(z)):
 record_array: record the total richiness, richiness in R = 1Mpc/h, the ratio of the two; and finally, record
 the effective of the cluster in the photo
 """
-record_array = np.array([tot_sub, inr_sub, sub_ratio, area_ratio])
+record_array = np.array([tot_sub, inr_sub, sub_ratio, area_ratio, reference_ratio])
 with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/cluster_record.h5', 'w') as f:
     f['a'] = record_array
 with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/cluster_record.h5') as f:
     for q in range(len(record_array)):
         f['a'][q] = record_array[q]
-    

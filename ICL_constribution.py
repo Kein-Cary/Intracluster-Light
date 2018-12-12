@@ -43,6 +43,7 @@ with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/cluster_record.h5') as f:
     inr_sub = np.array(f['a'][1])
     sub_ratio = np.array(f['a'][2])
     area_ratio = np.array(f['a'][3])
+    reference_ratio = np.array(f['a'][4])
 plt.figure()
 plt.hist(area_ratio,color = 'b',bins = 50, alpha = 0.5)
 plt.xlabel(r'$S/S0$')
