@@ -1,4 +1,12 @@
 ######## get the coordinate all of the pixel from the from itself
+from matplotlib import pyplot as plt
+from astropy.io import fits
+from astropy.utils.data import get_pkg_data_filename
+from astropy.wcs import WCS
+#file = get_pkg_data_filename('test_tot.fits') # k = 0
+file = get_pkg_data_filename('area_test.fits') # k =1
+hdu = fits.open(file)[0]
+wcs = WCS(hdu.header)
 y = np.linspace(0,1488,1489)
 x = np.linspace(0,2047,2048)
 vx, vy = np.meshgrid(x,y)
@@ -15,18 +23,20 @@ ra_1 = rax*a0
 ra_2 = ray*a1
 dec_1 = rax*b0
 dec_2 = ray*b1
-##### some problem here : the figure is not complete ???????
-delta_ra = ra_1**2+ra_2**2
-ia = ra_1<0
-delta_ra[ia] = -1*delta_ra[ia]
-delta_dec = dec_1**2+dec_2**2
-ib = dec_1<0
-delta_dec[ib] = 1*delta_dec[ib]
-ic = dec_2>=0
-delta_dec[ic] = -1*delta_dec[ic]
-New_RA = x0+delta_ra
-New_Dec = y0+delta_dec
-plt.pcolormesh(New_RA,New_Dec,cir_data[0],cmap = 'Greys',vmin=1e-5,norm = mpl.colors.LogNorm())
+New_RA = x0+ra_1+ra_2
+New_Dec = y0+dec_1+dec_2
+# comparation (cx,cy) and (New_RA,New_Dec) 
+from astropy.coordinates import SkyCoord
+POS1 = SkyCoord(cx*U.deg,cy*U.deg,frame = 'icrs')
+POS2 = SkyCoord(New_RA*U.deg,New_Dec*U.deg,frame = 'icrs')
+POS1 = POS1.galactic;
+POS2 = POS2.galactic; # ???????? shape problem
+plt.pcolormesh(POS1.galactic.l.value,POS1.galactic.b.value,cir_data[0],
+               cmap='Greys',vmin=1e-5,norm=mpl.colors.LogNorm())
+plt.colorbar()
+plt.pcolormesh(POS2.galactic.l.value,POS2.galactic.b.value,cir_data[0],
+               cmap='Greys',vmin=1e-5,norm=mpl.colors.LogNorm())
+plt.colorbar()
 
 # distance calculate: calculate the pixel distance or the distance in ra-dec coordinate
 from astropy.coordinates import SkyCoord
@@ -60,14 +70,16 @@ sampl_rich = inr_sub[(z<=0.3) & (z>=0.2)]
 # how change is the S/S0 along z variables
 from scipy.stats import binned_statistic_2d as spd
 zx = z[(z<=0.3) & (z>=0.2)]
-status,zedgs,Sedgs,binnumber = spd(zx,sampl_S_ratio,sampl_S_ratio,statistic = 'mean',bins=10*10)
+status,zedgs,Sedgs,binnumber = spd(zx,sampl_S_ratio,sampl_S_ratio,
+                                   statistic = 'mean',bins=10*10)
 plt.pcolormesh(zedgs,Sedgs,status.T)
 
 miu = np.mean(sampl_S_ratio)
 miu1 = np.median(sampl_S_ratio)
 std = np.std(sampl_S_ratio)
 fg, ax = plt.subplots()
-n, bins, patches = ax.hist(sampl_S_ratio,bins = 50,density = True,alpha = 0.75,label = 'origin_data')
+n, bins, patches = ax.hist(sampl_S_ratio,bins = 50,density = True,alpha = 0.75,
+                           label = 'origin_data')
 y = ((1 / (np.sqrt(2 * np.pi) * std)) *np.exp(-0.5 * (1 / std * (bins - miu))**2))
 y1 = ((1 / (np.sqrt(2 * np.pi) * std)) *np.exp(-0.5 * (1 / std * (bins - miu1))**2))
 ax.plot(bins,y,'r--',label = r'$fit-with-\bar{S/S0}-\sigma$')
@@ -84,7 +96,8 @@ ax.set_ylabel(r'$Probability-density$')
 ######## test 6: change the coordinate system
 fig = plt.figure(figsize = (10,10))
 ax = fig.add_subplot(111, projection = wcs)
-im = ax.imshow(hdu.data, cmap='viridis',vmin=1e-5,origin = 'lower',norm=mpl.colors.LogNorm())
+im = ax.imshow(hdu.data, cmap='viridis',vmin=1e-5,origin = 'lower',
+               norm=mpl.colors.LogNorm())
 ax.set_xlabel("Right Ascension", fontsize = 16)
 ax.set_ylabel("Declination", fontsize = 16)
 ax.grid(color = 'red', ls = 'dotted', lw = 2)
@@ -170,7 +183,8 @@ ax = fig.add_axes([0.1,0.1,0.8,0.8],projection = wcs) # initial
 #ax = fig.add_axes([0.1,0.1,0.8,0.8*h/w],projection = wcs) # mirror
 ax.set_xlabel('RA-(spacing-[0.05deg])')
 ax.set_ylabel('DEC-(spacing-[0.05deg])')
-im = ax.imshow(cir_data[0],cmap = 'Greys',aspect = 'auto',vmin=1e-5,origin = 'lower',norm=mpl.colors.LogNorm()) #initial
+im = ax.imshow(cir_data[0],cmap = 'Greys',aspect = 'auto',vmin=1e-5,
+               origin = 'lower',norm=mpl.colors.LogNorm()) #initial
 #plt.colorbar(im,fraction = 0.05,pad = 0.03,label = r'$f_{flux}[nanoMaggy]$') # colorbar adjust
 #ax.imshow(np.transpose(cir_data[0]),cmap = 'viridis',aspect = 'auto',vmin=1e-5,origin = 'lower',norm=mpl.colors.LogNorm()) #transpose
 #ax.imshow(ILR,cmap = 'viridis',aspect = 'auto',vmin=1e-5,origin = 'lower',norm=mpl.colors.LogNorm()) #mirror
@@ -185,7 +199,8 @@ dec.set_major_formatter('d.ddddd')
 dec.grid(color = 'green',alpha = 0.45)
 xx = Ra[k]
 yy = Dec[k]
-ax.scatter(xx,yy,facecolors = '', marker = 'P',edgecolors = 'b',transform=ax.get_transform('world'))
+ax.scatter(xx,yy,facecolors = '', marker = 'P',edgecolors = 'b',
+           transform=ax.get_transform('world'))
 #ax.scatter(goal[1],goal[0],yy,facecolors = 'b', marker = '+',edgecolors = 'b')
 aa = ax.get_xlim()
 bb = ax.get_ylim()
@@ -194,7 +209,8 @@ pob = member_pos[1][sum_IA:sum_IA+rept_ID[1][IA]]
 ak = find.find1d(poa,Ra[k])
 posx = poa[poa!=poa[ak]]
 posy = pob[pob!=pob[ak]] # out the BCG, and then mark the satellite 
-ax.scatter(posx,posy,facecolors = '',marker = 'o',edgecolors = 'r',transform=ax.get_transform('world'))
+ax.scatter(posx,posy,facecolors = '',marker = 'o',edgecolors = 'r',
+           transform=ax.get_transform('world'))
 from matplotlib.patches import Circle
 #r1 = Circle((xx,yy),radius = R_A[k].value/3600,facecolor = 'None',edgecolor = 'r',transform=ax.get_transform('world')) # just circle 
 '''

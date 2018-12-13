@@ -1,7 +1,7 @@
 # this file used to calculation the cluster properties change with red-shift
 ## properties includes: luminosity, colors, angular size et al.
 import matplotlib as mpl
-mpl.use('Agg')
+#mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import astropy.constants as C
@@ -50,4 +50,18 @@ plt.title(r'$SB-z$')
 plt.savefig('SB_test.png',dpi=600)
 # calculate the angular size change from z1--z2
 ### A1*D_A1 = A2*D_A2, and then get 
-## calculate the dimming
+"""
+calculate the dimming,since f_20,ref is arbitrary, set f_20,ref = f_20
+f_20 in frame calibration is f_20 = N/(10**8*(f/f0)); f,f0 is flux.
+in this case, c = f_20, and c' = c * (f_20/f_20)*10**0.4*A_lambda*((1+z)/(1+z_ref))**4
+"""
+A_l = 2.751   # A_lambda set the r band value
+z_ref = z0 # set the initial redshift as reference redshift
+f_20 = 1e-3
+Cunt_b = (f/f0)*10**8*f_20 # conut before rescaling
+Cunt_a = Cunt_b*10**(0.4*A_l)*((1+z)/(1+z_ref))**4 # count after rescale
+plt.plot(z,Cunt_a,label = r'$counts$')
+plt.legend(loc = 1)
+plt.xlabel(r'$z$')
+plt.ylabel(r'$Counts/pixel$')
+plt.yscale('log')
