@@ -1,3 +1,45 @@
+######## test the result and fitting
+with h5py.File('cluster_record.h5') as f:
+    tot_sub = np.array(f['a'][0])
+    inr_sub = np.array(f['a'][1])
+    sub_ratio = np.array(f['a'][2])
+    area_ratio = np.array(f['a'][3])
+    reference_ratio = np.array(f['a'][4])
+    rich = np.array(f['a'][5])
+'''
+sampl_tot = tot_sub[(z<=0.3) & (z>=0.2)]
+sampl_sub = inr_sub[(z<=0.3) & (z>=0.2)]  # the two number just the galaxies number, the later is those in the 1Mpc/h circle
+'''
+sampl_S_ratio = area_ratio[(z<=0.3) & (z>=0.2)]
+sampl_refer = reference_ratio[(z<=0.3) & (z>=0.2)]
+sampl_z = z[(z<=0.3) & (z>=0.2)]
+sampl_rich = rich[(z<=0.3) & (z>=0.2)]
+# how change is the S/S0 along z variables
+from scipy.stats import binned_statistic_2d as spd
+zx = z[(z<=0.3) & (z>=0.2)]
+it = sampl_S_ratio>=0.75
+ts = sampl_S_ratio[it]
+tr = sampl_rich[it]
+tm = np.median(tr)
+miu = np.mean(sampl_S_ratio)
+miu1 = np.median(sampl_S_ratio)
+std = np.std(sampl_S_ratio)
+fg, ax = plt.subplots()
+n, bins, patches = ax.hist(sampl_S_ratio,bins = 50,density = True,alpha = 0.75,
+                           label = 'origin_data')
+y = ((1 / (np.sqrt(2 * np.pi) * std)) *np.exp(-0.5 * (1 / std * (bins - miu))**2))
+y1 = ((1 / (np.sqrt(2 * np.pi) * std)) *np.exp(-0.5 * (1 / std * (bins - miu1))**2))
+ax.plot(bins,y,'r--',label = r'$fit-with-\bar{S/S0}-\sigma$')
+ax.plot(bins,y1,'g--',label = r'$fit-with-Median(S/S0)-\sigma$')
+ax.legend(loc = 1,fontsize = 7.5)
+ax.text(0.3,2.5,r'$\mu=%f$'%miu)
+ax.text(0.3,2.4,r'$\sigma=%f$'%std)
+ax.text(0.3,2.3,r'$Median=%f$'%miu1)
+ax.set_title(r'$S/S0$')
+ax.set_xlabel(r'$S/S0$')
+ax.set_ylabel(r'$Probability-density$')
+## this part shows the PDF fitting
+
 ######## get the coordinate all of the pixel from the from itself
 from matplotlib import pyplot as plt
 from astropy.io import fits
@@ -7,6 +49,7 @@ from astropy.wcs import WCS
 file = get_pkg_data_filename('area_test.fits') # k =1
 hdu = fits.open(file)[0]
 wcs = WCS(hdu.header)
+cir_data = aft.getdata('area_test.fits',header = True)
 y = np.linspace(0,1488,1489)
 x = np.linspace(0,2047,2048)
 vx, vy = np.meshgrid(x,y)
@@ -19,16 +62,18 @@ rax = vx - 1025
 ray = vy - 745
 x0 = cir_data[1]['CRVAL1']
 y0 = cir_data[1]['CRVAL2']
-ra_1 = rax*a0
-ra_2 = ray*a1
-dec_1 = rax*b0
-dec_2 = ray*b1
-New_RA = x0+ra_1+ra_2
-New_Dec = y0+dec_1+dec_2
+# from SDSS EDR paper
+New_Ra = x0 + (rax*a0 + ray*a1) / np.cos(y0)
+New_Dec = y0 + rax*b0 + ray*b1
+# ????
+plt.pcolormesh(New_Ra,New_Dec,cir_data[0],cmap='Greys',vmin=1e-5,norm=mpl.colors.LogNorm())
+plt.axis('square')
+plt.pcolormesh(cx,cy,cir_data[0],cmap='Greys',vmin=1e-5,norm=mpl.colors.LogNorm())
+# ????
 # comparation (cx,cy) and (New_RA,New_Dec) 
 from astropy.coordinates import SkyCoord
 POS1 = SkyCoord(cx*U.deg,cy*U.deg,frame = 'icrs')
-POS2 = SkyCoord(New_RA*U.deg,New_Dec*U.deg,frame = 'icrs')
+POS2 = SkyCoord(New_Ra*U.deg,New_Dec*U.deg,frame = 'icrs')
 POS1 = POS1.galactic;
 POS2 = POS2.galactic; # ???????? shape problem
 plt.pcolormesh(POS1.galactic.l.value,POS1.galactic.b.value,cir_data[0],
@@ -54,44 +99,6 @@ ad = R_A[k].value/0.396
 ig = dep <= ad
 al = dep[ig]
 npixel = len(al)
-
-######## test the result and fitting
-with h5py.File('cluster_record.h5') as f:
-    tot_sub = np.array(f['a'][0])
-    inr_sub = np.array(f['a'][1])
-    sub_ratio = np.array(f['a'][2])
-    area_ratio = np.array(f['a'][3])
-    reference_ratio = np.array(f['a'][4])
-sampl_tot = tot_sub[(z<=0.3) & (z>=0.2)]
-sampl_inr = inr_sub[(z<=0.3) & (z>=0.2)]
-sampl_S_ratio = area_ratio[(z<=0.3) & (z>=0.2)]
-sampl_refer = reference_ratio[(z<=0.3) & (z>=0.2)]
-sampl_rich = inr_sub[(z<=0.3) & (z>=0.2)]
-# how change is the S/S0 along z variables
-from scipy.stats import binned_statistic_2d as spd
-zx = z[(z<=0.3) & (z>=0.2)]
-status,zedgs,Sedgs,binnumber = spd(zx,sampl_S_ratio,sampl_S_ratio,
-                                   statistic = 'mean',bins=10*10)
-plt.pcolormesh(zedgs,Sedgs,status.T)
-
-miu = np.mean(sampl_S_ratio)
-miu1 = np.median(sampl_S_ratio)
-std = np.std(sampl_S_ratio)
-fg, ax = plt.subplots()
-n, bins, patches = ax.hist(sampl_S_ratio,bins = 50,density = True,alpha = 0.75,
-                           label = 'origin_data')
-y = ((1 / (np.sqrt(2 * np.pi) * std)) *np.exp(-0.5 * (1 / std * (bins - miu))**2))
-y1 = ((1 / (np.sqrt(2 * np.pi) * std)) *np.exp(-0.5 * (1 / std * (bins - miu1))**2))
-ax.plot(bins,y,'r--',label = r'$fit-with-\bar{S/S0}-\sigma$')
-ax.plot(bins,y1,'g--',label = r'$fit-with-Median(S/S0)-\sigma$')
-ax.legend(loc = 1,fontsize = 7.5)
-ax.text(0.3,2.5,r'$\mu=%f$'%miu)
-ax.text(0.3,2.4,r'$\sigma=%f$'%std)
-ax.text(0.3,2.3,r'$Median=%f$'%miu1)
-ax.set_title(r'$S/S0$')
-ax.set_xlabel(r'$S/S0$')
-ax.set_ylabel(r'$Probability-density$')
-## this part shows the PDF fitting
 
 ######## test 6: change the coordinate system
 fig = plt.figure(figsize = (10,10))
@@ -145,16 +152,27 @@ npixel = len(inpixel)
 
 ############## coord test4
 import aplpy
-f = aplpy.FITSFigure('test_tot.fits')
+## k =1 
+f = aplpy.FITSFigure('area_test.fits')
+cir_data = fits.getdata('area_test.fits',header = True)
+wcs = WCS(cir_data[1])
+x0,y0 = wcs.all_world2pix(Ra[1]*U.deg, Dec[1]*U.deg, 1)
+r0 = R_A[1].value/0.396
 f.set_xaxis_coord_type('longitude')
 f.set_yaxis_coord_type('latitude')
 f.tick_labels.set_xformat('ddd.ddd')
 f.tick_labels.set_yformat('ddd.ddd')
 #f.tick_labels.set_xformat('hh:mm:ss')
 #f.tick_labels.set_yformat('hh:mm:ss')
-f.add_scalebar(R_A[0].value/3600,color = 'r',label = '1Mpc/h',loc = 2)
+#f.add_scalebar(r0, color = 'r',label = '1Mpc/h',loc = 2) # add a scale ruler
+hsc.circles(x0,y0,s = r0,fc = '',ec = 'r')
+plt.scatter(x0,y0,marker = 'P')
 f.show_grayscale()
-f.show_grid()
+## add colorbar
+f.frame.set_color('grey')
+f.add_colorbar()
+f.colorbar.show()
+#f.show_grid()
 #### hard to point out BCG, but it's good for showing the data!!!!
 
 ############## coord test 3: main body
@@ -204,6 +222,7 @@ ax.scatter(xx,yy,facecolors = '', marker = 'P',edgecolors = 'b',
 #ax.scatter(goal[1],goal[0],yy,facecolors = 'b', marker = '+',edgecolors = 'b')
 aa = ax.get_xlim()
 bb = ax.get_ylim()
+'''
 poa = member_pos[0][sum_IA:sum_IA+rept_ID[1][IA]]
 pob = member_pos[1][sum_IA:sum_IA+rept_ID[1][IA]]
 ak = find.find1d(poa,Ra[k])
@@ -211,6 +230,7 @@ posx = poa[poa!=poa[ak]]
 posy = pob[pob!=pob[ak]] # out the BCG, and then mark the satellite 
 ax.scatter(posx,posy,facecolors = '',marker = 'o',edgecolors = 'r',
            transform=ax.get_transform('world'))
+'''
 from matplotlib.patches import Circle
 #r1 = Circle((xx,yy),radius = R_A[k].value/3600,facecolor = 'None',edgecolor = 'r',transform=ax.get_transform('world')) # just circle 
 '''

@@ -9,6 +9,8 @@ import astroquery.sdss as asds
 import astropy.io.fits as aft
 import scipy.stats as sts
 import h5py
+import handy.scatter as hsc
+import handy 
 ##### section 1: read the redmapper data and the member data
 goal_data = aft.getdata(
         '/home/xkchen/mywork/ICL/data/redmapper/redmapper_dr8_public_v6.3_catalog.fits')
@@ -38,49 +40,70 @@ with h5py.File('cluster_record.h5') as f:
     sub_ratio = np.array(f['a'][2])
     area_ratio = np.array(f['a'][3])
     reference_ratio = np.array(f['a'][4])
+    rich = np.array(f['a'][5])
+'''
 sampl_tot = tot_sub[(z<=0.3) & (z>=0.2)]
-sampl_inr = inr_sub[(z<=0.3) & (z>=0.2)]
+sampl_sub = inr_sub[(z<=0.3) & (z>=0.2)]  # the two number just the galaxies number, the later is those in the 1Mpc/h circle
+'''
 sampl_S_ratio = area_ratio[(z<=0.3) & (z>=0.2)]
 sampl_refer = reference_ratio[(z<=0.3) & (z>=0.2)]
-sampl_rich = inr_sub[(z<=0.3) & (z>=0.2)]
 sampl_z = z[(z<=0.3) & (z>=0.2)]
+sampl_rich = rich[(z<=0.3) & (z>=0.2)]
+###
+plt.hist(rich,bins=50)
+plt.xlabel(r'$\lambda$')
+plt.ylabel(r'$\sharp \ of \ cluster$')
+plt.title(r'$distribution \ of \ \lambda$')
+plt.yscale('log')
+#plt.xscale('log')
+plt.hist(sampl_rich,bins=50)
+plt.xlabel(r'$\lambda$')
+plt.ylabel(r'$\sharp \ of \ cluster$')
+plt.title(r'$distribution \ of \ \lambda$')
+plt.yscale('log')
 ## devide the sampl_z into 5 bins: 0.20~0.22~0.24~0.26~0.28~0.30
-plt.scatter(inr_sub,area_ratio,s=10,alpha=0.25)
-plt.xlabel(r'$N-[in_{R=1mpc/h}]$')
-plt.ylabel(r'$S/S0$')
-plt.title(r'$S/S0-N$')
+plt.scatter(z,rich,s=10,alpha=0.25)
+plt.ylabel(r'$\lambda$')
+plt.xlabel(r'$z$')
+plt.title(r'$z \ \lambda$')
+## 0.2~z~0.3
+plt.scatter(sampl_z,sampl_rich,s=10,alpha=0.25)
+#handy.compare(sampl_z,sampl_rich)
+plt.ylabel(r'$\lambda$')
+plt.xlabel(r'$z$')
+plt.title(r'$z \ \lambda_{0.2 \sim z \sim 0.3}$')
 ## z0.20~0.22
 ta1 = sampl_S_ratio[(sampl_z>=0.20)&(sampl_z<0.22)]
 tb1 = sampl_rich[(sampl_z>=0.20)&(sampl_z<0.22)]
 plt.scatter(tb1,ta1,s=10,alpha=0.25)
-plt.xlabel(r'$N-[in_{R=1mpc/h}]$')
+plt.xlabel(r'$\lambda$')
 plt.ylabel(r'$S/S0$')
-plt.title(r'$[S/S0-N]_{0.20\sim0.22}$')
+plt.title(r'$[S/S0 \ \lambda]_{0.20\sim0.22}$')
 ## z0.22~0.24
 ta2 = sampl_S_ratio[(sampl_z>=0.22)&(sampl_z<0.24)]
 tb2 = sampl_rich[(sampl_z>=0.22)&(sampl_z<0.24)]
 plt.scatter(tb2,ta2,s=10,alpha=0.25)
-plt.xlabel(r'$N-[in_{R=1mpc/h}]$')
+plt.xlabel(r'$\lambda$')
 plt.ylabel(r'$S/S0$')
-plt.title(r'$[S/S0-N]_{0.22\sim0.24}$')
+plt.title(r'$[S/S0 \ \lambda]_{0.22\sim0.24}$')
 ## z0.24~0.26
 ta3 = sampl_S_ratio[(sampl_z>=0.24)&(sampl_z<0.26)]
 tb3 = sampl_rich[(sampl_z>=0.24)&(sampl_z<0.26)]
 plt.scatter(tb3,ta3,s=10,alpha=0.25)
-plt.xlabel(r'$N-[in_{R=1mpc/h}]$')
+plt.xlabel(r'$\lambda$')
 plt.ylabel(r'$S/S0$')
-plt.title(r'$[S/S0-N]_{0.24\sim0.26}$')
+plt.title(r'$[S/S0 \ \lambda]_{0.24\sim0.26}$')
 ## z0.26~0.28
 ta4 = sampl_S_ratio[(sampl_z>=0.26)&(sampl_z<0.28)]
 tb4 = sampl_rich[(sampl_z>=0.26)&(sampl_z<0.28)]
 plt.scatter(tb4,ta4,s=10,alpha=0.25)
-plt.xlabel(r'$N-[in_{R=1mpc/h}]$')
+plt.xlabel(r'$\lambda$')
 plt.ylabel(r'$S/S0$')
-plt.title(r'$[S/S0-N]_{0.26\sim0.28}$')
+plt.title(r'$[S/S0 \ \lambda]_{0.26\sim0.28}$')
 ## z0.28~0.30
 ta5 = sampl_S_ratio[(sampl_z>=0.28)&(sampl_z<=0.30)]
 tb5 = sampl_rich[(sampl_z>=0.28)&(sampl_z<=30)]
 plt.scatter(tb5,ta5,s=10,alpha=0.25)
-plt.xlabel(r'$N-[in_{R=1mpc/h}]$')
+plt.xlabel(r'$\lambda$')
 plt.ylabel(r'$S/S0$')
-plt.title(r'$[S/S0-N]_{0.28\sim0.30}$')
+plt.title(r'$[S/S0 \ \lambda]_{0.28\sim0.30}$')

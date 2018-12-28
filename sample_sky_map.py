@@ -35,7 +35,8 @@ cb = plt.colorbar(im, pad = 0.007,orientation='horizontal')
 cb.set_label('redshift')
 plt.grid(True)
 plt.title('sample position')
-plt.savefig('sample position.png',dpi=600)
+plt.savefig('sample position.pdf',dpi=600)
+plt.close()
 ## 0.2~z~0.3
 zx = z[(z<=0.3) & (z>=0.2)]
 ra = Ra[(z<=0.3) & (z>=0.2)]
@@ -48,4 +49,5 @@ cb1 = plt.colorbar(im1, pad = 0.007,orientation='horizontal',
 cb1.set_label('redshift')
 plt.grid(True)
 plt.title(r'$sample_{0.2\sim0.3} position$')
-plt.savefig('sub sample position.png',dpi=600)
+plt.savefig('sub sample position.pdf',dpi=600)
+plt.close()

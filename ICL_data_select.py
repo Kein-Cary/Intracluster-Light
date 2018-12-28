@@ -39,14 +39,17 @@ member_pos = np.array([sub_data.RA,sub_data.DEC]) # record the position of satel
 RA = np.array(goal_data.RA)
 DEC = np.array(goal_data.DEC)
 redshift = np.array(goal_data.Z_SPEC)
+richness = np.array(goal_data.LAMBDA)
 # except the part with no spectra redshift
 z_eff = redshift[redshift != -1]
 ra_eff = RA[redshift != -1]
 dec_eff = DEC[redshift != -1]
+rich_eff = richness[redshift != -1]
 # select the nearly universe
 z = z_eff[z_eff <= 0.3]
 Ra = ra_eff[z_eff <= 0.3]
 Dec = dec_eff[z_eff <= 0.3]
+rich = rich_eff[z_eff <= 0.3]
 use_z = redshift*1
 size_cluster = 2. # assumptiom: cluster size is 2.Mpc/h
 from ICL_angular_diameter_reshift import mark_by_self
@@ -157,11 +160,11 @@ for k in range(len(z)):
     ax.set_xlim(aa[0],aa[1])
     ax.set_ylim(bb[0],bb[1])
     plt.colorbar(im,fraction = 0.035,pad = 0.03,label = r'$f_{flux}[nanoMaggy]$') # colorbar adjust
-    ax.set_title(r'$Cluster-ra%.3f-dec%.3f-z%.3f-inr%.0f-rS%.3f$'%(Ra[k],Dec[k],z[k],inr_sub[k],area_ratio[k]))
-    plt.savefig(
-           '/mnt/ddnfs/data_users/cxkttwl/ICL/fig/cluster_select_ra%.3f_dec%.3f_z%.3f_rS%.3f_rich%.0f.png'%(Ra[k],Dec[k],z[k],area_ratio[k],inr_sub[k]),dpi= 600)
+    ax.set_title(r'$Cluster \ ra%.3f \ dec%.3f \ z%.3f \ \lambda%.3f \ rS%.3f$'%(Ra[k],Dec[k],z[k],rich[k],area_ratio[k]))
     #plt.savefig(
-    #        '/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/cluster_select_ra%.3f_dec%.3f_z%.3f_rS%.3f_rich%.0f.png'%(Ra[k],Dec[k],z[k],area_ratio[k],inr_sub[k]),dpi= 600)
+    #       '/mnt/ddnfs/data_users/cxkttwl/ICL/fig/cluster_select_ra%.3f_dec%.3f_z%.3f_rS%.3f_rich%.0f.png'%(Ra[k],Dec[k],z[k],area_ratio[k],inr_sub[k]),dpi= 600)
+    plt.savefig(
+            '/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/cluster_select_ra%.3f_dec%.3f_z%.3f_rS%.3f_rich%.3f.png'%(Ra[k],Dec[k],z[k],area_ratio[k],rich[k]),dpi= 600)
     plt.show()
     plt.close()
     # after calculate, set the element as 0., avoid check the same cluster
@@ -171,7 +174,7 @@ for k in range(len(z)):
 record_array: record the total richiness, richiness in R = 1Mpc/h, the ratio of the two; and finally, record
 the effective of the cluster in the photo
 """
-record_array = np.array([tot_sub, inr_sub, sub_ratio, area_ratio, reference_ratio])
+record_array = np.array([tot_sub, inr_sub, sub_ratio, area_ratio, reference_ratio, rich])
 with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/cluster_record.h5', 'w') as f:
     f['a'] = record_array
 with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/cluster_record.h5') as f:
