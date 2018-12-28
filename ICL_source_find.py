@@ -277,6 +277,8 @@ for k in range(bins):
             ay01.set_ticks(spacing = 0.05*U.deg) 
             ay01.set_ticklabel(color = 'green')
             ay01.grid(color = 'green',alpha = 0.5)
+            ax01.set_major_formatter('d.dd')
+            ay01.set_major_formatter('d.dd')
             tx1, ty1 = wcs1.all_world2pix(posx1*U.deg, posy1*U.deg, 1)
             x01, y01 = wcs1.all_world2pix(ra1*U.deg, dec1*U.deg, 1)
             im1 = ax1.imshow(clust1[0],cmap = 'Greys',aspect = 'auto',vmin=1e-5,origin = 'lower',
@@ -309,6 +311,8 @@ for k in range(bins):
             ay02.set_ticks(spacing = 0.05*U.deg) 
             ay02.set_ticklabel(color = 'green')
             ay02.grid(color = 'green',alpha = 0.5)
+            ax02.set_major_formatter('d.dd')
+            ay02.set_major_formatter('d.dd')
             tx2, ty2 = wcs2.all_world2pix(posx2*U.deg, posy2*U.deg, 1)
             x02, y02 = wcs2.all_world2pix(ra2*U.deg, dec2*U.deg, 1)
             im2 = ax2.imshow(clust2[0],cmap = 'Greys',aspect = 'auto',vmin=1e-5,origin = 'lower',
@@ -340,6 +344,8 @@ for k in range(bins):
             ay03.set_ticks(spacing = 0.05*U.deg) 
             ay03.set_ticklabel(color = 'green')
             ay03.grid(color = 'green',alpha = 0.5)
+            ax03.set_major_formatter('d.dd')
+            ay03.set_major_formatter('d.dd')
             tx3, ty3 = wcs3.all_world2pix(posx3*U.deg, posy3*U.deg, 1)
             x03, y03 = wcs3.all_world2pix(ra3*U.deg, dec3*U.deg, 1)
             im3 = ax3.imshow(clust3[0],cmap = 'Greys',aspect = 'auto',vmin=1e-5,origin = 'lower',
@@ -371,6 +377,8 @@ for k in range(bins):
             ay04.set_ticks(spacing = 0.05*U.deg) 
             ay04.set_ticklabel(color = 'green')
             ay04.grid(color = 'green',alpha = 0.5)
+            ax04.set_major_formatter('d.dd')
+            ay04.set_major_formatter('d.dd')
             tx4, ty4 = wcs4.all_world2pix(posx4*U.deg, posy4*U.deg, 1)
             x04, y04 = wcs4.all_world2pix(ra4*U.deg, dec4*U.deg, 1)
             im4 = ax4.imshow(clust4[0],cmap = 'Greys',aspect = 'auto',vmin=1e-5,origin = 'lower',
@@ -402,6 +410,8 @@ for k in range(bins):
             ay05.set_ticks(spacing = 0.05*U.deg) 
             ay05.set_ticklabel(color = 'green')
             ay05.grid(color = 'green',alpha = 0.5)
+            ax05.set_major_formatter('d.dd')
+            ay05.set_major_formatter('d.dd')
             tx5, ty5 = wcs5.all_world2pix(posx5*U.deg, posy5*U.deg, 1)
             x05, y05 = wcs5.all_world2pix(ra5*U.deg, dec5*U.deg, 1)
             im5 = ax5.imshow(clust5[0],cmap = 'Greys',aspect = 'auto',vmin=1e-5,origin = 'lower',
