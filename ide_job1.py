@@ -1,7 +1,4 @@
 # new file use to record calculation
-######## test the luminosity
-
-######## read the SEXtractor data
 from astropy.io.ascii import BaseReader
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -12,6 +9,13 @@ from astropy.utils.data import get_pkg_data_filename
 from astropy.wcs import WCS
 import astropy.constants as C
 import astropy.units as U
+import numpy as np
+######## test the luminosity
+file = get_pkg_data_filename('area_test.fits') # k =1
+hdu = fits.open(file)[0]
+wcs = WCS(hdu.header)
+import mice_symbol 
+######## read the SEXtractor data
 #################
 cir_data = fits.getdata('area_test.fits',header = True)
 wcs = WCS(cir_data[1])
@@ -123,3 +127,86 @@ ax5.set_yticklabels(labels = [], fontsize = 6.5)
 ax5.grid()
 #f.tight_layout(pad = 1.08, h_pad = 1.08, w_pad =1.08)
 #plt.savefig('test_pdf.pdf',dpi=600)
+##################################################### surface brightness calculate
+'''
+#### from the Intensity
+import nstep
+r_e = 20  # effective radius in unit Kpc according Zibetti's work
+I_e = 1   # in unit  (erg/s)/(m^2*Hz)/arcsec^2
+c0 = 1*U.Mpc.to(U.m) # change Mpc to pc, mutply this parameter
+c1 = 1*U.kpc.to(U.m) 
+f0 = 3631*10**(-23)*10**4 # SDSS zero point, in unit: (erg/s)/(m^2*Hz)
+z_e = np.linspace(0.2,0.3,101)
+R_clust = 1. # in unit Mpc
+A_a, D_a = mark_by_self(z_e,R_clust) 
+r_c = D_a*U.Mpc.to(U.pc)
+# luminosity should be consistant
+L0 = nstep.n_step(8)*(np.exp(7.67)/7.67**8)*np.pi*I_e*r_e**2*(U.kpc.to(U.m))**2
+# assumption : I(0) = 2000Ie
+I_c = np.exp(7.669)*I_e
+Ic = I_c*((1+z_e[0])**4)/((1+z_e)**4)
+Ie = Ic/np.exp(7.669)
+### next calculate the profile
+Nbins = np.int(101)
+r_clust = np.linspace(0,1000,Nbins)
+I_clust = np.zeros((Nbins,Nbins),dtype = np.float)
+m_clust = np.zeros((Nbins,Nbins),dtype = np.float)
+M_clust = np.zeros((Nbins,Nbins),dtype = np.float)
+for p in range(len(z_e)):
+    r_index = (r_clust/r_e)**(1/4)
+    I_pros = Ie[p]*np.exp(-7.669*(r_index-1))
+    I_clust[p,:] = I_pros
+    m_clust[p,:] = 22.5-2.5*np.log10(I_pros/f0) ## apparent magnitude 
+    M_clust[p,:] = m_clust[p,:]+5-5*np.log10((1+z_e[p])**2*r_c[p]) ## absolute magnituded  
+### 
+plt.plot(z_e,I_clust[:,0],label = 'center flux')
+plt.xlabel('z')
+plt.ylabel(r'$Center \ Flux[erg s^{-1} m^{-2} Hz^{-1} / arcsec^2]$')
+plt.savefig('center flux intensity.png',dpi = 600)
+###
+plt.plot(z_e,Ie)
+plt.xlabel('z')
+plt.ylabel(r'$Effective \ Flux[erg s^{-1} m^{-2} Hz^{-1} / arcsec^]$')
+plt.savefig('effect flux intensity.png',dpi=600)
+### sb profile change
+for q in range(len(z_e)):
+    if q % 20 == 0:
+        plt.plot(r_clust**(1/4),m_clust[q,:],color = mpl.cm.rainbow(q/len(z_e)),
+                 label = r'$z%.3f$'%z_e[q])
+plt.legend(loc = 1)
+plt.gca().invert_yaxis() # change the y-axis direction
+plt.xlabel(r'$R^{\frac{1}{4}} \ [kpc]$')
+plt.ylabel(r'$Surface \ brightness \ [mag/arcsec^2]$')
+plt.title(r'$SB \ [R] \ as \ function \ of \ z$')
+plt.savefig('SB_apparent_brightness.png',dpi=600)
+### absolute magnitude
+for q in range(len(z_e)):
+    if q % 20 == 0:
+        plt.plot(r_clust**(1/4),M_clust[q,:],color = mpl.cm.rainbow(q/len(z_e)),
+                 label = r'$z%.3f$'%z_e[q],alpha = 0.5)
+plt.legend(loc = 1)
+plt.gca().invert_yaxis() ## invers the direction of axis
+plt.ylabel(r'$M_{absolute \ magnitude} \ [mag/arcsec^2]$')
+plt.xlabel(r'$R^{\frac{1}{4}} \ [arcsec]$')
+plt.title(r'$SB[R] \ in \ absolute \ Magnitude \ as \ z \ function$')
+plt.savefig('SB_absolute_magnitude.png',dpi=600)
+### test the luminosity is constant or not
+################
+def integ_L2(I,r,z,z0):
+    Z = z
+    Z0 = z0
+    F = I
+    R = r # fe, Re are effective radius and flux respectively, R in unit kpc
+    Integ_L = lambda r: F*np.exp(-7.669*((r/R)**(1/4)-1))*2*np.pi*r
+    L = quad(Integ_L,0,np.inf)[0]*(U.kpc.to(U.m))**2*((1+Z)**4)
+    return L
+###############
+L = np.zeros(len(z_e),dtype = np.float)
+for k in range(len(z_e)):
+    L[k] = integ_L2(Ie[k],r_e,z_e[k],z_e[0])
+plt.plot(z_e,L/L[0])
+plt.xlabel('z')
+plt.ylabel(r'$\eta[L/L0]$')
+plt.title(r'$\eta[L/L0] \ z$')
+plt.savefig('Luminosity test.png',dpi = 600)
+'''
