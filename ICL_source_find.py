@@ -74,7 +74,8 @@ bins = 5
 a0 = np.min(sampl_S_ratio)
 b0 = np.max(sampl_S_ratio)
 bins_S = np.linspace(a0,b0,bins+1)
-## record those goal cluster
+## import mice_symble
+import mice_symbol
 # select clusters and figure
 for k in range(bins):
     eta0 = bins_S[k]
@@ -86,7 +87,7 @@ for k in range(bins):
     a1 = np.min(z_sub)
     b1 = np.max(z_sub)
     bins_z = np.linspace(a1,b1,bins+1)
-    f = plt.figure(figsize = (50,50))
+    f = plt.figure(figsize = (50,40))
     f.suptitle(r'$S/S0_{%.3f \sim %.3f}$'%(eta0,eta1), fontsize = 30) # set the figure title
     spc = grid.GridSpec(ncols = 5,nrows = 5,figure = f)
     for p in range(bins):
@@ -286,8 +287,9 @@ for k in range(bins):
             lima1 = ax1.get_xlim()
             limb1 = ax1.get_ylim()
             hsc.circles(x01,y01,s = r1,fc = '',ec = 'r')
-            ax1.scatter(x01,y01, facecolors = '', marker = 'P',edgecolors = 'b')
-            ax1.scatter(tx1,ty1,facecolors = '',marker = 'o',edgecolors = 'r')
+            ax1.scatter(x01,y01, facecolors = '',marker = 'o',linewidth = 1,edgecolors = 'b')
+            #mice_symbol.mice_symble(x01,y01,10,20,20,20,20,c='b',ls='-')
+            ax1.scatter(tx1,ty1,facecolors = '',marker = 'o',linewidth = 1,edgecolors = 'r')
             ax1.set_title(
                     '$Ra_{%.3f} \ Dec_{%.3f} \ \lambda_{%.3f} \ z_{%.3f}$ \n $[%.3f \sim \lambda \sim %.3f][%.3f \sim z \sim%.3f]$'
                           %(ra1,dec1,lamda_array[k1],z_ref1,bins_L[0],bins_L[1],z0,z1),fontsize = 20)
@@ -320,8 +322,9 @@ for k in range(bins):
             lima2 = ax2.get_xlim()
             limb2 = ax2.get_ylim()
             hsc.circles(x02,y02,s = r2,fc = '',ec = 'r')
-            ax2.scatter(x02,y02, facecolors = '', marker = 'P',edgecolors = 'b')
-            ax2.scatter(tx2,ty2,facecolors = '',marker = 'o',edgecolors = 'r')
+            ax2.scatter(x02,y02, facecolors = '',marker = 'o',linewidth = 1,edgecolors = 'b')
+            #mice_symbol.mice_symble(x02,y02,10,20,20,20,20,c='b',ls='-')
+            ax2.scatter(tx2,ty2,facecolors = '',marker = 'o',linewidth = 1,edgecolors = 'r')
             ax2.set_title(r'$Ra_{%.3f} \ Dec_{%.3f} \ \lambda_{%.3f} \ z_{%.3f} [%.3f \sim \lambda \sim %.3f]$'
                           %(ra2,dec2,lamda_array[k2],z_ref2,bins_L[1],bins_L[2]),fontsize = 20)
             #ax2.set_ylabel(r'$\lambda_{%.3f \sim %.3f} \ Z_{%.3f \sim %.3f}$'%
@@ -353,8 +356,9 @@ for k in range(bins):
             lima3 = ax3.get_xlim()
             limb3 = ax3.get_ylim()
             hsc.circles(x03,y03,s = r3,fc = '',ec = 'r')
-            ax3.scatter(x03,y03, facecolors = '', marker = 'P',edgecolors = 'b')
-            ax3.scatter(tx3,ty3,facecolors = '',marker = 'o',edgecolors = 'r')
+            ax3.scatter(x03,y03, facecolors = '', marker = 'o',linewidth = 1,edgecolors = 'b')
+            #mice_symbol.mice_symble(x03,y03,10,20,20,20,20,c='b',ls='-')
+            ax3.scatter(tx3,ty3,facecolors = '',marker = 'o',linewidth = 1,edgecolors = 'r')
             ax3.set_title(r'$Ra_{%.3f} \ Dec_{%.3f} \ \lambda_{%.3f} \ z_{%.3f} [%.3f \sim \lambda \sim %.3f]$'
                           %(ra3,dec3,lamda_array[k3],z_ref3,bins_L[2],bins_L[3]),fontsize = 20)
             #ax3.set_ylabel(r'$\lambda_{%.3f \sim %.3f} \ Z_{%.3f \sim %.3f}$'%
@@ -386,8 +390,9 @@ for k in range(bins):
             lima4 = ax4.get_xlim()
             limb4 = ax4.get_ylim()
             hsc.circles(x04,y04,s = r4,fc = '',ec = 'r')
-            ax4.scatter(x04,y04, facecolors = '', marker = 'P',edgecolors = 'b')
-            ax4.scatter(tx4,ty4,facecolors = '',marker = 'o',edgecolors = 'r')
+            ax4.scatter(x04,y04, facecolors = '',marker = 'o',linewidth = 1,edgecolors = 'b')
+            #mice_symbol.mice_symble(x04,y04,10,20,20,20,20,c='b',ls='-')
+            ax4.scatter(tx4,ty4,facecolors = '',marker = 'o',linewidth = 1,edgecolors = 'r')
             ax4.set_title(r'$Ra_{%.3f} \ Dec_{%.3f} \ \lambda_{%.3f} \ z_{%.3f} [%.3f \sim \lambda \sim %.3f]$'
                           %(ra4,dec4,lamda_array[k4],z_ref4,bins_L[3],bins_L[4]),fontsize = 20)
             #ax4.set_ylabel(r'$\lambda_{%.3f \sim %.3f} \ Z_{%.3f \sim %.3f}$'%
@@ -419,8 +424,9 @@ for k in range(bins):
             lima5 = ax5.get_xlim()
             limb5 = ax5.get_ylim()
             hsc.circles(x05,y05,s = r5,fc = '',ec = 'r')
-            ax5.scatter(x05,y05, facecolors = '', marker = 'P',edgecolors = 'b')
-            ax5.scatter(tx5,ty5,facecolors = '',marker = 'o',edgecolors = 'r')
+            ax5.scatter(x05,y05,facecolors = '',marker = 'o',linewidth = 1,edgecolors = 'b')
+            #mice_symbol.mice_symble(x05,y05,10,20,20,20,20,c='b',ls='-')
+            ax5.scatter(tx5,ty5,facecolors = '',marker = 'o',linewidth = 1,edgecolors = 'r')
             ax5.set_title(r'$Ra_{%.3f} \ Dec_{%.3f} \ \lambda_{%.3f} \ z_{%.3f} [%.3f \sim \lambda \sim %.3f]$'
                           %(ra5,dec5,lamda_array[k5],z_ref5,bins_L[4],bins_L[5]),fontsize = 20)
             #ax5.set_ylabel(r'$\lambda_{%.3f \sim %.3f} \ Z_{%.3f \sim %.3f}$'%
@@ -435,6 +441,7 @@ for k in range(bins):
         
         except ValueError:
             continue
-    plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_summary/S_S0_z_richness%.0f.pdf'%k,dpi=600)
+    #plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_summary/S_S0_z_richness%.0f.pdf'%k,dpi=600)
+    plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/S_S0_z_richness_circle%.0f.pdf'%k,dpi=600)
     plt.close()
     

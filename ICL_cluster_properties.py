@@ -14,8 +14,7 @@ from scipy.integrate import quad as quad
 import handy.scatter as hsc
 from astropy.wcs import *
 import astropy.wcs as awc
-from ICL_angular_diameter_reshift import mark_by_self
-from ICL_angular_diameter_reshift import mark_by_plank
+from ICL_angular_diameter_reshift import mark_by_self_Noh
 from astropy import cosmology as apcy
 ##### from flux
 ## calculate SB profile, assumption: m as the central surface brightness
@@ -26,7 +25,7 @@ c0 = 1*U.Mpc.to(U.m) # change Mpc to pc, mutply this parameter
 f0 = 3631*10**(-23)*10**4 # SDSS zero point, in unit: (erg/s)/(m^2*Hz)
 z_e = np.linspace(0.2,0.3,101)
 R_clust = 1. # in unit Mpc
-A_a, D_a = mark_by_self(z_e,R_clust) 
+A_a, D_a = mark_by_self_Noh(z_e,R_clust) 
 r_c = D_a*U.Mpc.to(U.pc)
 # luminosity should be consistant
 L0 = nstep.n_step(8)*(np.exp(7.67)/7.67**8)*np.pi*f_e*r_e**2*(U.kpc.to(U.m))**2*(1+z_e[0])**4*D_a[0]**2
@@ -80,7 +79,7 @@ for q in range(len(z_e)):
 plt.legend(loc = 1)
 plt.gca().invert_yaxis() ## invers the direction of axis
 plt.ylabel(r'$M_{absolute \ magnitude} \ [mag/arcsec^2]$')
-plt.xlabel(r'$R^{\frac{1}{4}} \ [arcsec]$')
+plt.xlabel(r'$R^{\frac{1}{4}} \ [kpc]$')
 plt.title(r'$SB \ in \ absolute \ Magnitude \ as \ z \ function$')
 plt.savefig('SB_absolute_magnitude.png',dpi=600)
 ### test the luminosity is constant or not
@@ -104,90 +103,151 @@ plt.ylabel(r'$\frac{L}{L0}$')
 plt.title(r'$\frac{L}{L0}(z)$')
 plt.savefig('Luminosity test.png',dpi = 600)
 ##########################################
-###### NFW profile:
+###### based on NFW profile:
 import ICL_surface_mass_density as iy
-Mc = 15 # the mass of the cluster, in unit solar mass 
-Ml = Mc*0.1 # the mass of ICL, here assume the same raito of ICL-mass to cluster-mass
-M2l = 50 # the mass-to-light ratio of ICL
-fn0 = 3631*10**(-23)*10**4 # SDSS zero point, in unit: (erg/s)/(m^2*Hz)
-Lsun = C.L_sun.value*10**7 # sun's luminosity in unit :erg/s
+Mc = 15
 Nbins = 101
-rr = np.logspace(-5,3,Nbins)
+c = 5
+r200 = iy.sigma_m_c(Mc,Nbins)[0]
+rs = r200/c
+sigma = iy.sigma_m_c(Mc,Nbins)[1] # get the surface density in comoving coordinate(based on Plank 15)
+rr = iy.sigma_m_c(Mc,Nbins)[2]
 zn = np.linspace(0.2,0.3,Nbins)
-An_a, Dn_a = mark_by_self(zn,1) # the angular size and angulardiameter distance in NFW model
-Dn_l = (1+zn)**2*Dn_a
-fn = np.zeros((len(zn),len(zn)), dtype = np.float)
-mn = np.zeros((len(zn),len(zn)), dtype = np.float)
-Mn = np.zeros((len(zn),len(zn)), dtype = np.float)
-sigma = iy.sigma_m(Mc, 0, rr)[2]
-Lnc = sigma*Lsun/50
-Ln0 = np.sum(Lnc)
-for k in range(len(zn)):
-    fn[k,:] = Lnc/(4*np.pi*(Dn_l[k])**2*U.Mpc.to(U.m)**2)
-    mn[k,:] = 22.5 - 2.5*np.log10(fn[k,:]/fn0)
-    Mn[k,:] = mn[k,:] +5 -5*np.log10(Dn_l[k]*U.Mpc.to(U.pc))
+An_a, Dn_a = mark_by_self_Noh(zn,r200/1000)
+a = 1/(zn+1)
+Dn_l = Dn_a*(1+zn)**2
+a4 = a**4  # the fourth order of scale factor
+Lc = sigma/50  # the surface luminosity in unit L_sun / kpc^-2
+Ln = np.tile(a4,(Nbins,1)).T*np.tile(Lc,(Nbins,1))/(4*np.pi) 
+f0 = 3631*10**(-23) # zero point in unit (erg/s)/cm^-2
+c0 = U.kpc.to(U.cm)
+c1 = U.Mpc.to(U.pc)
+c2 = U.Mpc.to(U.cm)
+d0 = U.rad.to(U.deg)*3600
+Lsun = C.L_sun.value*10**7 # sun's luminosity in unit :erg/s
 ### 
-fnc = fn[:,0]
-plt.plot(zn,fnc,label = 'mean flux')
-plt.xlabel('z')
-plt.ylabel(r'$Mean \ Flux[erg s^{-1} m^{-2} Hz^{-1}]$')
-plt.savefig('NFW_mean_flux.png',dpi = 600)
-
-plt.plot(rr,sigma,label = '$\Sigma[R]$')
-plt.legend(loc = 1)
-plt.xlabel('$R[kpc]$')
+plt.plot(rr, sigma, label = 'surface density')
+plt.axvline(x=rs,c = 'r',ls = '--',label = '$r_s$')
+plt.legend(loc = 3)
 plt.xscale('log')
-plt.ylabel('$\Sigma[M_\odot kpc^{-2}]$')
-plt.title('$surface \ mass \ density$')
+plt.xlabel('$R[kpc]$')
 plt.yscale('log')
-plt.savefig('NFW_surface_mass_density.png',dpi = 600)
+plt.ylabel('$\Sigma[M_\odot \ kpc^{-2}]$')
+plt.savefig('surface_mass_density.png',dpi=600)
 ###
-for q in range(len(zn)):
-    if q % 20 == 0:
-        plt.plot(rr**(1/4),mn[q,:],color = mpl.cm.rainbow(q/len(zn)),
-                 label = r'$z%.3f$'%zn[q])
-plt.legend(loc = 1)
-plt.gca().invert_yaxis() # change the y-axis direction
-plt.xlabel(r'$R^{\frac{1}{4}} \ [kpc]$')
-plt.ylabel(r'$Surface \ brightness \ [mag/arcsec^2]$')
-plt.title(r'$SB(R) \ as \ function \ of \ z$')
-plt.savefig('NFW_SB_apparent_brightness.png',dpi=600)
-### absolute magnitude
-for q in range(len(zn)):
-    if q % 20 == 0:
-        plt.plot(rr**(1/4),Mn[q,:],color = mpl.cm.rainbow(q/len(zn)),
-                 label = r'$z%.3f$'%zn[q],alpha = 0.5)
-plt.legend(loc = 1)
-plt.gca().invert_yaxis() ## invers the direction of axis
-plt.ylabel(r'$M_{absolute \ magnitude} \ [mag/arcsec^2]$')
-plt.xlabel(r'$R^{\frac{1}{4}} \ [arcsec]$')
-plt.title(r'$SB(R) \ in \ absolute \ Magnitude \ as \ z \ function$')
-plt.savefig('NFW_SB_absolute_magnitude.png',dpi=600)
-####################
-def f_r(m,z,r):
-    Mc = m
-    Z = z
-    R = r
-    sigma = iy.sigma_m(Mc, Z, R)[2]
-    Lnc = sigma*Lsun/50
-    Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
-    Da = Test_model.angular_diameter_distance(Z).value
-    Dl = (1+z)**2*Da
-    flux = Lnc/(4*np.pi*(Dl)**2*(U.Mpc.to(U.m))**2)
-    return flux
-def integ_L3(m,z,r):
-    M = m
-    Z = z
-    r = r
-    flux = lambda x: f_r(M,Z,r)[2]*2*np.pi*x
-    integ_L = quad(flux,r[0],np.inf)[0]*(U.kpc.to(U.m))**2
-    return integ_L
-###############
-L = np.zeros(len(zn),dtype = np.float)
+plt.plot(rr, Lc, label = 'surface luminosity density')
+plt.axvline(x=rs,c = 'r',ls = '--',label = '$r_s$')
+plt.legend(loc = 3)
+plt.xscale('log')
+plt.xlabel('$R[kpc]$')
+plt.yscale('log')
+plt.ylabel(r'$ \frac{ \Sigma}{50} [ L_{ \odot} kpc^{-2}]$')
+plt.savefig('comv_surface_luminosity_density.png',dpi=600)
+###
 for k in range(len(zn)):
-    L[k] = integ_L3(Mc,zn[k],rr)
-plt.plot(zn,L/Ln0)
-plt.xlabel('z')
-plt.ylabel(r'$\frac{L}{L0}$')
-plt.title(r'$\frac{L}{L0}(z)$')
-plt.savefig('NFW_Luminosity_test.png',dpi = 600)
+    if k%10 == 1:
+        plt.plot(rr,Ln[k,:],color = mpl.cm.rainbow(k/Nbins),
+                 label = 'SB%.3f'%zn[k])
+plt.axvline(x=rs,c = 'r',ls = '--',label = '$r_s$')
+plt.legend(loc = 3)
+plt.xscale('log')
+plt.xlabel('$R[kpc]$')
+plt.yscale('log')
+plt.ylabel('$\Sigma[L_\odot \ kpc^{-2}]$')
+plt.title('$SB \ as \ z \ function$')
+plt.savefig('surface_brightness.png',dpi=600)
+### next, calculate the magnitude
+fn = np.tile(Lc,(Ln.shape[0],1))*Lsun/(4*np.pi*np.tile(Dn_l**2*c2**2,(Ln.shape[0],1)).T)
+m = 22.5 - 2.5*np.log10(fn/f0)
+angu_s = 1/(np.tile(Dn_a,(Ln.shape[0],1)).T**2)# change kpc^2 to rad^2
+Angu_s = angu_s*d0**2 # change rad^2 to arcsec^2
+SB1 = m + 2.5*np.log10(Angu_s)
+M = m + 5 -5*np.log10(np.tile(Dn_l*c1,(Ln.shape[0],1)).T)
+Test_SB = 22.5-2.5*np.log10(fn/f0)+2.5*np.log10(Angu_s) ## test the result SB1
+### SB in unit: mag
+for k in range(len(zn)):
+    if k%10 == 1:
+        plt.plot(rr,m[k,:],color = mpl.cm.rainbow(k/Nbins),
+                 label = 'SB%.3f'%zn[k])
+        plt.axvline(x=rs,color = mpl.cm.rainbow(k/Nbins),ls = '--',alpha = 0.5)
+plt.legend(loc = 3)
+plt.xscale('log')
+plt.xlabel('$R[kpc]$')
+plt.ylabel('$ SB[mag]$')
+plt.gca().invert_yaxis() # change the y-axis direction
+plt.title('$ SB_{app} \ as \ z \ function$')
+plt.savefig('surface_brightness_apparent.png',dpi=600)
+### SB in unit: mag/arcsec^2
+for k in range(len(zn)):
+    if k%10 == 1:
+        plt.plot(rr,SB1[k,:],color = mpl.cm.rainbow(k/Nbins),
+                 label = 'SB%.3f'%zn[k])
+        plt.axvline(x=rs,color = mpl.cm.rainbow(k/Nbins),ls = '--',alpha = 0.5)
+plt.legend(loc = 3)
+plt.xscale('log')
+plt.xlabel('$R[kpc]$')
+plt.ylabel('$ SB[mag \ arcsec^{-2}]$')
+plt.gca().invert_yaxis() # change the y-axis direction
+plt.title('$ SB_{app} \ as \ z \ function$')
+plt.savefig('surface_brightness_apparent_arcsec.png',dpi=600)
+### absolute magnitude
+for k in range(len(zn)):
+    if k%10 == 1:
+        plt.plot(rr,M[k,:],color = mpl.cm.rainbow(k/Nbins),
+                 label = 'SB%.3f'%zn[k], alpha = 0.5)
+plt.axvline(x=rs,c = 'r',ls = '--',label = '$r_s$')
+plt.legend(loc = 3)
+plt.xscale('log')
+plt.xlabel('$R[kpc]$')
+plt.ylabel('$ SB [mag]$')
+plt.gca().invert_yaxis() # change the y-axis direction
+plt.title('$ SB_{abs} \ as \ z \ function$')
+plt.savefig('surface_luminosity_absolute.png',dpi=600)
+### change x-axis as arcsec
+alpha = np.tile(rr*d0/1000,(Ln.shape[0],1))/np.tile(Dn_a,(Ln.shape[0],1)).T
+Rs = ((rs/1000)/Dn_a)*d0
+for k in range(len(zn)):
+    if k%10 == 1:
+        plt.plot(alpha[k,:],SB1[k,:],color = mpl.cm.rainbow(k/Nbins),
+                 label = 'SB%.3f'%zn[k])
+        plt.axvline(x=Rs[k],color = mpl.cm.rainbow(k/Nbins),ls = '--',
+                    alpha = 0.35)
+plt.legend(loc = 3) 
+plt.xscale('log')
+plt.xlabel('$R[arcsec]$')
+plt.ylabel('$ SB[mag \ arcsec^{-2}]$')
+plt.gca().invert_yaxis() # change the y-axis direction
+plt.title('$ SB_{app} \ as \ z \ function$')
+plt.savefig('surface_brightness_apparent_arcsec2.png',dpi=600)
+### link with magnitude of sun (from Ln)
+SB_s1 = -2.5*np.log10(Ln/10**6)+ 2.5*np.log10(d0**2)- 5- 2.5*np.log10(4*np.pi)
+#the apparent magnitude in unit mag/arcsec^2 link with M_sun
+for k in range(len(zn)):
+    if k%10 == 1:
+        plt.plot(alpha[k,:],SB_s1[k,:],color = mpl.cm.rainbow(k/Nbins),
+                 label = 'SB%.3f'%zn[k])
+        plt.axvline(x=Rs[k],color = mpl.cm.rainbow(k/Nbins),ls = '--',
+                    alpha = 0.35)
+plt.legend(loc = 3) 
+plt.xscale('log')
+plt.xlabel('$R[arcsec]$')
+plt.ylabel('$ SB - M_\odot[mag \ arcsec^{-2}]$')
+plt.gca().invert_yaxis() # change the y-axis direction
+plt.title('$ SB_{app} \ as \ z \ function$')
+plt.savefig('surface_brightness_apparent_with_sun1.png',dpi=600)
+### lin with magnitude of sun (from Lc)
+SB_s2 = 21.572 - 2.5*np.log10(np.tile(Lc,(Ln.shape[0],1))*10**(-6))+\
+10*np.log10(np.tile(zn,(Ln.shape[0],1)).T+1)
+for k in range(len(zn)):
+    if k%10 == 1:
+        plt.plot(alpha[k,:],SB_s2[k,:],color = mpl.cm.rainbow(k/Nbins),
+                 label = 'SB%.3f'%zn[k])
+        plt.axvline(x=Rs[k],color = mpl.cm.rainbow(k/Nbins),ls = '--',
+                    alpha = 0.35)
+plt.legend(loc = 3) 
+plt.xscale('log')
+plt.xlabel('$R[arcsec]$')
+plt.ylabel('$ SB - M_\odot[mag \ arcsec^{-2}]$')
+plt.gca().invert_yaxis() # change the y-axis direction
+plt.title('$ SB_{app} \ as \ z \ function$')
+plt.savefig('surface_brightness_apparent_with_sun2.png',dpi=600)
