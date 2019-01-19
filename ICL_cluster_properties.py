@@ -16,7 +16,8 @@ from astropy.wcs import *
 import astropy.wcs as awc
 from ICL_angular_diameter_reshift import mark_by_self_Noh
 from astropy import cosmology as apcy
-##### from flux
+'''
+############# from flux
 ## calculate SB profile, assumption: m as the central surface brightness
 import nstep
 r_e = 20  # effective radius in unit Kpc according Zibetti's work
@@ -102,6 +103,7 @@ plt.xlabel('z')
 plt.ylabel(r'$\frac{L}{L0}$')
 plt.title(r'$\frac{L}{L0}(z)$')
 plt.savefig('Luminosity test.png',dpi = 600)
+'''
 ##########################################
 ###### based on NFW profile:
 import ICL_surface_mass_density as iy
