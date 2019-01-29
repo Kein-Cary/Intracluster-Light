@@ -1,28 +1,74 @@
-# this part use for read and change the SEXtractor file parameter "default.parameter"
+# data count for cut region test
 import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
-import handy.scatter as hsc
-import astropy.io.fits as fits
 import numpy as np
-detect = np.loadtxt('/home/xkchen/tool/SExtractor/result/test_circle.cat')
-# sources coordinates
-Ns = detect[:,0][-1] # number of source
-
-sx = detect[:,1]-1
-sy = detect[:,2]-1
-
-A = detect[:,17]
-B = detect[:,18]
-angula = detect[:,19]
-data = fits.getdata('/home/xkchen/mywork/ICL/data/test_data/test_tot_1.fits',header = True)
-
-plt.imshow(data[0],vmin=1e-5,cmap='Greys',origin='lower',norm=mpl.colors.LogNorm())
-hsc.ellipses(sx,sy,w=A,h=B,rot=angula,ec='r',fc='',ls='-',lw=0.5)
-plt.savefig('source.png',dpi=600)
-# result with WCS system
-import astropy.wcs as awc
-from astropy.coordinates import SkyCoord
-import astropy.units as U
 import astropy.constants as C
-sra = detect[:,13]
-sdec = detect[:,14]
+import astropy.units as U
+import astropy.io.fits as aft
+import scipy.stats as sts
+# setlect model
+import astropy.wcs as awc
+goal_data = aft.getdata(
+        '/mnt/ddnfs/data_users/cxkttwl/ICL/data/redmapper/redmapper_dr8_public_v6.3_catalog.fits')
+sub_data = aft.getdata(
+        '/mnt/ddnfs/data_users/cxkttwl/ICL/data/redmapper/redmapper_dr8_public_v6.3_members.fits')
+# find the member of each BGC -cluster, by find the repeat ID
+repeat = sts.find_repeats(sub_data.ID)
+rept_ID = np.int0(repeat)
+ID_array = np.int0(sub_data.ID)
+sub_redshift = np.array(sub_data.Z_SPEC) #use to figure out how big the satellite
+center_distance = sub_data.R # select the distance of satellite galaxies
+member_pos = np.array([sub_data.RA,sub_data.DEC]) # record the position of satellite
+
+RA = np.array(goal_data.RA)
+DEC = np.array(goal_data.DEC)
+redshift = np.array(goal_data.Z_SPEC)
+richness = np.array(goal_data.LAMBDA)
+# except the part with no spectra redshift
+z_eff = redshift[redshift != -1]
+ra_eff = RA[redshift != -1]
+dec_eff = DEC[redshift != -1]
+rich_eff = richness[redshift != -1]
+# select the nearly universe
+z = z_eff[(z_eff >= 0.2)&(z_eff <= 0.3)]
+Ra = ra_eff[(z_eff >= 0.2)&(z_eff <= 0.3)]
+Dec = dec_eff[(z_eff >= 0.2)&(z_eff <= 0.3)]
+rich = rich_eff[(z_eff >= 0.2)&(z_eff <= 0.3)]
+Ntotl = len(z)
+# select region 
+cut = np.array([250,300,350,400,450,500,550,600,650,700,740])
+ratio = np.zeros(len(cut),dtype = np.float)
+Num = np.zeros(len(cut), dtype = np.float)
+for k in range(len(cut)):
+    n = 0
+    for q in range(len(z)):
+        cir_data = aft.getdata(
+            '/mnt/ddnfs/data_users/cxkttwl/ICL/wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'%\
+            ('r',Ra[q],Dec[q],z[q]),header = True)
+        wcs = awc.WCS(cir_data[1])
+        cx,cy = wcs.all_world2pix(Ra[q]*U.deg,Dec[q]*U.deg,1)
+        a0 = cx-cut[k]
+        a1 = cx+cut[k]
+        b0 = cy-cut[k]
+        b1 = cy+cut[k]
+        ref1 = cir_data[0].shape[1]-1
+        ref2 = cir_data[0].shape[0]-1
+        if ((a0 >= 0)&(a1 <= ref1))&((b0 >= 0)&(b1 <= ref2)):
+            n = n+1
+        else:
+            n = n
+    Num[k] = n
+    ratio[k] = n/len(z)
+plt.figure()
+plt.plot(cut,Num)
+plt.xlabel('# pixel')
+plt.ylabel('# cluster')
+plt.savefig('cut_region_test.png',dpi=600)
+plt.close()
+plt.figure()
+plt.plot(cut,ratio)
+plt.xlabel('# pixel')
+plt.ylabel('$\eta$')
+plt.savefig('cut_region_ratio.png',dpi=600)
+plt.close()

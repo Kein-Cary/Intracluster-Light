@@ -64,7 +64,9 @@ plt.savefig('mock_observation.png',dpi=600)
 m0 = 22.19246 
 # use m0=22.5 and the SB in mag/arcsec^2 will larger than obSB (use the abs magnitude of sun) about 0.30754
 intri_SB = np.tile((1+zc)**4,(Nbins,1)).T*4*np.pi*(f0*c3**2*c2**2*c4**(-1))*10**((m0-obSB)/2.5)
-for q in range(len(M200)):
+fSB = 10**6*10**((4.83-obSB+21.572+10*np.log10(1+np.tile(zc,(Nbins,1)).T))/(2.5)) # for comparation
+## here get the result in unit L_sun/kpc^2
+for q in range(len(M200)): 
     plt.plot(r[q,:],intri_SB[q,:],color = mpl.cm.rainbow(q/len(M200)),
              label = 'M%.1f_z%.2f'%(M200[q],zc[q]))
     plt.plot(r[q,:],Lc[q,:],'k--')
@@ -86,7 +88,7 @@ Rs_ref = (rs/1000)*c3/Da_ref
 alpha_ref = (r/1000)*c3/np.tile(Da_ref,(Nbins,len(M200))).T
 for q in range(len(M200)):
     plt.plot(alpha_ref[q,:],obSB_ref[q,:],color = mpl.cm.rainbow(q/len(M200)),
-             label = 'M%.1f_z%.2f'%(M200[q],zc[q]))
+             ls = '-',label = 'M%.1f_z%.2f'%(M200[q],zc[q]))
     plt.axvline(x=Rs_ref[q],color = mpl.cm.rainbow(q/len(M200)),ls = '--',lw=0.5)
 plt.axvline(x=angu_ref,c='k',ls = '-',lw=0.5)
 plt.axvline(x=scale_ref,c='k',ls = '--',lw=0.5)
@@ -97,3 +99,39 @@ plt.gca().invert_yaxis()
 plt.ylabel('$SB_{z0.25}[mag/arcsec^{2}]$')
 plt.savefig('ref_observation.png',dpi=600)
 ### set 300arcsec size as the stacking frame
+select_range = np.zeros((len(M200),Nbins),dtype = np.float)
+select_SB = np.zeros((len(M200),Nbins),dtype = np.float)
+length = np.zeros(len(M200),dtype = np.int0)
+for k in range(len(M200)):
+    ia = alpha[k,:]<=300
+    aa = alpha[k,ia]
+    select_range[k,:len(aa)] = aa
+    select_SB[k,:len(aa)] = obSB[k,ia]
+    ### interpolating based on the most length "one select_range"
+    length[k] = len(aa)
+Num_interp = np.max(length)
+### interpolating
+interp_angu = np.zeros((len(M200),Num_interp),dtype = np.float)
+interp_obSB = np.zeros((len(M200),Num_interp),dtype = np.float)
+for k in range(len(M200)):
+    ib = select_range!=0
+    bb = select_range[ib]
+    ob = select_SB[ib]
+    x0 = np.min(bb)
+    x1 = np.max(bb)
+    xb = np.linspace(x0,x1,Num_interp)
+    yb = np.interp(xb,bb,ob)
+    interp_angu[k,:] = xb
+    interp_obSB[k,:] = yb
+### scale the pixel
+interp_radiu = interp_angu*1000/scale_ref # in unit kpc
+stacking_file = interp_obSB.sum(axis=0)/np.float(len(M200))
+plt.plot(interp_radiu[0],stacking_file,'r-',label = 'stacking profile')
+plt.axvline(x=1000/5,c='b',ls = '--',lw=0.5,label = 'rs')
+plt.axvline(x=1000,c='b',ls = '-',lw=0.5,label = '1Mpc')
+plt.legend(loc = 3)
+plt.xscale('log')
+plt.xlabel('$R[kpc]$')
+plt.gca().invert_yaxis()
+plt.ylabel('$SB_{z0.25}[mag/arcsec^{2}]$')
+plt.savefig('mock_stacking_profile.png',dpi=600)

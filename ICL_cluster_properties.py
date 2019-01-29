@@ -222,7 +222,7 @@ plt.gca().invert_yaxis() # change the y-axis direction
 plt.title('$ SB_{app} \ as \ z \ function$')
 plt.savefig('surface_brightness_apparent_arcsec2.png',dpi=600)
 ### link with magnitude of sun (from Ln)
-SB_s1 = -2.5*np.log10(Ln/10**6)+ 2.5*np.log10(d0**2)- 5- 2.5*np.log10(4*np.pi)
+SB_s1 = -2.5*np.log10(Ln*10**(-6))+ 2.5*np.log10(d0**2)- 5- 2.5*np.log10(4*np.pi)
 #the apparent magnitude in unit mag/arcsec^2 link with M_sun
 for k in range(len(zn)):
     if k%10 == 1:
