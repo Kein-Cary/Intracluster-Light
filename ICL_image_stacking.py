@@ -76,12 +76,6 @@ def R_angl(z):
     R = ((1/h)*c4/Da)/pixel
     return R
 
-def pixel_resample(z,zref):
-    z0 = z
-    z_stak = zref
-    scal_f =
-    return scal_f
-
 R = np.array([R1,R2])
 z = np.array([z1,z2])
 cx = np.array([cx1,cx2])
