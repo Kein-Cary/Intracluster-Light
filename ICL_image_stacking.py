@@ -109,3 +109,4 @@ for k in range(2):
     size_vers = pixel_scale_compa(z[k], z_ref)
     new_size = 1/size_vers
     
+    

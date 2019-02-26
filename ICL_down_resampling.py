@@ -3,31 +3,28 @@
 down resampling: the pixels scale become smaller
 """
 import numpy as np
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-from scipy.interpolate import interp2d as inter2
+#import matplotlib as mpl
+#import matplotlib.pyplot as plt
+'''
 a = np.array([[2,4,3,7,5],[6,1,3,4,8],[7,2,7,5,6],[9,2,2,7,1],[4,6,9,3,4]])
-x0 = np.linspace(0,4,5)
-y0 = np.linspace(0,4,5)
-N0x = len(x0)
-N0y = len(y0)
-f = inter2(x0,y0,a)
-plt.imshow(a, cmap = 'binary', origin = 'lower',)
-plt.show()
-
-##########
-## resampling by new "pixel" result (towards smaller pixel size)
 m1 = 0.8 # coloumn scale (for row direction)
 m2 = 0.8 # row scale (for coloumn direction)
-N1x = np.int((N0x*(1/m1)))
-N1y = np.int((N0y*(1/m2)))
-M0 = np.meshgrid(x0,y0)
-def down_samp(m1, m2, N1, N2, data):
+'''
+##########
+## resampling by new "pixel" result (towards smaller pixel size)
+def down_samp(m1, m2, data):
     a = data
-    Ny = N2
-    Nx = N1
     sNy = a.shape[0]
     sNx = a.shape[1]
+    '''
+    x0 = np.linspace(0,sNx-1,sNx)
+    y0 = np.linspace(0,sNy-1,sNy)
+    M0 = np.meshgrid(x0,y0)
+    '''
+    N1x = np.int((sNx*(1/m1)))
+    N1y = np.int((sNy*(1/m2)))
+    Ny = N1y
+    Nx = N1x
     x1 = np.linspace(0,Nx-1,Nx)
     y1 = np.linspace(0,Ny-1,Ny)
     M1 = np.meshgrid(x1,y1)
@@ -143,7 +140,7 @@ def down_samp(m1, m2, N1, N2, data):
                 else:
                     pass
     return sample
-resam = np.zeros((N1y, N1x), dtype = np.float)
-resam = down_samp(m1, m2, N1x, N1y, a)
+'''
+resam = down_samp(m1, m2, a)
 plt.imshow(resam,cmap='binary',origin='lower')
-plt.show()
+'''

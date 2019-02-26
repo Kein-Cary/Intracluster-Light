@@ -1,32 +1,26 @@
 # this file shows up-resampling
 """
-up-resampling : the pixels scale become larger
+sum-resampling : the pixels scale become larger
 """
 import numpy as np
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-from scipy.interpolate import interp2d as inter2
+#import matplotlib as mpl
+#import matplotlib.pyplot as plt
+'''
 a = np.array([[2,4,3,7,5],[6,1,0,4,8],[7,2,7,5,6],[9,2,0,7,1],[4,6,9,3,4]])
-x0 = np.linspace(0,4,5)
-y0 = np.linspace(0,4,5)
-N0x = len(x0)
-N0y = len(y0)
-f = inter2(x0,y0,a)
-plt.imshow(a, cmap = 'binary', origin = 'lower',)
-plt.show()
-
-##########          
-## resampling by new "pixel" result (towards bigger pixel size)
 m1 = 1.2
 m2 = 1.2
-N2 = np.int(np.ceil(N0y*(1/m2)))
-N1 = np.int(np.ceil(N0x*(1/m1)))
-x0 = np.linspace(0, a.shape[1]-1, a.shape[1])
-y0 = np.linspace(0, a.shape[0]-1, a.shape[0])
-M = np.meshgrid(x0,y0)
-resam = np.zeros((N2, N1), dtype = np.float)
-def sum_samp(N1, N2, m1, m2, data):
+'''
+##########          
+## resampling by new "pixel" result (towards bigger pixel size)
+def sum_samp(m1, m2, data):
     a = data
+    N0x = a.shape[1]
+    N0y = a.shape[0]
+    x0 = np.linspace(0,N0x-1,N0x)
+    y0 = np.linspace(0,N0y-1,N0y)
+    M = np.meshgrid(x0,y0)
+    N2 = np.int(np.ceil(N0y*(1/m2)))
+    N1 = np.int(np.ceil(N0x*(1/m1)))
     Nx = N1
     Ny = N2
     sample = np.zeros((Ny, Nx), dtype = np.float)
@@ -90,4 +84,7 @@ def sum_samp(N1, N2, m1, m2, data):
             sample[p,k] = suma
     return sample
 # test part 
-resam = sum_samp(N2, N1, m1, m2, a)
+'''
+resam = sum_samp(m1, m2, a)
+plt.imshow(resam,cmap='binary',origin='lower')
+'''
