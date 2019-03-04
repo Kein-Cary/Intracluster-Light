@@ -444,4 +444,3 @@ for k in range(bins):
     #plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_summary/S_S0_z_richness%.0f.pdf'%k,dpi=600)
     plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/S_S0_z_richness_circle%.0f.pdf'%k,dpi=600)
     plt.close()
-    

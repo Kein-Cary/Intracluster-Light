@@ -7,12 +7,14 @@ import numpy as np
 #import matplotlib.pyplot as plt
 '''
 a = np.array([[2,4,3,7,5],[6,1,0,4,8],[7,2,7,5,6],[9,2,0,7,1],[4,6,9,3,4]])
+cx0 = 2
+cy0 = 2
 m1 = 1.2
 m2 = 1.2
 '''
 ##########          
 ## resampling by new "pixel" result (towards bigger pixel size)
-def sum_samp(m1, m2, data):
+def sum_samp(m1, m2, data, cx0, cy0):
     a = data
     N0x = a.shape[1]
     N0y = a.shape[0]
@@ -23,6 +25,11 @@ def sum_samp(m1, m2, data):
     N1 = np.int(np.ceil(N0x*(1/m1)))
     Nx = N1
     Ny = N2
+    # get new center pixel
+
+    cx = np.ceil(np.ceil(cx0)/m1)
+    cy = np.ceil(np.ceil(cy0)/m2)
+    cpos = np.array([cx, cy])
     sample = np.zeros((Ny, Nx), dtype = np.float)
     for p in range(Ny):
         for k in range(Nx):
@@ -82,9 +89,9 @@ def sum_samp(m1, m2, data):
                 else:
                     pass
             sample[p,k] = suma
-    return sample
+    return sample, cpos
 # test part 
 '''
-resam = sum_samp(m1, m2, a)
+resam = sum_samp(m1, m2, a, cx0, cy0)[0]
 plt.imshow(resam,cmap='binary',origin='lower')
 '''

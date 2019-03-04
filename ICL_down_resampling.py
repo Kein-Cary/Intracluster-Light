@@ -7,12 +7,14 @@ import numpy as np
 #import matplotlib.pyplot as plt
 '''
 a = np.array([[2,4,3,7,5],[6,1,3,4,8],[7,2,7,5,6],[9,2,2,7,1],[4,6,9,3,4]])
+cx0 = 2
+cy0 = 2
 m1 = 0.8 # coloumn scale (for row direction)
 m2 = 0.8 # row scale (for coloumn direction)
 '''
 ##########
 ## resampling by new "pixel" result (towards smaller pixel size)
-def down_samp(m1, m2, data):
+def down_samp(m1, m2, data, cx0, cy0):
     a = data
     sNy = a.shape[0]
     sNx = a.shape[1]
@@ -28,6 +30,11 @@ def down_samp(m1, m2, data):
     x1 = np.linspace(0,Nx-1,Nx)
     y1 = np.linspace(0,Ny-1,Ny)
     M1 = np.meshgrid(x1,y1)
+    # get the new center pixel
+    
+    cx = np.ceil(np.ceil(cx0)/m1)
+    cy = np.ceil(np.ceil(cy0)/m2)
+    cpos = np.array([cx, cy])
     sample = np.zeros((Ny, Nx), dtype = np.float)
     for k in range(sNy):
         for l in range(sNx):
@@ -139,8 +146,8 @@ def down_samp(m1, m2, data):
                                         np.abs(nedxr-edxr)*np.abs(nedyu-nedyb)*a[k,l+1]
                 else:
                     pass
-    return sample
+    return sample, cpos
 '''
-resam = down_samp(m1, m2, a)
+resam = down_samp(m1, m2, a, cx0, cy0)
 plt.imshow(resam,cmap='binary',origin='lower')
 '''

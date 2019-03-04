@@ -158,6 +158,7 @@ plt.yscale('log')
 plt.ylabel('$\Sigma[L_\odot \ kpc^{-2}]$')
 plt.title('$SB \ as \ z \ function$')
 plt.savefig('surface_brightness.png',dpi=600)
+
 ### next, calculate the magnitude
 fn = np.tile(Lc,(Ln.shape[0],1))*Lsun/(4*np.pi*np.tile(Dn_l**2*c2**2,(Ln.shape[0],1)).T)
 m = 22.5 - 2.5*np.log10(fn/f0)
@@ -166,7 +167,18 @@ Angu_s = angu_s*d0**2 # change rad^2 to arcsec^2
 SB1 = m + 2.5*np.log10(Angu_s)
 M = m + 5 -5*np.log10(np.tile(Dn_l*c1,(Ln.shape[0],1)).T)
 Test_SB = 22.5-2.5*np.log10(fn/f0)+2.5*np.log10(Angu_s) ## test the result SB1
-### SB in unit: mag
+
+alpha = np.tile(rr*d0/1000,(Ln.shape[0],1))/np.tile(Dn_a,(Ln.shape[0],1)).T
+Rs = ((rs/1000)/Dn_a)*d0
+
+### link with magnitude of sun (from Ln)
+SB_s1 = -2.5*np.log10(Ln*10**(-6))+ 2.5*np.log10(d0**2)- 5- 2.5*np.log10(4*np.pi)
+#the apparent magnitude in unit mag/arcsec^2 link with M_sun
+
+### lin with magnitude of sun (from Lc)
+SB_s2 = 21.572 - 2.5*np.log10(np.tile(Lc,(Ln.shape[0],1))*10**(-6))+\
+10*np.log10(np.tile(zn,(Ln.shape[0],1)).T+1)
+
 for k in range(len(zn)):
     if k%10 == 1:
         plt.plot(rr,m[k,:],color = mpl.cm.rainbow(k/Nbins),
@@ -192,6 +204,7 @@ plt.ylabel('$ SB[mag \ arcsec^{-2}]$')
 plt.gca().invert_yaxis() # change the y-axis direction
 plt.title('$ SB_{app} \ as \ z \ function$')
 plt.savefig('surface_brightness_apparent_arcsec.png',dpi=600)
+
 ### absolute magnitude
 for k in range(len(zn)):
     if k%10 == 1:
@@ -205,9 +218,8 @@ plt.ylabel('$ SB [mag]$')
 plt.gca().invert_yaxis() # change the y-axis direction
 plt.title('$ SB_{abs} \ as \ z \ function$')
 plt.savefig('surface_luminosity_absolute.png',dpi=600)
+
 ### change x-axis as arcsec
-alpha = np.tile(rr*d0/1000,(Ln.shape[0],1))/np.tile(Dn_a,(Ln.shape[0],1)).T
-Rs = ((rs/1000)/Dn_a)*d0
 for k in range(len(zn)):
     if k%10 == 1:
         plt.plot(alpha[k,:],SB1[k,:],color = mpl.cm.rainbow(k/Nbins),
@@ -221,9 +233,7 @@ plt.ylabel('$ SB[mag \ arcsec^{-2}]$')
 plt.gca().invert_yaxis() # change the y-axis direction
 plt.title('$ SB_{app} \ as \ z \ function$')
 plt.savefig('surface_brightness_apparent_arcsec2.png',dpi=600)
-### link with magnitude of sun (from Ln)
-SB_s1 = -2.5*np.log10(Ln*10**(-6))+ 2.5*np.log10(d0**2)- 5- 2.5*np.log10(4*np.pi)
-#the apparent magnitude in unit mag/arcsec^2 link with M_sun
+
 for k in range(len(zn)):
     if k%10 == 1:
         plt.plot(alpha[k,:],SB_s1[k,:],color = mpl.cm.rainbow(k/Nbins),
@@ -237,9 +247,7 @@ plt.ylabel('$ SB - M_\odot[mag \ arcsec^{-2}]$')
 plt.gca().invert_yaxis() # change the y-axis direction
 plt.title('$ SB_{app} \ as \ z \ function$')
 plt.savefig('surface_brightness_apparent_with_sun1.png',dpi=600)
-### lin with magnitude of sun (from Lc)
-SB_s2 = 21.572 - 2.5*np.log10(np.tile(Lc,(Ln.shape[0],1))*10**(-6))+\
-10*np.log10(np.tile(zn,(Ln.shape[0],1)).T+1)
+
 for k in range(len(zn)):
     if k%10 == 1:
         plt.plot(alpha[k,:],SB_s2[k,:],color = mpl.cm.rainbow(k/Nbins),

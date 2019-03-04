@@ -2,7 +2,6 @@
 # image stacking test: use square cut region
 """
 import matplotlib as mpl
-#mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import astropy.constants as C
@@ -10,9 +9,10 @@ import astropy.units as U
 from astropy import cosmology as apcy
 import astropy.io.fits as fits
 import astropy.wcs as awc
-from scipy.interpolate import interp2d as inter2
-from scipy.interpolate import RectBivariateSpline as spline
-import find
+# resample part
+from ICL_up_resampling import sum_samp
+from ICL_down_resampling import down_samp
+
 c0 = U.kpc.to(U.cm)
 c1 = U.Mpc.to(U.pc)
 c2 = U.Mpc.to(U.cm)
@@ -31,7 +31,7 @@ pixel = 0.396 # the pixel size in unit arcsec
 z_ref = 0.250 
 Jy = 10**(-23) # (erg/s)/cm^2
 f0 = 3631*10**(-23) # zero point in unit (erg/s)/cm^-2
-select_a = 500 # in unit pixel
+select_a = 50 # in unit pixel
 Da_ref = Test_model.angular_diameter_distance(z_ref).value
 R_ref = Da_ref*select_a*pixel/c4
 scal_ref = select_a/R_ref # 1Mpc = scal_ref pixel
@@ -63,10 +63,10 @@ scal2 = select_a/R2
 
 ###
 def flux_scale(data,z,zref):
-    obs = data+1000
+    obs = data 
     z0 = z
     z_stak = zref
-    ref_data = obs*(1+z0)**4/(1+z_stak)**4 -1000*(1+z0)**4/(1+z_stak)**4
+    ref_data = obs*(1+z0)**4/(1+z_stak)**4 
     return ref_data
 
 def extractor(data,x0,x1,y0,y1):
@@ -82,22 +82,46 @@ def extractor(data,x0,x1,y0,y1):
     M_use = M[m0:m1+1,n0:n1+1]
     return M_use
 
+def pixel_scale_compa(z, zref):
+    z0 = z
+    z_stak = zref
+    Da_0 = Test_model.angular_diameter_distance(z0).value
+    L_0 = Da_0*pixel/c4
+    Da_ref = Test_model.angular_diameter_distance(z_stak).value
+    L_ref = Da_ref*pixel/c4
+    pix_ratio = L_ref/L_0
+    return pix_ratio
+
+def R_angl(z):
+    z = z
+    Da = Test_model.angular_diameter_distance(z).value
+    R = ((1/h)*c4/Da)/pixel
+    return R
+
 ###
 z = np.array([z1,z2])
 R = np.array([R1,R2])
 ra = np.array([ra1,ra2])
 dec = np.array([dec1,dec2])
 cen = np.array([[cx1,cy1],[cx2,cy2]])
+cx = np.array([cx1,cx2])
+cy = np.array([cy1,cy2])
 data = np.array([data1[0],data2[0]])
 header = [data1[1],data2[1]]
 scal = np.array([scal1,scal2])
-image = {}
+
 pos_record = np.zeros((len(z),2),dtype = np.float)
 x0 = np.linspace(0,2047,2048)
 y0 = np.linspace(0,1488,1489)
 pix_id = np.array(np.meshgrid(x0,y0)) # set a data grid
 R_stack = np.zeros((len(z),2),dtype = np.float)
 NMGY = np.array([transf1, transf2])
+
+import matplotlib.gridspec as grid
+f = plt.figure(figsize = (20,20))
+f.suptitle('calculate process', fontsize = 20) # set the figure title
+spc = grid.GridSpec(ncols = 3,nrows = 2,figure = f)
+
 for k in range(len(z)):
     a0 = np.floor(cen[k,0] - select_a)
     a1 = np.ceil(cen[k,0] + select_a)
@@ -105,29 +129,55 @@ for k in range(len(z)):
     b1 = np.ceil(cen[k,1] + select_a)
     idr = ((pix_id[0]<=a1)&(pix_id[0]>=a0))&((pix_id[1]<=b1)&(pix_id[1]>=b0))
     # region select
-    mirro = data[k]*(idr*1)
     mirr1 = extractor(data[k],a0,a1,b0,b1)
-    oa = (cen[k,0] - select_a) - np.floor(cen[k,0] - select_a)
-    ob = (cen[k,1] - select_a) - np.floor(cen[k,1] - select_a)
-    rx, ry = np.array([select_a+oa,select_a+ob])
-    # flux re-calculate
-    interf = flux_scale(mirr1, z[k], z_ref)
-    scal_data = interf/(scal_ref/scal[k])
-    image['%.0f'%k] = scal_data       
-    R_stack[k,0] = (mirr1.shape[1]/2)/scal_ref
-    R_stack[k,1] = (mirr1.shape[0]/2)/scal_ref
-    pos_record[k,0] = rx
-    pos_record[k,1] = ry
-shape_a,shape_b = image['0'].shape  
-sum_f = np.zeros((len(z),shape_a,shape_b),dtype = np.float)
-for k in range(len(image)):
-    sum_f[k,:] = image['%.0f'%k]
-stac_data = sum_f.sum(axis=0)/len(image) 
-#### the follow part record: fits file creat with given header
-keys = ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2','CRPIX1','CRPIX2','NMGY',
-        'CRVAL1','CRVAL2','ORIGN_Z','Z_REF','SAMP_N']
-value = ['T', -32, 2, shape_a, shape_b, rx, ry, NMGY[1], ra1, dec1, z1, z_ref, 706]
-ff = dict(zip(keys,value))
-fil = fits.Header(ff)
-fits.writeto('/home/xkchen/Meeting/stacking_image_%s_ra%.3f_dec%.3f.fits'%(
-        'r',ra1,dec1),scal_data,header = fil,overwrite=True) 
+    # pixel change
+    size_vers = pixel_scale_compa(z[k], z_ref)
+    new_size = 1/size_vers
+    mt = np.float('%.3f'%size_vers)
+    inter_data = flux_scale(mirr1, z[k], z_ref) 
+    minus_data = mirr1/inter_data
+    if size_vers > 1:
+        sum_data, cpos = sum_samp(mt, mt, inter_data, select_a, select_a)
+    else:
+        sum_data, cpos = down_samp(mt, mt, inter_data, select_a, select_a)
+    
+    ax1 = f.add_subplot(spc[0,0])
+    im1 = ax1.imshow(mirr1,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
+    plt.colorbar(im1, label = 'flux [nMgy]', fraction = 0.048,pad = 0.003)
+    ax1.scatter(select_a, select_a, facecolors = '',marker='o',edgecolors='r')
+    ax1.set_title('flux of z0')
+    
+    ax4 = f.add_subplot(spc[1,0])
+    im4 = ax4.imshow(mirr1,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
+    plt.colorbar(im4, label = 'flux [nMgy]', fraction = 0.048,pad = 0.003)
+    ax4.scatter(select_a, select_a, facecolors = '',marker='o',edgecolors='r')
+    ax4.set_title('original pixel image')
+    
+    ax2 = f.add_subplot(spc[0,1])        
+    im2 = ax2.imshow(inter_data,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
+    plt.colorbar(im2, label = 'flux [nMgy]', fraction = 0.048, pad = 0.003)
+    ax2.scatter(select_a, select_a, facecolors = '',marker='o',edgecolors='r')
+    ax2.set_title('flux at z_ref')
+    
+    ax3 = f.add_subplot(spc[0,2])
+    im3 = ax3.imshow(minus_data,cmap = plt.get_cmap('Greys', 10),vmin=5e-1, vmax = 1,origin = 'lower',norm = mpl.colors.LogNorm())
+    plt.colorbar(im3,label = 'ratio', fraction = 0.048, pad = 0.003)
+    ax3.scatter(select_a, select_a, facecolors = '',marker='o',edgecolors='r')
+    ax3.set_title('ratio of z0 to flux at z_ref')
+    
+    ax5 = f.add_subplot(spc[1,1])
+    im5 = ax5.imshow(mirr1,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
+    plt.colorbar(im5,label = 'flux [nMgy]', fraction = 0.048, pad = 0.003)
+    ax5.axes.imshow(inter_data,cmap='rainbow',vmin=1e-5,origin='lower',extent=(0,100*new_size,0,100*new_size),
+                    norm = mpl.colors.LogNorm())
+    ax5.scatter(select_a*new_size,select_a*new_size,facecolors = '',marker='o',edgecolors='b')
+    ax5.set_title('pixel size change(the color part is z0 image)')
+    
+    ax6 = f.add_subplot(spc[1,2])
+    im6 = ax6.imshow(sum_data,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
+    plt.colorbar(im6, label = 'flux [nMgy]', fraction = 0.048,pad = 0.003)
+    ax6.scatter(cpos[0],cpos[1],facecolors = '',marker='o',edgecolors='r')
+    ax6.set_title('resample')
+    
+    plt.savefig('resample_test.pdf',dpi = 600)
+    plt.close(f)
