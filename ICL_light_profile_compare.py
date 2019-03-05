@@ -58,8 +58,8 @@ Dec = dec_eff[z_eff <= 0.3]
 Rich = rich_eff[z_eff <= 0.3]
 cg_ID = ID_eff[z_eff <= 0.3]
 size_cluster = 2. # assumptiom: cluster size is 2.Mpc/h
-from ICL_angular_diameter_reshift import mark_by_self
-A_size, A_d= mark_by_self(z,size_cluster)
+from ICL_angular_diameter_reshift import mark_by_self_Noh
+A_size, A_d= mark_by_self_Noh(z,size_cluster)
 view_d = A_size*U.rad
 R_A = 0.5*view_d.to(U.arcsec) # angular radius in angular second unit
 
@@ -89,22 +89,31 @@ a0 = np.min(sampl_S_ratio)
 b0 = np.max(sampl_S_ratio)
 bins_S = np.linspace(a0,b0,bins+1)
 
-def flux_scale(data,z,zref):
-    obs = data 
-    z0 = z
+def flux_scale(data, s0, z0, zref):
+    obs = data
+    s0 = s0
+    z0 = z0
     z_stak = zref
-    ref_data = obs*(1+z0)**4/(1+z_stak)**4 
+    ref_data = (obs/s0)*(1+z0)**4/(1+z_stak)**4 
     return ref_data
 
-def flux_reunit(flux, area, z):
-    F = flux
-    A = area
-    Z0 = z
-    Da = Test_model.angular_diameter_distance(Z0).value
-    S = Da**2*A*10**12/c04**2 # in unit pc^2
-    L = 4*np.pi*(1+Z0)**4*Da**2*F*3.631*10**(-29)*c02**2*Lsun**(-1)
-    LoA = L/S
-    return LoA
+def flux_recal(data, z0, zref):
+    obs = data
+    z0 = z0
+    z1 = zref
+    Da0 = Test_model.angular_diameter_distance(z0).value
+    Da1 = Test_model.angular_diameter_distance(z1).value
+    flux = obs*((1+z0)**2*Da0)**2/((1+z1)**2*Da1)**2
+    return flux
+
+def angu_area(s0, z0, zref):
+    s0 = s0
+    z0 = z0
+    z1 = zref
+    Da0 = Test_model.angular_diameter_distance(z0).value
+    Da1 = Test_model.angular_diameter_distance(z1).value
+    angu_S = s0*Da0**2/Da1**2
+    return angu_S
 
 def bin_light(data_in, Rp, N, cx, cy, z0, z_ref):
     R_pixel = Rp
@@ -115,75 +124,89 @@ def bin_light(data_in, Rp, N, cx, cy, z0, z_ref):
     pix_id = np.array(np.meshgrid(x0,y0)) #data grid for original data  
     Nbins = N
     f_data = data_in
-    r = np.logspace(1e-2, np.log10(R_pixel), Nbins)
+    
+    r = np.logspace(-2, np.log10(R_pixel), Nbins) # in unit: pixel number
     ia = r<= 2
     ib = np.array(np.where(ia == True))
     ic = ib.shape[1]
-    R = (r/R_pixel)*10**3# in unit kpc/h
+    R = (r/R_pixel)*10**3 # in unit kpc
     R = R[np.max(ib):]
+    r0 = r[np.max(ib):]*pixel
+    
+    Da_ref = Test_model.angular_diameter_distance(z_ref).value
+    Ar1 = ((R/10**3)/Da_ref)*c04 # in unit arcsec
+    
     dr = np.sqrt((pix_id[0]-cx)**2+(pix_id[1]-cy)**2)
-    light = np.zeros((2,len(r)-ic+1), dtype = np.float)
+    light = np.zeros(len(r)-ic+1, dtype = np.float)
+    zrefl = np.zeros(len(r)-ic+1, dtype = np.float)
+    dim_l = np.zeros(len(r)-ic+1, dtype = np.float)
     thero_l = np.zeros(len(r)-ic+1, dtype = np.float)
-    for q in range(2):
-        for k in range(1,len(r)):
-            if q == 0:
-                if r[k] <= 2:
-                    ig = r <= 2
-                    ih = np.array(np.where(ig == True))
-                    im = np.max(ih)
-                    ir = dr < r[im]
-                    io = np.where(ir == True)
-                    iy = io[0]
-                    ix = io[1]
-                    num = len(ix)
-                    tot_flux = np.sum(f_data[iy,ix])/num
-                    tot_area = pixel**2
-                    light[q,0] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
-                    loa = flux_reunit(tot_flux, tot_area, z0)
-                    thero_l[0] = 4.83-2.5*np.log10(loa)+10*np.log10(1+z0)-21.572 
-                    k = im+1 
-                else:
-                    ir = (dr >= r[k-1]) & (dr < r[k])
-                    io = np.where(ir == True)
-                    iy = io[0]
-                    ix = io[1]
-                    num = len(ix)
-                    tot_flux = np.sum(f_data[iy,ix])/num
-                    tot_area = pixel**2
-                    light[q,k-im] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area) # mag/arcsec^2
-                    loa = flux_reunit(tot_flux, tot_area, z0)
-                    thero_l[k-im] = 4.83-2.5*np.log10(loa)+10*np.log10(1+z0)-21.572
+    for k in range(1,len(r)):
+            if r[k] <= 2:
+                ig = r <= 2
+                ih = np.array(np.where(ig == True))
+                im = np.max(ih)
+                ir = dr < r[im]
+                io = np.where(ir == True)
+                iy = io[0]
+                ix = io[1]
+                num = len(ix)
+                tot_flux = np.sum(f_data[iy,ix])/num
+                tot_area = pixel**2
+                light[0] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
+                k = im+1 
             else:
-                data = flux_scale(f_data, z0, z_ref)
-                if r[k] <= 2:
-                    ig = r <= 2
-                    ih = np.array(np.where(ig == True))
-                    im = np.max(ih)
-                    ir = dr < r[im]
-                    io = np.where(ir == True)
-                    iy = io[0]
-                    ix = io[1]
-                    num = len(ix)
-                    tot_flux = np.sum(data[iy,ix])/num
-                    tot_area = pixel**2
-                    light[q,0] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
-                    loa = flux_reunit(tot_flux, tot_area, z0)
-                    thero_l[0] = 4.83-2.5*np.log10(loa)+10*np.log10(1+z0)-21.572
-                    k = im+1
-                else:
-                    ir = (dr >= r[k-1]) & (dr < r[k])
-                    io = np.where(ir == True)
-                    iy = io[0]
-                    ix = io[1]
-                    num = len(ix)
-                    tot_flux = np.sum(data[iy,ix])/num
-                    tot_area = pixel**2
-                    light[q,k-im] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area) # mag/arcsec^2
-                    loa = flux_reunit(tot_flux, tot_area, z0)
-                    thero_l[k-im] = 4.83-2.5*np.log10(loa)+10*np.log10(1+z0)-21.572
-    Da = Test_model.angular_diameter_distance(z0).value
-    R_angu = ((R/1000)/Da)*c04
-    return light, R, thero_l, R_angu
+                ir = (dr >= r[k-1]) & (dr < r[k])
+                io = np.where(ir == True)
+                iy = io[0]
+                ix = io[1]
+                num = len(ix)
+                tot_flux = np.sum(f_data[iy,ix])/num
+                tot_area = pixel**2
+                light[k-im] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area) # mag/arcsec^2
+    thero_l = light +10*np.log10((1+z_ref)/(1+z0))
+    
+    f_dim = flux_scale(f_data, pixel**2, z0, z_ref)
+    s_new = angu_area(pixel**2, z0, z_ref)
+    #d_new = np.sqrt(s_new)
+    
+    f_dim = f_dim*s_new
+    f_ref = flux_recal(f_data, z0, z_ref)
+    
+    for k in range(1,len(r)):
+        if r[k] <= 2:
+            ig = r <= 2
+            ih = np.array(np.where(ig == True))
+            im = np.max(ih)
+            ir = dr <= r[im]
+            io = np.where(ir == True)
+            iy = io[0]
+            ix = io[1]
+            num = len(ix)
+            
+            tot_flux1 = np.sum(f_dim[iy,ix])/num
+            tot_area1 = s_new
+            dim_l[0] = 22.5-2.5*np.log10(tot_flux1)+2.5*np.log10(tot_area1)
+            
+            tot_flux2 = np.sum(f_ref[iy,ix])/num
+            tot_area2 = s_new
+            zrefl[0] = 22.5-2.5*np.log10(tot_flux2)+2.5*np.log10(tot_area2)        
+            k = im+1
+        else:
+            ir = (dr >= r[k-1]) & (dr < r[k])
+            io = np.where(ir == True)
+            iy = io[0]
+            ix = io[1]
+            num = len(ix)
+            
+            tot_flux1 = np.sum(f_dim[iy,ix])/num
+            tot_area1 = s_new
+            dim_l[k-im] = 22.5-2.5*np.log10(tot_flux1)+2.5*np.log10(tot_area1)
+            
+            tot_flux2 = np.sum(f_ref[iy,ix])/num
+            tot_area2 = s_new
+            zrefl[k-im] = 22.5-2.5*np.log10(tot_flux2)+2.5*np.log10(tot_area2)
+    return light, zrefl, dim_l, thero_l, R, r0, Ar1
 
 for k in range(bins):
     eta0 = bins_S[k]
@@ -242,13 +265,14 @@ for k in range(bins):
             wcs1 = awc.WCS(clust1[1])
             tx1, ty1 = wcs1.all_world2pix(posx1*U.deg, posy1*U.deg, 1)
             x01, y01 = wcs1.all_world2pix(ra1*U.deg, dec1*U.deg, 1)
-            light1, R1, thero_L1, R_angu1 = bin_light(clust1[0], r1, Nbins, x01, y01, z_ref1, z_ref)
+            light1, zrefl1, dim_l1, thero_L1, R1, Ar01, Ar11 = bin_light(clust1[0], r1, Nbins, x01, y01, z_ref1, z_ref)
             ax1 = f.add_subplot(spc[p,0])
-            # ax1.plot(R1, light1[0,:], c = 'b', label = 'SB_z0')
-            # ax1.plot(R1, light1[1,:], c = 'r', label = 'SB_zref')
-            ax1.plot(R_angu1, light1[0,:], c = 'b', label = 'SB_z0')
-            ax1.plot(R_angu1, light1[1,:], c = 'r', label = 'SB_zref')
-            ax1.plot(R_angu1, thero_L1, c = 'g', label = 'theory')
+            # ax1.plot(R1, light1, c = 'b', label = 'SB_z0')
+            # ax1.plot(R1, zrefl1, c = 'r', label = 'SB_zref')
+            ax1.plot(Ar01, light1, 'k-', label = 'SB_z0')
+            ax1.plot(Ar11, zrefl1, 'r-*', label = 'SB_ref', alpha = 0.5)
+            ax1.plot(Ar11, dim_l1, 'b-', label = 'SB_dim', alpha = 0.5)
+            ax1.plot(Ar11, thero_L1, 'g--', label = 'SB_the', alpha = 0.5)
             
             ax1.set_xscale('log')
             ax1.set_title('SB ra%.3f dec%.3f z%.3f rich%.3f'%(ra1, dec1, z_ref1, lamda_array[k1]), fontsize = 10)
@@ -280,13 +304,14 @@ for k in range(bins):
             wcs2 = awc.WCS(clust2[1])            
             tx2, ty2 = wcs2.all_world2pix(posx2*U.deg, posy2*U.deg, 1)
             x02, y02 = wcs2.all_world2pix(ra2*U.deg, dec2*U.deg, 1)
-            light2, R2, thero_L2, R_angu2 = bin_light(clust2[0], r2, Nbins, x02, y02, z_ref2, z_ref)
+            light2, zrefl2, dim_l2, thero_L2, R2, Ar02, Ar12 = bin_light(clust2[0], r2, Nbins, x02, y02, z_ref2, z_ref)
             ax2 = f.add_subplot(spc[p,1])
-            # ax2.plot(R2, light2[0,:], c = 'b', label = 'SB_z0')
-            # ax2.plot(R2, light2[1,:], c = 'r', label = 'SB_zref')
-            ax2.plot(R_angu2, light2[0,:], c = 'b', label = 'SB_z0')
-            ax2.plot(R_angu2, light2[1,:], c = 'r', label = 'SB_zref')
-            ax2.plot(R_angu2, thero_L2, c = 'g', label = 'theory')
+            # ax2.plot(R2, light2, c = 'b', label = 'SB_z0')
+            # ax2.plot(R2, zrefl2, c = 'r', label = 'SB_zref')
+            ax2.plot(Ar02, light2, 'k-', label = 'SB_z0')
+            ax2.plot(Ar12, zrefl2, 'r-*', label = 'SB_ref', alpha = 0.5)
+            ax2.plot(Ar12, dim_l2, 'b-', label = 'SB_dim', alpha = 0.5)
+            ax2.plot(Ar12, thero_L2, 'g--', label = 'SB_the', alpha = 0.5)
             
             ax2.set_xscale('log')
             ax2.set_title('SB ra%.3f dec%.3f z%.3f rich%.3f'%(ra2, dec2, z_ref2, lamda_array[k2]), fontsize = 10)
@@ -318,13 +343,14 @@ for k in range(bins):
             wcs3 = awc.WCS(clust3[1])
             tx3, ty3 = wcs3.all_world2pix(posx3*U.deg, posy3*U.deg, 1)
             x03, y03 = wcs3.all_world2pix(ra3*U.deg, dec3*U.deg, 1)
-            light3, R3, thero_L3, R_angu3 = bin_light(clust3[0], r3, Nbins, x03, y03, z_ref3, z_ref)
+            light3, zrefl3, dim_l3, thero_L3, R3, Ar03, Ar13 = bin_light(clust3[0], r3, Nbins, x03, y03, z_ref3, z_ref)
             ax3 = f.add_subplot(spc[p,2])
-            # ax3.plot(R3, light3[0,:], c = 'b', label = 'SB_z0')
-            # ax3.plot(R3, light3[1,:], c = 'r', label = 'SB_zref')
-            ax3.plot(R_angu3, light3[0,:], c = 'b', label = 'SB_z0')
-            ax3.plot(R_angu3, light3[1,:], c = 'r', label = 'SB_zref') 
-            ax3.plot(R_angu3, thero_L3, c = 'g', label = 'theory')
+            # ax3.plot(R3, light3, c = 'b', label = 'SB_z0')
+            # ax3.plot(R3, zrefl3, c = 'r', label = 'SB_zref')
+            ax3.plot(Ar03, light3, 'k-', label = 'SB_z0')
+            ax3.plot(Ar13, zrefl3, 'r-*', label = 'SB_ref', alpha = 0.5)
+            ax3.plot(Ar13, dim_l3, 'b-', label = 'SB_dim', alpha = 0.5)
+            ax3.plot(Ar13, thero_L3, 'g--', label = 'SB_the', alpha = 0.5)
             
             ax3.set_xscale('log')
             ax3.set_title('SB ra%.3f dec%.3f z%.3f rich%.3f'%(ra3, dec3, z_ref3, lamda_array[k3]), fontsize = 10)
@@ -356,13 +382,14 @@ for k in range(bins):
             wcs4 = awc.WCS(clust4[1])
             tx4, ty4 = wcs4.all_world2pix(posx4*U.deg, posy4*U.deg, 1)
             x04, y04 = wcs4.all_world2pix(ra4*U.deg, dec4*U.deg, 1)
-            light4, R4, thero_L4, R_angu4 = bin_light(clust4[0], r4, Nbins, x04, y04, z_ref4, z_ref)
+            light4, zrefl4, dim_l4, thero_L4, R4, Ar04, Ar14 = bin_light(clust4[0], r4, Nbins, x04, y04, z_ref4, z_ref)
             ax4 = f.add_subplot(spc[p,3])
-            # ax4.plot(R4, light4[0,:], c = 'b', label = 'SB_z0')
-            # ax4.plot(R4, light4[1,:], c = 'r', label = 'SB_zref')
-            ax4.plot(R_angu4, light4[0,:], c = 'b', label = 'SB_z0')
-            ax4.plot(R_angu4, light4[1,:], c = 'r', label = 'SB_zref')
-            ax4.plot(R_angu4, thero_L4, c = 'g', label = 'theory')
+            # ax4.plot(R4, light4, c = 'b', label = 'SB_z0')
+            # ax4.plot(R4, zrefl4, c = 'r', label = 'SB_zref')
+            ax4.plot(Ar04, light4, 'k-', label = 'SB_z0')
+            ax4.plot(Ar14, zrefl4, 'r-*', label = 'SB_ref', alpha = 0.5)
+            ax4.plot(Ar14, dim_l4, 'b-', label = 'SB_dim', alpha = 0.5)
+            ax4.plot(Ar14, thero_L4, 'g--', label = 'SB_the', alpha = 0.5)
             
             ax4.set_xscale('log')
             ax4.set_title('SB ra%.3f dec%.3f z%.3f rich%.3f'%(ra4, dec4, z_ref4, lamda_array[k4]), fontsize = 10)
@@ -394,13 +421,14 @@ for k in range(bins):
             wcs5 = awc.WCS(clust5[1])
             tx5, ty5 = wcs5.all_world2pix(posx5*U.deg, posy5*U.deg, 1)
             x05, y05 = wcs5.all_world2pix(ra5*U.deg, dec5*U.deg, 1)        
-            light5, R5, thero_L5, R_angu5 = bin_light(clust5[0], r5, Nbins, x05, y05, z_ref5, z_ref)
+            light5, zrefl5, dim_l5, thero_L5, R5, Ar05, Ar15 = bin_light(clust5[0], r5, Nbins, x05, y05, z_ref5, z_ref)
             ax5 = f.add_subplot(spc[p,4])
-            # ax5.plot(R5, light5[0,:], c = 'b', label = 'SB_z0')
-            # ax5.plot(R5, light5[1,:], c = 'r', label = 'SB_zref')
-            ax5.plot(R_angu5, light5[0,:], c = 'b', label = 'SB_z0')
-            ax5.plot(R_angu5, light5[1,:], c = 'r', label = 'SB_zref')
-            ax5.plot(R_angu5, thero_L5, c = 'g', label = 'theory')
+            # ax5.plot(R5, light5, c = 'b', label = 'SB_z0')
+            # ax5.plot(R5, zrefl5, c = 'r', label = 'SB_zref')
+            ax5.plot(Ar05, light5, 'k-', label = 'SB_z0')
+            ax5.plot(Ar15, zrefl5, 'r-*', label = 'SB_ref', alpha = 0.5)
+            ax5.plot(Ar15, dim_l5, 'b-', label = 'SB_dim', alpha = 0.5)
+            ax5.plot(Ar15, thero_L5, 'g--', label = 'SB_the', alpha = 0.5)
             
             ax5.set_xscale('log')
             ax5.set_title('SB ra%.3f dec%.3f z%.3f rich%.3f'%(ra5, dec5, z_ref5, lamda_array[k5]), fontsize = 10)

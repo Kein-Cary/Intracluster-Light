@@ -71,7 +71,7 @@ def flux_recal(data, z0, zref):
     z1 = zref
     Da0 = Test_model.angular_diameter_distance(z0).value
     Da1 = Test_model.angular_diameter_distance(z1).value
-    flux = obs*((1+z0)**2*Da0)/((1+z1)**2*Da1)
+    flux = obs*((1+z0)**2*Da0)**2/((1+z1)**2*Da1)**2
     return flux
 
 def angu_area(s0, z0, zref):
@@ -89,7 +89,7 @@ pix_id = np.array(np.meshgrid(x0,y0)) #data grid for original data
 f_data = data2[0]
 Nbins = 25
 
-r = np.logspace(1e-2, np.log10(R2), Nbins) # in unit: pixel number
+r = np.logspace(-2, np.log10(R2), Nbins) # in unit: pixel number
 ia = r<= 2
 ib = np.array(np.where(ia == True))
 ic = ib.shape[1]
@@ -171,16 +171,15 @@ for k in range(1,len(r)):
         tot_area2 = s_new
         zrefl[k-im] = 22.5-2.5*np.log10(tot_flux2)+2.5*np.log10(tot_area2)
 
-
 plt.plot(r0*pixel, light, 'k-', label = 'SB_ini')
-plt.plot(Ar1, zrefl, 'r-', label = 'SB_ref')                
+plt.plot(Ar1, zrefl, 'r-*', label = 'SB_ref')                
 plt.plot(Ar1, dim_l, 'b-', label = 'SB_dim')
 plt.plot(Ar1, thero_l, 'g--', label = 'SB_intr')
 plt.xlabel('R [arcsec]')
 '''
 plt.plot(R, light, 'k-', label = 'SB_ini')                
-plt.plot(R, zrefl, 'r-', label = 'SB_ref')                
-plt.plot(R, dim_l, 'b-', label = 'SB_dim')
+plt.plot(R, zrefl, 'r-*', label = 'SB_ref', alpha = 0.5)                
+plt.plot(R, dim_l, 'b-', label = 'SB_dim', alpha = 0.5)
 plt.plot(R, thero_l, 'g--', label = 'SB_intr')
 plt.xlabel('R [kpc]')
 '''
