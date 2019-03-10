@@ -43,8 +43,8 @@ def sum_samp(m1, m2, data, cx0, cy0):
             idx = (2*M[0]+1)/2-cdx
             idy = (2*M[1]+1)/2-cdy
             # select this part pixel
-            ia = (idx > -(m1/2 +1/2)) & (idx < (m1/2 + 1/2))
-            ib = (idy > -(m2/2 +1/2)) & (idy < (m2/2 + 1/2))
+            ia = np.abs(idx) < (m1/2 +1/2) 
+            ib = np.abs(idy) < (m2/2 +1/2) 
             ic = ia & ib
             # print(ic)
             iu = np.where(ic == True) # find position
@@ -62,36 +62,48 @@ def sum_samp(m1, m2, data, cx0, cy0):
                 if (oedxl <= edxr) & (oedxr >= edxr) &\
                     (oedyb <= edyb) & (oedyu >= edyb):
                     suma =  suma + np.abs(edxr-oedxl)*np.abs(edyb-oedyu)*a[l,s]
+                    continue
                 elif (oedxl >= edxl) & (oedxr <= edxr) &\
                     (oedyu >= edyb) & (oedyb <= edyb):
                     suma = suma + np.abs(oedxr-oedxl)*np.abs(oedyu-edyb)*a[l,s]
+                    continue
                 elif (oedxl <= edxl) & (oedxr >= edxl) &\
                     (oedyu >= edyb) & (oedyb <= edyb):
                     suma = suma + np.abs(oedxr-edxl)*np.abs(oedyu-edyb)*a[l,s]
+                    continue
                 elif (oedxl <= edxl) & (oedxr >= edxl) &\
                     (oedyu <= edyu) & (oedyb >= edyb):
                     suma = suma + np.abs(oedyu-oedyb)*np.abs(oedxr-edxl)*a[l,s]
+                    continue
                 elif (oedxl <= edxl) & (oedxr >= edxl)&\
                     (oedyb <= edyu) & (oedyu >= edyu):
                     suma = suma + np.abs(oedxr-edxl)*np.abs(oedyb-edyu)*a[l,s]
+                    continue
                 elif (oedxl >= edxl) & (oedxr <= edxr) &\
                     (oedyb <= edyu) & (oedyu >= edyu):
                     suma = suma + np.abs(oedxr-oedxl)*np.abs(edyu-oedyb)*a[l,s]
+                    continue
                 elif (oedxl <= edxr) & (oedxr >= edxr) &\
                     (oedyb <= edyu) & (oedyu >= edyu):
                     suma = suma + np.abs(edxr-oedxl)*np.abs(oedyb-edyu)*a[l,s]
+                    continue
                 elif (oedxl <= edxr) & (oedxr >= edxr) &\
                     (oedyb >= edyb) & (oedyu <= edyu):
                     suma = suma + np.abs(oedyu-oedyb)*np.abs(edxr-oedxl)*a[l,s]
+                    continue
                 elif (oedxr <= edxr) & (oedxl >= edxl) &\
                     (oedyb >= edyb) & (oedyu <= edyu):
                     suma = suma + np.abs(oedyu-oedyb)*np.abs(oedxr-oedxl)*a[l,s]
+                    continue
                 else:
                     pass
+                    continue
             sample[p,k] = suma
     return sample, cpos
 # test part 
 '''
 resam = sum_samp(m1, m2, a, cx0, cy0)[0]
-plt.imshow(resam,cmap='binary',origin='lower')
+print('before=',a)
+print('*'*10)
+print('after=',resam)
 '''

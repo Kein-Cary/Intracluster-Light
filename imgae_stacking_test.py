@@ -12,6 +12,7 @@ import astropy.wcs as awc
 # resample part
 from ICL_up_resampling import sum_samp
 from ICL_down_resampling import down_samp
+from resamp import gen
 
 c0 = U.kpc.to(U.cm)
 c1 = U.Mpc.to(U.pc)
@@ -116,68 +117,73 @@ y0 = np.linspace(0,1488,1489)
 pix_id = np.array(np.meshgrid(x0,y0)) # set a data grid
 R_stack = np.zeros((len(z),2),dtype = np.float)
 NMGY = np.array([transf1, transf2])
-
+'''
 import matplotlib.gridspec as grid
 f = plt.figure(figsize = (20,20))
 f.suptitle('calculate process', fontsize = 20) # set the figure title
 spc = grid.GridSpec(ncols = 3,nrows = 2,figure = f)
+'''
+k = 0
+a0 = np.floor(cen[k,0] - select_a)
+a1 = np.ceil(cen[k,0] + select_a)
+b0 = np.floor(cen[k,1] - select_a)
+b1 = np.ceil(cen[k,1] + select_a)
+idr = ((pix_id[0]<=a1)&(pix_id[0]>=a0))&((pix_id[1]<=b1)&(pix_id[1]>=b0))
+# region select
+mirr1 = extractor(data[k],a0,a1,b0,b1)
+# pixel change
+size_vers = pixel_scale_compa(z[k], z_ref)
+new_size = 1/size_vers
+mt = np.float('%.3f'%size_vers)
+inter_data = flux_scale(mirr1, z[k], z_ref) 
+minus_data = mirr1/inter_data
+if size_vers > 1:
+    sum_data, cpos = sum_samp(mt, mt, inter_data, select_a, select_a)
+else:
+    sum_data, cpos = down_samp(mt, mt, inter_data, select_a, select_a)
+resam = gen(inter_data, 1, mt) # compare the resample way variance
+tt = resam[1:,1:]
+sigma = np.sum((tt-sum_data)**2/sum_data)
+print('chi = ', sigma)
+'''
+ax1 = f.add_subplot(spc[0,0])
+im1 = ax1.imshow(mirr1,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
+plt.colorbar(im1, label = 'flux [nMgy]', fraction = 0.048,pad = 0.003)
+ax1.scatter(select_a, select_a, facecolors = '',marker='o',edgecolors='r')
+ax1.set_title('flux of z0')
 
-for k in range(len(z)):
-    a0 = np.floor(cen[k,0] - select_a)
-    a1 = np.ceil(cen[k,0] + select_a)
-    b0 = np.floor(cen[k,1] - select_a)
-    b1 = np.ceil(cen[k,1] + select_a)
-    idr = ((pix_id[0]<=a1)&(pix_id[0]>=a0))&((pix_id[1]<=b1)&(pix_id[1]>=b0))
-    # region select
-    mirr1 = extractor(data[k],a0,a1,b0,b1)
-    # pixel change
-    size_vers = pixel_scale_compa(z[k], z_ref)
-    new_size = 1/size_vers
-    mt = np.float('%.3f'%size_vers)
-    inter_data = flux_scale(mirr1, z[k], z_ref) 
-    minus_data = mirr1/inter_data
-    if size_vers > 1:
-        sum_data, cpos = sum_samp(mt, mt, inter_data, select_a, select_a)
-    else:
-        sum_data, cpos = down_samp(mt, mt, inter_data, select_a, select_a)
-    
-    ax1 = f.add_subplot(spc[0,0])
-    im1 = ax1.imshow(mirr1,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
-    plt.colorbar(im1, label = 'flux [nMgy]', fraction = 0.048,pad = 0.003)
-    ax1.scatter(select_a, select_a, facecolors = '',marker='o',edgecolors='r')
-    ax1.set_title('flux of z0')
-    
-    ax4 = f.add_subplot(spc[1,0])
-    im4 = ax4.imshow(mirr1,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
-    plt.colorbar(im4, label = 'flux [nMgy]', fraction = 0.048,pad = 0.003)
-    ax4.scatter(select_a, select_a, facecolors = '',marker='o',edgecolors='r')
-    ax4.set_title('original pixel image')
-    
-    ax2 = f.add_subplot(spc[0,1])        
-    im2 = ax2.imshow(inter_data,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
-    plt.colorbar(im2, label = 'flux [nMgy]', fraction = 0.048, pad = 0.003)
-    ax2.scatter(select_a, select_a, facecolors = '',marker='o',edgecolors='r')
-    ax2.set_title('flux at z_ref')
-    
-    ax3 = f.add_subplot(spc[0,2])
-    im3 = ax3.imshow(minus_data,cmap = plt.get_cmap('Greys', 10),vmin=5e-1, vmax = 1,origin = 'lower',norm = mpl.colors.LogNorm())
-    plt.colorbar(im3,label = 'ratio', fraction = 0.048, pad = 0.003)
-    ax3.scatter(select_a, select_a, facecolors = '',marker='o',edgecolors='r')
-    ax3.set_title('ratio of z0 to flux at z_ref')
-    
-    ax5 = f.add_subplot(spc[1,1])
-    im5 = ax5.imshow(mirr1,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
-    plt.colorbar(im5,label = 'flux [nMgy]', fraction = 0.048, pad = 0.003)
-    ax5.axes.imshow(inter_data,cmap='rainbow',vmin=1e-5,origin='lower',extent=(0,100*new_size,0,100*new_size),
-                    norm = mpl.colors.LogNorm())
-    ax5.scatter(select_a*new_size,select_a*new_size,facecolors = '',marker='o',edgecolors='b')
-    ax5.set_title('pixel size change(the color part is z0 image)')
-    
-    ax6 = f.add_subplot(spc[1,2])
-    im6 = ax6.imshow(sum_data,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
-    plt.colorbar(im6, label = 'flux [nMgy]', fraction = 0.048,pad = 0.003)
-    ax6.scatter(cpos[0],cpos[1],facecolors = '',marker='o',edgecolors='r')
-    ax6.set_title('resample')
-    
-    plt.savefig('resample_test.pdf',dpi = 600)
-    plt.close(f)
+ax4 = f.add_subplot(spc[1,0])
+im4 = ax4.imshow(mirr1,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
+plt.colorbar(im4, label = 'flux [nMgy]', fraction = 0.048,pad = 0.003)
+ax4.scatter(select_a, select_a, facecolors = '',marker='o',edgecolors='r')
+ax4.set_title('original pixel image')
+
+ax2 = f.add_subplot(spc[0,1])        
+im2 = ax2.imshow(inter_data,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
+plt.colorbar(im2, label = 'flux [nMgy]', fraction = 0.048, pad = 0.003)
+ax2.scatter(select_a, select_a, facecolors = '',marker='o',edgecolors='r')
+ax2.set_title('flux at z_ref')
+
+ax3 = f.add_subplot(spc[0,2])
+im3 = ax3.imshow(minus_data,cmap = plt.get_cmap('Greys', 10),vmin=5e-1, vmax = 1,origin = 'lower',norm = mpl.colors.LogNorm())
+plt.colorbar(im3,label = 'ratio', fraction = 0.048, pad = 0.003)
+ax3.scatter(select_a, select_a, facecolors = '',marker='o',edgecolors='r')
+ax3.set_title('ratio of z0 to flux at z_ref')
+
+ax5 = f.add_subplot(spc[1,1])
+im5 = ax5.imshow(mirr1,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
+plt.colorbar(im5,label = 'flux [nMgy]', fraction = 0.048, pad = 0.003)
+ax5.axes.imshow(inter_data,cmap='rainbow',vmin=1e-5,origin='lower',extent=(0,100*new_size,0,100*new_size),
+                norm = mpl.colors.LogNorm())
+ax5.scatter(select_a*new_size,select_a*new_size,facecolors = '',marker='o',edgecolors='b')
+ax5.set_title('pixel size change(the color part is z0 image)')
+
+ax6 = f.add_subplot(spc[1,2])
+im6 = ax6.imshow(sum_data,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
+plt.colorbar(im6, label = 'flux [nMgy]', fraction = 0.048,pad = 0.003)
+ax6.scatter(cpos[0],cpos[1],facecolors = '',marker='o',edgecolors='r')
+ax6.set_title('resample')
+
+plt.savefig('resample_test.pdf',dpi = 600)
+plt.close(f)
+'''

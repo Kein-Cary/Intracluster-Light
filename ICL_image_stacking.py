@@ -64,7 +64,9 @@ def flux_scale(data,z,zref):
     obs = data 
     z0 = z
     z_stak = zref
-    ref_data = obs*(1+z0)**4/(1+z_stak)**4 
+    Da_0 = Test_model.angular_diameter_distance(z0).value
+    Da_ref = Test_model.angular_diameter_distance(z_stak).value
+    ref_data = obs*(1+z0)**4*Da_0**2/((1+z_stak)**4*Da_ref**2)
     return ref_data
 
 def pixel_scale_compa(z, zref):
@@ -111,7 +113,7 @@ for k in range(1):
         plt.scatter(cx,cy,facecolors = '',marker='o',edgecolors='r')
         plt.title('select_ra%.3f_dec%.3f_z%.3f_rich%.3f.png'%(ra[k],dec[k],z[k],rich[k]))
         plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/region_cut/\
-                    select_ra%.3f_dec%.3f_z%.3f_rich%.3f.png'%(ra[k],dec[k],z[k],rich[k]),dpi = 600)  
+                    select_%s_ra%.3f_dec%.3f_z%.3f_rich%.3f.png'%(band[q], ra[k], dec[k], z[k], rich[k]),dpi = 600)  
         plt.close()
         
         x = mirro.shape[1]
@@ -126,14 +128,15 @@ for k in range(1):
         fil = fits.Header(ff)
         fits.writeto(
                 '/mnt/ddnfs/data_users/cxkttwl/ICL/data/cut_sample/cut_record/cut_image_%s_ra%.3f_dec%.3f_z%.3f_rich%.3f.fits'%(
-                band[q],ra[k],dec[k],z[k],rich[k]), mirro, header = fil, overwrite=True) 
+                band[q], ra[k], dec[k], z[k], rich[k]), mirro, header = fil, overwrite=True) 
         # flux reset
         inter_data = flux_scale(mirro, z[k], z_ref)
         size_vers = pixel_scale_compa(z[k], z_ref) 
+        mt = np.float('%.3f'%size_vers)
         if size_vers > 1:
-            resam_data, cpos = sum_samp(size_vers, size_vers, inter_data, cx, cy)
+            resam_data, cpos = sum_samp(mt, mt, inter_data, cx, cy)
         else:
-            resam_data, cpos = down_samp(size_vers, size_vers, inter_data, cx, cy)
+            resam_data, cpos = down_samp(mt, mt, inter_data, cx, cy)
         cx1 = cpos[0]
         cy1 = cpos[1]
         
@@ -143,7 +146,7 @@ for k in range(1):
         plt.scatter(cx1,cy1,facecolors = '',marker='o',edgecolors='r')
         plt.title('resampl_ra%.3f_dec%.3f_z%.3f_rich%.3f.png'%(ra[k],dec[k],z[k],rich[k]))
         plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/resample/\
-                    resampl_ra%.3f_dec%.3f_z%.3f_rich%.3f.png'%(ra[k],dec[k],z[k],rich[k]),dpi = 600)  
+                    resamp_%s_ra%.3f_dec%.3f_z%.3f_rich%.3f.png'%(band[q], ra[k], dec[k], z[k], rich[k]),dpi = 600)  
         plt.close()
         
         x1 = resam_data.shape[1]
@@ -159,6 +162,6 @@ for k in range(1):
         ff1 = dict(zip(keys1,value1))
         fil1 = fits.Header(ff1)
         fits.writeto(
-                '/mnt/ddnfs/data_users/cxkttwl/ICL/data/cut_sample/resamp_record/cut_image_%s_ra%.3f_dec%.3f_z%.3f_rich%.3f.fits'%(
-                band[q],ra[k],dec[k],z[k],rich[k]), mirro, header = fil, overwrite=True) 
+                '/mnt/ddnfs/data_users/cxkttwl/ICL/data/cut_sample/resamp_record/resamp_image_%s_ra%.3f_dec%.3f_z%.3f_rich%.3f.fits'%(
+                band[q], ra[k], dec[k], z[k], rich[k]), mirro, header = fil, overwrite=True) 
   

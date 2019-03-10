@@ -441,3 +441,4 @@ for k in range(bins):
             continue
     plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/light_profile%.0f.pdf'%k,dpi=600)
     plt.close()
+    
