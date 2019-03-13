@@ -214,14 +214,18 @@ def gen( d, res1, res2, cx, cy ):
         xn = cx/res2
         yn = cy/res2
         return xn,yn,gen2( d, res1, res2)
-
-    print( "res1 == res2 !!!!" )
-    exit()
+    if res1 == res2:
+        xn = cx*1
+        yn = cy*1
+        return xn, yn,gen2( d, res1, res2)
+    #print( "res1 == res2 !!!!" )
+    #exit()
 
 def resamp():
     band = ['u', 'g', 'r', 'i', 'z']
     D_ref = Test_model.angular_diameter_distance(z_ref).value
     L_ref = D_ref*pixel/c4
+    '''
     # catalog     
     goal_data = fits.getdata(
             '/mnt/ddnfs/data_users/cxkttwl/ICL/data/redmapper/redmapper_dr8_public_v6.3_catalog.fits')
@@ -236,36 +240,41 @@ def resamp():
     rich_eff = richness[redshift != -1]
     # select the nearly universe
     z = z_eff[(z_eff >= 0.2)&(z_eff <= 0.3)]
-    ra = ra_eff[(z_eff >= 0.2)&(z_eff <= 0.3)]
-    dec = dec_eff[(z_eff >= 0.2)&(z_eff <= 0.3)]
+    Ra = ra_eff[(z_eff >= 0.2)&(z_eff <= 0.3)]
+    Dec = dec_eff[(z_eff >= 0.2)&(z_eff <= 0.3)]
     rich = rich_eff[(z_eff >= 0.2)&(z_eff <= 0.3)]
-    catalog = np.array([z, ra, dec, rich])
+    catalog = np.array([z, Ra, Dec, rich])
     with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/sample_catalog.h5', 'w') as f:
         f['a'] = catalog
     with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/sample_catalog.h5') as f:
         for u in range(len(catalog)):
             f['a'][u,:] = catalog[u,:]
-    
+    '''
+    with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/sample_catalog.h5') as f:
+        catalogue = np.array(f['a'])
+    z = catalogue[0]
+    Ra = catalogue[1]
+    Dec = catalogue[2]
+    lamb = catalogue[3]
     for k in range(len(z)):
         for q in range(len(band)):
             f = fits.getdata('/mnt/ddnfs/data_users/cxkttwl/ICL/wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
-                             %(band[q], ra[k], dec[k], z[k]), header=True)
+                             %(band[q], Ra[k], Dec[k], z[k]), header=True)
             wcs = awc.WCS(f[1])
             d1 = f[0]
-            z = z[k]
-            D_z = Test_model.angular_diameter_distance(z).value
+            sum_data = flux_recal(f[0], zf, z_ref)
+            zf = z[k]
+            D_z = Test_model.angular_diameter_distance(zf).value
             L_z = D_z*pixel/c4        
-            ra = ra[k]
-            dec = dec[k]
+            ra = Ra[k]
+            dec = Dec[k]
             #Alpha = (1/h)*c4/D_z
             #R[k] = Alpha/pixel
             cx, cy = wcs.all_world2pix(ra*U.deg, dec*U.deg, 1)
             b = L_ref/L_z
-            b = np.float('%.3f'%b)
+            b = np.float('%.4f'%b)
             print('b = ', b)
-            #xn = cx * b
-            #yn = cy * b
-            xn, yn, resam = gen(d1, 1, b, cx, cy)
+            xn, yn, resam = gen(sum_data, 1, b, cx, cy)
             
             plt.figure()
             ax1 = plt.subplot(121)
@@ -274,11 +283,10 @@ def resamp():
             ax2 = plt.subplot(122)
             ax2.imshow(resam, cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mplc.LogNorm())
             ax2.scatter(xn,yn,facecolors = '',marker='o',edgecolors='r')
-            plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/resample/position_%s_ra%.3f_dec%.3f_z%.3f'
-                        %(band[q], ra[k], dec[k], z[k]), dpi = 600)
+            plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/resample/position_%s_ra%.3f_dec%.3f_z%.3f.pdf'
+                        %(band[q], ra, dec, zf), dpi = 600)
             plt.close()
             
-            sum_data = flux_recal(f[0], z[k], z_ref)
             x1 = resam.shape[1]
             y1 = resam.shape[0]
             intx = np.ceil(f[1]['CRPIX1'] // b)
@@ -286,12 +294,12 @@ def resamp():
             keys = ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2','CRPIX1','CRPIX2',
             'CENTER_X','CENTER_Y','CRVAL1','CRVAL2','CENTER_RA','CENTER_DEC','ORIGN_Z','Z_REF',]
             value = ['T', 32, 2, x1, y1, intx, inty, xn, yn, f[1]['CRVAL1'], f[1]['CRVAL2'],
-            ra[k], dec[k], z[k], z_ref ]
+            ra, dec, zf, z_ref ]
             head = dict(zip(keys, value))
             file_s = fits.Header(head)
             fits.writeto(
                     '/mnt/ddnfs/data_users/cxkttwl/ICL/data/cut_sample/resamp_record/resamp_image_%s_ra%.3f_dec%.3f_z%.3f.fits'
-                    %(band[q], ra[k], dec[k], z[k]), sum_data, header = file_s, overwrite = True) 
+                    %(band[q], ra, dec, zf), resam, header = file_s, overwrite = True) 
 def main():
     resamp()
     

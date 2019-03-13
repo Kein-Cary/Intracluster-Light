@@ -136,8 +136,8 @@ def down_samp(m3, m4, data, cx0, cy0):
     y0 = np.linspace(0,sNy-1,sNy)
     M0 = np.meshgrid(x0,y0)
     
-    N1x = np.int((sNx*(1/mx)))
-    N1y = np.int((sNy*(1/my)))
+    N1x = np.int(np.ceil((sNx*(1/mx))))
+    N1y = np.int(np.ceil((sNy*(1/my))))
     Ny = N1y
     Nx = N1x
     # get the new center pixel
@@ -299,8 +299,8 @@ def down_samp(m3, m4, data, cx0, cy0):
 
     return sample, cpos
 '''
-resam = sum_samp(m1, m2, a, cx0, cy0)[0]
-#resam = down_samp(m3, m4, a, cx0, cy0)[0]
+#resam = sum_samp(m1, m2, a, cx0, cy0)[0]
+resam = down_samp(m3, m4, a, cx0, cy0)[0]
 print('before=',a)
 print('*'*10)
 print('after=',resam)

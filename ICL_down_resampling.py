@@ -16,10 +16,12 @@ m2 = 0.5 # row scale (for coloumn direction)
 ## resampling by new "pixel" result (towards smaller pixel size)
 def down_samp(m1, m2, data, cx0, cy0):
     a = data
+    mx = m1
+    my = m2
     sNy = a.shape[0]
     sNx = a.shape[1]
-    N1x = np.int((sNx*(1/m1)))
-    N1y = np.int((sNy*(1/m2)))
+    N1x = np.int(np.ceil((sNx*(1/mx))))
+    N1y = np.int(np.ceil((sNy*(1/my))))
     Ny = N1y
     Nx = N1x
     x1 = np.linspace(0,Nx-1,Nx)

@@ -9,9 +9,10 @@ import astropy.units as U
 from astropy import cosmology as apcy
 import astropy.io.fits as fits
 import astropy.wcs as awc
-# resample part
+# resample part 
 from ICL_up_resampling import sum_samp
 from ICL_down_resampling import down_samp
+#from resample_modelu import sum_samp, down_samp
 from resamp import gen
 
 c0 = U.kpc.to(U.cm)
@@ -67,7 +68,9 @@ def flux_scale(data,z,zref):
     obs = data 
     z0 = z
     z_stak = zref
-    ref_data = obs*(1+z0)**4/(1+z_stak)**4 
+    Da_0 = Test_model.angular_diameter_distance(z0).value
+    Da_ref = Test_model.angular_diameter_distance(z_stak).value
+    ref_data = obs*(1+z0)**4*Da_0**2 / ((1+z_stak)**4*Da_ref**2) 
     return ref_data
 
 def extractor(data,x0,x1,y0,y1):
@@ -144,7 +147,7 @@ else:
 resam = gen(inter_data, 1, mt) # compare the resample way variance
 tt = resam[1:,1:]
 sigma = np.sum((tt-sum_data)**2/sum_data)
-print('chi = ', sigma)
+print('delta = ', tt-sum_data)
 '''
 ax1 = f.add_subplot(spc[0,0])
 im1 = ax1.imshow(mirr1,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())

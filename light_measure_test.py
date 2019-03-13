@@ -166,12 +166,14 @@ for k in range(1,len(r)):
         tot_area2 = s_new
         zrefl[k-im] = 22.5-2.5*np.log10(tot_flux2)+2.5*np.log10(tot_area2)
 ## the_one part
+
 data_test = fits.getdata('/home/xkchen/Meeting/the_one/resamp_image_u_ra203.834_dec41.001_z0.228_rich189.181.fits',header = True)
 dat = Test_model.angular_diameter_distance(0.228).value
 test_f = data_test[0]*dat**2/Da_ref**2
 '''
 data_test = fits.getdata('/home/xkchen/Meeting/New_resamp/resamp_image_ra203.834_dec41.001_z0.228.fits',header = True)
-test_f = flux_recal(data_test[0], z0 = 0.228, zref = z_ref)
+#test_f = flux_recal(data_test[0], z0 = 0.228, zref = z_ref)
+test_f = data_test[0]
 '''
 Rref = ((1/h)*c4/Da_ref)/pixel
 cx_t = data_test[1]['CENTER_X']  
@@ -189,7 +191,7 @@ R_t = (r_t/Rref)*10**3 # in unit kpc
 R_t = R_t[np.max(ib_t):]
 r0_t = r_t[np.max(ib_t):]
 dr_t = np.sqrt((pi_t[0]-cx_t)**2+(pi_t[1]-cy_t)**2)
-test_l = np.zeros(len(r)-ic_t+1, dtype = np.float)
+test_l = np.zeros(len(r_t)-ic_t+1, dtype = np.float)
 Ar_t = ((R_t/10**3)/Da_ref)*c4
 
 for k in range(1,len(r_t)):
@@ -214,7 +216,8 @@ for k in range(1,len(r_t)):
             num_t = len(ix_t)
             tot_flux = np.sum(test_f[iy_t,ix_t])/num_t
             tot_area = pixel**2
-            test_l[k-im_t] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area) # mag/arcsec^2            
+            test_l[k-im_t] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area) # mag/arcsec^2 
+
 sigma = np.sum((test_l-thero_l)**2/thero_l)
 
 plt.plot(r0*pixel, light, 'k-', label = 'SB_ini')

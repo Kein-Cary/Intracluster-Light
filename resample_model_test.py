@@ -65,7 +65,9 @@ def flux_scale(data,z,zref):
     obs = data 
     z0 = z
     z_stak = zref
-    ref_data = obs*(1+z0)**4/(1+z_stak)**4 
+    Da_0 = Test_model.angular_diameter_distance(z0).value
+    Da_ref = Test_model.angular_diameter_distance(z_stak).value
+    ref_data = obs*(1+z0)**4*Da_0**2 / ((1+z_stak)**4*Da_ref**2) 
     return ref_data
 
 def pixel_scale_compa(z, zref):

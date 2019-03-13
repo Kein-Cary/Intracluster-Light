@@ -132,7 +132,7 @@ for k in range(1):
         # flux reset
         inter_data = flux_scale(mirro, z[k], z_ref)
         size_vers = pixel_scale_compa(z[k], z_ref) 
-        mt = np.float('%.3f'%size_vers)
+        mt = np.float('%.4f'%size_vers)
         if size_vers > 1:
             resam_data, cpos = sum_samp(mt, mt, inter_data, cx, cy)
         else:

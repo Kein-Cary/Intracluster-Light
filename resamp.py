@@ -201,10 +201,10 @@ def gen( d, res1, res2 ):
         return gen1( d, res1, res2 )
     if res1 < res2:
         return gen2( d, res1, res2 )
-
-    print( "res1 == res2 !!!!" )
-    exit()
-
+    if res1 == res2:
+        return gen2( d, res1, res2 )
+    #print( "res1 == res2 !!!!" )
+    #exit()
 
 def test():
     z_ref = 0.25
@@ -249,36 +249,7 @@ def test():
     file_s = fits.Header(head)
     fits.writeto('resamp_image_ra%.3f_dec%.3f_z%.3f.fits'%(ra, dec, z), resam, header = file_s,
     	overwrite = True)
-    #M = N = 100
-    #a = 10
-    #M = N = 100
-    #a = 10
-    #d1 = np.zeros( [M, N] )
-    #d1[M//a:M-M//a,N//a:N-N//a] = np.random.rand( M-M*2//a,N-N*2//a )
-    #d1[M//a:M-M//a,N//a:N-N//a] = 1
-    #b = 2.31
-    #d2 = gen( d1, b, 1 )
-    #d3 = gen( d1, 1, b )
-    '''
-    #d3 =  d2
-    fig = plt.figure()
-    ax1 = fig.add_subplot( 221 )
-    ax2 = fig.add_subplot( 222 )
-    ax3 = fig.add_subplot( 223 )
-    img1 = ax1.imshow( d1, norm=mplc.LogNorm(), cmap=cm.jet )
-    img2 = ax2.imshow( d2, norm=mplc.LogNorm(), cmap=cm.jet )
-    img3 = ax3.imshow( d3, norm=mplc.LogNorm(), cmap=cm.jet )  
 
-    #img1 = ax1.imshow( d1, cmap=cmap )
-    #img = ax2.imshow( d2, cmap=cmap )
-    #img = ax3.imshow( d3, cmap=cmap )
-    #plt.colorbar( img1, ax=ax1 )
-    #plt.colorbar( img2, ax=ax2 )
-    #plt.colorbar( img3, ax=ax3 )
-    #plt.show()
-    #fig.tight_layout()
-    #fig.savefig( 'test.png' )
-    '''
     return resam, xn, yn
 def main():
     resam, xn, yn  = test()
