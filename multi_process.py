@@ -93,16 +93,16 @@ def test_print(data_name):
 	print(data_name +'00')
 
 def test():
-	p = Pool(5)
+	#p = Pool(5)
 	file_str, ra, dec, z = fill_name()
-	result = p.map(mutli_resamp, file_str[0], ra, dec, z)
+	result = map(mutli_resamp, file_str[0], ra, dec, z)
+	result = list(result)
 	raise
 	p = Pool(5)
 	result = p.starmap(mutli_resamp, [(file_str[0], ra, dec, z),(file_str[1], ra, dec, z),
 		(file_str[2], ra, dec, z),(file_str[3], ra, dec, z),(file_str[4], ra, dec, z)])
-	p.start()
-	p.joint()
 	p.close()
+	p.join()
 	
 	return 
 def main():

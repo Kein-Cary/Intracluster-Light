@@ -165,16 +165,10 @@ for k in range(1,len(r)):
         tot_flux2 = np.sum(f_ref[iy,ix])/num
         tot_area2 = s_new
         zrefl[k-im] = 22.5-2.5*np.log10(tot_flux2)+2.5*np.log10(tot_area2)
-## the_one part
-
-data_test = fits.getdata('/home/xkchen/Meeting/the_one/resamp_image_u_ra203.834_dec41.001_z0.228_rich189.181.fits',header = True)
-dat = Test_model.angular_diameter_distance(0.228).value
-test_f = data_test[0]*dat**2/Da_ref**2
-'''
+# resample compare
 data_test = fits.getdata('/home/xkchen/Meeting/New_resamp/resamp_image_ra203.834_dec41.001_z0.228.fits',header = True)
-#test_f = flux_recal(data_test[0], z0 = 0.228, zref = z_ref)
 test_f = data_test[0]
-'''
+
 Rref = ((1/h)*c4/Da_ref)/pixel
 cx_t = data_test[1]['CENTER_X']  
 cy_t = data_test[1]['CENTER_Y']
