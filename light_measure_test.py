@@ -212,14 +212,11 @@ for k in range(1,len(r_t)):
             tot_area = pixel**2
             test_l[k-im_t] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area) # mag/arcsec^2 
 
-sigma = np.sum((test_l-thero_l)**2/thero_l)
-
 plt.plot(r0*pixel, light, 'k-', label = 'SB_ini')
 plt.plot(Ar1, zrefl, 'r-*', label = 'SB_ref')                
 plt.plot(Ar1, dim_l, 'b-', label = 'SB_dim')
 plt.plot(Ar1, thero_l, 'g--', label = 'SB_intr')
 plt.plot(Ar_t, test_l, 'ro-', label = 'SB_t01')
-plt.text(1, 27, '$ \chi^2 = %.3f$'%sigma)
 plt.xlabel('R [arcsec]')
 '''
 plt.plot(R, light, 'k-', label = 'SB_ini')                
