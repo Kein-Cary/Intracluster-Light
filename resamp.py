@@ -196,13 +196,19 @@ def gen2( d1, res1, res2 ):
 
     return d2
 
-def gen( d, res1, res2 ):
+def gen( d, res1, res2, cx, cy ):
     if res1 > res2:
-        return gen1( d, res1, res2 )
+        xn = cx*res2
+        yn = cy*res2
+        return xn,yn,gen1( d, res1, res2)
     if res1 < res2:
-        return gen2( d, res1, res2 )
+        xn = cx/res2
+        yn = cy/res2
+        return xn,yn,gen2( d, res1, res2)
     if res1 == res2:
-        return gen2( d, res1, res2 )
+        xn = cx*1
+        yn = cy*1
+        return xn, yn,gen2( d, res1, res2)
     #print( "res1 == res2 !!!!" )
     #exit()
 
@@ -226,9 +232,7 @@ def test():
     b = L_ref/L_z
     b = np.float('%.3f'%b)
     print('b = ', b)
-    xn = cx * b
-    yn = cy * b
-    resam = gen(f[0], b, 1 )
+    xn, yn, resam = gen(f[0], 1, b, cx, cy)
     ax1 = plt.subplot(121)
     ax1.imshow(f[0], cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mplc.LogNorm())
     ax1.plot(cx, cy, 'ro')
@@ -236,7 +240,7 @@ def test():
     ax2.imshow(resam, cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mplc.LogNorm())
     ax2.plot(xn, yn, 'ro')
     plt.show()
-
+    raise
     x1 = resam.shape[1]
     y1 = resam.shape[0]
     intx = np.ceil(f[1]['CRPIX1'] * b)

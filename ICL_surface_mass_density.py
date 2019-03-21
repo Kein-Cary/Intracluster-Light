@@ -86,7 +86,7 @@ def sigma_m_unlog(Mc,z,N):
     rhoc = Qc*(3*Hz**2)/(8*np.pi*G)
     Deltac = (200/3)*(c**3/(np.log(1+c)-c/(c+1)))
     r200 = (3*M/(4*np.pi*rhoc*200))**(1/3) # in unit Msun/kpc^3, also in r200_c
-    R = np.linspace(0, r200, N)
+    R = np.linspace(1e-3, r200, N)
     Nbins = len(R)
     rs = r200/c
     f0 = 2*Deltac*rhoc*rs
@@ -112,7 +112,7 @@ def sigma_m_c_unlog(Mc,N):
     M = 10**Mc
     rho_0 = (c0/c1)*(3*H0**2)/(8*np.pi*G)
     r200_c = (3*M/(4*np.pi*rho_0*200))**(1/3) 
-    R = np.linspace(0, r200_c, N)
+    R = np.linspace(1e-3, r200_c, N)
     Nbins = len(R)
     rs = r200_c/c
     R_c = R*1
@@ -139,14 +139,14 @@ def sigma_m_c_unlog(Mc,N):
     return  r200_c, sigma_c, R_c
 
 if __name__ == "__main__":
-    '''
+    
     r200, sigma, R = sigma_m(15, 0, 101)
     r200_c, sigma_c, R_c = sigma_m_c(15, 101)
     plt.plot(R,sigma,'r--',label = 'with z',alpha = 0.5)
     plt.plot(R_c,sigma_c,'b-',label = 'comoving',alpha = 0.5)
-    '''
-    r200, sigma, R = sigma_m_unlog(15-np.log10(8), 0, 101)
-    r200_c, sigma_c, R_c = sigma_m_c_unlog(15-np.log10(8), 101)
+    
+    r200, sigma, R = sigma_m_unlog(15, 0, 101)
+    r200_c, sigma_c, R_c = sigma_m_c_unlog(15, 101)
     plt.plot(R,sigma,'r--',label = 'with z',alpha = 0.5)
     plt.plot(R_c,sigma_c,'b-',label = 'comoving',alpha = 0.5)
 
