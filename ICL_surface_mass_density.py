@@ -24,9 +24,9 @@ def sigma_m(Mc,z,N):
     M = 10**Mc
     Ez = np.sqrt(Omega_m*(1+Z)**3+Omega_k*(1+Z)**2+Omega_lambda)
     Hz = H0*Ez
-    rhoc = Qc*(3*Hz**2)/(8*np.pi*G)
-    Deltac = (200/3)*(c**3/(np.log(1+c)-c/(c+1)))
-    r200 = (3*M/(4*np.pi*rhoc*200))**(1/3) # in unit Msun/kpc^3, also in r200_c
+    rhoc = Qc*(3*Hz**2)/(8*np.pi*G) # in unit Msun/kpc^3
+    Deltac = (200/3)*(c**3/(np.log(1+c)-c/(c+1))) 
+    r200 = (3*M/(4*np.pi*rhoc*200))**(1/3) # in unit kpc
     R = np.logspace(-3,np.log10(r200),N)
     Nbins = len(R)
     rs = r200/c
@@ -84,8 +84,8 @@ def sigma_m_unlog(Mc,z,N):
     Ez = np.sqrt(Omega_m*(1+Z)**3+Omega_k*(1+Z)**2+Omega_lambda)
     Hz = H0*Ez
     rhoc = Qc*(3*Hz**2)/(8*np.pi*G)
-    Deltac = (200/3)*(c**3/(np.log(1+c)-c/(c+1)))
-    r200 = (3*M/(4*np.pi*rhoc*200))**(1/3) # in unit Msun/kpc^3, also in r200_c
+    Deltac = (200/3)*(c**3/(np.log(1+c)-c/(c+1))) # in unit Msun/kpc^3
+    r200 = (3*M/(4*np.pi*rhoc*200))**(1/3) # in unit kpc
     R = np.linspace(1e-3, r200, N)
     Nbins = len(R)
     rs = r200/c
@@ -156,4 +156,5 @@ if __name__ == "__main__":
     plt.xlabel('$R[kpc]$')
     plt.ylabel('$\Sigma[M_\odot kpc^{-2}]$')
     plt.show()
+    
     pass
