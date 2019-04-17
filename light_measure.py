@@ -3,7 +3,7 @@ import numpy as np
 import astropy.constants as C
 import astropy.units as U
 from astropy import cosmology as apcy
-
+from numba import vectorize
 # constant
 vc = C.c.to(U.km/U.s).value
 G = C.G.value # gravitation constant
@@ -79,6 +79,7 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 	pix_id = np.array(np.meshgrid(x0,y0)) #data grid for original data 
 	
 	r = np.logspace(-1, np.log10(Rp), Nbins) # in unit "pixel"
+	#r = np.linspace(0, np.ceil(Rp), Nbins)
 	ia = r<= cen_close
 	ib = np.array(np.where(ia == True))
 	ic = ib.shape[1]
@@ -87,7 +88,7 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 	light = np.zeros(len(r)-ic+1, dtype = np.float)
 	R = np.zeros(len(r)-ic+1, dtype = np.float)
 	Angur = np.zeros(len(r)-ic+1, dtype = np.float)
-
+	SB_error = np.zeros(len(r)-ic+1, dtype = np.float)
 	dr = np.sqrt(((2*pix_id[0]+1)/2-(2*cx+1)/2)**2+
 			((2*pix_id[1]+1)/2-(2*cy+1)/2)**2)
 
@@ -98,36 +99,54 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 			im = np.max(ih)
 			ir = dr <= rbin[im]
 			io = np.where(ir == True)
-			iy = io[0]
-			ix = io[1]
-			num = len(ix)
-			tot_flux = np.sum(f_data[iy,ix])/num
-			tot_area = pixel**2
-
-			light[k] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
 			subr = rbin[ig]
-			R[k] = np.mean(subr)*pixel*Da0*10**3/rad2arcsec
-			Angur[k] = np.mean(subr)*pixel
+			num = len(io[0])
+
+			if num == 0:
+				light[k] = 0
+				SB_error[k] = 0
+				R[k] = np.mean(subr)*pixel*Da0*10**3/rad2arcsec
+				Angur[k] = np.mean(subr)*pixel
+			else:
+				iy = io[0]
+				ix = io[1]
+				tot_flux = np.sum(f_data[iy,ix])/num
+				tot_area = pixel**2
+				light[k] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
+				R[k] = np.mean(subr)*pixel*Da0*10**3/rad2arcsec
+				Angur[k] = np.mean(subr)*pixel
+				SB_in = 22.5-2.5*np.log10(f_data[iy, ix])+2.5*np.log10(tot_area)
+				SB_error[k] = np.std(SB_in)
 			k = im+1 
 		else:
 			ir = (dr > rbin[k-1]) & (dr <= rbin[k])
 			io = np.where(ir == True)
-			iy = io[0]
-			ix = io[1]
-			num = len(ix)
-			tot_flux = np.sum(f_data[iy,ix])/num
-			tot_area = pixel**2
+			num = len(io[0])
 
-			light[k-im] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
-			R[k-im] = 0.5*(rbin[k-1]+rbin[k])*pixel*Da0*10**3/rad2arcsec
-			Angur[k-im] = 0.5*(rbin[k-1]+rbin[k])*pixel
+			if num == 0:
+				light[k] = 0
+				SB_error[k] = 0
+				R[k-im] = 0.5*(rbin[k-1]+rbin[k])*pixel*Da0*10**3/rad2arcsec
+				Angur[k-im] = 0.5*(rbin[k-1]+rbin[k])*pixel
+			else:
+				iy = io[0]
+				ix = io[1]
+				tot_flux = np.sum(f_data[iy,ix])/num
+				tot_area = pixel**2
+
+				light[k-im] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
+				R[k-im] = 0.5*(rbin[k-1]+rbin[k])*pixel*Da0*10**3/rad2arcsec
+				Angur[k-im] = 0.5*(rbin[k-1]+rbin[k])*pixel
+				SB_in = 22.5-2.5*np.log10(f_data[iy, ix])+2.5*np.log10(tot_area)
+				SB_error[k-im] = np.std(SB_in)
 
 	ii = (light != 0) & (light != np.inf) & (light != np.nan)
 	ll = light[ii]
 	RR = R[ii]
 	AA = Angur[ii]
-	return ll, RR, AA
-
+	EE = SB_error[ii]
+	return ll, RR, AA, EE
+@vectorize
 def sigmamc(r, Mc, c):
 	"""
 	r : radius at which calculate the 2d density, in unit kpc (r != 0)
@@ -158,7 +177,6 @@ def sigmamc(r, Mc, c):
 	return  sigma_c
 
 def sigmam(r, Mc, z, c):
-
 	Qc = kpc2m/Msun2kg # recrect parameter for rho_c
 	Z = z
 	M = 10**Mc

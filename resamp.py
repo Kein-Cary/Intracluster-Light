@@ -198,8 +198,8 @@ def gen2( d1, res1, res2 ):
 
 def gen( d, res1, res2, cx, cy ):
     if res1 > res2:
-        xn = cx*res2
-        yn = cy*res2
+        xn = cx/res2
+        yn = cy/res2
         return xn,yn,gen1( d, res1, res2)
     if res1 < res2:
         xn = cx/res2

@@ -95,15 +95,16 @@ def test_print(data_name):
 def test():
 	#p = Pool(5)
 	file_str, ra, dec, z = fill_name()
+	'''
 	result = map(mutli_resamp, file_str[0], ra, dec, z)
-	result = list(result)
-	raise
+	result = list(result) # use map as a test run
+	'''
 	p = Pool(5)
 	result = p.starmap(mutli_resamp, [(file_str[0], ra, dec, z),(file_str[1], ra, dec, z),
-		(file_str[2], ra, dec, z),(file_str[3], ra, dec, z),(file_str[4], ra, dec, z)])
+			(file_str[2], ra, dec, z),(file_str[3], ra, dec, z),(file_str[4], ra, dec, z)])
 	p.close()
 	p.join()
-	
+
 	return 
 def main():
 	test()

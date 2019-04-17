@@ -202,17 +202,17 @@ def flux_recal(data, z0, zref):
     z1 = zref
     Da0 = Test_model.angular_diameter_distance(z0).value
     Da1 = Test_model.angular_diameter_distance(z1).value
-    flux = obs*((1+z0)**2*Da0)**2/((1+z1)**2*Da1)**2
+    flux = obs*((1 +z0)**2*Da0)**2/((1 +z1)**2*Da1)**2
     return flux
 
 def gen( d, res1, res2, cx, cy ):
     if res1 > res2:
-        xn = cx*res2
-        yn = cy*res2
+        xn = cx /res2
+        yn = cy /res2
         return xn,yn,gen1( d, res1, res2)
     if res1 < res2:
-        xn = cx/res2
-        yn = cy/res2
+        xn = cx /res2
+        yn = cy /res2
         return xn,yn,gen2( d, res1, res2)
     if res1 == res2:
         xn = cx*1
