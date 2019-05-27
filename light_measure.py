@@ -206,8 +206,8 @@ def sigmam(r, Mc, z, c):
 def main():
 
 	#light_measure()
-	#sigma_m_c(15, 100, 5)
-	sigma_m(15, 0, 100, 5)
+	#sigmamc(100, 15, 5)
+	sigmam(100, 15, 0, 5)
 
 if __name__ == '__main__':
 	main()

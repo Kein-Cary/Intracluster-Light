@@ -1,13 +1,21 @@
 import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 
-def A_wave(v, Rv, R_band, EBV):
+from numba import vectorize
+@vectorize
+#def A_wave(v, Rv, EBV):
+def A_wave(v, Rv):
 	"""
 	v : the wavelength of filter, in unit "10^(-10)m"
 	EBV : E(B-V)
 	Rv : 3.1 for Milky Way
 	"""
 	x = 10**4/v
-	A_filter = R_band * EBV
+	'''
+	a = np.zeros(len(x), dtype = np.float)
+	b = np.zeros(len(x), dtype = np.float)
+	'''
 	if 0.3<=x<1.1:
 		"""
 		infrared
@@ -46,5 +54,31 @@ def A_wave(v, Rv, R_band, EBV):
 		a = -1.073 - 0.628*(x - 8) + 0.137*(x - 8)**2 - 0.070*(x - 8)**3
 		b = 13.670 + 4.257*(x - 8) - 0.420*(x - 8)**2 + 0.374*(x - 8)**3
 
-	Aw = (a + b/Rv)*A_filter
-	return Aw
+	Aw2Av = a + b/Rv
+	return Aw2Av
+
+def fig():
+	w_sdss = np.linspace(3000, 11000, 100)	
+	w_ref = 1/np.linspace(1, 8.6, 100)
+	w_ref = w_ref*10**4
+
+	f_sdss = A_wave(w_sdss, 3.1)
+	f_ref = A_wave(w_ref, 3.1)
+	x_sdss = 10**4/w_sdss
+	x_ref = 10**4/w_ref
+
+	plt.figure()
+	plt.plot(x_sdss, f_sdss, ls = '--', c = 'r', label = '$SDSS$', alpha = 0.5)
+	plt.plot(x_ref, f_ref, ls = '-', c = 'b', label = '$Carllide_{1989}$', alpha = 0.5)
+	plt.legend(loc = 2)
+	plt.xlabel('$1/ \lambda [\mu m ^{-1}]$')
+	plt.ylabel('$A_{\lambda}/A_{v}$')
+	plt.savefig('extinction_law.png', dpi = 600)
+	plt.show()
+	plt.close()
+
+def main():
+	fig()
+
+if __name__ == "__main__":
+	main()

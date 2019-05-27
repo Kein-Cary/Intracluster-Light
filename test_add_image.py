@@ -13,7 +13,7 @@ import matplotlib.gridspec as gridspec
 
 from resamp import gen # test model
 from scipy import interpolate as interp
-from light_measure import light_measure
+from light_measure import light_measure, flux_recal
 import time
 # constant
 kpc2cm = U.kpc.to(U.cm)
@@ -37,7 +37,7 @@ Jy = 10**(-23) # (erg/s)/cm^2
 f0 = 3631*10**(-23) # zero point in unit (erg/s)/cm^-2
 
 def add_light():
-
+	bins = 90
 	kz = 0 # for z < 0.25
 	#kz = 3 # for z > 0.25
 	with h5py.File('mock_flux_data.h5') as f:
@@ -87,11 +87,56 @@ def add_light():
 		cx = f_data[1]['CENTER_X']
 		cy = f_data[1]['CENTER_Y']
 
-		get_array[y0 -cy: y0 -cy+data.shape[0], x0 -cx: x0 -cx+data.shape[1]] = get_array[y0 -cy: y0 -cy+data.shape[0], x0 -cx: x0 -cx+data.shape[1]] + data
-		count_array[y0 -cy: y0 -cy+data.shape[0], x0 -cx: x0 -cx+data.shape[1]] = data
+		Da0 = Test_model.angular_diameter_distance(z[kz]).value
+		Angur = (R0/Da0)*rad2asec
+		Rp = Angur/pixel
+		cx = f_data[1]['CENTER_X']
+		cy = f_data[1]['CENTER_Y']
+		L_ref = Da_ref*pixel/rad2asec
+		L_z0 = Da0*pixel/rad2asec
+		b = L_ref/L_z0
+		Rref = (R0*rad2asec/Da_ref)/pixel
+
+		f_goal = flux_recal(data, z[kz], z_ref)
+		xn, yn, resam = gen(f_goal, 1, b, cx, cy)
+		if b > 1:
+			resam = resam[1:, 1:]
+		elif b == 1:
+			resam = resam[1:-1, 1:-1]
+		else:
+			resam = resam
+		re_x = np.int(xn)
+		re_y = np.int(yn)
+		'''
+		SB_t, R_t, Ar_t, error_t = light_measure(resam, bins, 1, Rref, xn, yn, pixel, z_ref)
+		SB_tt = SB_t[1:]
+		R_tt = R_t[1:]
+		Ar_tt = Ar_t[1:]
+		erro_tt = error_t[1:]
+		plt.figure()
+		ax1 = plt.subplot(111)
+		ax1.plot(Ar_tt, SB_tt, 'b-', label = '$single$')
+		ax1.set_xscale('log')
+		ax1.set_xlabel('$R[arcsec]$')
+		ax1.set_ylabel('$M_r[mag/arcsec^2]$')
+		ax1.legend(loc = 1)
+		ax1.set_title('measure in r band')
+		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
+		ax2 = ax1.twiny()
+		ax2.plot(R_tt, SB_tt, 'b-')
+		ax2.set_xscale('log')
+		ax2.set_xlabel('$R[kpc]$')
+		ax2.tick_params(axis = 'x', which = 'both', direction = 'in')
+		ax1.invert_yaxis()
+		plt.savefig('single_test_%.0f.png'%k, dpi = 600)
+		plt.close()
+		'''
+		get_array[y0 -re_y: y0 -re_y +resam.shape[0], x0 -re_x: x0 -re_x +resam.shape[1]] = \
+		get_array[y0 -re_y: y0 -re_y +resam.shape[0], x0 -re_x: x0 -re_x +resam.shape[1]] + resam
+		count_array[y0 -re_y: y0 -re_y +resam.shape[0], x0 -re_x: x0 -re_x +resam.shape[1]] = resam
 		ia = np.where(count_array != 0)
 		p_count_1[ia[0], ia[1]] = p_count_1[ia[0], ia[1]] + 1
-		count_array[ia[0], ia[1]] = 0		
+		count_array[y0 -re_y: y0 -re_y +resam.shape[0], x0 -re_x: x0 -re_x +resam.shape[1]] = 0		
 	
 	mean_array = get_array/p_count_1
 	where_are_nan = np.isnan(mean_array)
@@ -105,11 +150,9 @@ def add_light():
 	plt.savefig('stacking_test.png', dpi = 600)
 	plt.show()
 	'''
-	Da0 = Test_model.angular_diameter_distance(z[kz]).value
-	Angur = (R0/Da0)*rad2asec
+	Angur = (R0/Da_ref)*rad2asec
 	Rp = Angur/pixel
-	bins = 90
-	SB_1, R_1, r0_1, error_1 = light_measure(mean_array, bins, 1, Rp, x0, y0, pixel, z[kz])
+	SB_1, R_1, r0_1, error_1 = light_measure(mean_array, bins, 1, Rp, x0, y0, pixel, z_ref)
 	SB_measure = SB_1[1:]
 	R_measure = R_1[1:]
 	Ar_measure = r0_1[1:]
@@ -123,9 +166,9 @@ def add_light():
 	ax1 = plt.subplot(gs1[0])
 	ax2 = plt.subplot(gs1[1])
 
-	ax1.plot(R_measure, SB_measure, 'r-', lw = 2, label = '$SB_{ccd \\ at \\ z_0}$', alpha = 0.5)
-	ax1.plot(R_measure, SB_compare0, 'b--', lw = 2, label = '$SB_{theory \\ at \\ z_0}$', alpha = 0.5)
-	#ax1.plot(R_measure, SB_compare1, 'g--', lw = 2, label = '$SB_{theory \\ at \\ z_{ref}}$', alpha = 0.5)
+	ax1.plot(R_measure, SB_measure, 'r-', lw = 2, label = '$SB_{ccd \\ at \\ z_{ref}}$', alpha = 0.5)
+	#ax1.plot(R_measure, SB_compare0, 'b--', lw = 2, label = '$SB_{theory \\ at \\ z_0}$', alpha = 0.5)
+	ax1.plot(R_measure, SB_compare1, 'g--', lw = 2, label = '$SB_{theory \\ at \\ z_{ref}}$', alpha = 0.5)
 	ax1.set_xlabel('R[kpc]')
 	ax1.set_xscale('log')
 	ax1.set_ylabel('$SB[mag/arcsec^2]$')
@@ -137,13 +180,13 @@ def add_light():
 	ax1.legend(loc = 3, fontsize = 15)
 	ax1.invert_yaxis()
 
-	ax2.plot(R_measure, SB_compare0 - SB_measure, 'r--', label = '$SB_{theory \\ at \\ z_0} - SB_{ccd \\ at \\ z_0}$', alpha = 0.5)
+	ax2.plot(R_measure, SB_compare1 - SB_measure, 'r--', label = '$SB_{theory \\ at \\ z_{ref}} - SB_{ccd \\ at \\ z_{ref}}$', alpha = 0.5)
 	ax2.set_xlabel('R[kpc]')
 	ax2.set_xscale('log')
 	ax2.set_ylabel('$\Delta SB[mag/arcsec^2]$')
 	ax2.legend(loc = 1, fontsize = 15)
 
-	plt.savefig('rescale_resample_test.png')
+	plt.savefig('rescale_resample_stack.png')
 	plt.show()
 	raise
 	return

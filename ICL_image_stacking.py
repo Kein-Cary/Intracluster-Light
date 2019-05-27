@@ -1,34 +1,30 @@
-# this file use to creat the resample data and svae as fits
-"""
-in this file, assume all the pixel scale is '1' compared to the reference redshift
-"""
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
-import numpy as np
-import astropy.constants as C
+import handy.scatter as hsc
+
 import astropy.units as U
+import astropy.constants as C
 from astropy import cosmology as apcy
-import astropy.io.fits as fits
+
+import h5py
+import numpy as np
+import pandas as pd
 import astropy.wcs as awc
-# resample part
-from ICL_up_resampling import sum_samp
-from ICL_down_resampling import down_samp
+import subprocess as subpro
+import astropy.io.ascii as asc
+import astropy.io.fits as fits
 
-c0 = U.kpc.to(U.cm)
-c1 = U.Mpc.to(U.pc)
-c2 = U.Mpc.to(U.cm)
-c3 = U.L_sun.to(U.erg/U.s)
-c4 = U.rad.to(U.arcsec)
+from resamp import gen
+from extinction_redden import A_wave
+from light_measure import light_measure, flux_recal
+##
+kpc2cm = U.kpc.to(U.cm)
+Mpc2pc = U.Mpc.to(U.pc)
+Mpc2cm = U.Mpc.to(U.cm)
+rad2asec = U.rad.to(U.arcsec)
+pc2cm = U.pc.to(U.cm)
 Lsun = C.L_sun.value*10**7
-# cosmology model
-Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
-H0 = Test_model.H0.value
-h = H0/100
-Omega_m = Test_model.Om0
-Omega_lambda = 1.-Omega_m
-Omega_k = 1.- (Omega_lambda + Omega_m)
-
 # cosmology model
 Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
 H0 = Test_model.H0.value
@@ -39,129 +35,191 @@ Omega_k = 1.- (Omega_lambda + Omega_m)
 
 pixel = 0.396 # the pixel size in unit arcsec
 z_ref = 0.250 
+Da_ref = Test_model.angular_diameter_distance(z_ref).value
 Jy = 10**(-23) # (erg/s)/cm^2
 f0 = 3631*10**(-23) # zero point in unit (erg/s)/cm^-2
-band = ['u','g','r','i','z']
 
-goal_data = fits.getdata(
-        '/mnt/ddnfs/data_users/cxkttwl/ICL/data/redmapper/redmapper_dr8_public_v6.3_catalog.fits')
-RA = np.array(goal_data.RA)
-DEC = np.array(goal_data.DEC)
-redshift = np.array(goal_data.Z_SPEC)
-richness = np.array(goal_data.LAMBDA)
-# except the part with no spectra redshift
-z_eff = redshift[redshift != -1]
-ra_eff = RA[redshift != -1]
-dec_eff = DEC[redshift != -1]
-rich_eff = richness[redshift != -1]
-# select the nearly universe
-z = z_eff[(z_eff >= 0.2)&(z_eff <= 0.3)]
-ra = ra_eff[(z_eff >= 0.2)&(z_eff <= 0.3)]
-dec = dec_eff[(z_eff >= 0.2)&(z_eff <= 0.3)]
-rich = rich_eff[(z_eff >= 0.2)&(z_eff <= 0.3)]
-# inter def
-def flux_scale(data,z,zref):
-    obs = data 
-    z0 = z
-    z_stak = zref
-    Da_0 = Test_model.angular_diameter_distance(z0).value
-    Da_ref = Test_model.angular_diameter_distance(z_stak).value
-    ref_data = obs*(1+z0)**4*Da_0**2/((1+z_stak)**4*Da_ref**2)
-    return ref_data
+# sample catalog
+with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/sample_catalog.h5') as f:
+    catalogue = np.array(f['a'])
+z = catalogue[0]
+ra = catalogue[1]
+dec = catalogue[2]
+R0 = 1 # in unit Mpc
+load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
+band = ['u', 'g', 'r', 'i', 'z']
+mag_add = np.array([-0.04, 0, 0, 0, 0.02])
+#zp = np.array([]) # zero point magnitude for differ band
+def stack_light():
+    x0 = 2427
+    y0 = 1765
+    bins = 90
+    Nx = np.linspace(0, 4854, 4855)
+    Ny = np.linspace(0, 3530, 3531)
+    sum_grid = np.array(np.meshgrid(Nx, Ny))
+    # stack cluster
+    for ii in range(len(band)):
+        get_array = np.zeros((len(Ny), len(Nx)), dtype = np.float) # sum the flux value for each time
+        count_array = np.zeros((len(Ny), len(Nx)), dtype = np.float) # sum array but use for pixel count for each time
+        p_count_1 = np.zeros((len(Ny), len(Nx)), dtype = np.float) # how many times of each pixel get value
 
-def pixel_scale_compa(z, zref):
-    z0 = z
-    z_stak = zref
-    Da_0 = Test_model.angular_diameter_distance(z0).value
-    L_0 = Da_0*pixel/c4
-    Da_ref = Test_model.angular_diameter_distance(z_stak).value
-    L_ref = Da_ref*pixel/c4
-    pix_ratio = L_ref/L_0
-    return pix_ratio
+        for jj in range(100):
+            ra_g = ra[jj]
+            dec_g = dec[jj]
+            z_g = z[jj]
+            Da_g = Test_model.angular_diameter_distance(z_g).value
+            data = fits.getdata(load + 'mask_data/A_plane/A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
+            img = data[0]
+            wcs = awc.WCS(data[1])
+            cx, cy = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
 
-def R_angl(z):
-    z = z
-    Da = Test_model.angular_diameter_distance(z).value
-    R = ((1/h)*c4/Da)/pixel
-    return R
-# resample process
-x0 = np.linspace(0,2047,2048)
-y0 = np.linspace(0,1488,1489)
-pix_id = np.array(np.meshgrid(x0,y0)) #data grid for original data 
-for k in range(1):
-    for q in range(len(band)):
-        cut_data = fits.getdata(
-                '/mnt/ddnfs/data_users/cxkttwl/ICL/wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'%\
-                (band[q],ra[k],dec[k],z[k]),header = True)
-        wcs1 = awc.WCS(cut_data[1])
-        transf = cut_data[1]['NMGY']
-        cx, cy = wcs1.all_world2pix(ra[k]*U.deg, dec[k]*U.deg, 1)
-        cx = np.float(cx)
-        cy = np.float(cy)
-        # get the observational size
-        Da = Test_model.angular_diameter_distance(z[k]).value
-        Alpha = (1/h)*c4/Da 
-        R = Alpha/pixel
-        # get the select region, for comparation
-        dr = np.sqrt((pix_id[0]-cx)**2+(pix_id[1]-cy)**2)
-        idr = dr <= R 
-        mirro = cut_data[0]*(idr*1)
+            Angur = (R0*rad2asec/Da_g)
+            Rp = Angur/pixel
+            L_ref = Da_ref*pixel/rad2asec
+            L_z0 = Da_g*pixel/rad2asec
+            b = L_ref/L_z0
+            Rref = (R0*rad2asec/Da_ref)/pixel
+
+            f_goal = flux_recal(img, z_g, z_ref)
+            xn, yn, resam = gen(f_goal, 1, b, cx, cy)
+            xn = np.int(xn)
+            yn = np.int(yn)
+            if b > 1:
+                resam = resam[1:, 1:]
+            elif b == 1:
+                resam = resam[1:-1, 1:-1]
+            else:
+                resam = resam
+            la0 = np.int(y0 - yn)
+            la1 = np.int(y0 - yn + resam.shape[0])
+            lb0 = np.int(x0 - xn)
+            lb1 = np.int(x0 - xn + resam.shape[1])
+
+            get_array[la0:la1, lb0:lb1] = get_array[la0:la1, lb0:lb1] + resam
+            count_array[la0: la1, lb0: lb1] = resam
+            ia = np.where(count_array != 0)
+            p_count_1[ia[0], ia[1]] = p_count_1[ia[0], ia[1]] + 1
+            count_array[la0: la1, lb0: lb1] = 0
+
+        mean_array = get_array/p_count_1
+        where_are_nan = np.isnan(mean_array)
+        mean_array[where_are_nan] = 0
+
+        Angu_ref = (R0/Da_ref)*rad2asec
+        Rpp = Angu_ref/pixel
+
+        SB, R, Ar, error = light_measure(mean_array, bins, 1, Rpp, x0, y0, pixel, z_ref)
+        SB_measure = SB[1:] + mag_add[ii]
+        R_measure = R[1:]
+        Ar_measure = Ar[1:]
+        SB_error = error[1:]
         
+        #staack sky
+        sky_array = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+        sky_count = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+        p_sky_count = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+        for kk in range(100):
+            ra_g = ra[kk]
+            dec_g = dec[kk]
+            z_g = z[kk]
+            Da_g = Test_model.angular_diameter_distance(z_g).value
+            data = fits.getdata(load + 'mask_data/sky_plane/sky_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
+            img = data[0]
+            wcs = awc.WCS(data[1])
+            cx, cy = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
+
+            Angur = (R0*rad2asec/Da_g)
+            Rp = Angur/pixel
+            L_ref = Da_ref*pixel/rad2asec
+            L_z0 = Da_g*pixel/rad2asec
+            b = L_ref/L_z0
+            Rref = (R0*rad2asec/Da_ref)/pixel
+
+            f_goal = flux_recal(img, z_g, z_ref)
+            xn, yn, resam = gen(f_goal, 1, b, cx, cy)
+            xn = np.int(xn)
+            yn = np.int(yn)
+            if b > 1:
+                resam = resam[1:, 1:]
+            elif b == 1:
+                resam = resam[1:-1, 1:-1]
+            else:
+                resam = resam
+            la0 = np.int(y0 - yn)
+            la1 = np.int(y0 - yn + resam.shape[0])
+            lb0 = np.int(x0 - xn)
+            lb1 = np.int(x0 - xn + resam.shape[1])
+
+            sky_array[la0: la1, lb0: lb1] = sky_array[la0: la1, lb0: lb1] + resam
+            sky_count[la0: la1, lb0: lb1] = resam
+            ia = np.where(sky_count != 0)
+            p_sky_count[ia[0], ia[1]] = p_sky_count[ia[0], ia[1]] + 1
+            sky_count[la0: la1, lb0: lb1] = 0
+
+        mean_sky = sky_array/p_sky_count
+        where_are_nan = np.isnan(mean_sky)
+        mean_sky[where_are_nan] = 0
+        dr = np.sqrt((sum_grid[0,:] - x0)**2 + (sum_grid[1,:] - y0)**2)
+        ia = dr >= Rpp
+        ib = dr <= 1.1*Rpp
+        ic = ia & ib
+        sky_set = mean_sky[ic]
+        sky_light = np.sum(sky_set[sky_set != 0])/len(sky_set[sky_set != 0])
+        sky_mag = 22.5 - 2.5*np.log10(sky_light) + 2.5*np.log10(pixel**2) + mag_add[ii]
+        '''
+        test_sky = np.zeros(10, dtype = np.float)
+        for kk in range(10):
+
+            tx = np.linspace(0, 2047, 2048)
+            ty = np.linspace(0, 1488, 1489)
+            t_grid = np.array(np.meshgrid(tx, ty))
+
+            ra_g = ra[kk]
+            dec_g = dec[kk]
+            z_g = z[kk]
+            Da_g = Test_model.angular_diameter_distance(z_g).value
+            data = fits.getdata(load + 'mask_data/sky_plane/sky_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
+            img = data[0]
+            wcs = awc.WCS(data[1])
+            cx, cy = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
+            Angur = (R0*rad2asec/Da_g)
+            Rp = Angur/pixel
+
+            dtr = np.sqrt((cx - t_grid[0,:])**2 + (cy - t_grid[1,:])**2)
+            ix = dtr <= 1.1*Rp
+            iy = dtr >= Rp*1
+            iz = ix & iy
+            iu = np.where(iz == True)[0]
+            tsky = img[iu[0], iu[1]]
+            ttsky = tsky[tsky != 0]
+            SBT = 22.5 - 2.5*np.log10(np.mean(ttsky)) + 2.5*np.log10(pixel**2)
+            test_sky[kk] = SBT + 10*np.log10((1+z_ref)/(1+z_g))
+        sky_mag = np.mean(test_sky) + mag_add[ii]
+        '''
+        # fig part    
         plt.figure()
-        im0 = plt.imshow(mirro,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
-        plt.colorbar(im0, label = 'flux', fraction = 0.035,pad = 0.003)
-        plt.scatter(cx,cy,facecolors = '',marker='o',edgecolors='r')
-        plt.title('select_ra%.3f_dec%.3f_z%.3f_rich%.3f.png'%(ra[k],dec[k],z[k],rich[k]))
-        plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/region_cut/\
-                    select_%s_ra%.3f_dec%.3f_z%.3f_rich%.3f.png'%(band[q], ra[k], dec[k], z[k], rich[k]),dpi = 600)  
+        ax1 = plt.subplot(111)
+        ax1.plot(Ar_measure, SB_measure, 'b-', label = '$Stack_{100}$')
+        ax1.axhline(sky_mag, ls = '-.', c = 'r', label = '$sky$')
+        ax1.set_xscale('log')
+        ax1.set_xlabel('$R[arcsec]$')
+        ax1.set_ylabel('$M_r[mag/arcsec^2]$')
+        ax1.legend(loc = 1)
+        ax1.set_title('stacking test in %s band'%band[ii])
+        ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
+        ax2 = ax1.twiny()
+        ax2.plot(R_measure, SB_measure, 'b-')
+        ax2.set_xscale('log')
+        ax2.set_xlabel('$R[kpc]$')
+        ax2.tick_params(axis = 'x', which = 'both', direction = 'in')
+        ax1.invert_yaxis()
+        plt.savefig('stacking_test_%s.png'%band[ii], dpi = 600)
         plt.close()
-        
-        x = mirro.shape[1]
-        y = mirro.shape[0]
-        keys = ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2','CRPIX1','CRPIX2',
-                'CENTER_X','CENTER_Y','NMGY','CRVAL1','CRVAL2',
-                'CENTER_RA','CENTER_DEC','ORIGN_Z','Z_REF',]
-        value = ['T', 32, 2, x, y,cut_data[1]['CRPIX1'],cut_data[1]['CRPIX2'],
-                 cx, cy, transf, cut_data[1]['CRVAL1'],cut_data[1]['CRVAL2'],
-                 ra[k], dec[k], z[k], z_ref]
-        ff = dict(zip(keys,value))
-        fil = fits.Header(ff)
-        fits.writeto(
-                '/mnt/ddnfs/data_users/cxkttwl/ICL/data/cut_sample/cut_record/cut_image_%s_ra%.3f_dec%.3f_z%.3f_rich%.3f.fits'%(
-                band[q], ra[k], dec[k], z[k], rich[k]), mirro, header = fil, overwrite=True) 
-        # flux reset
-        inter_data = flux_scale(mirro, z[k], z_ref)
-        size_vers = pixel_scale_compa(z[k], z_ref) 
-        mt = np.float('%.4f'%size_vers)
-        if size_vers > 1:
-            resam_data, cpos = sum_samp(mt, mt, inter_data, cx, cy)
-        else:
-            resam_data, cpos = down_samp(mt, mt, inter_data, cx, cy)
-        cx1 = cpos[0]
-        cy1 = cpos[1]
-        
-        plt.figure()
-        im1 = plt.imshow(resam_data,cmap = 'Greys',vmin = 1e-5,origin = 'lower',norm = mpl.colors.LogNorm())
-        plt.colorbar(im1, label = 'flux', fraction = 0.035,pad = 0.003)
-        plt.scatter(cx1,cy1,facecolors = '',marker='o',edgecolors='r')
-        plt.title('resampl_ra%.3f_dec%.3f_z%.3f_rich%.3f.png'%(ra[k],dec[k],z[k],rich[k]))
-        plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/resample/\
-                    resamp_%s_ra%.3f_dec%.3f_z%.3f_rich%.3f.png'%(band[q], ra[k], dec[k], z[k], rich[k]),dpi = 600)  
-        plt.close()
-        
-        x1 = resam_data.shape[1]
-        y1 = resam_data.shape[0]
-        keys1 = ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2','CRPIX1','CRPIX2',
-                'CENTER_X','CENTER_Y','NMGY','CRVAL1','CRVAL2',
-                'CENTER_RA','CENTER_DEC','ORIGN_Z','Z_REF',]
-        intx = np.ceil(cut_data[1]['CRPIX1']/size_vers)
-        inty = np.ceil(cut_data[1]['CRPIX2']/size_vers)
-        value1 = ['T', 32, 2, x1, y1, intx, inty,
-                 cx1, cy1, transf, cut_data[1]['CRVAL1'],cut_data[1]['CRVAL2'],
-                 ra[k], dec[k], z[k], z_ref]
-        ff1 = dict(zip(keys1,value1))
-        fil1 = fits.Header(ff1)
-        fits.writeto(
-                '/mnt/ddnfs/data_users/cxkttwl/ICL/data/cut_sample/resamp_record/resamp_image_%s_ra%.3f_dec%.3f_z%.3f_rich%.3f.fits'%(
-                band[q], ra[k], dec[k], z[k], rich[k]), mirro, header = fil, overwrite=True) 
-  
+       
+    return SB_measure, R_measure, Ar_measure, SB_error
+
+def main():
+    stack_light()
+
+if __name__ == "__main__":
+    main()

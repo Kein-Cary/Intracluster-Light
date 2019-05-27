@@ -1,44 +1,65 @@
 # this file use to fast resample data
-import numpy as np
-import astropy.io.fits as fits
-import astropy.constants as C
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
+import handy.scatter as hsc
+
 import astropy.units as U
+import astropy.constants as C
 from astropy import cosmology as apcy
+
+from dustmaps.sfd import SFDQuery
+from extinction_redden import A_wave
+from astropy.coordinates import SkyCoord
+
+import h5py
+import numpy as np
+import pandas as pd
 import astropy.wcs as awc
+import subprocess as subpro
+import astropy.io.ascii as asc
+import astropy.io.fits as fits
 
 from itertools import product
-import h5py
-from multiprocessing import Pool
 from itertools import starmap
-from fast_resamp import gen, flux_recal
+from multiprocessing import Pool
 
-c0 = U.kpc.to(U.cm)
-c1 = U.Mpc.to(U.pc)
-c2 = U.Mpc.to(U.cm)
-c3 = U.L_sun.to(U.erg/U.s)
-c4 = U.rad.to(U.arcsec)
-c5 = U.pc.to(U.cm)
+kpc2cm = U.kpc.to(U.cm)
+Mpc2pc = U.Mpc.to(U.pc)
+Mpc2cm = U.Mpc.to(U.cm)
+rad2asec = U.rad.to(U.arcsec)
+pc2cm = U.pc.to(U.cm)
 Lsun = C.L_sun.value*10**7
-# cosmology model
+
 Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
 H0 = Test_model.H0.value
 h = H0/100
 Omega_m = Test_model.Om0
 Omega_lambda = 1.-Omega_m
 Omega_k = 1.- (Omega_lambda + Omega_m)
-# constant
-pixel = 0.396 # the pixel size in unit arcsec
+
+pixel = 0.396
 z_ref = 0.250 
+Da_ref = Test_model.angular_diameter_distance(z_ref).value
 Jy = 10**(-23) # (erg/s)/cm^2
 f0 = 3631*10**(-23) # zero point in unit (erg/s)/cm^-2
 
+Rv = 3.1
+sfd = SFDQuery()
+d_file = '/mnt/ddnfs/data_users/cxkttwl/ICL/wget_data/'
+A_lambd = np.array([5.155, 3.793, 2.751, 2.086, 1.479])
+l_wave = np.array([3551, 4686, 6166, 7480, 8932])
+
+sb_lim = np.array([24.35, 25, 24.5, 24, 22.9]) # SB limit at z_ref
+zopt = np.array([22.46, 22.5, 22.5, 22.5, 22.52]) # zero point
+
+with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/sample_catalog.h5') as f:
+	catalogue = np.array(f['a'])
+z = catalogue[0]
+ra = catalogue[1]
+dec = catalogue[2]
+lamb = catalogue[3]
 def fill_name():
-	with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/sample_catalog.h5') as f:
-		catalogue = np.array(f['a'])
-	z = catalogue[0]
-	ra = catalogue[1]
-	dec = catalogue[2]
-	lamb = catalogue[3]
 	"""
 	# name is the file name, 
 	name_u : u band file name
@@ -58,53 +79,23 @@ def fill_name():
 	f_name = [name_u, name_g, name_r, name_i, name_z]
 	return f_name, ra, dec, z
 
-def mutli_resamp(data_name, rac, dec, z):
-	fill_nas = data_name
-	ra = rac
-	dec = dec
-	z0 = z
-	D_ref = Test_model.angular_diameter_distance(z_ref).value
-	L_ref = D_ref*pixel/c4
-	D_z = Test_model.angular_diameter_distance(z0).value
-	L_z = D_z*pixel/c4
-	b = L_ref/L_z
-	b = np.float('%.4f'%b)
-	f = fits.getdata('/mnt/ddnfs/data_users/cxkttwl/ICL/wget_data/'+fill_nas, header=True)
-	wcs = awc.WCS(f[1])
-	cx, cy = wcs.all_world2pix(ra*U.deg, dec*U.deg, 1)
-	scale_f = flux_recal(f[0], z0, z_ref)
-	xn, yn, resam = gen(scale_f, 1, b, cx, cy)
+def multi_stack():
 
-	x1 = resam.shape[1]
-	y1 = resam.shape[0]
-	intx = np.ceil(f[1]['CRPIX1'] // b)
-	inty = np.ceil(f[1]['CRPIX2'] // b)
-	keys = ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2','CRPIX1','CRPIX2',
-	'CENTER_X','CENTER_Y','CRVAL1','CRVAL2','CENTER_RA','CENTER_DEC','ORIGN_Z','Z_REF',]
-	value = ['T', 32, 2, x1, y1, intx, inty, xn, yn, f[1]['CRVAL1'], f[1]['CRVAL2'],
-	ra, dec, z0, z_ref ]
-	head = dict(zip(keys, value))
-	file_s = fits.Header(head)
-	fits.writeto(
-			'/mnt/ddnfs/data_users/cxkttwl/ICL/data/cut_sample/cut_record/resamp-'+fill_nas, resam, header = file_s, overwrite = True) 
 
-	return 
-def test_print(data_name):
-	print(data_name +'00')
+	return
 
 def test():
-	#p = Pool(5)
+
 	file_str, ra, dec, z = fill_name()
-	'''
-	result = map(mutli_resamp, file_str[0], ra, dec, z)
+	raise
+	result = map(multi_stack, file_str[0], ra, dec, z)
 	result = list(result) # use map as a test run
 	'''
 	p = Pool(5)
-	result = p.starmap(mutli_resamp, [(file_str[0], ra, dec, z),(file_str[1], ra, dec, z),
-			(file_str[2], ra, dec, z),(file_str[3], ra, dec, z),(file_str[4], ra, dec, z)])
+	result = p.starmap(multi_stack)
 	p.close()
 	p.join()
-
+	'''
 	return 
 def main():
 	test()
