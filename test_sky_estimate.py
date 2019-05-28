@@ -240,6 +240,8 @@ def sky_light():
 			plt.ylim(0, 1489)
 			plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/region_cut/sky_mask_%s_ra%.3f_dec%.3f_z%.3f.png'%(band_fil[l], ra[q], dec[q], z[q]), dpi = 300)
 			plt.close()
+
+		print(q)	
 	return
 
 def main():

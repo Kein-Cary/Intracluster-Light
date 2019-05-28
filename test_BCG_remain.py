@@ -258,6 +258,10 @@ def mask_A():
 			major = a/2
 			minor = b/2 # set the star mask based on the major and minor radius
 			senior = np.sqrt(major**2 - minor**2)
+
+			tdr = np.sqrt((cx - cx_BCG)**2 + (cy - cy_BCG)**2)
+			dr00 = np.where(tdr == np.min(tdr))[0]
+
 			for k in range(Numb):
 				xc = cx[k]
 				yc = cy[k]
@@ -268,9 +272,8 @@ def mask_A():
 				lb0 = np.int(yc - set_r)
 				lb1 = np.int(yc + set_r +1)
 
-				dcr = np.sqrt((xc - cx_BCG)**2 +(yc - cy_BCG)**2)
-				if dcr < R_p/20 :
-					mask_A = mask_A
+				if k == dr00[0] :
+					continue
 				else:
 					lr = major[k]
 					sr = minor[k]
@@ -315,7 +318,7 @@ def mask_A():
 			plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/region_cut/A_mask_%s_ra%.3f_dec%.3f_z%.3f.png'%(band_fil[l], ra[q], dec[q], z[q]), dpi = 300)
 			plt.close()
 
-		print(q/len(z))
+		print(q)
 	with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/sex_source_count.h5', 'w') as f:
 		f['a'] = np.array(N_source)
 

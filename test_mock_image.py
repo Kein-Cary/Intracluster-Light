@@ -62,7 +62,7 @@ def SB_lightpro():
 	Lz = np.tile(a**4,(N,1)).T*np.tile(Lc, (len(z),1))/(4*np.pi*c4**2) # L at z in unit: (Lsun/kpc^2)/arcsec^2
 	Lob = Lz*Lsun/c0**2
 	Iner_SB = 22.5-2.5*np.log10(Lob/(10**(-9)*f0))
-
+	raise
 	zt = z[0]
 	Dat = Test_model.angular_diameter_distance(zt).value
 	st = (10**(-6)/Dat**2)*c4**2
@@ -621,7 +621,7 @@ def random_test():
 	return
 
 def test():
-	#SB_lightpro()
+	SB_lightpro()
 	#mock_image()
 	#mock_ccd(xc = 1025, yc = 745)
 	#light_test()

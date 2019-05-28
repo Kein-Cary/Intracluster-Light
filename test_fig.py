@@ -90,7 +90,7 @@ def mask_B():
 		BEV = sfd(pos, order = 1)
 		bev = m.ebv(pos)
 
-		Av = Rv * BEV
+		Av = Rv * BEV * 0.86
 		Al = A_wave(l_wave[q], Rv) * Av
 		img = img*10**(Al / 2.5)
 
@@ -112,10 +112,10 @@ def mask_B():
 		R_ph = rad2asec/(Test_model.angular_diameter_distance(z_g).value)
 		R_p = R_ph/pixel
 		cenx, ceny = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
-
+		
 		plt.figure(figsize = (7, 4.5))
 		ax = plt.subplot(111)
-		gf = ax.imshow(BEV, cmap = 'rainbow', origin = 'lower')
+		gf = ax.imshow(BEV * 0.86, cmap = 'rainbow', origin = 'lower')
 		hsc.circles(cenx, ceny, s = R_p, fc = '', ec = 'b', )
 		hsc.circles(cenx, ceny, s = 1.1*R_p, fc = '', ec = 'b', ls = '--')
 		ax.set_title(r'$dust \; map_{SFD_{1998}} \; %s \; ra_{%.3f} \; dec_{%.3f} \; z_{%.3f}$' % (band[q], ra_g, dec_g, z_g))
@@ -123,35 +123,36 @@ def mask_B():
 		ax.set_ylim(0, 1489)
 		ax.set_xlim(0, 2048)
 		plt.subplots_adjust(left = 0.01, right = 0.85)
-		plt.savefig('/home/xkchen/mywork/ICL/code/dust_map_%s_ra%.3f_dec%.3f_z%.3f.png' % (band[q], ra_g, dec_g, z_g), dpi = 600)
-		plt.show()
-		'''
+		plt.savefig('/home/xkchen/mywork/ICL/code/dust_map98_%s_ra%.3f_dec%.3f_z%.3f.png' % (band[q], ra_g, dec_g, z_g), dpi = 600)
+		plt.close()
+				
 		plt.figure(figsize = (7, 4.5))
 		ax = plt.subplot(111)
 		gf = ax.imshow(bev, cmap = 'rainbow', origin = 'lower')
 		hsc.circles(cenx, ceny, s = R_p, fc = '', ec = 'b', )
 		hsc.circles(cenx, ceny, s = 1.1*R_p, fc = '', ec = 'b', ls = '--')
-		ax.set_title(r'$dust \; map_{SFD_{1998}} \; %s \; ra_{%.3f} \; dec_{%.3f} \; z_{%.3f}$' % (band[q], ra_g, dec_g, z_g))
+		ax.set_title(r'$dust \; map_{SFD_{2011}} \; %s \; ra_{%.3f} \; dec_{%.3f} \; z_{%.3f}$' % (band[q], ra_g, dec_g, z_g))
 		plt.colorbar(gf, fraction = 0.035, pad = 0.01, label = '$E[B-V]$')
 		ax.set_ylim(0, 1489)
 		ax.set_xlim(0, 2048)
 		plt.subplots_adjust(left = 0.01, right = 0.85)
-		plt.savefig('/home/xkchen/mywork/ICL/code/dust_map_%s_ra%.3f_dec%.3f_z%.3f.png' % (band[q], ra_g, dec_g, z_g), dpi = 600)
-		plt.show()
-		'''
+		plt.savefig('/home/xkchen/mywork/ICL/code/dust_map11_%s_ra%.3f_dec%.3f_z%.3f.png' % (band[q], ra_g, dec_g, z_g), dpi = 600)
+		plt.close()
+		
 		plt.figure(figsize = (7, 4.5))
 		ax = plt.subplot(111)
-		gf = ax.imshow(bev - BEV, cmap = 'rainbow', origin = 'lower')
+		gf = ax.imshow(bev - BEV * 0.86, cmap = 'rainbow', origin = 'lower')
 		hsc.circles(cenx, ceny, s = R_p, fc = '', ec = 'b', )
 		hsc.circles(cenx, ceny, s = 1.1*R_p, fc = '', ec = 'b', ls = '--')
-		ax.set_title(r'$dust \; map_{SFD_{1998}} \; %s \; ra_{%.3f} \; dec_{%.3f} \; z_{%.3f}$' % (band[q], ra_g, dec_g, z_g))
+		ax.set_title(r'$dust \; map_{SFD_{2011} - SFD_{1998}} \; %s \; ra_{%.3f} \; dec_{%.3f} \; z_{%.3f}$' % (band[q], ra_g, dec_g, z_g))
 		plt.colorbar(gf, fraction = 0.035, pad = 0.01, label = '$E[B-V]$')
 		ax.set_ylim(0, 1489)
 		ax.set_xlim(0, 2048)
 		plt.subplots_adjust(left = 0.01, right = 0.85)
-		plt.savefig('/home/xkchen/mywork/ICL/code/dust_map_deviation.png', dpi = 600)
-		plt.show()
+		plt.savefig('/home/xkchen/mywork/ICL/code/dust_map_deviation_%s_band.png' % band[q], dpi = 600)
+		plt.close()
 		raise
+
 		plt.figure(figsize = (7, 4.5))
 		plt.imshow(Al, cmap = 'rainbow', origin = 'lower')
 		hsc.circles(cenx, ceny, s = R_p, fc = '', ec = 'b', )
@@ -163,7 +164,7 @@ def mask_B():
 		plt.subplots_adjust(left = 0.01, right = 0.85)
 		plt.savefig('/home/xkchen/mywork/ICL/code/extinction_%s_ra%.3f_dec%.3f_z%.3f.png' % (band[q], ra_g, dec_g, z_g), dpi = 600)
 		plt.close()
-
+		
 		Numb = len(comx)
 		mask_B = np.ones((img.shape[0], img.shape[1]), dtype = np.float)
 		ox = np.linspace(0,2047,2048)
@@ -206,7 +207,7 @@ def mask_B():
 		hdu.data = mask_B
 		hdu.header = head_inf
 		hdu.writeto('/home/xkchen/mywork/ICL/data/test_data/mask/B_mask_metrx_ra%.3f_dec%.3f.fits'%(ra_g, dec_g),overwrite = True)
-	raise
+	
 	return
 
 def mask_A():
@@ -253,7 +254,7 @@ def mask_A():
 	wcs = awc.WCS(head_inf)
 	x_side = data_f[0].data.shape[1]
 	y_side = data_f[0].data.shape[0]
-	
+
 	ra_img, dec_img = wcs.all_pix2world(img_grid[0,:], img_grid[1,:], 1)
 	pos = SkyCoord(ra_img, dec_img, frame = 'fk5', unit = 'deg')
 	BEV = sfd(pos)
@@ -276,8 +277,8 @@ def mask_A():
 	hdu = fits.PrimaryHDU()
 	hdu.data = combine
 	hdu.header = head_inf
-	hdu.writeto('/home/xkchen/mywork/ICL/data/test_data/' + 'combine_data_ra%.3f_dec%.3f.fits'%(ra_g, dec_g), overwrite = True)
-	file_source = '/home/xkchen/mywork/ICL/data/test_data/' + 'combine_data_ra%.3f_dec%.3f.fits'%(ra_g, dec_g)
+	hdu.writeto('/home/xkchen/mywork/ICL/data/test_data/mask/' + 'combine_data_ra%.3f_dec%.3f.fits'%(ra_g, dec_g), overwrite = True)
+	file_source = '/home/xkchen/mywork/ICL/data/test_data/mask/' + 'combine_data_ra%.3f_dec%.3f.fits'%(ra_g, dec_g)
 	'''
 	file_source = '/home/xkchen/mywork/ICL/data/test_data/' + 'frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits'%(band[kb], ra_g, dec_g, z_g)
 	
@@ -294,7 +295,7 @@ def mask_A():
 	print(cmd)
 	a = subpro.Popen(cmd, shell = True)
 	a.wait()
-	
+
 	source = asc.read(out_load_A)
 	Numb = np.array(source['NUMBER'][-1])
 	Nz = Numb *1
@@ -339,6 +340,9 @@ def mask_A():
 	minor = b/2 # set the star mask based on the major and minor radius
 	senior = np.sqrt(major**2 - minor**2)
 
+	tdr = np.sqrt((cx - cx_BCG)**2 + (cy - cy_BCG)**2)
+	dr00 = np.where(tdr == np.min(tdr))[0]
+
 	for k in range(Numb):
 		xc = cx[k]
 		yc = cy[k]
@@ -349,9 +353,9 @@ def mask_A():
 		lb0 = np.int(yc - set_r)
 		lb1 = np.int(yc + set_r +1)
 
-		dcr = np.sqrt((xc - cx_BCG)**2 +(yc - cy_BCG)**2)
-		if dcr <= R_p/20 :
-			mask_A = mask_A
+		#dcr = np.sqrt((xc - cx_BCG)**2 +(yc - cy_BCG)**2)
+		if k == dr00[0] :
+			continue
 		else:
 			lr = major[k]
 			sr = minor[k]
@@ -370,6 +374,18 @@ def mask_A():
 	t1 = time.time() - t0
 	print('t = ', t1)
 
+	plt.imshow(mirro_A, cmap = 'Greys', origin = 'lower', vmin = 1e-3, norm = mpl.colors.LogNorm())
+	hsc.circles(cx_BCG, cy_BCG, s = 20, fc = '', ec = 'r', lw = 1)
+	plt.plot(cx[dr00[0]], cy[dr00[0]], c = 'r', marker = 'P')
+	hsc.ellipses(cx, cy, w = a, h = b, rot = theta, fc = '', ec = 'r', ls = '--', lw = 0.5)
+	hsc.circles(comx, comy, s = comr, fc = '', ec = 'b', ls = '-', lw = 0.5)
+	hsc.circles(cx_BCG, cy_BCG, s = R_p, fc = '', ec = 'b', )
+	hsc.circles(cx_BCG, cy_BCG, s = 1.1*R_p, fc = '', ec = 'b', ls = '--')
+	plt.xlim(0, 2048)
+	plt.ylim(0, 1489)
+	plt.savefig('find_BCG.png', dpi = 600)
+	plt.show()
+	raise
 	light, R, Ar, erro = light_measure(mirro_A, bin_number, 1, R_p, cx_BCG, cy_BCG, pixel, z_g)
 	light = light + mag_add[kb]
 
@@ -470,19 +486,18 @@ def mask_A():
 	plt.savefig('/home/xkchen/mywork/ICL/code/light_test_%s.png' % band[kb], dpi = 600)
 	plt.show()
 
-	
 	plt.imshow(mirro_A, cmap = 'Greys', origin = 'lower', vmin = 1e-3, norm = mpl.colors.LogNorm())
 	plt.title(r'$source \; compare \; %s \; ra%.3f \; dec%.3f \; z%.3f$' % (band[kb], ra_g, dec_g, z_g))
 	hsc.ellipses(cx, cy, w = a, h = b, rot = theta, fc = '', ec = 'r', ls = '--', lw = 0.5)
 	hsc.circles(comx, comy, s = comr, fc = '', ec = 'b', ls = '-', lw = 0.5)
 	hsc.circles(cx_BCG, cy_BCG, s = R_p, fc = '', ec = 'b', )
 	hsc.circles(cx_BCG, cy_BCG, s = 1.1*R_p, fc = '', ec = 'b', ls = '--')
-	plt.plot(cx_BCG, cy_BCG, 'bo', alpha = 0.5)
+	hsc.circles(cx_BCG, cy_BCG, s = 20, fc = 'r', ec = 'r', alpha = 0.5)
 	plt.xlim(0, 2048)
 	plt.ylim(0, 1489)
 	plt.savefig('/home/xkchen/mywork/ICL/code/add_mask_AB_%s.png' % band[kb], dpi = 300)
 	plt.show()
-	
+
 	hdu = fits.PrimaryHDU()
 	hdu.data = mirro_A
 	hdu.header = head_inf
@@ -492,15 +507,12 @@ def mask_A():
 	hdu.data = mask_A
 	hdu.header = head_inf
 	hdu.writeto('/home/xkchen/mywork/ICL/data/test_data/mask/A_mask_metrx_ra%.3f_dec%.3f.fits'%(ra_g, dec_g),overwrite = True)
-	raise
+
 	return
 
-def test():
-	#mask_B()
-	mask_A()
-
 def main():
-	test()
+	mask_B()
+	mask_A()
 
 if __name__ == "__main__":
 	main()
