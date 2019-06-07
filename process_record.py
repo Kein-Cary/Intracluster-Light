@@ -175,8 +175,8 @@ def mask_A():
 	load = '/home/xkchen/mywork/ICL/data/total_data/sample_02_03/'
 
 	param_A = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A.sex'
-	#param_A = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A_Tal.sex' # Tal 2011
-	#param_A = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A_Ze.sex' # Zibetti 2005
+	param_A_Tal = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A_Tal.sex' # Tal 2011
+	param_A_Ze = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A_Ze.sex' # Zibetti 2005
 	param_sky = '/home/xkchen/mywork/ICL/data/SEX/default_sky_mask.sex'
 
 	out_cat = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A.param'
@@ -223,7 +223,7 @@ def mask_A():
 				hdu.header = head_inf
 				hdu.writeto('/home/xkchen/mywork/ICL/data/test_data/' + 'combine_data_ra%.3f_dec%.3f.fits'%(ra_g, dec_g), overwrite = True)
 				file_source = '/home/xkchen/mywork/ICL/data/test_data/' + 'combine_data_ra%.3f_dec%.3f.fits'%(ra_g, dec_g)
-				cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s'%(param_A, out_load_A, out_cat)
+				cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s'%(param_A_Tal, out_load_A, out_cat)
 			else:
 				hdu = fits.PrimaryHDU()
 				hdu.data = data_f[0].data
@@ -421,7 +421,7 @@ def stack_A():
 		sky_light = np.sum(sky_set[sky_set != 0])/len(sky_set[sky_set != 0])
 		sky_mag = 22.5 - 2.5*np.log10(sky_light) + 2.5*np.log10(pixel**2) + mag_add[ii]
 		sky_lev[ii] = sky_mag
-
+		'''
 		plt.figure()
 		gf = plt.imshow(mean_array, cmap = 'Greys', origin = 'lower', vmin = 1e-3, norm = mpl.colors.LogNorm())
 		plt.colorbar(gf, fraction = 0.036, pad = 0.01, label = '$f[nmagy]$')
@@ -433,7 +433,7 @@ def stack_A():
 		plt.title('stack %.0f mean image in %s band' % (stack_N, band[ii]))
 		plt.savefig('/home/xkchen/mywork/ICL/code/stack_mask_A_%s_band.png' % band[ii], dpi = 600)
 		plt.close()
-
+		'''
 	with h5py.File('/home/xkchen/mywork/ICL/data/test_data/sky_light.h5', 'w') as f:
 		f['a'] = np.array(sky_lev)
 
@@ -508,7 +508,7 @@ def stack_B():
 		with h5py.File('/home/xkchen/mywork/ICL/data/test_data/SB_stack_Bmask_%s_band.h5' % band[ii]) as f:
 			for tt in range(len(stack_B)):
 				f['a'][tt,:] = stack_B[tt,:]
-
+		'''
 		plt.figure()
 		gf = plt.imshow(mean_total, cmap = 'Greys', origin = 'lower', vmin = 1e-3, norm = mpl.colors.LogNorm())
 		plt.colorbar(gf, fraction = 0.036, pad = 0.01, label = '$f[nmagy]$')
@@ -520,14 +520,22 @@ def stack_B():
 		plt.title('stack %.0f mean image in %s band' % (stack_N, band[ii]))
 		plt.savefig('/home/xkchen/mywork/ICL/code/stack_mask_B_%s_band.png' % band[ii], dpi = 600)
 		plt.close()
-
+		'''
 	return
 
 def SB_fit(r, m0, Mc, c, M2L):
 	skyl = m0
 	surf_mass = sigmamc(r, Mc, c)
 	surf_lit = surf_mass / M2L
-	mock_SB = 21.572 + 4.75 - 2.5*np.log10(10**(-6)*surf_lit) + 10*np.log10(1 + z_ref)
+
+	# case 1
+	#mock_SB = 21.572 + 4.75 - 2.5*np.log10(10**(-6)*surf_lit) + 10*np.log10(1 + z_ref)
+
+	# case 2
+	Lz = surf_lit / ((1 + z_ref)**4 * np.pi * 4 * rad2asec**2)
+	Lob = Lz * Lsun / kpc2cm**2
+	mock_SB = 22.5 - 2.5 * np.log10(Lob/(10**(-9)*f0))
+
 	mock_L = mock_SB + skyl
 
 	return mock_L
@@ -553,18 +561,19 @@ def SB_ICL():
 		err_tot = B_stack[3,:]
 
 		SB_ICL = SB_diff/(1 - f_unmask) - SB_tot * f_unmask/(1 - f_unmask)
-		'''
+		
 		plt.figure()
 		ax = plt.subplot(111)
 		ax.set_title(r'$stack_{5} \; test \; in \; %s \; band $' % band[ii])
-		ax.plot(Ar_diff, SB_ICL, 'b-', label = '$SB_{obs}$')
+		ax.errorbar(R_diff, SB_diff, yerr = err_diff, xerr = None, ls = '', fmt = 'ro', label = '$SB_{obs}$')
+		#ax.plot(Ar_diff, SB_diff, 'b-', label = '$SB_{obs}$')
 		ax.set_xlabel('$R[arcsec]$')
 		ax.set_xscale('log')
 		ax.set_ylabel('$SB[mag/arcsec^2]$')
 		ax.tick_params(axis = 'both', which = 'both', direction = 'in')
 		ax.axhline(SB_sky[ii], c = 'r', ls = '-.', label = '$local_{BG}$')
 		ax1 = ax.twiny()
-		ax1.plot(R_diff, SB_ICL, 'b-')
+		ax1.plot(R_diff, SB_diff, 'b-')
 		ax1.set_xscale('log')
 		ax1.set_xlabel('$R[kpc]$')
 		ax1.tick_params(axis = 'x', which = 'both', direction = 'in')
@@ -573,7 +582,7 @@ def SB_ICL():
 
 		plt.savefig('stack_5_in_%s_band.png' % band[ii], dpi = 600)
 		plt.close()
-		'''
+		raise
 		# fit the light profile
 		ix = R_diff >= 100
 		iy = R_diff <= 900
@@ -592,7 +601,12 @@ def SB_ICL():
 		Mc = popt[1]
 		Cc = popt[2]
 		M2L = popt[3]
-		print(popt)
+
+		print('*'*10)
+		print('m0 = ', M0)
+		print('Mc = ', Mc)
+		print('C = ', Cc)
+		print('M2L = ', M2L)
 
 		fit_line = SB_fit(r_fit, M0, Mc, Cc, M2L)
 
@@ -613,16 +627,16 @@ def SB_ICL():
 		ax.legend(loc = 1)
 		ax.invert_yaxis()
 
-		plt.savefig('sky_estimate.png', dpi = 600)
+		plt.savefig('sky_estimate_%s_band.png' % band[ii], dpi = 600)
 		plt.close()
-		raise
+	raise
 
 	return
 
 def main():
 	#mask_B()
-	#mask_A()
-	#stack_A()
+	mask_A()
+	stack_A()
 	#stack_B()
 	SB_ICL()
 

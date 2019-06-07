@@ -58,7 +58,7 @@ l_wave = np.array([3551, 4686, 6166, 7480, 8932])
 mag_add = np.array([-0.04, 0, 0, 0, 0.02])
 zop = np.array([22.46, 22.5, 22.5, 22.5, 22.52])
 sb_lim = np.array([24.35, 25, 24.5, 24, 22.9])
-def mask_B():
+def mask_wit():
 	x0 = np.linspace(0, 2047, 2048)
 	y0 = np.linspace(0, 1488, 1489)
 	img_grid = np.array(np.meshgrid(x0, y0))
@@ -66,17 +66,61 @@ def mask_B():
 	load = '/home/xkchen/mywork/ICL/data/total_data/sample_02_03/'
 	mask = '/home/xkchen/mywork/ICL/data/star_catalog/'
 	for q in range(len(band)):
-
+		'''
 		file = 'frame-%s-ra260.613-dec32.133-redshift0.223.fits.bz2' % band[q]
-		#file = 'frame-%s-ra36.455-dec-5.896-redshift0.233.fits.bz2' % band[q]
-
 		ra_g = 260.613
 		dec_g = 32.133
 		z_g = 0.223
-		#ra_g = 36.455
-		#dec_g = -5.896
-		#z_g = 0.233
+		
+		file = 'frame-%s-ra36.455-dec-5.896-redshift0.233.fits.bz2' % band[q]
+		ra_g = 36.455
+		dec_g = -5.896
+		z_g = 0.233
 
+		file = 'frame-%s-ra240.829-dec3.279-redshift0.222.fits.bz2' % band[q]
+		ra_g = 240.829
+		dec_g = 3.279
+		z_g = 0.222
+		'''
+
+		dust_map_11 = np.zeros((1489, 2048), dtype = np.float)
+		dust_map_98 = np.zeros((1489, 2048), dtype = np.float)
+		mapN = np.int(20)
+		for k in range(mapN):
+			file = 'frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (band[q], ra[k], dec[k], z[k])
+			data_f = fits.open(load+file)
+			img = data_f[0].data
+			head_inf = data_f[0].header
+			wcs = awc.WCS(head_inf)
+			x_side = data_f[0].data.shape[1]
+			y_side = data_f[0].data.shape[0]
+
+			t0 = time.time()
+			ra_img, dec_img = wcs.all_pix2world(img_grid[0,:], img_grid[1,:], 1)
+			pos = SkyCoord(ra_img, dec_img, frame = 'fk5', unit = 'deg')
+			BEV = sfd(pos)
+			bev = m.ebv(pos)
+
+			dust_map_11 = dust_map_11 + bev
+			dust_map_98 = dust_map_98 + BEV * 0.86
+
+		map_11 = dust_map_11 / mapN
+		map_98 = dust_map_98 / mapN
+
+		plt.figure()
+		gf1 = plt.imshow(map_11, cmap = 'rainbow', origin = 'lower')
+		plt.title('$map_{2011} \; stack \; %.0f \; in \; %s \; band$' % (mapN, band[q]))
+		plt.colorbar(gf1, fraction = 0.035, pad = 0.01, label = '$f[nmagy]$')
+		plt.savefig('map_11_stack_%s_band.png' % band[q], dpi = 600)
+		plt.close()
+
+		plt.figure()
+		gf2 = plt.imshow(map_98, cmap = 'rainbow', origin = 'lower')
+		plt.title('$map_{1998} \; stack \; %.0f \; in \; %s \; band$' % (mapN, band[q]))
+		plt.colorbar(gf1, fraction = 0.035, pad = 0.01, label = '$f[nmagy]$')
+		plt.savefig('map_98_stack_%s_band.png' % band[q], dpi = 600)
+		plt.close()
+		'''
 		data_f = fits.open(load+file)
 		img = data_f[0].data
 		head_inf = data_f[0].header
@@ -207,11 +251,12 @@ def mask_B():
 		hdu.data = mask_B
 		hdu.header = head_inf
 		hdu.writeto('/home/xkchen/mywork/ICL/data/test_data/mask/B_mask_metrx_ra%.3f_dec%.3f.fits'%(ra_g, dec_g),overwrite = True)
-	
+		'''
+	raise
 	return
 
 def mask_A():
-	kb = 0
+	kb = 2
 
 	t0 = time.time()
 
@@ -224,11 +269,11 @@ def mask_A():
 	load = '/home/xkchen/mywork/ICL/data/total_data/sample_02_03/'
 
 	param_A = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A.sex'
-	#param_A = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A_Tal.sex' # Tal 2011
-	#param_A = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A_Ze.sex' # Zibetti 2005
-
+	param_A_tal = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A_Tal.sex' # Tal 2011
 	param_sky = '/home/xkchen/mywork/ICL/data/SEX/default_sky_mask.sex'
+
 	out_cat = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A.param'
+
 	out_load_A = '/home/xkchen/mywork/ICL/data/SEX/result/mask_A_test.cat'
 	out_load_B = '/home/xkchen/mywork/ICL/data/SEX/result/mask_B_test.cat'
 	out_load_sky = '/home/xkchen/mywork/ICL/data/SEX/result/mask_sky_test.cat'
@@ -265,33 +310,32 @@ def mask_A():
 	cx_BCG, cy_BCG = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
 	R_ph = rad2asec/(Test_model.angular_diameter_distance(z_g).value)
 	R_p = R_ph/pixel
-	'''
-	# Tal et.al 
-	combine = np.zeros((1489, 2048), dtype = np.float)
-	for q in range(len(band)):
-		file_q = 'frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (band[q], ra_g, dec_g, z_g)
-		data_q = fits.open(load + file_q)
-		img_q = data_q[0].data
-		combine = combine + img_q
-	# combine data
-	hdu = fits.PrimaryHDU()
-	hdu.data = combine
-	hdu.header = head_inf
-	hdu.writeto('/home/xkchen/mywork/ICL/data/test_data/mask/' + 'combine_data_ra%.3f_dec%.3f.fits'%(ra_g, dec_g), overwrite = True)
-	file_source = '/home/xkchen/mywork/ICL/data/test_data/mask/' + 'combine_data_ra%.3f_dec%.3f.fits'%(ra_g, dec_g)
-	'''
-	file_source = '/home/xkchen/mywork/ICL/data/test_data/' + 'frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits'%(band[kb], ra_g, dec_g, z_g)
+	if (kb == 0) | (kb == 4):
+		# Tal et.al
+		combine = np.zeros((1489, 2048), dtype = np.float)
+		for q in range(len(band)):
+			file_q = 'frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (band[q], ra_g, dec_g, z_g)
+			data_q = fits.open(load + file_q)
+			img_q = data_q[0].data
+			combine = combine + img_q
+		# combine data
+		hdu = fits.PrimaryHDU()
+		hdu.data = combine
+		hdu.header = head_inf
+		hdu.writeto('/home/xkchen/mywork/ICL/data/test_data/mask/' + 'combine_data_ra%.3f_dec%.3f.fits'%(ra_g, dec_g), overwrite = True)
+		file_source = '/home/xkchen/mywork/ICL/data/test_data/mask/' + 'combine_data_ra%.3f_dec%.3f.fits'%(ra_g, dec_g)
+		cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s'%(param_A_tal, out_load_A, out_cat)
+	else:
+		file_source = '/home/xkchen/mywork/ICL/data/test_data/' + 'frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits'%(band[kb], ra_g, dec_g, z_g)
+		# Zibetti et.al
+		dete_thresh = sb_lim[kb] + 10*np.log10((1 + z_g)/(1 + z_ref))
+		dete_thresh = '%.3f' % dete_thresh + ',%.2f' % zop[kb]
+		dete_min = '10'
+		ana_thresh = dete_thresh *1
+		cmd = (
+			'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s -DETECT_MINAREA %s -DETECT_THRESH %s -ANALYSIS_THRESH %s'
+			%(param_A, out_load_A, out_cat, dete_min, dete_thresh, ana_thresh))
 	
-	# Zibetti et.al
-	dete_thresh = sb_lim[kb] + 10*np.log10((1 + z_g)/(1 + z_ref))
-	dete_thresh = '%.3f' % dete_thresh + ',%.2f' % zop[kb]
-	dete_min = '10'
-	ana_thresh = dete_thresh *1
-	cmd = (
-		'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s -DETECT_MINAREA %s -DETECT_THRESH %s -ANALYSIS_THRESH %s'
-		%(param_A, out_load_A, out_cat, dete_min, dete_thresh, ana_thresh))
-	
-	#cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s'%(param_A, out_load_A, out_cat)	
 	print(cmd)
 	a = subpro.Popen(cmd, shell = True)
 	a.wait()
@@ -389,100 +433,21 @@ def mask_A():
 	light, R, Ar, erro = light_measure(mirro_A, bin_number, 1, R_p, cx_BCG, cy_BCG, pixel, z_g)
 	light = light + mag_add[kb]
 
-##########################
-	'''
-	cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s'%(param_A, out_load_A, out_cat)	
-	print(cmd)
-	a = subpro.Popen(cmd, shell = True)
-	a.wait()
-	
-	source = asc.read(out_load_A)
-	Numb1 = np.array(source['NUMBER'][-1])
-	Nt = Numb1
-	A = np.array(source['A_IMAGE'])
-	B = np.array(source['B_IMAGE'])
-	theta = np.array(source['THETA_IMAGE'])
-	cx = np.array(source['X_IMAGE']) - 1
-	cy = np.array(source['Y_IMAGE']) - 1
-	p_type = np.array(source['CLASS_STAR'])
-	#Kron = source['KRON_RADIUS']
-	Kron = 6
-	a = Kron*A
-	b = Kron*B
-
-	cx = np.r_[cx, comx]
-	cy = np.r_[cy, comy]
-	a = np.r_[a, 2*comr]
-	b = np.r_[b, 2*comr]
-	theta = np.r_[theta, com_chi]
-	Numb1 = Numb1 + len(comx)
-	mask_A = np.ones((img.shape[0], img.shape[1]), dtype = np.float)
-	ox = np.linspace(0,2047,2048)
-	oy = np.linspace(0,1488,1489)
-	basic_coord = np.array(np.meshgrid(ox,oy))
-	major = a/2
-	minor = b/2 # set the star mask based on the major and minor radius
-	senior = np.sqrt(major**2 - minor**2)
-
-	for k in range(Numb1):
-		xc = cx[k]
-		yc = cy[k]
-		set_r = np.int(np.ceil(1.2 * major[k]))
-
-		la0 = np.int(xc - set_r)
-		la1 = np.int(xc + set_r +1)
-		lb0 = np.int(yc - set_r)
-		lb1 = np.int(yc + set_r +1)
-
-		dcr = np.sqrt((xc - cx_BCG)**2 +(yc - cy_BCG)**2)
-		if dcr <= R_p/20 :
-			mask_A = mask_A
-		else:
-			lr = major[k]
-			sr = minor[k]
-			cr = senior[k]
-			chi = theta[k]*np.pi/180
-			df1 = lr**2 - cr**2*np.cos(chi)**2
-			df2 = lr**2 - cr**2*np.sin(chi)**2
-			fr = ((basic_coord[0,:][lb0: lb1, la0: la1] - xc)**2*df1 + (basic_coord[1,:][lb0: lb1, la0: la1] - yc)**2*df2
-				- cr**2*np.sin(2*chi)*(basic_coord[0,:][lb0: lb1, la0: la1] - xc)*(basic_coord[1,:][lb0: lb1, la0: la1] - yc))
-			idr = fr/(lr**2*sr**2)
-			jx = idr<=1
-			jx = (-1)*jx+1
-			mask_A[lb0: lb1, la0: la1] = mask_A[lb0: lb1, la0: la1]*jx
-	mirro_A = mask_A *img
-	light1, R1, Ar1, erro1 = light_measure(mirro_A, bin_number, 1, R_p, cx_BCG, cy_BCG, pixel, z_g)
-	light1 = light1 + mag_add[kb]
-	'''
-##########################
-
 	ax = plt.subplot(111)
-	#bx = plt.subplot(212)
 	ax.plot(Ar, light, 'b-', label = r'$SB_{ccd} \; Zibetti$', alpha = 0.5)
-	#ax.plot(Ar1, light1, 'r--', label = r'$SB_{ccd} \; Tal$', alpha = 0.5)
 	ax.set_title(r'$SB \; in \; %s \; band \; ra%.3f \; dec%.3f \; z%.3f$' % (band[kb], ra_g, dec_g, z_g))
 	ax.legend(loc = 3)
 	ax.set_xscale('log')
 	ax.text(1e2, 24, s = r'$N_{Z} \, = \, %.0f$' % Nz)
-	#ax.text(1e2, 25, s = r'$N_{T} \, = \, %.0f$' % Nt)
 	ax.set_xlabel('$R[arcsec]$')
 	ax.set_ylabel('$SB[mag/arcsec^2]$')
 	ax.tick_params(axis = 'both', which = 'both', direction = 'in')
 	ax1 = ax.twiny()
 	ax1.plot(R, light, 'b-', alpha = 0.5)
-	#ax1.plot(R1, light1, 'r--', alpha = 0.5)
 	ax1.set_xscale('log')
 	ax1.set_xlabel('$R[kpc]$')
 	ax1.tick_params(axis = 'x', which = 'both', direction = 'in')
 	ax.invert_yaxis()
-	'''
-	bx.plot(Ar, light - light1, 'b-', label = r'$SB_{Zibetti} - SB_{Tal}$')
-	bx.set_xlabel('$R[arcsec]$')
-	bx.set_ylabel('$\Delta_{SB}$')
-	bx.set_xscale('log')
-	bx.legend(loc = 2)
-	bx.tick_params(axis = 'both', which = 'both', direction = 'in')
-	'''
 	plt.savefig('/home/xkchen/mywork/ICL/code/light_test_%s.png' % band[kb], dpi = 600)
 	plt.show()
 
@@ -511,7 +476,7 @@ def mask_A():
 	return
 
 def main():
-	mask_B()
+	mask_wit()
 	mask_A()
 
 if __name__ == "__main__":

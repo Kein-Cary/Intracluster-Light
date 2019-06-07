@@ -94,7 +94,7 @@ def sky_light():
 			Av = Rv * BEV * 0.86
 			Al = A_wave(l_wave[l], Rv) * Av
 			img = img*10**(Al / 2.5)
-			
+			'''
 			# mask set the same as in cluster
 			if (l == 4) | (l == 0):
 				combine = np.zeros((1489, 2048), dtype = np.float)
@@ -130,7 +130,7 @@ def sky_light():
 			hdu.writeto('source_data.fits', overwrite = True)
 			file_source = './source_data.fits'
 			cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s'%(param_sky, out_load_sky, out_cat)
-			'''
+
 			print(cmd)
 			a = subpro.Popen(cmd, shell = True)
 			a.wait()

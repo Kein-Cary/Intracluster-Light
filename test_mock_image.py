@@ -314,7 +314,8 @@ def light_test():
 	plt.show()
 	'''
 	bin_number = 80
-	light, R, Ar1 = light_measure(f, bin_number, 1, Rp, cx, cy, pixel, z[kz])
+	light, R, Ar1, err = light_measure(f, bin_number, 1, Rp, cx, cy, pixel, z[kz])
+	raise
 	light_com = flux_func(R/np.max(rbin))
 	'''
 	plt.figure(figsize = (16,9))
@@ -621,11 +622,11 @@ def random_test():
 	return
 
 def test():
-	SB_lightpro()
+	#SB_lightpro()
 	#mock_image()
 	#mock_ccd(xc = 1025, yc = 745)
-	#light_test()
-	resample_test()
+	light_test()
+	#resample_test()
 	#random_test()
 
 def main():

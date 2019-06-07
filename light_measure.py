@@ -76,8 +76,15 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 	Ny = data.shape[0]
 	x0 = np.linspace(0, Nx-1, Nx)
 	y0 = np.linspace(0, Ny-1, Ny)
-	pix_id = np.array(np.meshgrid(x0,y0)) #data grid for original data 
-	
+	pix_id = np.array(np.meshgrid(x0,y0))
+
+	theta = np.arctan2((pix_id[1,:]-cy), (pix_id[0,:]-cx))
+	where_are_nan = np.isnan(theta)
+	theta[where_are_nan] = 0
+	chi = theta * 180/np.pi
+	phi = np.linspace(0, 360, 24)
+	phi = phi - 180
+
 	r = np.logspace(-1, np.log10(Rp), Nbins) # in unit "pixel"
 	#r = np.linspace(0, np.ceil(Rp), Nbins)
 	ia = r<= cen_close
@@ -98,6 +105,7 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 			ih = np.array(np.where(ig == True))
 			im = np.max(ih)
 			ir = dr <= rbin[im]
+
 			io = np.where(ir == True)
 			subr = rbin[ig]
 			num = len(io[0])
@@ -115,9 +123,27 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 				light[k] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
 				R[k] = np.mean(subr)*pixel*Da0*10**3/rad2arcsec
 				Angur[k] = np.mean(subr)*pixel
-				SB_in = 22.5-2.5*np.log10(f_data[iy, ix])+2.5*np.log10(tot_area)
-				SB_error[k] = np.std(SB_in)
-			k = im+1 
+
+				terr = []
+				for tt in range(len(phi) - 1):
+					iv = (chi >= phi[tt]) & (chi <= phi[tt+1])
+					iu = iv & ir
+					itt = np.where(iu == True)
+					ttf = np.sum(f_data[itt[0], itt[1]])/len(itt[0])		
+					SB_in = 22.5-2.5*np.log10(ttf)+2.5*np.log10(tot_area)
+					terr.append(SB_in)
+
+				terr = np.array(terr)
+				where_are_inf = np.isinf(terr)
+				terr[where_are_inf] = 0
+				where_are_nan = np.isnan(terr)
+				terr[where_are_nan] = 0
+
+				Terr = terr[terr != 0]
+				Trms = np.sqrt(np.sum(Terr**2)/len(Terr))
+				SB_error[k] = Trms/np.sqrt(len(Terr) - 1)
+			k = im+1
+
 		else:
 			ir = (dr > rbin[k-1]) & (dr <= rbin[k])
 			io = np.where(ir == True)
@@ -137,15 +163,46 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 				light[k-im] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
 				R[k-im] = 0.5*(rbin[k-1]+rbin[k])*pixel*Da0*10**3/rad2arcsec
 				Angur[k-im] = 0.5*(rbin[k-1]+rbin[k])*pixel
-				SB_in = 22.5-2.5*np.log10(f_data[iy, ix])+2.5*np.log10(tot_area)
-				SB_error[k-im] = np.std(SB_in)
 
-	ii = (light != 0) & (light != np.inf) & (light != np.nan)
-	ll = light[ii]
-	RR = R[ii]
-	AA = Angur[ii]
-	EE = SB_error[ii]
+				terr = []
+				for tt in range(len(phi) - 1):
+					iv = (chi >= phi[tt]) & (chi <= phi[tt+1])
+					iu = iv & ir
+					itt = np.where(iu == True)
+					ttf = np.sum(f_data[itt[0], itt[1]])/len(itt[0])			
+					SB_in = 22.5-2.5*np.log10(ttf)+2.5*np.log10(tot_area)
+					terr.append(SB_in)
+
+				terr = np.array(terr)
+				where_are_inf = np.isinf(terr)
+				terr[where_are_inf] = 0
+				where_are_nan = np.isnan(terr)
+				terr[where_are_nan] = 0
+
+				Terr = terr[terr != 0]
+				Trms = np.sqrt(np.sum(Terr**2)/len(Terr))
+				SB_error[k] = Trms/np.sqrt(len(Terr) - 1)
+	# tick out the bad value
+	where_are_nan1 = np.isnan(light)
+	light[where_are_nan1] = 0
+	where_are_inf1 = np.isinf(light)
+	light[where_are_inf1] = 0
+
+	where_are_nan2 = np.isnan(SB_error)
+	SB_error[where_are_nan2] = 0
+	where_are_inf2 = np.isinf(SB_error)
+	SB_error[where_are_inf2] = 0
+
+	ii = light != 0
+	jj = SB_error != 0
+	kk = ii & jj
+
+	ll = light[kk]
+	RR = R[kk]
+	AA = Angur[kk]
+	EE = SB_error[kk]
 	return ll, RR, AA, EE
+
 @vectorize
 def sigmamc(r, Mc, c):
 	"""
@@ -163,17 +220,17 @@ def sigmamc(r, Mc, c):
 	f0_c = 2*rho0_c*rs # use for test
 	x = R/rs
 	if x < 1: 
-	    f1 = np.sqrt(1-x**2)
-	    f2 = np.sqrt((1-x)/(1+x))
-	    f3 = x**2-1
-	    sigma_c = f0_c*(1-2*np.arctanh(f2)/f1)/f3
+		f1 = np.sqrt(1-x**2)
+		f2 = np.sqrt((1-x)/(1+x))
+		f3 = x**2-1
+		sigma_c = f0_c*(1-2*np.arctanh(f2)/f1)/f3
 	elif x == 1:
-	    sigma_c = f0_c/3
+		sigma_c = f0_c/3
 	else:
-	    f1 = np.sqrt(x**2-1)
-	    f2 = np.sqrt((x-1)/(1+x))
-	    f3 = x**2-1
-	    sigma_c = f0_c*(1-2*np.arctan(f2)/f1)/f3
+		f1 = np.sqrt(x**2-1)
+		f2 = np.sqrt((x-1)/(1+x))
+		f3 = x**2-1
+		sigma_c = f0_c*(1-2*np.arctan(f2)/f1)/f3
 	return  sigma_c
 
 def sigmam(r, Mc, z, c):
@@ -190,24 +247,24 @@ def sigmam(r, Mc, z, c):
 	f0 = 2*Deltac*rhoc*rs
 	x = R/r200
 	if x < 1: 
-	    f1 = np.sqrt(1-x**2)
-	    f2 = np.sqrt((1-x)/(1+x))
-	    f3 = x**2-1
-	    sigma = f0*(1-2*np.arctanh(f2)/f1)/f3
+		f1 = np.sqrt(1-x**2)
+		f2 = np.sqrt((1-x)/(1+x))
+		f3 = x**2-1
+		sigma = f0*(1-2*np.arctanh(f2)/f1)/f3
 	elif x == 1:
-	    sigma = f0/3
+		sigma = f0/3
 	else:
-	    f1 = np.sqrt(x**2-1)
-	    f2 = np.sqrt((x-1)/(1+x))
-	    f3 = x**2-1
-	    sigma = f0*(1-2*np.arctan(f2)/f1)/f3
+		f1 = np.sqrt(x**2-1)
+		f2 = np.sqrt((x-1)/(1+x))
+		f3 = x**2-1
+		sigma = f0*(1-2*np.arctan(f2)/f1)/f3
 	return sigma
 
 def main():
 
 	#light_measure()
 	#sigmamc(100, 15, 5)
-	sigmam(100, 15, 0, 5)
+	rho2d = sigmam(100, 15, 0, 5)
 
 if __name__ == '__main__':
 	main()
