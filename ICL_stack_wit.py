@@ -53,7 +53,7 @@ load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 band = ['u', 'g', 'r', 'i', 'z']
 mag_add = np.array([-0.04, 0, 0, 0, 0.02])
 
-stack_N = np.int(2)
+stack_N = np.int(100)
 def stack_light():
     un_mask = 0.15
 
@@ -112,7 +112,7 @@ def stack_light():
         mean_array[where_are_nan] = 0
 
         SB, R, Ar, error = light_measure(mean_array, bins, 1, Rpp, x0, y0, pixel, z_ref)
-        raise
+
         SB_diff = SB[1:] + mag_add[ii]
         R_diff = R[1:]
         Ar_diff = Ar[1:]

@@ -93,7 +93,6 @@ def gen1( d1, res1, res2 ):
         for j in range( N2 ):
 
             if (i*N2+j) % sig == 0:
-                #print( i*M2+j )
                 print( "%3.0f%%"%( (i*N2+j) / (M2*N2) * 100 ) )
 
             iii, dii = get_index2( i+1, j+1, t21 )
@@ -112,18 +111,15 @@ def gen1( d1, res1, res2 ):
             if ii == ii1:
                 t1, t2 = get_r( dii, t21, 1 )
                 d2[i,j] += d1[ii,jj] * t1 + d1[ii,jj1] * t2
-                #print( t1+t2 )
                 continue
 
             if jj == jj1:
                 t1, t2 = get_r( dii, t21, 2 )
                 d2[i,j] += d1[ii,jj] * t1 + d1[ii1,jj] * t2
-                #print( t1+t2 )
                 continue
 
 
             t1, t2, t3, t4 = get_r( dii, t21, 3 )
-            #print( t1+t2+t3+t4 )
             d2[i,j] += d1[ii,jj]   * t1
             d2[i,j] += d1[ii1,jj1] * t2
             d2[i,j] += d1[ii,jj1]  * t3
@@ -149,7 +145,6 @@ def gen2( d1, res1, res2 ):
         for j in range( N1 ):
 
             if (i*N1+j) % sig == 0:
-                #print( i*M2+j )
                 print( "%3.0f%%"%( (i*N1+j) / (M1*N1) * 100 ) )
 
             iii, dii = get_index2( i, j, t12 )
@@ -178,7 +173,6 @@ def gen2( d1, res1, res2 ):
                 continue
 
             t1, t2, t3, t4 = get_r( dii, t12*r21, 3 )
-            #print( t1+t2+t3+t4 )
             d2[ii,jj]   += d1[i,j] * t1 * r21
             d2[ii1,jj1] += d1[i,j] * t2 * r21
             d2[ii,jj1]  += d1[i,j] * t3 * r21
@@ -209,15 +203,13 @@ def gen( d, res1, res2, cx, cy ):
         xn = cx*1
         yn = cy*1
         return xn, yn,gen2( d, res1, res2)
-    #print( "res1 == res2 !!!!" )
-    #exit()
 
 def test():
     z_ref = 0.25
     D_ref = Test_model.angular_diameter_distance(z_ref).value
     L_ref = D_ref*pixel/c4 
 
-    f = fits.getdata('/home/xkchen/mywork/ICL/data/test_data/frame-u-ra203.834-dec41.001-redshift0.228.fits',header=True)
+    f = fits.getdata('/home/xkchen/mywork/ICL/data/total_data/sample_02_03/frame-u-ra203.834-dec41.001-redshift0.228.fits.bz2',header=True)
     wcs = awc.WCS(f[1])
     d1 = f[0]
     z = 0.228
@@ -241,6 +233,8 @@ def test():
     ax2.plot(xn, yn, 'ro')
     plt.show()
     raise
+    '''
+    # save the result img as fits file
     x1 = resam.shape[1]
     y1 = resam.shape[0]
     intx = np.ceil(f[1]['CRPIX1'] * b)
@@ -253,10 +247,11 @@ def test():
     file_s = fits.Header(head)
     fits.writeto('resamp_image_ra%.3f_dec%.3f_z%.3f.fits'%(ra, dec, z), resam, header = file_s,
     	overwrite = True)
-
+    '''
     return resam, xn, yn
+
 def main():
     resam, xn, yn  = test()
-    return resam, xn, yn
+
 if __name__ == '__main__':
     main()

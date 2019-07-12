@@ -65,7 +65,7 @@ def map_stack():
 	img_grid = np.array(np.meshgrid(x0, y0))
 
 	load = '/mnt/ddnfs/data_users/cxkttwl/ICL/wget_data/'
-	mapN = np.int(100)
+	mapN = np.int(500)
 	for q in range(len(band)):
 		dust_map_11 = np.zeros((1489, 2048), dtype = np.float)
 		dust_map_98 = np.zeros((1489, 2048), dtype = np.float)
@@ -91,17 +91,19 @@ def map_stack():
 		map_11 = dust_map_11 / mapN
 		map_98 = dust_map_98 / mapN
 
-		plt.figure()
+		plt.figure(figsize = (7.5, 4.5))
 		gf1 = plt.imshow(map_11, cmap = 'rainbow', origin = 'lower')
 		plt.title('$map_{2011} \; stack \; %.0f \; in \; %s \; band$' % (mapN, band[q]))
 		plt.colorbar(gf1, fraction = 0.035, pad = 0.01, label = '$f[nmagy]$')
+		plt.subplots_adjust(left = 0.01, right = 0.85)
 		plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/map_11_stack_%s_band.png' % band[q], dpi = 600)
 		plt.close()
 
-		plt.figure()
+		plt.figure(figsize = (7.5, 4.5))
 		gf2 = plt.imshow(map_98, cmap = 'rainbow', origin = 'lower')
 		plt.title('$map_{1998} \; stack \; %.0f \; in \; %s \; band$' % (mapN, band[q]))
 		plt.colorbar(gf1, fraction = 0.035, pad = 0.01, label = '$f[nmagy]$')
+		plt.subplots_adjust(left = 0.01, right = 0.85)
 		plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/map_98_stack_%s_band.png' % band[q], dpi = 600)
 		plt.close()
 

@@ -1,5 +1,3 @@
-# theis file use to select those cluster:
-# total in the fits image file get the data by wget
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt

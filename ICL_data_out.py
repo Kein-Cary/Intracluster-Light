@@ -14,7 +14,7 @@ import handy
 ##### section 1: read the redmapper data and the member data
 goal_data = aft.getdata(
         '/home/xkchen/mywork/ICL/data/redmapper/redmapper_dr8_public_v6.3_catalog.fits')
-'''
+
 sub_data = aft.getdata(
         '/home/xkchen/mywork/ICL/data/redmapper/redmapper_dr8_public_v6.3_members.fits')
 # find the member of each BGC -cluster, by find the repeat ID
@@ -22,7 +22,7 @@ repeat = sts.find_repeats(sub_data.ID)
 rept_ID = np.int0(repeat)
 ID_array = np.int0(sub_data.ID)
 sub_redshift = np.array(sub_data.Z_SPEC)
-'''
+
 RA = np.array(goal_data.RA)
 DEC = np.array(goal_data.DEC)
 redshift = np.array(goal_data.Z_SPEC)

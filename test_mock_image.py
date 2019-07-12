@@ -21,6 +21,8 @@ from light_measure import light_measure, flux_recal, flux_scale
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+
+import time
 # constant
 c0 = U.kpc.to(U.cm)
 c1 = U.Mpc.to(U.pc)
@@ -314,7 +316,10 @@ def light_test():
 	plt.show()
 	'''
 	bin_number = 80
+	t0 = time.time()
 	light, R, Ar1, err = light_measure(f, bin_number, 1, Rp, cx, cy, pixel, z[kz])
+	t1 = time.time() - t0
+	print(t1)
 	raise
 	light_com = flux_func(R/np.max(rbin))
 	'''
@@ -446,7 +451,7 @@ def resample_test():
 	Ar_measure = r0_1[1:]
 	SB_compare0 = flux_f1(R_measure/np.max(rbin))
 	SB_compare1 = flux_f2(R_measure/np.max(rbin))
-	raise
+
 	fig = plt.figure(figsize = (16,9))
 	fig.suptitle('ccd measure at z_ref with bin%.0f'%bins)
 	gs1 = gridspec.GridSpec(2,1, height_ratios = [4,1])
@@ -456,7 +461,7 @@ def resample_test():
 	ax1.plot(R_measure, SB_measure, 'r-', lw = 2, label = '$SB_{ccd \\ at \\ z_{ref}}$', alpha = 0.5)
 	ax1.plot(R_measure, SB_compare0, 'b--', lw = 2, label = '$SB_{theory \\ at \\ z_0}$', alpha = 0.5)
 	ax1.plot(R_measure, SB_compare1, 'g--', lw = 2, label = '$SB_{theory \\ at \\ z_{ref}}$', alpha = 0.5)
-	#ax1.set_title('ccd measure at z_ref with bin%.0f'%bins)
+
 	ax1.set_xlabel('R[kpc]')
 	ax1.set_xscale('log')
 	ax1.set_ylabel('$SB[mag/arcsec^2]$')
@@ -625,8 +630,8 @@ def test():
 	#SB_lightpro()
 	#mock_image()
 	#mock_ccd(xc = 1025, yc = 745)
-	light_test()
-	#resample_test()
+	#light_test()
+	resample_test()
 	#random_test()
 
 def main():
