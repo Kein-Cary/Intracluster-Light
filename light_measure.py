@@ -84,7 +84,6 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 	chi = theta * 180/np.pi
 
 	r = np.logspace(-1, np.log10(Rp), Nbins) # in unit "pixel"
-	#r = np.linspace(0, np.ceil(Rp), Nbins)
 	ia = r<= cen_close
 	ib = np.array(np.where(ia == True))
 	ic = ib.shape[1]
@@ -121,10 +120,14 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 			else:
 				iy = io[0]
 				ix = io[1]
-				sampf = f_data[iy, ix][f_data[iy,ix] != 0]
+				#sampf = f_data[iy, ix][f_data[iy,ix] != 0]
+
+				sub_img = np.isnan(f_data[iy, ix])
+				ntt = np.where(sub_img == False)
+				sampf = f_data[iy, ix][ntt]	
+
 				tot_flux = np.mean(sampf)
 				tot_area = pixel**2
-
 				light[k] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
 				R[k] = np.mean(subr)*pixel*Da0*10**3/rad2arcsec
 				Angur[k] = np.mean(subr)*pixel
@@ -133,7 +136,12 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 				for tt in range(len(phi) - 1):
 					iv = (chi >= phi[tt]) & (chi <= phi[tt+1])
 					iu = iv & ir
-					set_samp = f_data[iu][f_data[iu] != 0 ]
+					#set_samp = f_data[iu][f_data[iu] != 0]
+
+					sub_img = np.isnan(f_data[iu])
+					ntt = np.where(sub_img == False)
+					set_samp = f_data[iu][ntt]
+
 					ttf = np.mean(set_samp)
 					SB_in = 22.5-2.5*np.log10(ttf)+2.5*np.log10(tot_area)
 					terr.append(SB_in)
@@ -157,15 +165,19 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 			if num == 0:
 				light[k] = 0
 				SB_error[k] = 0
-				R[k-im] = 0.5*(rbin[k-1]+rbin[k])*pixel*Da0*10**3/rad2arcsec
-				Angur[k-im] = 0.5*(rbin[k-1]+rbin[k])*pixel
+				R[k-im] = 0.5*(rbin[k-1] + rbin[k])*pixel*Da0*10**3/rad2arcsec
+				Angur[k-im] = 0.5*(rbin[k-1] + rbin[k])*pixel
 			else:
 				iy = io[0]
 				ix = io[1]
-				sampf = f_data[iy, ix][f_data[iy,ix] != 0]
+				#sampf = f_data[iy, ix][f_data[iy,ix] != 0]
+
+				sub_img = np.isnan(f_data[iy, ix])
+				ntt = np.where(sub_img == False)
+				sampf = f_data[iy, ix][ntt]	
+
 				tot_flux = np.mean(sampf)
 				tot_area = pixel**2
-
 				light[k-im] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
 				R[k-im] = 0.5*(rbin[k-1]+rbin[k])*pixel*Da0*10**3/rad2arcsec
 				Angur[k-im] = 0.5*(rbin[k-1]+rbin[k])*pixel
@@ -174,7 +186,12 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 				for tt in range(len(phi) - 1):
 					iv = (chi >= phi[tt]) & (chi <= phi[tt+1])
 					iu = iv & ir
-					set_samp = f_data[iu][f_data[iu] != 0 ]
+					#set_samp = f_data[iu][f_data[iu] != 0 ]
+
+					sub_img = np.isnan(f_data[iu])
+					ntt = np.where(sub_img == False)
+					set_samp = f_data[iu][ntt]
+
 					ttf = np.mean(set_samp)
 					SB_in = 22.5-2.5*np.log10(ttf)+2.5*np.log10(tot_area)
 					terr.append(SB_in)

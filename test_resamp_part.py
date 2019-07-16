@@ -359,10 +359,21 @@ def resamp_test():
 				fr = ((basic_coord[0,:][lb0: lb1, la0: la1] - xc)**2*df1 + (basic_coord[1,:][lb0: lb1, la0: la1] - yc)**2*df2
 					- cr**2*np.sin(2*phi)*(basic_coord[0,:][lb0: lb1, la0: la1] - xc)*(basic_coord[1,:][lb0: lb1, la0: la1] - yc))
 				idr = fr/(lr**2*sr**2)
-				jx = idr<=1
-				jx = (-1)*jx+1
-				mask_A[lb0: lb1, la0: la1] = mask_A[lb0: lb1, la0: la1]*jx
-		mirro_A = mask_A *img1
+				jx = idr < 1
+				#jx = (-1)*jx+1
+				#mask_A[lb0: lb1, la0: la1] = mask_A[lb0: lb1, la0: la1] * jx
+
+				iu = np.where(jx == True)
+				iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float)
+				iv[iu] = np.nan
+				mask_A[lb0: lb1, la0: la1] = mask_A[lb0: lb1, la0: la1] * iv
+
+		hdu = fits.PrimaryHDU()
+		hdu.data = mask_A
+		hdu.header = Head
+		hdu.writeto('/home/xkchen/mywork/ICL/code/mask_test.fits', overwrite = True)
+
+		mirro_A = mask_A * img1
 		SB2, R2, Anr2, err2 = light_measure(mirro_A, bins, 1, Rp, cx_BCG, cy_BCG, pixel, zg)
 
 		# flux scale and pixel resample
@@ -414,6 +425,7 @@ def resamp_test():
 		plt.savefig('/home/xkchen/mywork/ICL/code/resamp_err_SB_%d_ra%.3f_dec%.3f_z%.3f.png' % (bins, rag, decg, zg), dpi = 300)
 		plt.close()		#############???????????????
 
+		'''
 		xn, yn, resam = gen(imgt, 1, eta, cx_BCG, cy_BCG)
 		xn = np.int(xn)
 		yn = np.int(yn)
@@ -573,7 +585,7 @@ def resamp_test():
 		plt.tight_layout()
 		plt.savefig('/home/xkchen/mywork/ICL/code/resample_test_SB_%d_ra%.3f_dec%.3f_z%.3f.png' % (bins, rag, decg, zg), dpi = 300)
 		plt.close()
-
+		'''
 	raise
 	return
 
