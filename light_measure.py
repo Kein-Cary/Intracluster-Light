@@ -1,4 +1,3 @@
-# use for light measure
 import numpy as np
 import astropy.constants as C
 import astropy.units as U
@@ -28,13 +27,12 @@ Omega_lambda = 1.-Omega_m
 Omega_k = 1.- (Omega_lambda + Omega_m)
 DH = vc/H0
 
-def flux_scale(data, s0, z0, zref):
+def flux_scale(data, z0, zref):
 	obs = data
-	s0 = s0
 	z0 = z0
-	z_stak = zref
-	ref_data = (obs/s0)*(1+z0)**4/(1+z_stak)**4 
-	return ref_data
+	z1 = zref
+	flux = obs * (1 + z0)**4 / (1 + z1)**4
+	return flux
 
 def flux_recal(data, z0, zref):
 	obs = data
@@ -42,7 +40,7 @@ def flux_recal(data, z0, zref):
 	z1 = zref
 	Da0 = Test_model.angular_diameter_distance(z0).value
 	Da1 = Test_model.angular_diameter_distance(z1).value
-	flux = obs*((1+z0)**2*Da0)**2/((1+z1)**2*Da1)**2
+	flux = obs * (1 + z0)**4 * Da0**2 / ((1 + z1)**4 * Da1**2)
 	return flux
 
 def angu_area(s0, z0, zref):
@@ -83,21 +81,22 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 	theta[where_are_nan] = 0
 	chi = theta * 180/np.pi
 
-	r = np.logspace(-1, np.log10(Rp), Nbins) # in unit "pixel"
+	r = np.logspace(0, np.log10(Rp), Nbins) # in unit "pixel"
 	ia = r<= cen_close
 	ib = np.array(np.where(ia == True))
 	ic = ib.shape[1]
 	rbin = r[ic-1:]
 	rbin[0] = np.mean(r[ia])
-	light = np.zeros(len(r)-ic+1, dtype = np.float)
-	R = np.zeros(len(r)-ic+1, dtype = np.float)
-	Angur = np.zeros(len(r)-ic+1, dtype = np.float)
-	SB_error = np.zeros(len(r)-ic+1, dtype = np.float)
-	dr = np.sqrt(((2*pix_id[0]+1)/2-(2*cx+1)/2)**2+
-			((2*pix_id[1]+1)/2-(2*cy+1)/2)**2)
 
-	for k in range(len(rbin)):
-		cdr = rbin[k] - rbin[k-1]
+	light = np.zeros(len(r) - ic + 1, dtype = np.float)
+	R = np.zeros(len(r) - ic + 1, dtype = np.float)
+	Angur = np.zeros(len(r) - ic + 1, dtype = np.float)
+	SB_error = np.zeros(len(r)-ic+1, dtype = np.float)
+	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
+		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
+
+	for k in range(len(rbin) - 1):
+		cdr = rbin[k + 1] - rbin[k]
 		d_phi = (cdr / rbin[k]) * 180/np.pi
 		phi = np.arange(0, 360, d_phi)
 		phi = phi - 180
@@ -115,7 +114,7 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 			if num == 0:
 				light[k] = 0
 				SB_error[k] = 0
-				R[k] = np.mean(subr)*pixel*Da0*10**3/rad2arcsec
+				R[k] = np.mean(subr) * pixel * Da0*10**3/rad2arcsec
 				Angur[k] = np.mean(subr)*pixel
 			else:
 				iy = io[0]
@@ -128,8 +127,8 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 
 				tot_flux = np.mean(sampf)
 				tot_area = pixel**2
-				light[k] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
-				R[k] = np.mean(subr)*pixel*Da0*10**3/rad2arcsec
+				light[k] = 22.5-2.5*np.log10(tot_flux) + 2.5*np.log10(tot_area)
+				R[k] = np.mean(subr) * pixel * Da0 * 10**3 / rad2arcsec
 				Angur[k] = np.mean(subr)*pixel
 
 				terr = []
@@ -158,15 +157,15 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 			k = im+1
 
 		else:
-			ir = (dr > rbin[k-1]) & (dr <= rbin[k])
+			ir = (dr > rbin[k]) & (dr <= rbin[k + 1])
 			io = np.where(ir == True)
 			num = len(io[0])
 
 			if num == 0:
 				light[k] = 0
 				SB_error[k] = 0
-				R[k-im] = 0.5*(rbin[k-1] + rbin[k])*pixel*Da0*10**3/rad2arcsec
-				Angur[k-im] = 0.5*(rbin[k-1] + rbin[k])*pixel
+				R[k-im] = 0.5 * (rbin[k] + rbin[k + 1]) * pixel * Da0*10**3 / rad2arcsec
+				Angur[k-im] = 0.5 * (rbin[k+1] + rbin[k]) * pixel
 			else:
 				iy = io[0]
 				ix = io[1]
@@ -179,8 +178,8 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 				tot_flux = np.mean(sampf)
 				tot_area = pixel**2
 				light[k-im] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
-				R[k-im] = 0.5*(rbin[k-1]+rbin[k])*pixel*Da0*10**3/rad2arcsec
-				Angur[k-im] = 0.5*(rbin[k-1]+rbin[k])*pixel
+				R[k-im] = 0.5 * (rbin[k + 1] + rbin[k]) * pixel * Da0*10**3/rad2arcsec
+				Angur[k-im] = 0.5 * (rbin[k + 1] + rbin[k]) * pixel
 
 				terr = []
 				for tt in range(len(phi) - 1):
@@ -229,6 +228,7 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 
 def weit_l_measure(data, weit_M, Nbin, small, Rp, cx, cy, psize, z):
 	"""
+	## this function used for test
 	data: data used to measure
 	Nbin: number of bins will devide
 	Rp: radius in unit pixel number
