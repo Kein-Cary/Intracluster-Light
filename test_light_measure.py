@@ -1,24 +1,23 @@
-# this file use to comfir the stacking process
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import numpy as np
 import astropy.constants as C
 import astropy.units as U
 from astropy import cosmology as apcy
-import astropy.io.fits as fits
-import astropy.wcs as awc
-# resample part
-from ICL_up_resampling import sum_samp
-from ICL_down_resampling import down_samp
-from resamp import gen
+from numba import vectorize
+# constant
+vc = C.c.to(U.km/U.s).value
+G = C.G.value # gravitation constant
+Ms = C.M_sun.value # solar mass
+kpc2m = U.kpc.to(U.m)
+Msun2kg = U.M_sun.to(U.kg)
 
-c0 = U.kpc.to(U.cm)
-c1 = U.Mpc.to(U.pc)
-c2 = U.Mpc.to(U.cm)
-c3 = U.L_sun.to(U.erg/U.s)
-c4 = U.rad.to(U.arcsec)
-c5 = U.pc.to(U.cm)
+kpc2cm = U.kpc.to(U.cm)
+Mpc2pc = U.Mpc.to(U.pc)
+Mpc2cm = U.Mpc.to(U.cm)
+Lsun2erg_s = U.L_sun.to(U.erg/U.s)
+rad2arcsec = U.rad.to(U.arcsec)
+pc2cm = U.pc.to(U.cm)
 Lsun = C.L_sun.value*10**7
+
 # cosmology model
 Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
 H0 = Test_model.H0.value
@@ -26,220 +25,176 @@ h = H0/100
 Omega_m = Test_model.Om0
 Omega_lambda = 1.-Omega_m
 Omega_k = 1.- (Omega_lambda + Omega_m)
+DH = vc/H0
 
-pixel = 0.396 # the pixel size in unit arcsec
-z_ref = 0.250 
-Da_ref = Test_model.angular_diameter_distance(z_ref).value
-Jy = 10**(-23) # (erg/s)/cm^2
-f0 = 3631*10**(-23) # zero point in unit (erg/s)/cm^-2
-'''
-data2 = fits.getdata(
-        '/home/xkchen/mywork/ICL/data/test_data/frame-r-ra234.901-dec49.666-redshift0.299.fits',header=True)
-wcs2 = awc.WCS(data2[1])
-z2 = 0.299
-ra2 = 234.901
-dec2 = 49.666
-Da2 = Test_model.angular_diameter_distance(z2).value
-Alpha2 = (1/h)*c4/Da2 # the observational size
-R2 = Alpha2/pixel # the radius in pixel number
-cx2, cy2 = wcs2.all_world2pix(ra2*U.deg, dec2*U.deg, 1)
-'''
-data2 = fits.getdata(
-        '/home/xkchen/mywork/ICL/data/test_data/frame-u-ra203.834-dec41.001-redshift0.228.fits',header=True)
-wcs2 = awc.WCS(data2[1])
-z2 = 0.228
-ra2 = 203.834
-dec2 = 41.001
-Da2 = Test_model.angular_diameter_distance(z2).value
-Alpha2 = (1/h)*c4/Da2 # the observational size
-R2 = Alpha2/pixel # the radius in pixel number
-cx2, cy2 = wcs2.all_world2pix(ra2*U.deg, dec2*U.deg, 1)
+def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 
-def flux_scale(data, s0, z0, zref):
-    obs = data
-    s0 = s0
-    z0 = z0
-    z_stak = zref
-    ref_data = (obs/s0)*(1+z0)**4/(1+z_stak)**4 
-    return ref_data
-
-def flux_recal(data, z0, zref):
-    obs = data
-    z0 = z0
-    z1 = zref
+    cx = cx
+    cy = cy
+    Nbins = Nbin
+    f_data = data
+    cen_close = small
+    pixel = psize
+    R_pixel = Rp
+    z0 = z
     Da0 = Test_model.angular_diameter_distance(z0).value
-    Da1 = Test_model.angular_diameter_distance(z1).value
-    flux = obs*((1+z0)**2*Da0)**2/((1+z1)**2*Da1)**2
-    return flux
+    Nx = data.shape[1]
+    Ny = data.shape[0]
+    x0 = np.linspace(0, Nx-1, Nx)
+    y0 = np.linspace(0, Ny-1, Ny)
+    pix_id = np.array(np.meshgrid(x0,y0))
 
-def angu_area(s0, z0, zref):
-    s0 = s0
-    z0 = z0
-    z1 = zref
-    Da0 = Test_model.angular_diameter_distance(z0).value
-    Da1 = Test_model.angular_diameter_distance(z1).value
-    angu_S = s0*Da0**2/Da1**2
-    return angu_S
+    theta = np.arctan2((pix_id[1,:]-cy), (pix_id[0,:]-cx))
+    where_are_nan = np.isnan(theta)
+    theta[where_are_nan] = 0
+    chi = theta * 180/np.pi
 
-from light_measure import light_measure
-light_1, R_1, r0_1 = light_measure(data2[0], 25, 2, R2, cx2, cy2, pixel)
+    r = np.logspace(0, np.log10(Rp), Nbins) # in unit "pixel"
+    ia = r<= cen_close
+    ib = np.array(np.where(ia == True))
+    ic = ib.shape[1]
+    rbin = r[ic-1:]
+    rbin[0] = np.mean(r[ia])
 
-x0 = np.linspace(0,2047,2048)
-y0 = np.linspace(0,1488,1489)
-pix_id = np.array(np.meshgrid(x0,y0)) #data grid for original data 
-f_data = data2[0]
-Nbins = 25
+    light = np.zeros(len(r) - ic + 1, dtype = np.float)
+    R = np.zeros(len(r) - ic + 1, dtype = np.float)
+    Angur = np.zeros(len(r) - ic + 1, dtype = np.float)
+    SB_error = np.zeros(len(r)-ic+1, dtype = np.float)
+    dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
+        ((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
 
-r = np.logspace(-2, np.log10(R2), Nbins) # in unit: pixel number
-ia = r<= 2
-ib = np.array(np.where(ia == True))
-ic = ib.shape[1]
-R = (r/R2)*10**3 # in unit kpc
-R = R[np.max(ib):]
-r0 = r[np.max(ib):]
-Ar1 = ((R/10**3)/Da_ref)*c4 # in unit arcsec
+    for k in range(len(rbin) - 1):
+        cdr = rbin[k + 1] - rbin[k]
+        d_phi = (cdr / rbin[k]) * 180/np.pi
+        phi = np.arange(0, 360, d_phi)
+        phi = phi - 180
 
-dr = np.sqrt((pix_id[0]-cx2)**2+(pix_id[1]-cy2)**2)
-light = np.zeros(len(r)-ic+1, dtype = np.float)
-zrefl = np.zeros(len(r)-ic+1, dtype = np.float)
-dim_l = np.zeros(len(r)-ic+1, dtype = np.float)
-thero_l = np.zeros(len(r)-ic+1, dtype = np.float)
-for k in range(1,len(r)):
-        if r[k] <= 2:
-            ig = r <= 2
-            ih = np.array(np.where(ig == True))
-            im = np.max(ih)
-            ir = dr < r[im]
+        if rbin[k] <= cen_close:
+            ig = rbin <= cen_close
+            subr = rbin[ig]
+            ih = rbin[ig]
+            im = len(ih)
+
+            ir = dr <= rbin[im-1]
             io = np.where(ir == True)
-            iy = io[0]
-            ix = io[1]
-            num = len(ix)
-            tot_flux = np.sum(f_data[iy,ix])/num
-            tot_area = pixel**2
-            light[0] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
-            k = im+1 
+            num = len(io[0])
+
+            if num == 0:
+                light[k] = 0
+                SB_error[k] = 0
+                R[k] = np.mean(subr) * pixel * Da0*10**3/rad2arcsec
+                Angur[k] = np.mean(subr)*pixel
+            else:
+                iy = io[0]
+                ix = io[1]
+                #sampf = f_data[iy, ix][f_data[iy,ix] != 0]
+
+                sub_img = np.isnan(f_data[iy, ix])
+                ntt = np.where(sub_img == False)
+                sampf = f_data[iy, ix][ntt] 
+
+                tot_flux = np.mean(sampf)
+                tot_area = pixel**2
+                light[k] = 22.5-2.5*np.log10(tot_flux) + 2.5*np.log10(tot_area)
+                R[k] = np.mean(subr) * pixel * Da0 * 10**3 / rad2arcsec
+                Angur[k] = np.mean(subr)*pixel
+
+                terr = []
+                for tt in range(len(phi) - 1):
+                    iv = (chi >= phi[tt]) & (chi <= phi[tt+1])
+                    iu = iv & ir
+                    #set_samp = f_data[iu][f_data[iu] != 0]
+
+                    sub_img = np.isnan(f_data[iu])
+                    ntt = np.where(sub_img == False)
+                    set_samp = f_data[iu][ntt]
+
+                    ttf = np.mean(set_samp)
+                    SB_in = 22.5-2.5*np.log10(ttf)+2.5*np.log10(tot_area)
+                    terr.append(SB_in)
+
+                terr = np.array(terr)
+                where_are_inf = np.isinf(terr)
+                terr[where_are_inf] = 0
+                where_are_nan = np.isnan(terr)
+                terr[where_are_nan] = 0
+
+                Terr = terr[terr != 0]
+                Trms = np.std(Terr)
+                SB_error[k] = Trms/np.sqrt(len(Terr) - 1)
+            k = im+1
+
         else:
-            ir = (dr >= r[k-1]) & (dr < r[k])
+            ir = (dr > rbin[k]) & (dr <= rbin[k + 1])
             io = np.where(ir == True)
-            iy = io[0]
-            ix = io[1]
-            num = len(ix)
-            tot_flux = np.sum(f_data[iy,ix])/num
-            tot_area = pixel**2
-            light[k-im] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area) # mag/arcsec^2
+            num = len(io[0])
 
-thero_l = light +10*np.log10((1+z_ref)/(1+z2))
-f_dim = flux_scale(f_data, pixel**2, z2, z_ref)
-s_new = angu_area(pixel**2, z2, z_ref)
-d_new = np.sqrt(s_new)
-f_dim = f_dim*s_new
-f_ref = flux_recal(f_data, z2, z_ref)
+            if num == 0:
+                light[k] = 0
+                SB_error[k] = 0
+                R[k-im] = 0.5 * (rbin[k] + rbin[k + 1]) * pixel * Da0*10**3 / rad2arcsec
+                Angur[k-im] = 0.5 * (rbin[k+1] + rbin[k]) * pixel
+            else:
+                iy = io[0]
+                ix = io[1]
+                #sampf = f_data[iy, ix][f_data[iy,ix] != 0]
 
-for k in range(1,len(r)):
-    if r[k] <= 2:
-        ig = r <= 2
-        ih = np.array(np.where(ig == True))
-        im = np.max(ih)
-        ir = dr <= r[im]
-        io = np.where(ir == True)
-        iy = io[0]
-        ix = io[1]
-        num = len(ix)
-        
-        tot_flux1 = np.sum(f_dim[iy,ix])/num
-        tot_area1 = s_new
-        dim_l[0] = 22.5-2.5*np.log10(tot_flux1)+2.5*np.log10(tot_area1)
-        
-        tot_flux2 = np.sum(f_ref[iy,ix])/num
-        tot_area2 = s_new
-        zrefl[0] = 22.5-2.5*np.log10(tot_flux2)+2.5*np.log10(tot_area2)        
-        k = im+1
-    else:
-        ir = (dr >= r[k-1]) & (dr < r[k])
-        io = np.where(ir == True)
-        iy = io[0]
-        ix = io[1]
-        num = len(ix)
-        
-        tot_flux1 = np.sum(f_dim[iy,ix])/num
-        tot_area1 = s_new
-        dim_l[k-im] = 22.5-2.5*np.log10(tot_flux1)+2.5*np.log10(tot_area1)
-        
-        tot_flux2 = np.sum(f_ref[iy,ix])/num
-        tot_area2 = s_new
-        zrefl[k-im] = 22.5-2.5*np.log10(tot_flux2)+2.5*np.log10(tot_area2)
-# resample compare
-data_test = fits.getdata('/home/xkchen/Meeting/New_resamp/resamp_image_ra203.834_dec41.001_z0.228.fits',header = True)
-test_f = data_test[0]
+                sub_img = np.isnan(f_data[iy, ix])
+                ntt = np.where(sub_img == False)
+                sampf = f_data[iy, ix][ntt] 
 
-Rref = ((1/h)*c4/Da_ref)/pixel
-cx_t = data_test[1]['CENTER_X']  
-cy_t = data_test[1]['CENTER_Y']
-x0_t = data_test[0].shape[1]
-y0_t = data_test[0].shape[0]
-x_t = np.linspace(0,x0_t-1,x0_t)
-y_t = np.linspace(0,y0_t-1,y0_t)
-pi_t = np.array(np.meshgrid(x_t,y_t))
-r_t = np.logspace(-2, np.log10(Rref), Nbins)
-ia_t = r_t <= 2
-ib_t = np.array(np.where(ia_t == True))
-ic_t = ib_t.shape[1]
-R_t = (r_t/Rref)*10**3 # in unit kpc
-R_t = R_t[np.max(ib_t):]
-r0_t = r_t[np.max(ib_t):]
-dr_t = np.sqrt((pi_t[0]-cx_t)**2+(pi_t[1]-cy_t)**2)
-test_l = np.zeros(len(r_t)-ic_t+1, dtype = np.float)
-Ar_t = ((R_t/10**3)/Da_ref)*c4
+                tot_flux = np.mean(sampf)
+                tot_area = pixel**2
+                light[k-im] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
+                R[k-im] = 0.5 * (rbin[k + 1] + rbin[k]) * pixel * Da0*10**3/rad2arcsec
+                Angur[k-im] = 0.5 * (rbin[k + 1] + rbin[k]) * pixel
 
-for k in range(1,len(r_t)):
-        if r_t[k] <= 2:
-            ig_t = r_t <= 2
-            ih_t = np.array(np.where(ig_t == True))
-            im_t = np.max(ih_t)
-            ir_t = dr_t < r_t[im_t]
-            io_t = np.where(ir_t == True)
-            iy_t = io_t[0]
-            ix_t = io_t[1]
-            num_t = len(ix_t)
-            tot_flux = np.sum(test_f[iy_t,ix_t])/num_t
-            tot_area = pixel**2
-            test_l[0] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
-            k = im_t+1 
-        else:
-            ir_t = (dr_t >= r_t[k-1]) & (dr_t < r_t[k])
-            io_t = np.where(ir_t == True)
-            iy_t = io_t[0]
-            ix_t = io_t[1]
-            num_t = len(ix_t)
-            tot_flux = np.sum(test_f[iy_t,ix_t])/num_t
-            tot_area = pixel**2
-            test_l[k-im_t] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area) # mag/arcsec^2 
+                terr = []
+                for tt in range(len(phi) - 1):
+                    iv = (chi >= phi[tt]) & (chi <= phi[tt+1])
+                    iu = iv & ir
+                    #set_samp = f_data[iu][f_data[iu] != 0 ]
 
-plt.plot(r0*pixel, light, 'k-', label = 'SB_ini')
-plt.plot(r0_1*pixel, light_1, 'r--', label = 'test')
-'''
-plt.plot(Ar1, zrefl, 'r-*', label = 'SB_ref')                
-plt.plot(Ar1, dim_l, 'b-', label = 'SB_dim')
-plt.plot(Ar1, thero_l, 'g--', label = 'SB_intr')
-plt.plot(Ar_t, test_l, 'ro-', label = 'SB_t01')
-plt.xlabel('R [arcsec]')
-'''
-'''
-plt.plot(R, light, 'k-', label = 'SB_ini')                
-plt.plot(R, zrefl, 'r-*', label = 'SB_ref', alpha = 0.5)                
-plt.plot(R, dim_l, 'b-', label = 'SB_dim', alpha = 0.5)
-plt.plot(R, thero_l, 'g--', label = 'SB_intr')
-plt.plot(R_t, test_l, 'ro-', label = 'SB_t01')
-plt.text(2, 27, '$\chi^2 = %.3f$'%sigma)
-plt.xlabel('R [kpc]')
-'''
-plt.legend(loc = 1)
-plt.ylabel(r'$SB [mag/arcsec^2]$')
-plt.gca().invert_yaxis()
-plt.xscale('log')
-#plt.savefig('test_the_one_in.png',dpi=600)
-#plt.savefig('test_the_one_in1.png',dpi=600)
-#plt.savefig('test_new_resamp_up.png',dpi=600) # label 'up' for pixel become bigger
-#plt.savefig('test_new_resamp_up1.png',dpi=600)
-plt.show()
-plt.close()
+                    sub_img = np.isnan(f_data[iu])
+                    ntt = np.where(sub_img == False)
+                    set_samp = f_data[iu][ntt]
+
+                    ttf = np.mean(set_samp)
+                    SB_in = 22.5-2.5*np.log10(ttf)+2.5*np.log10(tot_area)
+                    terr.append(SB_in)
+
+                terr = np.array(terr)
+                where_are_inf = np.isinf(terr)
+                terr[where_are_inf] = 0
+                where_are_nan = np.isnan(terr)
+                terr[where_are_nan] = 0
+
+                Terr = terr[terr != 0]
+                Trms = np.std(Terr)
+                SB_error[k] = Trms/np.sqrt(len(Terr) - 1)
+
+    # tick out the bad value
+    where_are_nan1 = np.isnan(light)
+    light[where_are_nan1] = 0
+    where_are_inf1 = np.isinf(light)
+    light[where_are_inf1] = 0
+
+    where_are_nan2 = np.isnan(SB_error)
+    SB_error[where_are_nan2] = 0
+    where_are_inf2 = np.isinf(SB_error)
+    SB_error[where_are_inf2] = 0
+
+    ii = light != 0
+    jj = SB_error != 0
+    kk = ii & jj
+
+    ll = light[kk]
+    RR = R[kk]
+    AA = Angur[kk]
+    EE = SB_error[kk]
+    return ll, RR, AA, EE
+
+def main():
+    light_measure(data, Nbin, small, Rp, cx, cy, psize, z)
+if __name__ == "__main__":
+    main()

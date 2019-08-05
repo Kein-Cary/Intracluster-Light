@@ -398,13 +398,12 @@ def sigmamc(r, Mc, c):
 	c = c
 	R = r
 	M = 10**Mc
-	rho_0 = (kpc2m/Msun2kg)*(3*H0**2)/(8*np.pi*G)
-	r200_c = (3*M/(4*np.pi*rho_0*200))**(1/3) 
-	rs = r200_c/c
+	rho_c = (kpc2m/Msun2kg)*(3*H0**2)/(8*np.pi*G)
+	r200_c = (3*M/(4*np.pi*rho_c*200))**(1/3) 
+	rs = r200_c / c
 	# next similar variables are for comoving coordinate, with simble "_c"
-	rho0_c = M/((np.log(1+c)-c/(1+c))*4*np.pi*rs**3)
-	r200_c = (3*M/(4*np.pi*rho_0*200))**(1/3)
-	f0_c = 2*rho0_c*rs # use for test
+	rho_0 = M/((np.log(1+c)-c/(1+c))*4*np.pi*rs**3)
+	f0_c = 2*rho_0*rs # use for test
 	x = R/rs
 	if x < 1: 
 		f1 = np.sqrt(1-x**2)
@@ -418,7 +417,7 @@ def sigmamc(r, Mc, c):
 		f2 = np.sqrt((x-1)/(1+x))
 		f3 = x**2-1
 		sigma_c = f0_c*(1-2*np.arctan(f2)/f1)/f3
-	return  sigma_c
+	return sigma_c
 
 def sigmam(r, Mc, z, c):
 	Qc = kpc2m/Msun2kg # recrect parameter for rho_c
@@ -450,8 +449,8 @@ def sigmam(r, Mc, z, c):
 def main():
 
 	#light_measure()
-	#sigmamc(100, 15, 5)
-	rho2d = sigmam(100, 15, 0, 5)
+	sigmamc(100, 15, 5)
+	#rho2d = sigmam(100, 15, 0, 5)
 
 if __name__ == '__main__':
 	main()

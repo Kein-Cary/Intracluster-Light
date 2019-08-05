@@ -1,5 +1,5 @@
 import matplotlib as mpl
-import handy.scatter as hsc
+#import handy.scatter as hsc
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
@@ -34,9 +34,13 @@ m = sfdmap.SFDMap('/home/xkchen/mywork/ICL/data/redmapper/sfddata_maskin', scali
 kpc2cm = U.kpc.to(U.cm)
 Mpc2pc = U.Mpc.to(U.pc)
 Mpc2cm = U.Mpc.to(U.cm)
+kpc2m = U.kpc.to(U.m)
 rad2asec = U.rad.to(U.arcsec)
 pc2cm = U.pc.to(U.cm)
+Msun2kg = U.M_sun.to(U.kg)
+
 Lsun = C.L_sun.value*10**7
+G = C.G.value
 # cosmology model
 Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
 H0 = Test_model.H0.value
@@ -91,7 +95,7 @@ Lambd = richness[(redshift >= 0.2) & (redshift <= 0.3)]
 ID_set = host_ID[(redshift >= 0.2) & (redshift <= 0.3)]
 use_z = redshift *1
 
-stack_N = 10
+stack_N = 20
 
 def BL_fit(x, A, sigma, mu):
 	f0 = 1 / (np.sqrt(2*np.pi) * sigma)
@@ -743,6 +747,157 @@ def mask_B():
 
 	return
 
+def resamp_B():
+	load = '/home/xkchen/mywork/ICL/data/test_data/resamp/'
+	red_rich = Lambd[(Lambd >= 25) & (Lambd <= 27.5)]
+	red_z = z[(Lambd >= 25) & (Lambd <= 27.5)]
+	red_ra = ra[(Lambd >= 25) & (Lambd <= 27.5)]
+	red_dec = dec[(Lambd >= 25) & (Lambd <= 27.5)]
+	for ii in range(1):
+		for jj in range(stack_N):
+			'''
+			ra_g = ra[jj]
+			dec_g = dec[jj]
+			z_g = z[jj]
+			'''
+			ra_g = ra[jj]
+			dec_g = dec[jj]
+			z_g = z[jj]
+			Da_g = Test_model.angular_diameter_distance(z_g).value
+			data = fits.getdata(load + 'B_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
+			img = data[0]
+			wcs = awc.WCS(data[1])
+			cx, cy = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
+
+			cx0 = data[1]['CRPIX1']
+			cy0 = data[1]['CRPIX2']
+			RA0 = data[1]['CRVAL1']
+			DEC0 = data[1]['CRVAL2']
+
+			Angur = (R0*rad2asec/Da_g)
+			Rp = Angur/pixel
+			L_ref = Da_ref*pixel/rad2asec
+			L_z0 = Da_g*pixel/rad2asec
+			b = L_ref/L_z0
+			Rref = (R0*rad2asec/Da_ref)/pixel
+
+			data_bl = fits.getdata(load + 'A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
+			img_bl = data_bl[0]
+			ox = np.linspace(0, img_bl.shape[1]-1, img_bl.shape[1])
+			oy = np.linspace(0, img_bl.shape[0]-1, img_bl.shape[0])
+			oo_grd = np.array(np.meshgrid(ox, oy))
+			cdr = np.sqrt((oo_grd[0,:] - cx)**2 + (oo_grd[1,:] - cy)**2)
+			idd = (cdr > Rp) & (cdr < 1.1 * Rp)
+			cut_region = img_bl[idd]
+			id_nan = np.isnan(cut_region)
+			idx = np.where(id_nan == False)
+			bl_array = cut_region[idx]
+			bl_array = np.sort(bl_array)
+			sky_compare = np.mean(bl_array)
+			cc_img = img - sky_compare
+
+			f_goal = flux_recal(cc_img, z_g, z_ref)
+			xn, yn, resam = gen(f_goal, 1, b, cx, cy)
+			xn = np.int(xn)
+			yn = np.int(yn)
+			ix0 = np.int(cx0 * miu)
+			iy0 = np.int(cy0 * miu)
+			if b > 1:
+				resam = resam[1:, 1:]
+			elif b == 1:
+				resam = resam[1:-1, 1:-1]
+			else:
+				resam = resam
+			x0 = resam.shape[1]
+			y0 = resam.shape[0]
+			keys = ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2','CRPIX1','CRPIX2','CENTER_X','CENTER_Y',
+					'CRVAL1','CRVAL2','CENTER_RA','CENTER_DEC','ORIGN_Z', 'P_SCALE']
+			value = ['T', 32, 2, x0, y0, ix0, iy0, xnd, ynd, RA0, DEC0, ra_g, dec_g, z_g, pixel]
+			ff = dict(zip(keys,value))
+			fil = fits.Header(ff)
+			fits.writeto(load + 
+				'resamp_B-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam, header = fil, overwrite=True)
+	raise
+	return
+
+def stack_B():
+
+	load = '/home/xkchen/mywork/ICL/data/test_data/resamp/'
+	x0 = 2427
+	y0 = 1765
+	bins = 90
+	Nx = np.linspace(0, 4854, 4855)
+	Ny = np.linspace(0, 3530, 3531)
+	sum_grid = np.array(np.meshgrid(Nx, Ny))
+
+	for ii in range(1):
+		tot_array = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+		tot_count = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
+		p_count_total = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+
+		for jj in range(stack_N):
+			ra_g = ra[jj]
+			dec_g = dec[jj]
+			z_g = z[jj]
+
+			Angur = (R0*rad2asec/Da_g)
+			Rp = Angur/pixel
+			L_ref = Da_ref*pixel/rad2asec
+			L_z0 = Da_g*pixel/rad2asec
+			b = L_ref/L_z0
+			Rref = (R0*rad2asec/Da_ref)/pixel
+
+			Da_g = Test_model.angular_diameter_distance(z_g).value
+			data = fits.getdata(load + 'resamp_B-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+			img = data[0]
+			xn = data_tt[1]['CENTER_X']
+			yn = data_tt[1]['CENTER_Y']
+
+			la0 = np.int(y0 - yn)
+			la1 = np.int(y0 - yn + img.shape[0])
+			lb0 = np.int(x0 - xn)
+			lb1 = np.int(x0 - xn + img.shape[1])
+
+			tot_array[la0:la1, lb0:lb1] = tot_array[la0:la1, lb0:lb1] + img
+			tot_count[la0: la1, lb0: lb1] = img
+			id_nan = np.isnan(tot_count)
+			id_fals = np.where(id_nan == False)
+			p_count_total[id_fals] = p_count_total[id_fals] + 1
+			tot_count[la0: la1, lb0: lb1] = np.nan
+
+		mean_total = tot_array / p_count_total
+		where_are_inf = np.isinf(mean_total)
+		mean_total[where_are_inf] = np.nan
+		id_zeros = np.where(p_count_total == 0)
+		mean_total[id_zeros] = np.nan
+
+		SB_tot, R_tot, Ar_tot, error_tot = light_measure(mean_total, bins, 1, Rpp, x0, y0, pixel, z_ref)
+		SB_TT = SB_tot[1:] + mag_add[ii]
+		R_TT = R_tot[1:]
+		Ar_TT = Ar_tot[1:]
+		err_TT = error_tot[1:]
+
+		stack_B = np.array([SB_TT, R_TT, Ar_TT, err_TT])
+		with h5py.File('/home/xkchen/mywork/ICL/data/test_data/SB_stack_Bmask_%s_band.h5' % band[ii], 'w') as f:
+			f['a'] = np.array(stack_B)
+		with h5py.File('/home/xkchen/mywork/ICL/data/test_data/SB_stack_Bmask_%s_band.h5' % band[ii]) as f:
+			for tt in range(len(stack_B)):
+				f['a'][tt,:] = stack_B[tt,:]
+		'''
+		plt.figure()
+		gf = plt.imshow(mean_total, cmap = 'Greys', origin = 'lower', vmin = 1e-3, norm = mpl.colors.LogNorm())
+		plt.colorbar(gf, fraction = 0.036, pad = 0.01, label = '$f[nmagy]$')
+		hsc.circles(x0, y0, s = Rpp, fc = '', ec = 'b', ls = '-', lw = 0.5)
+		hsc.circles(x0, y0, s = 1.1*Rpp,  fc = '', ec = 'b', ls = '--', lw = 0.5)
+		plt.xlim(x0 - 1.2*Rpp, x0 + 1.2*Rpp)
+		plt.ylim(y0 - 1.2*Rpp, y0 + 1.2*Rpp)
+		plt.subplots_adjust(left = 0.01, right = 0.85)
+		plt.title('stack %.0f mean image in %s band' % (stack_N, band[ii]))
+		plt.savefig('/home/xkchen/mywork/ICL/code/stack_mask_B_%s_band.png' % band[ii], dpi = 600)
+		plt.close()
+		'''
+	return
+
 def mask_A():
 	t0 = time.time()
 
@@ -758,19 +913,20 @@ def mask_A():
 	out_load_A = '/home/xkchen/mywork/ICL/data/SEX/result/mask_A_test.cat'
 	out_load_B = '/home/xkchen/mywork/ICL/data/SEX/result/mask_B_test.cat'
 	out_load_sky = '/home/xkchen/mywork/ICL/data/SEX/result/mask_sky_test.cat'
-
+	'''
 	red_rich = Lambd[(Lambd >= 25) & (Lambd <= 27.5)]
 	red_z = z[(Lambd >= 25) & (Lambd <= 27.5)]
 	red_ra = ra[(Lambd >= 25) & (Lambd <= 27.5)]
 	red_dec = dec[(Lambd >= 25) & (Lambd <= 27.5)]
+	'''
+	red_rich = Lambd[Lambd > 100]
+	red_z = z[Lambd > 100]
+	red_ra = ra[Lambd > 100]
+	red_dec = dec[Lambd > 100]
 
-	for i in range(len(band)):
-		for q in range(stack_N):
-			'''
-			ra_g = ra[q]
-			dec_g = dec[q]
-			z_g = z[q]Ar_cc
-			'''
+	for i in range(1):
+		for q in range(20):
+
 			ra_g = red_ra[q]
 			dec_g = red_dec[q]
 			z_g = red_z[q]
@@ -890,40 +1046,45 @@ def mask_A():
 			hdu.data = mirro_A
 			hdu.header = head_inf
 			hdu.writeto('/home/xkchen/mywork/ICL/data/test_data/mask/A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[i], ra_g, dec_g, z_g),overwrite = True)
-
+			'''
 			hdu = fits.PrimaryHDU()
 			hdu.data = mask_A
 			hdu.header = head_inf
 			hdu.writeto('/home/xkchen/mywork/ICL/data/test_data/mask/A_mask_metrx_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[i], ra_g, dec_g, z_g),overwrite = True)
-
-	return
-
-def resamp_B():
-
+			'''
 	return
 
 def resamp_A():
-	load = '/home/xkchen/mywork/ICL/data/test_data/mask/'
+	load = '/home/xkchen/mywork/ICL/data/test_data/resamp/'
+	'''
 	red_rich = Lambd[(Lambd >= 25) & (Lambd <= 27.5)]
 	red_z = z[(Lambd >= 25) & (Lambd <= 27.5)]
 	red_ra = ra[(Lambd >= 25) & (Lambd <= 27.5)]
 	red_dec = dec[(Lambd >= 25) & (Lambd <= 27.5)]
-	for ii in range(1):	
-		for jj in range(10):
-			'''
-			ra_g = ra[jj]
-			dec_g = dec[jj]
-			z_g = z[jj]
-			'''
+	'''
+	red_rich = Lambd[Lambd > 100]
+	red_z = z[Lambd > 100]
+	red_ra = ra[Lambd > 100]
+	red_dec = dec[Lambd > 100]
+
+	for ii in range(1):
+		for jj in range(20):
+
 			ra_g = red_ra[jj]
 			dec_g = red_dec[jj]
 			z_g = red_z[jj]
 			
 			Da_g = Test_model.angular_diameter_distance(z_g).value
-			data = fits.getdata(load + 'A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
+			data = fits.getdata('/home/xkchen/mywork/ICL/data/test_data/mask/'
+			+'A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
 			img = data[0]
 			wcs = awc.WCS(data[1])
 			cx_BCG, cy_BCG = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
+
+			cx0 = data[1]['CRPIX1']
+			cy0 = data[1]['CRPIX2']
+			RA0 = data[1]['CRVAL1']
+			DEC0 = data[1]['CRVAL2']
 
 			Angur = (R0*rad2asec/Da_g)
 			Rp = Angur / pixel
@@ -951,6 +1112,8 @@ def resamp_A():
 			xnd, ynd, resam_dd = gen(f_D, 1, eta, cx_BCG, cy_BCG)
 			xnd = np.int(xnd)
 			ynd = np.int(ynd)
+			ix0 = np.int(cx0 * miu)
+			iy0 = np.int(cy0 * miu)
 			if eta > 1:
 				resam_d = resam_dd[1:, 1:]
 			elif eta == 1:
@@ -958,95 +1121,17 @@ def resamp_A():
 			else:
 				resam_d = resam_dd
 
-					
-	raise	
-	return
+			x0 = resam_d.shape[1]
+			y0 = resam_d.shape[0]
 
-def stack_B():
-	un_mask = 0.15
-	load = '/home/xkchen/mywork/ICL/data/test_data/mask/'
-	x0 = 2427
-	y0 = 1765
-	bins = 90
-	Nx = np.linspace(0, 4854, 4855)
-	Ny = np.linspace(0, 3530, 3531)
-	sum_grid = np.array(np.meshgrid(Nx, Ny))
+			keys = ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2','CRPIX1','CRPIX2','CENTER_X','CENTER_Y',
+					'CRVAL1','CRVAL2','CENTER_RA','CENTER_DEC','ORIGN_Z', 'P_SCALE']
+			value = ['T', 32, 2, x0, y0, ix0, iy0, xnd, ynd, RA0, DEC0, ra_g, dec_g, z_g, pixel]
+			ff = dict(zip(keys,value))
+			fil = fits.Header(ff)
+			fits.writeto(load + 
+				'resamp_A-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam_d, header = fil, overwrite=True)
 
-	for ii in range(len(band)):
-		tot_array = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-		tot_count = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
-		p_count_total = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-
-		for jj in range(stack_N):
-			ra_g = ra[jj]
-			dec_g = dec[jj]
-			z_g = z[jj]
-			Da_g = Test_model.angular_diameter_distance(z_g).value
-			data = fits.getdata(load + 'B_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
-			img = data[0]
-			wcs = awc.WCS(data[1])
-			cx, cy = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
-
-			Angur = (R0*rad2asec/Da_g)
-			Rp = Angur/pixel
-			L_ref = Da_ref*pixel/rad2asec
-			L_z0 = Da_g*pixel/rad2asec
-			b = L_ref/L_z0
-			Rref = (R0*rad2asec/Da_ref)/pixel
-
-			f_goal = flux_recal(img, z_g, z_ref)
-			xn, yn, resam = gen(f_goal, 1, b, cx, cy)
-			xn = np.int(xn)
-			yn = np.int(yn)
-			if b > 1:
-			    resam = resam[1:, 1:]
-			elif b == 1:
-			    resam = resam[1:-1, 1:-1]
-			else:
-			    resam = resam
-			la0 = np.int(y0 - yn)
-			la1 = np.int(y0 - yn + resam.shape[0])
-			lb0 = np.int(x0 - xn)
-			lb1 = np.int(x0 - xn + resam.shape[1])
-
-			tot_array[la0:la1, lb0:lb1] = tot_array[la0:la1, lb0:lb1] + resam
-			tot_count[la0: la1, lb0: lb1] = resam
-			id_nan = np.isnan(tot_count)
-			id_fals = np.where(id_nan == False)
-			p_count_total[id_fals] = p_count_total[id_fals] + 1
-			tot_count[la0: la1, lb0: lb1] = np.nan
-
-		mean_total = tot_array / p_count_total
-		where_are_inf = np.isinf(mean_total)
-		mean_total[where_are_inf] = np.nan
-		id_zeros = np.where(p_count_total == 0)
-		mean_total[id_zeros] = np.nan
-
-		SB_tot, R_tot, Ar_tot, error_tot = light_measure(mean_total, bins, 1, Rpp, x0, y0, pixel, z_ref)
-		SB_TT = SB_tot[1:] + mag_add[ii]
-		R_TT = R_tot[1:]
-		Ar_TT = Ar_tot[1:]
-		err_TT = error_tot[1:]
-
-		stack_B = np.array([SB_TT, R_TT, Ar_TT, err_TT])
-		with h5py.File('/home/xkchen/mywork/ICL/data/test_data/SB_stack_Bmask_%s_band.h5' % band[ii], 'w') as f:
-			f['a'] = np.array(stack_B)
-		with h5py.File('/home/xkchen/mywork/ICL/data/test_data/SB_stack_Bmask_%s_band.h5' % band[ii]) as f:
-			for tt in range(len(stack_B)):
-				f['a'][tt,:] = stack_B[tt,:]
-		'''
-		plt.figure()
-		gf = plt.imshow(mean_total, cmap = 'Greys', origin = 'lower', vmin = 1e-3, norm = mpl.colors.LogNorm())
-		plt.colorbar(gf, fraction = 0.036, pad = 0.01, label = '$f[nmagy]$')
-		hsc.circles(x0, y0, s = Rpp, fc = '', ec = 'b', ls = '-', lw = 0.5)
-		hsc.circles(x0, y0, s = 1.1*Rpp,  fc = '', ec = 'b', ls = '--', lw = 0.5)
-		plt.xlim(x0 - 1.2*Rpp, x0 + 1.2*Rpp)
-		plt.ylim(y0 - 1.2*Rpp, y0 + 1.2*Rpp)
-		plt.subplots_adjust(left = 0.01, right = 0.85)
-		plt.title('stack %.0f mean image in %s band' % (stack_N, band[ii]))
-		plt.savefig('/home/xkchen/mywork/ICL/code/stack_mask_B_%s_band.png' % band[ii], dpi = 600)
-		plt.close()
-		'''
 	return
 
 def stack_A():
@@ -1060,19 +1145,18 @@ def stack_A():
 	Ny = np.linspace(0, 3530, 3531)
 	sum_grid = np.array(np.meshgrid(Nx, Ny))
 
+	'''
 	red_rich = Lambd[(Lambd >= 25) & (Lambd <= 27.5)]
 	red_z = z[(Lambd >= 25) & (Lambd <= 27.5)]
 	red_ra = ra[(Lambd >= 25) & (Lambd <= 27.5)]
 	red_dec = dec[(Lambd >= 25) & (Lambd <= 27.5)]
+	'''
+	red_rich = Lambd[Lambd > 100]
+	red_z = z[Lambd > 100]
+	red_ra = ra[Lambd > 100]
+	red_dec = dec[Lambd > 100]
 
 	for ii in range(1):
-		sum_array_0 = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-		count_array_0 = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
-		p_count_0 = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-
-		sum_array_A = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-		count_array_A = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
-		p_count_A = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
 		sum_array_D = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 		count_array_D = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
@@ -1087,220 +1171,153 @@ def stack_A():
 		SB_res = []
 		Ar_res = []
 
-		su_Nx = 0
-		su_Ny = 0
-		for jj in range(10):
+		for jj in range(20):
 			'''
-			ra_g = ra[jj]
-			dec_g = dec[jj]
-			z_g = z[jj]
-			'''
-			ra_g = red_ra[jj]
-			dec_g = red_dec[jj]
-			z_g = red_z[jj]
-			
-			Da_g = Test_model.angular_diameter_distance(z_g).value
-			data = fits.getdata(load + 'A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
-			img = data[0]
-			wcs = awc.WCS(data[1])
-			cx_BCG, cy_BCG = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
-
-			Angur = (R0*rad2asec/Da_g)
-			Rp = Angur / pixel
-			L_ref = Da_ref*pixel/rad2asec
-			L_z0 = Da_g*pixel/rad2asec
-			Rref = (R0*rad2asec/Da_ref)/pixel
-
-			eta = L_ref/L_z0
-			miu = 1 / eta
-
-			ox = np.linspace(0, img.shape[1]-1, img.shape[1])
-			oy = np.linspace(0, img.shape[0]-1, img.shape[0])
-			oo_grd = np.array(np.meshgrid(ox, oy))
-			cdr = np.sqrt((oo_grd[0,:] - cx_BCG)**2 + (oo_grd[1,:] - cy_BCG)**2)
-			idd = (cdr > Rp) & (cdr < 1.1 * Rp)
-			cut_region = img[idd]
-			id_nan = np.isnan(cut_region)
-			idx = np.where(id_nan == False)
-			bl_array = cut_region[idx]
-			bl_array = np.sort(bl_array)
-			sky_compare = np.mean(bl_array)
-			'''
-			bl_set = bl_array[bl_array <= np.abs(np.min(bl_array))]
-			bl_set = bl_array
-			nx, vx = np.histogram(bl_set, bins  = 20)
-			Nx = np.max(nx)
-			Mu0 = np.mean(vx)
-			Sigma0 = np.std(bl_set)
-			x_set = (vx[:-1] + vx[1:]) / 2
-			dnx = vx[1:] - vx[:-1]
-			sum_dn = np.sum(nx * dnx)
-			P0 = np.array([3.5, Sigma0, Mu0])
-			popt, pcov = curve_fit(BL_fit, x_set, nx / sum_dn, p0 = P0)
-			sky_origin = popt[-1]
-			'''
-			'''
-			plt.figure()
-			plt.title('$BL \; fit \; ra%.3f \; dec%.3f \; z%.3f$' % (ra_g, dec_g, z_g))
-			plt.plot(x_set, BL_fit(x_set, popt[0], popt[1], popt[2]))
-			plt.hist(bl_set, bins = 20, normed = True)
-			plt.text(-0.02, 5, s = '$\mu=%.5f$' % popt[2] + '\n' + '$\sigma=%.2f$' % popt[1])
-			plt.savefig('/home/xkchen/mywork/ICL/code/BL_estimate_ra%.3f_dec%.3f_z%.3f.png' % (ra_g, dec_g, z_g), dpi = 300)
-			plt.show()
-			'''
-			sky_SB = 22.5 - 2.5*np.log10(np.abs(sky_compare)) + 2.5*np.log10(pixel**2)
-			cc_img = img + sky_compare
-
-			pro_SB, pro_R, pro_Ar, pro_err = light_measure(img, bins, 1, Rp, cx_BCG, cy_BCG, pixel, z_g)
-			pro_SB = pro_SB[1:]
-			pro_R = pro_R[1:]
-			pro_Ar = pro_Ar[1:]
-			pro_err = pro_err[1:]
-
-			SB_ll, R_ll, Ar_ll, error_ll = light_measure(cc_img, bins, 1, Rp, cx_BCG, cy_BCG, pixel, z_g)
-			L_SB = SB_ll[1:]
-			L_R = R_ll[1:]
-			L_Ar = Ar_ll[1:]
-			L_err = error_ll[1:]
-
-			SB_set = L_SB - 10 * np.log10((1 + z_g) / (1 + z_ref))
-			Ar_set = L_Ar * miu
-			SB_ref.append(SB_set)
-			Ar_ref.append(Ar_set)
-			'''
-			plt.figure()
-			ax = plt.subplot(111)
-			ax.errorbar(pro_Ar, pro_SB, yerr = pro_err, xerr = None, color = 'g', marker = 'o', linewidth = 1, markersize = 5, 
-				ecolor = 'g', elinewidth = 1, alpha = 0.5, label = '$Before \, BL \, subtraction$')
-			ax.errorbar(L_Ar, L_SB, yerr = L_err, xerr = None, color = 'r', marker = 's', linewidth = 1, markersize = 5, 
-				ecolor = 'r', elinewidth = 1, alpha = 0.5, label = '$After \, BL \, subtraction$')
-			ax.axhline(y = sky_SB, color = 'b', ls = '--', alpha = 0.5)
-
-			ax.set_xscale('log')
-			ax.set_xlabel('$R[arcsec]$')
-			ax.set_ylabel('$SB[mag/arcsec^2]$')
-			ax.legend(loc = 1, fontsize = 12)
-			ax.invert_yaxis()
-			plt.savefig('/home/xkchen/mywork/ICL/code/sample_%d.png' % jj, dpi = 300)
-			plt.close()
-			'''
-			'''
-			f_goal = flux_recal(img, z_g, z_ref)
-			xn, yn, resam = gen(f_goal, 1, eta, cx_BCG, cy_BCG)
-			xn = np.int(xn)
-			yn = np.int(yn)
-			if eta > 1:
-				resam = resam[1:, 1:]
-			elif eta == 1:
-				resam = resam[1:-1, 1:-1]
+			if (jj == 5) | (jj == 6):
+				continue
 			else:
-				resam = resam
-
-			ox = np.linspace(0, resam.shape[1]-1, resam.shape[1])
-			oy = np.linspace(0, resam.shape[0]-1, resam.shape[0])
-			oo_grd = np.array(np.meshgrid(ox, oy))
-			cdr = np.sqrt((oo_grd[0,:] - xn)**2 + (oo_grd[1,:] - yn)**2)
-			idd = (cdr > Rpp) & (cdr < 1.1 * Rpp)
-			cut_res = resam[idd]
-			id_nan = np.isnan(cut_res)
-			idx = np.where(id_nan == False)
-			bl_array = cut_res[idx]
-			back_cc = np.mean(bl_array)
-			
-			bl_set = bl_array[bl_array <= np.abs(np.min(bl_array))]
-			nx, vx = np.histogram(bl_set, bins = 50)
-			Nx = np.max(nx)
-			Mu0 = np.mean(vx)
-			Sigma0 = np.std(bl_set)
-			x_set = (vx[:-1] + vx[1:]) / 2
-			dnx = vx[1:] - vx[:-1]
-			sum_dn = np.sum(nx * dnx)
-			P0 = np.array([1, Sigma0, Mu0])
-			popt, pcov = curve_fit(BL_fit, x_set, nx / sum_dn, p0 = P0)
-			back_lel = popt[-1]
-			
-			la0 = np.int(y0 - yn)
-			la1 = np.int(y0 - yn + resam.shape[0])
-			lb0 = np.int(x0 - xn)
-			lb1 = np.int(x0 - xn + resam.shape[1])
-
-			idx = np.isnan(resam)
-			idv = np.where(idx == False)
-			sum_array_0[la0:la1, lb0:lb1][idv] = sum_array_0[la0:la1, lb0:lb1][idv] + (resam - back_cc)[idv]
-			count_array_0[la0: la1, lb0: lb1][idv] = resam[idv]
-			id_nan = np.isnan(count_array_0)
-			id_fals = np.where(id_nan == False)
-			p_count_0[id_fals] = p_count_0[id_fals] + 1
-			count_array_0[la0: la1, lb0: lb1][idv] = np.nan
-			
-			############# stack the image without subtract background
-			idx = np.isnan(resam)
-			idv = np.where(idx == False)
-			sum_array_A[la0:la1, lb0:lb1][idv] = sum_array_A[la0:la1, lb0:lb1][idv] + resam[idv]
-			count_array_A[la0: la1, lb0: lb1][idv] = resam[idv]
-			id_nan = np.isnan(count_array_A)
-			id_fals = np.where(id_nan == False)
-			p_count_A[id_fals] = p_count_A[id_fals] + 1
-			count_array_A[la0: la1, lb0: lb1][idv] = np.nan
+				ra_g = red_ra[jj]
+				dec_g = red_dec[jj]
+				z_g = red_z[jj]
 			'''
-			############# check resample process
-			xnd, ynd, resam_dd = gen(cc_img, 1, eta, cx_BCG, cy_BCG)
-			xnd = np.int(xnd)
-			ynd = np.int(ynd)
-			if eta > 1:
-				resam_d = resam_dd[1:, 1:]
-			elif eta == 1:
-				resam_d = resam_dd[1:-1, 1:-1]
+			if jj > 20:
+				continue
 			else:
-				resam_d = resam_dd
+				ra_g = red_ra[jj]
+				dec_g = red_dec[jj]
+				z_g = red_z[jj]
+			
+				Da_g = Test_model.angular_diameter_distance(z_g).value
+				data = fits.getdata(load + 'A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
+				img = data[0]
+				wcs = awc.WCS(data[1])
+				cx_BCG, cy_BCG = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
 
-			SB, R, Ar, err = light_measure(resam_d, bins, 1, Rp / eta, xnd, ynd, pixel * eta, z_g)
-			SB_ub = SB[1:]
-			R_ub = R[1:]
-			Ar_ub = Ar[1:]
-			err_ub = err[1:]
+				Angur = (R0*rad2asec/Da_g)
+				Rp = Angur / pixel
+				L_ref = Da_ref*pixel/rad2asec
+				L_z0 = Da_g*pixel/rad2asec
+				Rref = (R0*rad2asec/Da_ref)/pixel
 
-			SB_ub = SB_ub - 10*np.log10((1 + z_g) / (1 + z_ref))
-			Ar_ub = Ar_ub * miu
-			SB_sub.append(SB_ub)
-			Ar_sub.append(Ar_ub)
+				eta = L_ref/L_z0
+				miu = 1 / eta
 
-			############# stack the image with background subtraction
-			f_D = flux_recal(cc_img, z_g, z_ref)
-			xnd, ynd, resam_dd = gen(f_D, 1, eta, cx_BCG, cy_BCG)
-			xnd = np.int(xnd)
-			ynd = np.int(ynd)
-			if eta > 1:
-				resam_d = resam_dd[1:, 1:]
-			elif eta == 1:
-				resam_d = resam_dd[1:-1, 1:-1]
-			else:
-				resam_d = resam_dd
+				ox = np.linspace(0, img.shape[1]-1, img.shape[1])
+				oy = np.linspace(0, img.shape[0]-1, img.shape[0])
+				oo_grd = np.array(np.meshgrid(ox, oy))
+				cdr = np.sqrt((oo_grd[0,:] - cx_BCG)**2 + (oo_grd[1,:] - cy_BCG)**2)
+				idd = (cdr > Rp) & (cdr < 1.1 * Rp)
+				cut_region = img[idd]
+				id_nan = np.isnan(cut_region)
+				idx = np.where(id_nan == False)
+				bl_array = cut_region[idx]
+				sky_compare = np.mean(bl_array)
 
-			SB, R, Ar, err = light_measure(resam_d, bins, 1, Rpp, xnd, ynd, pixel, z_ref)
-			SB2 = SB[1:]
-			R2 = R[1:]
-			Ar2 = Ar[1:]
-			err2 = err[1:]
-			SB_res.append(SB2)
-			Ar_res.append(Ar2)
+				plt.figure()
+				plt.hist(bl_array, bins = 20)
+				plt.xlabel('$flux[nmay]$')
+				plt.ylabel('$Pixel \, Number$')
+				plt.savefig('/home/xkchen/mywork/ICL/code/sample_%d_bl_dist.png' % jj, dpi = 300)
+				plt.close()
 
-			la0 = np.int(y0 - ynd)
-			la1 = np.int(y0 - ynd + resam_d.shape[0])
-			lb0 = np.int(x0 - xnd)
-			lb1 = np.int(x0 - xnd + resam_d.shape[1])
+				sky_SB = 22.5 - 2.5*np.log10(np.abs(sky_compare)) + 2.5*np.log10(pixel**2)
+				cc_img = img - sky_compare
 
-			idx = np.isnan(resam_d)
-			idv = np.where(idx == False)
-			sum_array_D[la0:la1, lb0:lb1][idv] = sum_array_D[la0:la1, lb0:lb1][idv] + resam_d[idv]
-			count_array_D[la0: la1, lb0: lb1][idv] = resam_d[idv]
-			id_nan = np.isnan(count_array_D)
-			id_fals = np.where(id_nan == False)
-			p_count_D[id_fals] = p_count_D[id_fals] + 1
-			count_array_D[la0: la1, lb0: lb1][idv] = np.nan
+				pro_SB, pro_R, pro_Ar, pro_err = light_measure(img, bins, 1, Rp, cx_BCG, cy_BCG, pixel, z_g)
+				pro_SB = pro_SB[1:]
+				pro_R = pro_R[1:]
+				pro_Ar = pro_Ar[1:]
+				pro_err = pro_err[1:]
 
-			su_Nx = np.max([su_Nx, resam_d.shape[1]])
-			su_Ny = np.max([su_Ny, resam_d.shape[0]])
+				SB_ll, R_ll, Ar_ll, error_ll = light_measure(cc_img, bins, 1, Rp, cx_BCG, cy_BCG, pixel, z_g)
+				L_SB = SB_ll[1:]
+				L_R = R_ll[1:]
+				L_Ar = Ar_ll[1:]
+				L_err = error_ll[1:]
+
+				SB_set = L_SB - 10 * np.log10((1 + z_g) / (1 + z_ref))
+				Ar_set = L_Ar * miu
+				SB_ref.append(SB_set)
+				Ar_ref.append(Ar_set)
+				'''
+				plt.figure()
+				ax = plt.subplot(111)
+				ax.errorbar(pro_Ar, pro_SB, yerr = pro_err, xerr = None, color = 'g', marker = 'o', linewidth = 1, markersize = 5, 
+					ecolor = 'g', elinewidth = 1, alpha = 0.5, label = '$Before \, BL \, subtraction$')
+				ax.errorbar(L_Ar, L_SB, yerr = L_err, xerr = None, color = 'r', marker = 's', linewidth = 1, markersize = 5, 
+					ecolor = 'r', elinewidth = 1, alpha = 0.5, label = '$After \, BL \, subtraction$')
+				ax.axhline(y = sky_SB, color = 'b', ls = '--', alpha = 0.5)
+
+				ax.set_xscale('log')
+				ax.set_xlabel('$R[arcsec]$')
+				ax.set_ylabel('$SB[mag/arcsec^2]$')
+				ax.legend(loc = 1, fontsize = 12)
+				ax.invert_yaxis()
+				plt.savefig('/home/xkchen/mywork/ICL/code/sample_%d.png' % jj, dpi = 300)
+				plt.close()
+				'''
+				############# check resample process
+				xnd, ynd, resam_dd = gen(cc_img, 1, eta, cx_BCG, cy_BCG)
+				xnd = np.int(xnd)
+				ynd = np.int(ynd)
+				if eta > 1:
+					resam_d = resam_dd[1:, 1:]
+				elif eta == 1:
+					resam_d = resam_dd[1:-1, 1:-1]
+				else:
+					resam_d = resam_dd
+
+				SB, R, Ar, err = light_measure(resam_d, bins, 1, Rp / eta, xnd, ynd, pixel * eta, z_g)
+				SB_ub = SB[1:]
+				R_ub = R[1:]
+				Ar_ub = Ar[1:]
+				err_ub = err[1:]
+
+				SB_ub = SB_ub - 10*np.log10((1 + z_g) / (1 + z_ref))
+				Ar_ub = Ar_ub * miu
+				SB_sub.append(SB_ub)
+				Ar_sub.append(Ar_ub)
+
+				############# stack the image with background subtraction
+				'''
+				f_D = flux_recal(cc_img, z_g, z_ref)
+				xnd, ynd, resam_dd = gen(f_D, 1, eta, cx_BCG, cy_BCG)
+				xnd = np.int(xnd)
+				ynd = np.int(ynd)
+				if eta > 1:
+					resam_t = resam_dd[1:, 1:]
+				elif eta == 1:
+					resam_t = resam_dd[1:-1, 1:-1]
+				else:
+					resam_t = resam_dd
+				'''
+				data_tt = fits.getdata('/home/xkchen/mywork/ICL/data/test_data/resamp/' + 
+					'resamp_A-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+				resam_t = data_tt[0]
+				xnd = data_tt[1]['CENTER_X']
+				ynd = data_tt[1]['CENTER_Y']
+
+				SB, R, Ar, err = light_measure(resam_t, bins, 1, Rpp, xnd, ynd, pixel, z_ref)
+				SB2 = SB[1:]
+				R2 = R[1:]
+				Ar2 = Ar[1:]
+				err2 = err[1:]
+				SB_res.append(SB2)
+				Ar_res.append(Ar2)
+
+				la0 = np.int(y0 - ynd)
+				la1 = np.int(y0 - ynd + resam_t.shape[0])
+				lb0 = np.int(x0 - xnd)
+				lb1 = np.int(x0 - xnd + resam_t.shape[1])
+
+				idx = np.isnan(resam_t)
+				idv = np.where(idx == False)
+				sum_array_D[la0:la1, lb0:lb1][idv] = sum_array_D[la0:la1, lb0:lb1][idv] + resam_t[idv]
+				count_array_D[la0: la1, lb0: lb1][idv] = resam_t[idv]
+				id_nan = np.isnan(count_array_D)
+				id_fals = np.where(id_nan == False)
+				p_count_D[id_fals] = p_count_D[id_fals] + 1
+				count_array_D[la0: la1, lb0: lb1][idv] = np.nan
 
 		ll0 = [np.min(kk / Angu_ref) for kk in Ar_ref]
 		tar0 = np.min(ll0)
@@ -1311,20 +1328,7 @@ def stack_A():
 		tar_up = tar1 * Angu_ref
 		inter_frac = np.logspace(np.log10(tar0), np.log10(tar1), bins)
 		inter_ar = inter_frac * Angu_ref
-		'''
-		mean_array_0 = sum_array_0 / p_count_0
-		where_are_inf = np.isinf(mean_array_0)
-		mean_array_0[where_are_inf] = np.nan
-		id_zeros = np.where(p_count_0 == 0)
-		mean_array_0[id_zeros] = np.nan
 
-		SB, R, Ar, error = light_measure(mean_array_0, bins, 1, Rpp, x0, y0, pixel, z_ref)
-		SB_0 = SB[1:] + mag_add[ii]
-		R_0 = R[1:]
-		Ar_0 = Ar[1:]
-		err_0 = error[1:]
-		Ar0 = (Ar_0 / Angu_ref) * Angu_ref
-		'''
 		m_flux = np.ones((stack_N, bins), dtype = np.float) * np.nan
 		for pp in range(len(SB_ref)):
 			id_count = np.zeros(bins, dtype = np.float)
@@ -1361,84 +1365,6 @@ def stack_A():
 		ref_flux = inter_flux[id_set]
 		ref_SB = 22.5 - 2.5 * np.log10(ref_flux) + 2.5*np.log10(pixel**2)
 		f_SB = interp(ref_ar, ref_SB, kind = 'cubic')
-
-		##########subtract background after stacking
-		'''
-		mean_array_A = sum_array_A / p_count_A
-		where_are_inf = np.isinf(mean_array_A)
-		mean_array_A[where_are_inf] = np.nan
-		id_zeros = np.where(p_count_A == 0)
-		mean_array_A[id_zeros] = np.nan
-
-		ox = np.linspace(0, len(Nx)-1, len(Nx))
-		oy = np.linspace(0, len(Ny)-1, len(Ny))
-		oo_grd = np.array(np.meshgrid(ox, oy))
-		cdr = np.sqrt((oo_grd[0,:] - x0)**2 + (oo_grd[1,:] - y0)**2)
-		idd = (cdr > Rpp) & (cdr < 1.1 * Rpp)
-		cut_res = mean_array_A[idd]
-		id_nan = np.isnan(cut_res)
-		idx = np.where(id_nan == False)
-		bl_array = cut_res[idx]
-
-		bl_set = bl_array[bl_array <= np.abs(np.min(bl_array))]
-		nx, vx = np.histogram(bl_set, bins = 50)
-		Nx = np.max(nx)
-		Mu0 = np.mean(vx)
-		Sigma0 = np.std(bl_set)
-		x_set = (vx[:-1] + vx[1:]) / 2
-		dnx = vx[1:] - vx[:-1]
-		sum_dn = np.sum(nx * dnx)
-		P0 = np.array([1, Sigma0, Mu0])
-		popt, pcov = curve_fit(BL_fit, x_set, nx / sum_dn, p0 = P0)
-		cc_back = popt[-1]
-		cc_resam = mean_array_A - cc_back
-
-		cc_SB, cc_R, cc_Ar, cc_error = light_measure(cc_resam, bins, 1, Rpp, x0, y0, pixel, z_ref)
-		c_SB = cc_SB[1:] + mag_add[ii]
-		c_R = cc_R[1:]
-		c_Ar = cc_Ar[1:]
-		c_err = cc_error[1:]
-		'''
-		############ stack subtracted image
-		mean_array_D = sum_array_D / p_count_D
-		where_are_inf = np.isinf(mean_array_D)
-		mean_array_D[where_are_inf] = np.nan
-		id_zeros = np.where(p_count_D == 0)
-		mean_array_D[id_zeros] = np.nan
-
-		SB, R, Ar, error = light_measure(mean_array_D, bins, 1, Rpp, x0, y0, pixel, z_ref)
-		SB_1 = SB[1:] + mag_add[ii]
-		R_1 = R[1:]
-		Ar_1 = Ar[1:]
-		err_1 = error[1:]
-		Ar1 = (Ar_1 / Angu_ref) * Angu_ref
-
-		## test the mean
-		r_mm = np.logspace(0, np.log10(Rpp), bins)
-		suNx = np.int(su_Nx)
-		suNy = np.int(su_Ny)
-		sNx = np.linspace(x0 - np.int(suNx / 2), x0 + np.int(suNx / 2), suNx)
-		sNy = np.linspace(y0 - np.int(suNy / 2), y0 + np.int(suNy / 2), suNy)
-		su_grd = np.array(np.meshgrid(sNx, sNy))
-		dr_mm = np.sqrt((su_grd[0,:] - x0)**2 + (su_grd[1,:] - y0)**2)
-		flux_mm = np.zeros(len(r_mm) -1, dtype = np.float)
-		for pp in range(len(r_mm)-1):
-			idr = (dr_mm >= r_mm[pp]) & (dr_mm < r_mm[pp + 1])
-			add_flux = sum_array_D[y0 - np.int(suNy / 2) : y0 +np.int(suNy / 2) + 1, x0 - np.int(suNx / 2) : x0 +np.int(suNx / 2) + 1][idr]
-			add_cont = p_count_D[y0 - np.int(suNy / 2) : y0 +np.int(suNy / 2) + 1, x0 - np.int(suNx / 2) : x0 +np.int(suNx / 2) + 1][idr]
-			id_nan = np.isnan(add_cont)
-			idv = np.where(id_nan == False)[0]
-			flux_mm[pp] = np.sum(add_flux[idv]) / np.sum(add_cont[idv]) 
-			print('flux array = ', flux_mm)
-
-		SB_mm = 22.5 - 2.5 * np.log10(flux_mm) + 2.5 * np.log10(pixel**2)
-		Ar_mm = 0.5 * (r_mm[:-1] + r_mm[1:]) * pixel
-		id_nan = np.isnan(SB_mm)
-		id_inf = np.isinf(SB_mm)
-		idu = id_nan | id_inf
-		idv = np.where(idu == False)[0]
-		SBmm = SB_mm[idv]
-		Armm = Ar_mm[idv]
 
 		############# check resample process
 		flux_sub = np.ones((stack_N, bins), dtype = np.float) * np.nan
@@ -1511,8 +1437,37 @@ def stack_A():
 		Ar_3 = inter_ar[id_set]
 		sub_flux = mflux[id_set]
 		SB_3 = 22.5 - 2.5 * np.log10(sub_flux) + 2.5*np.log10(pixel**2)
-		##################
 
+		############ stack subtracted image
+		mean_array_D = sum_array_D / p_count_D
+		where_are_inf = np.isinf(mean_array_D)
+		mean_array_D[where_are_inf] = np.nan
+		id_zeros = np.where(p_count_D == 0)
+		mean_array_D[id_zeros] = np.nan
+
+		SB, R, Ar, error = light_measure(mean_array_D, bins, 1, Rpp, x0, y0, pixel, z_ref)
+		SB_1 = SB[1:] + mag_add[ii]
+		R_1 = R[1:]
+		Ar_1 = Ar[1:]
+		err_1 = error[1:]
+		Ar1 = (Ar_1 / Angu_ref) * Angu_ref
+		stackA = np.array([SB_1, R_1, Ar1, err_1])
+		
+		with h5py.File(
+			'/home/xkchen/mywork/ICL/data/test_data/SB_stack_Amask_%s_band.h5' % band[ii], 'w') as f:
+			f['a'] = stackA
+		with h5py.File('/home/xkchen/mywork/ICL/data/test_data/SB_stack_Amask_%s_band.h5' % band[ii]) as f:
+			for tt in range(len(stackA)):
+				f['a'][tt,:] = stackA[tt,:]
+		'''
+		with h5py.File(
+			'/home/xkchen/mywork/ICL/data/test_data/SB_stack_Amask_%s_band_low.h5' % band[ii], 'w') as f:
+			f['a'] = stackA
+		with h5py.File('/home/xkchen/mywork/ICL/data/test_data/SB_stack_Amask_%s_band_low.h5' % band[ii]) as f:
+			for tt in range(len(stackA)):
+				f['a'][tt,:] = stackA[tt,:]
+		'''
+		##################
 		plt.figure(figsize = (16, 8))
 		gs = gridspec.GridSpec(1, 2, width_ratios = [1,1])
 		ax = plt.subplot(gs[0])
@@ -1522,26 +1477,12 @@ def stack_A():
 		ax.plot(Ar_2, SB_2, 'm.-', label = '$SB \, based \, on \, resample \, img$', alpha = 0.5)
 		ax.plot(Ar1, SB_1, 'g--', label = '$SB \, of \, stack \, subtracted \, img}$', alpha = 0.5)
 		ax.plot(Ar_3, SB_3, 'b--', label = '$SB \, of \, mean \, profile \, on \, stacked \, img$', alpha = 0.5)
-		ax.plot(Armm, SBmm, 'y--', label = '$SB \, mean \, based \, on \, stacked \, img$', alpha = 0.5)
 
-		#ax.plot(Ar0, SB_0, 'b-', label = '$SB \, BL \,subtract \, after \, resample$', alpha = 0.5)
-		#ax.plot(c_Ar, c_SB, 'm:', label = '$SB \, subtract \, mean \, BL \, after \, stack$', alpha = 0.5)
-		'''
-		bx.plot(Ar0[(Ar0 > tar_down * 1.01) & (Ar0 < tar_up / 1.01)], SB_0[(Ar0 > tar_down * 1.01) & (Ar0 < tar_up / 1.01)] - 
-			f_SB(Ar0[(Ar0 > tar_down * 1.01) & (Ar0 < tar_up / 1.01)]), 'b*', alpha = 0.5)
-		bx.axhline(y = np.mean(SB_0[(Ar0 > tar_down * 1.01) & (Ar0 < tar_up / 1.01)] - 
-			f_SB(Ar0[(Ar0 > tar_down * 1.01) & (Ar0 < tar_up / 1.01)])), ls = '--', color = 'b', alpha = 0.5)
-		'''
 		bx.plot(Ar1[(Ar1 > tar_down * 1.01) & (Ar1 < tar_up / 1.01)], SB_1[(Ar1 > tar_down * 1.01) & (Ar1 < tar_up / 1.01)] - 
 			f_SB(Ar1[(Ar1 > tar_down * 1.01) & (Ar1 < tar_up / 1.01)]), 'g*', alpha = 0.5)
 		bx.axhline(y = np.mean(SB_1[(Ar1 > tar_down * 1.01) & (Ar1 < tar_up / 1.01)] - 
 			f_SB(Ar1[(Ar1 > tar_down * 1.01) & (Ar1 < tar_up / 1.01)])), ls = '--', color = 'g', alpha = 0.5)
-		'''
-		bx.plot(c_Ar[(c_Ar > tar_down * 1.01) & (c_Ar < tar_up / 1.01)], c_SB[(c_Ar > tar_down * 1.01) & (c_Ar < tar_up / 1.01)] - 
-			f_SB(c_Ar[(c_Ar > tar_down * 1.01) & (c_Ar < tar_up / 1.01)]), 'm*', alpha = 0.5)
-		bx.axhline(y = np.mean(c_SB[(c_Ar > tar_down * 1.01) & (c_Ar < tar_up / 1.01)] - 
-			f_SB(c_Ar[(c_Ar > tar_down * 1.01) & (c_Ar < tar_up / 1.01)])), ls = '--', color = 'm', alpha = 0.5)
-		'''
+
 		ax.set_xscale('log')
 		ax.set_xlabel('$R[arcsec]$')
 		ax.set_ylabel('$SB[mag/arcsec^2]$')
@@ -1564,56 +1505,62 @@ def stack_A():
 		#plt.savefig('/home/xkchen/mywork/ICL/code/stack_profile_origin_%s_band_subtract_%d.png' % (band[ii], jj), dpi = 300)
 		plt.close()
 
-	raise
 	return
 
-def SB_fit(r, m0, Mc, c, M2L):
-	skyl = m0
-	surf_mass = sigmamc(r, Mc, c)
-	surf_lit = surf_mass / M2L
+def SB_fit(r, m0, mc, c, m2l):
+	bl = m0
+	surf_mass = sigmamc(r, mc, c)
+	surf_lit = surf_mass / m2l
 
 	Lz = surf_lit / ((1 + z_ref)**4 * np.pi * 4 * rad2asec**2)
 	Lob = Lz * Lsun / kpc2cm**2
-	mock_SB = 22.5 - 2.5 * np.log10(Lob/(10**(-9)*f0))
+	fob = Lob/(10**(-9)*f0)
+	mock_SB = 22.5 - 2.5 * np.log10(fob)
 
-	mock_L = mock_SB + skyl
+	mock_L = mock_SB + bl
 
 	return mock_L
 
+def crit_r(Mc, c):
+	c = c
+	M = 10**Mc
+	rho_c = (kpc2m/Msun2kg)*(3*H0**2)/(8*np.pi*G)
+	r200_c = (3*M/(4*np.pi*rho_c*200))**(1/3) 
+	rs = r200_c / c
+
+	return rs, r200_c
+
 def SB_ICL():
-	f_unmask = 0.15
-	with h5py.File('/home/xkchen/mywork/ICL/data/test_data/sky_light.h5') as f:
-		SB_sky = np.array(f['a'])
 
 	for ii in range(len(band)):
+		'''		
 		with h5py.File('/home/xkchen/mywork/ICL/data/test_data/SB_stack_Amask_%s_band.h5' % band[ii]) as f:
 			A_stack = np.array(f['a'])
 		SB_diff = A_stack[0,:]
 		R_diff = A_stack[1,:]
 		Ar_diff = A_stack[2,:]
 		err_diff = A_stack[3,:]
-
-		with h5py.File('/home/xkchen/mywork/ICL/data/test_data/SB_stack_Bmask_%s_band.h5' % band[ii]) as f:
-			B_stack = np.array(f['a'])
-		SB_tot = B_stack[0,:]
-		R_tot = B_stack[1,:]
-		Ar_tot = B_stack[2,:]
-		err_tot = B_stack[3,:]
-
-		SB_ICL = SB_diff/(1 - f_unmask) - SB_tot * f_unmask/(1 - f_unmask)
-		# fit the light profile
+		'''
+		with h5py.File('/home/xkchen/mywork/ICL/data/test_data/SB_stack_Amask_%s_band_low.h5' % band[ii]) as f:
+			A_stack = np.array(f['a'])
+		SB_diff = A_stack[0,:]
+		R_diff = A_stack[1,:]
+		Ar_diff = A_stack[2,:]
+		err_diff = A_stack[3,:]
+		
 		ix = R_diff >= 100
 		iy = R_diff <= 900
 		iz = ix & iy
 		r_fit = R_diff[iz]
 		sb_fit = SB_diff[iz]
 
-		m0 = SB_sky[ii]
-		mc = 14
-		cc = 4
-		m2l = 120
+		m0 = 30.5
+		mc = 14.5
+		cc = 5
+		m2l = 237
 		po = np.array([m0, mc, cc, m2l])
-		popt, pcov = curve_fit(SB_fit, r_fit, sb_fit, p0 = po, method = 'trf')
+		#popt, pcov = curve_fit(SB_fit, r_fit, sb_fit, p0 = po)
+		popt, pcov = curve_fit(SB_fit, r_fit, sb_fit, p0 = po, bounds = ([30, 13.5, 1, 200], [37, 15, 6, 270]), method = 'trf')
 
 		M0 = popt[0]
 		Mc = popt[1]
@@ -1627,40 +1574,58 @@ def SB_ICL():
 		print('M2L = ', M2L)
 
 		fit_line = SB_fit(r_fit, M0, Mc, Cc, M2L)
+		rs, r200 = crit_r(Mc, Cc)
 
 		fig = plt.figure(figsize = (16, 9))
+		plt.suptitle('$fit \; for \; background \; estimate \; in \; %s \; band$' % band[ii])
 		bx = plt.subplot(111)
-		bx.set_title('$fit \; for \; background \; estimate \; in \; %s \; band$' % band[ii])
-		bx.errorbar(R_diff[iz], SB_diff[iz], yerr = err_diff[iz], xerr = None, ls = '', fmt = 'ro', label = '$SB_{obs}$')
+		cx = fig.add_axes([0.15, 0.25, 0.175, 0.175])
+
+		bx.errorbar(R_diff[iz], SB_diff[iz], yerr = err_diff[iz], xerr = None, ls = '', fmt = 'ro', label = '$observation$')
 		bx.plot(r_fit, fit_line, 'b-', label = '$NFW+C$')
+		bx.axvline(x = rs, linestyle = '--', linewidth = 1, color = 'b', label = '$r_s$')
+
 		bx.set_xlabel('$R[kpc]$')
 		bx.set_xscale('log')
 		bx.set_ylabel('$SB[mag/arcsec^2]$')
-		bx.tick_params(axis = 'x', which = 'both', direction = 'in')
+		bx.tick_params(axis = 'both', which = 'both', direction = 'in')
 		bx.invert_yaxis()
-		subax = fig.add_axes([0.15, 0.15, 0.2, 0.2])
-		subax.errorbar(R_diff, SB_diff, yerr = err_diff, xerr = None, ls = '', fmt = 'ro', label = '$SB_{obs}$')
-		subax.set_xscale('log')
-		subax.tick_params(axis = 'x', which = 'both', direction = 'in')
-		subax.invert_yaxis()
-		plt.savefig('/home/xkchen/mywork/ICL/code/fit_for_BG_%s_band.png' % band[ii], dpi = 600)
-		plt.close()
+		
+		bx1 = bx.twiny()
+		xtik = bx.get_xticks(minor = True)
+		xR = xtik * 10**(-3) * rad2asec / Da_ref
+		bx1.set_xticks(xtik)
+		bx1.set_xticklabels(["%.2f" % uu for uu in xR])
+		bx1.set_xlim(bx.get_xlim())
+		bx1.set_xlabel('$R[arcsec]$')
+		bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
+		
+		cx.text(0, 0, s = 'BL = %.2f' % M0 + '\n' + '$Mc = %.2fM_\odot $' % Mc + '\n' + 
+			'C = %.2f' % Cc + '\n' + 'M2L = %.2f' % M2L, fontsize = 15)
+		cx.axis('off')
+		cx.set_xticks([])
+		cx.set_yticks([])
 
-	raise
+		bx.legend(loc = 3, fontsize = 15)
+		plt.savefig('/home/xkchen/mywork/ICL/code/fit_for_BG_%s_band.png' % band[ii], dpi = 600)
+		plt.show()
+
+		raise
 	return
 
 def main():
 	#stack_no_mask()
 	#mask_part()
 
-	#mask_A()
-	resamp_A()
-	stack_A()
-
 	#mask_B()
 	#resamp_B()
 	#stack_B()
-	#SB_ICL()
+
+	#mask_A()
+	#resamp_A()
+	#stack_A()
+
+	SB_ICL()
 
 if __name__ == "__main__":
 	main()

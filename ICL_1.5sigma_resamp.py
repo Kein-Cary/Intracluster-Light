@@ -46,6 +46,7 @@ with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/sample_catalog.h5') as f:
 z = catalogue[0]
 ra = catalogue[1]
 dec = catalogue[2]
+
 R0 = 1 # in unit Mpc
 Angu_ref = (R0/Da_ref)*rad2asec
 Rpp = Angu_ref/pixel
@@ -82,7 +83,20 @@ def resamp_15sigma():
 			b = L_ref/L_z0
 			Rref = (R0*rad2asec/Da_ref)/pixel
 
-			f_goal = flux_recal(img, z_g, z_ref)
+			ox = np.linspace(0, img.shape[1]-1, img.shape[1])
+			oy = np.linspace(0, img.shape[0]-1, img.shape[0])
+			oo_grd = np.array(np.meshgrid(ox, oy))
+			cdr = np.sqrt((oo_grd[0,:] - cx)**2 + (oo_grd[1,:] - cy)**2)
+			idd = (cdr > Rp) & (cdr < 1.1 * Rp)
+			cut_region = img[idd]
+			id_nan = np.isnan(cut_region)
+			idx = np.where(id_nan == False)
+			bl_array = cut_region[idx]
+			bl_array = np.sort(bl_array)
+			back_lel = np.mean(bl_array)
+
+			imgt = img - back_lel
+			f_goal = flux_recal(imgt, z_g, z_ref)
 			xn, yn, resam = gen(f_goal, 1, b, cx, cy)
 			xn = np.int(xn)
 			yn = np.int(yn)
