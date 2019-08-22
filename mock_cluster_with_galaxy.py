@@ -143,7 +143,7 @@ def cluster(Mh, Nbin, Nx1, Nx2, z):
 	plt.title('mock cluster with NFW model + Gaussian noise')
 	plt.imshow(mock_ccd, cmap = 'rainbow', origin = 'lower', norm = mpl.colors.LogNorm())
 	plt.colorbar(label = 'flux[nMgy]', fraction = 0.035, pad = 0.003)
-	plt.savefig('/home/xkchen/mywork/ICL/code/mock_cluster_with_galaxy.png', dpi = 300)
+	#plt.savefig('/home/xkchen/mywork/ICL/code/mock_cluster_with_galaxy.png', dpi = 300)
 	plt.show()
 	
 	raise

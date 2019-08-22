@@ -243,7 +243,7 @@ def stack_light(band_number, stack_number, subz, subra, subdec):
     ax.set_title('$SB \; profile \; with \; BL \; subtracted \; in \; %s \; band$' % band[ii])
     ax.errorbar(R_diff, SB_diff, yerr = err_diff, xerr = None, ls = '', fmt = 'ro', label = '$BCG + ICL$')
     ax.errorbar(R_tot, SB_tot, yerr = err_tot, xerr = None, ls = '', fmt = 'bs', label = '$Total$')
-    ax.axhline(y = M0, linestyle = '--', linewidth = 1, color = 'g', label = '$Background$')
+    #ax.axhline(y = M0, linestyle = '--', linewidth = 1, color = 'g', label = '$Background$')
 
     ax.set_xlabel('$R[kpc]$')
     ax.set_xscale('log')
