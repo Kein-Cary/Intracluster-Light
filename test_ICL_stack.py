@@ -9,25 +9,27 @@ from astropy import cosmology as apcy
 
 import h5py
 import numpy as np
-import pandas as pd
 import astropy.wcs as awc
 import subprocess as subpro
 import astropy.io.ascii as asc
 import astropy.io.fits as fits
 
 from resamp import gen
-from numba import vectorize
 from extinction_redden import A_wave
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, minimize
 from light_measure import light_measure, flux_recal
 from light_measure import sigmamc
 ##
 kpc2cm = U.kpc.to(U.cm)
 Mpc2pc = U.Mpc.to(U.pc)
 Mpc2cm = U.Mpc.to(U.cm)
+kpc2m = U.kpc.to(U.m)
 rad2asec = U.rad.to(U.arcsec)
 pc2cm = U.pc.to(U.cm)
+Msun2kg = U.M_sun.to(U.kg)
 Lsun = C.L_sun.value*10**7
+G = C.G.value
+
 # cosmology model
 Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
 H0 = Test_model.H0.value
@@ -40,7 +42,7 @@ pixel = 0.396 # the pixel size in unit arcsec
 z_ref = 0.250 
 Da_ref = Test_model.angular_diameter_distance(z_ref).value
 Jy = 10**(-23) # (erg/s)/cm^2
-f0 = 3631*10**(-23) # zero point in unit (erg/s)/cm^-2
+f0 = 3631 * Jy # zero point in unit (erg/s)/cm^-2
 
 # sample catalog
 with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/sample_catalog.h5') as f:
@@ -88,12 +90,36 @@ def SB_fit(r, m0, Mc, c, M2L):
 
     return mock_L
 
-def stack_light(band_number, stack_number, subz, subra, subdec):
+def crit_r(Mc, c):
+    c = c
+    M = 10**Mc
+    rho_c = (kpc2m / Msun2kg)*(3*H0**2) / (8*np.pi*G)
+    r200_c = (3*M /(4*np.pi*rho_c*200))**(1/3) 
+    rs = r200_c / c
+
+    return rs, r200_c
+
+def chi2(X, *args):
+    m0 = X[0]
+    mc = X[1]
+    c = X[2]
+    m2l = X[3]
+    r, data, yerr = args
+    m0 = m0
+    mc = mc
+    m2l = m2l
+    c = c
+    mock_L = SB_fit(r, m0, mc, c, m2l)
+    chi = np.sum(((mock_L - data) / yerr)**2)
+    return chi
+
+def stack_light(band_number, stack_number, subz, subra, subdec, subrich):
     stack_N = np.int(stack_number)
     ii = np.int(band_number)
     sub_z = subz
     sub_ra = subra
     sub_dec = subdec
+    sub_rich = subrich
 
     x0 = 2427
     y0 = 1765
@@ -121,21 +147,18 @@ def stack_light(band_number, stack_number, subz, subra, subdec):
         wcs = awc.WCS(data[1])
         cx, cy = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
 
-        data_B = fits.getdata(load + 'mask_data/B_plane/B_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
-        img_B = data_B[0]
-
-        Angur = (R0*rad2asec/Da_g)
-        Rp = Angur/pixel
-        L_ref = Da_ref*pixel/rad2asec
-        L_z0 = Da_g*pixel/rad2asec
-        b = L_ref/L_z0
-        Rref = (R0*rad2asec/Da_ref)/pixel
+        Angur = (R0 * rad2asec / Da_g)
+        Rp = Angur / pixel
+        L_ref = Da_ref * pixel / rad2asec
+        L_z0 = Da_g * pixel / rad2asec
+        b = L_ref / L_z0
+        Rref = (R0 * rad2asec / Da_ref) / pixel
 
         ox = np.linspace(0, img.shape[1]-1, img.shape[1])
         oy = np.linspace(0, img.shape[0]-1, img.shape[0])
         oo_grd = np.array(np.meshgrid(ox, oy))
-        cdr = np.sqrt((oo_grd[0,:] - cx)**2 + (oo_grd[1,:] - cy)**2)
-        idd = (cdr > Rp) & (cdr < 1.1 * Rp)
+        cdr = np.sqrt(((2 * oo_grd[0,:] + 1)/2 - (2 * cx + 1)/2)**2 + ((2 * oo_grd[1,:] + 1)/2 - (2 * cy + 1)/2)**2)
+        idd = (cdr > (2 * Rp + 1)/2) & (cdr < 1.1 * (2 * Rp + 1)/2)
         cut_region = img[idd]
         id_nan = np.isnan(cut_region)
         idx = np.where(id_nan == False)
@@ -169,6 +192,9 @@ def stack_light(band_number, stack_number, subz, subra, subdec):
         count_array[la0: la1, lb0: lb1][idv] = np.nan
 
         # stack img_B
+        data_B = fits.getdata(load + 'mask_data/B_plane/B_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
+        img_B = data_B[0]
+
         cc_img_B = img_B - back_lel
         f_B = flux_recal(cc_img_B, z_g, z_ref)
         xn, yn, resam = gen(f_B, 1, b, cx, cy)
@@ -201,11 +227,21 @@ def stack_light(band_number, stack_number, subz, subra, subdec):
     id_zeros = np.where(p_count_B == 0)
     mean_array_B[id_zeros] = np.nan
 
-    SB, R, Ar, error = light_measure(mean_array_B, bins, 1, Rpp, x0, y0, pixel, z_ref)
-    SB_tot = SB[1:] + mag_add[ii]
-    R_tot = R[1:]
-    Ar_tot = Ar[1:]
-    err_tot = error[1:]
+    plt.figure()
+    plt.title('stacking B mask image %s band' % band[ii])
+    plt.imshow(mean_array_B, cmap = 'Greys', vmin = 1e-3, origin = 'lower', norm = mpl.colors.LogNorm())
+    hsc.circles(x0, y0, s = Rpp, fc = '', ec ='b')
+    plt.plot(x0, y0, 'rP')
+    plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_B_img_%s_band.png' % band[ii], dpi = 300)
+    plt.close()
+
+    SB, R, Ar, error = light_measure(mean_array_B, bins, 1, Rpp, x0, y0, pixel, z_ref)[:4]
+    id_nan = np.isnan(SB)
+    ivx = id_nan == False
+    SB_tot = SB[ivx] + mag_add[ii]
+    R_tot = R[ivx]
+    Ar_tot = Ar[ivx]
+    err_tot = error[ivx]
 
     mean_array = sum_array / p_count
     where_are_inf = np.isinf(mean_array)
@@ -213,71 +249,92 @@ def stack_light(band_number, stack_number, subz, subra, subdec):
     id_zeros = np.where(p_count == 0)
     mean_array[id_zeros] = np.nan
 
-    SB, R, Ar, error = light_measure(mean_array, bins, 1, Rpp, x0, y0, pixel, z_ref)
-    SB_diff = SB[1:] + mag_add[ii]
-    R_diff = R[1:]
-    Ar_diff = Ar[1:]
-    err_diff = error[1:]
+    plt.figure()
+    plt.title('stacking A mask image %s band' % band[ii])
+    plt.imshow(mean_array, cmap = 'Greys', vmin = 1e-3, origin = 'lower', norm = mpl.colors.LogNorm())
+    hsc.circles(x0, y0, s = Rpp, fc = '', ec ='b')
+    plt.plot(x0, y0, 'rP')
+    plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_A_img_%s_band.png' % band[ii], dpi = 300)
+    plt.close()
+
+    SB, R, Ar, error = light_measure(mean_array, bins, 1, Rpp, x0, y0, pixel, z_ref)[:4]
+    id_nan = np.isnan(SB)
+    ivx = id_nan == False
+    SB_diff = SB[ivx] + mag_add[ii]
+    R_diff = R[ivx]
+    Ar_diff = Ar[ivx]
+    err_diff = error[ivx]
 
     ix = R_diff >= 100
     iy = R_diff <= 900
     iz = ix & iy
     r_fit = R_diff[iz]
     sb_fit = SB_diff[iz]
+    err_fit = err_diff[iz]
 
-    m0 = 30.5
-    mc = 14.5
-    cc = 5
-    m2l = 237
-    po = np.array([m0, mc, cc, m2l])
-    popt, pcov = curve_fit(SB_fit, r_fit, sb_fit, p0 = po, bounds = ([30, 13.5, 1, 200], [37, 15, 6, 270]), method = 'trf')
-
-    M0 = popt[0]
-    Mc = popt[1]
-    Cc = popt[2]
-    M2L = popt[3]
-    fit_line = SB_fit(r_fit, M0, Mc, Cc, M2L)
-
-    plt.figure(figsize = (16, 9))
+    fig = plt.figure(figsize = (16, 9))
+    plt.suptitle('$SB \; profile \; with \; BL \; subtracted \; in \; %s \; band$' % band[ii])
     ax = plt.subplot(111)
-    ax.set_title('$SB \; profile \; with \; BL \; subtracted \; in \; %s \; band$' % band[ii])
     ax.errorbar(R_diff, SB_diff, yerr = err_diff, xerr = None, ls = '', fmt = 'ro', label = '$BCG + ICL$')
     ax.errorbar(R_tot, SB_tot, yerr = err_tot, xerr = None, ls = '', fmt = 'bs', label = '$Total$')
-    #ax.axhline(y = M0, linestyle = '--', linewidth = 1, color = 'g', label = '$Background$')
 
     ax.set_xlabel('$R[kpc]$')
     ax.set_xscale('log')
     ax.set_ylabel('$SB[mag/arcsec^2]$')
     ax.tick_params(axis = 'both', which = 'both', direction = 'in')
     ax.invert_yaxis()
+    ax.set_xlim(np.min(R_diff + 1), np.max(R_diff + 20))
     ax.legend(loc = 1, fontsize = 12)
 
     ax1 = ax.twiny()
     xtik = ax.get_xticks(minor = True)
     xR = xtik * 10**(-3) * rad2asec / Da_ref
-    ax1.set_xticks(xtik)
-    ax1.set_xticklabels(["%.2f" % uu for uu in xR])
+    xR = xtik * 10**(-3) * rad2asec / Da_ref
+    id_tt = xtik >= 9e1 
+    ax1.set_xticks(xtik[id_tt])
+    ax1.set_xticklabels(["%.2f" % uu for uu in xR[id_tt]])
     ax1.set_xlim(ax.get_xlim())
     ax1.set_xlabel('$R[arcsec]$')
     ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
 
+    subax = fig.add_axes([0.18, 0.18, 0.25, 0.25])
+    subax.set_title('$\lambda \; distribution$')
+    subax.hist(sub_rich, histtype = 'step', color = 'b')
+    subax.set_xlabel('$\lambda$')
+    subax.set_ylabel('$N$')
+
     plt.savefig(
-        '/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/stack_%d_in_%sband_profile_compare.png' % (stack_N, band[ii]), dpi = 300)
+        '/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_%d_in_%sband_profile_compare.png' % (stack_N, band[ii]), dpi = 300)
     plt.close()
 
+    m0 = np.arange(30.5, 35.5, 0.25)
+    mc = np.arange(13.5, 15, 0.25)
+    cc = np.arange(1, 5, 0.25)
+    m2l = np.arange(200, 274, 2)
+
+    popt = minimize(chi2, x0 = np.array([m0[0], mc[0], cc[0], m2l[10]]), args = (r_fit, sb_fit, err_fit), method = 'Powell', tol = 1e-5)
+    M0 = popt.x[0]
+    Mc = popt.x[1]
+    Cc = popt.x[2]
+    M2L = popt.x[3]
+
+    fit_line = SB_fit(r_fit, M0, Mc, Cc, M2L)
+    rs, r200 = crit_r(Mc, Cc)
+
     fig = plt.figure(figsize = (16, 9))
+    plt.suptitle('$fit \; for \; background \; estimate \; in \; %s \; band$' % band[ii])
     bx = plt.subplot(111)
     cx = fig.add_axes([0.15, 0.25, 0.175, 0.175])
-
-    bx.set_title('$fit \; for \; background \; estimate \; in \; %s \; band$' % band[ii])
     bx.errorbar(R_diff[iz], SB_diff[iz], yerr = err_diff[iz], xerr = None, ls = '', fmt = 'ro', label = '$BCG + ICL$')
     bx.plot(r_fit, fit_line, 'b-', label = '$NFW+C$')
+    bx.axvline(x = rs, linestyle = '--', linewidth = 1, color = 'b', label = '$r_s$')
 
     bx.set_xlabel('$R[kpc]$')
     bx.set_xscale('log')
     bx.set_ylabel('$SB[mag/arcsec^2]$')
     bx.tick_params(axis = 'both', which = 'both', direction = 'in')
     bx.invert_yaxis()
+    bx.set_xlim(1e2, 9e2)
     bx.legend(loc = 1, fontsize = 15)
 
     bx1 = bx.twiny()
@@ -295,7 +352,7 @@ def stack_light(band_number, stack_number, subz, subra, subdec):
     cx.set_yticks([])
 
     plt.savefig(
-        '/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/stack_%d_in_%sband_with_NFW_fit.png' % (stack_N, band[ii]), dpi = 300)
+        '/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_%d_in_%sband_with_NFW_fit.png' % (stack_N, band[ii]), dpi = 300)
     plt.close()
 
     return SB_diff, R_diff, Ar_diff, err_diff
@@ -303,29 +360,31 @@ def stack_light(band_number, stack_number, subz, subra, subdec):
 def main():
     import random
     import matplotlib.gridspec as gridspec
-    stackN = np.int(20)
+    stackN = np.int(690)
 
-    ix = (red_rich >= 25) & (red_rich <= 27.5)
+    ix = red_rich >= 39
     RichN = red_rich[ix]
     zN = red_z[ix]
     raN = red_ra[ix]
     decN = red_dec[ix]
+    '''
+    tt0 = [random.randint(0, len(zN) - 1) for _ in range(stackN)]
 
-    tt0 = [random.randint(0, 422) for _ in range(stackN)]
     with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/test_h5/random_index.h5', 'w') as f:
         f['a'] = np.array(tt0)
 
     with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/test_h5/random_index.h5') as f:
         tt0 = np.array(f['a'])
-
+    '''
+    tt0 = np.arange(690)
     richa = RichN[tt0]
     za = zN[tt0]
     ra_a = raN[tt0]
     dec_a = decN[tt0]
     
-    for ii in range(len(band)):
+    for ii in range(1):
         id_band = ii
-        SB, R, Ar, err = stack_light(id_band, stackN, za, ra_a, dec_a)
+        SB, R, Ar, err = stack_light(id_band, stackN, za, ra_a, dec_a, richa)
 
         SB0 = SB *1
         R0 = R *1
@@ -338,6 +397,7 @@ def main():
         with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/test_h5/stack_%d_in_%s_band_%.2f_sigma.h5' % (stackN, band[ii], 1.5)) as f:
             for kk in range(len(tmp_SB)):
                 f['a'][kk,:] = tmp_SB[kk,:]
+
     print('tmp_saved!!')
     raise
     Mean_rich = np.mean(richa)

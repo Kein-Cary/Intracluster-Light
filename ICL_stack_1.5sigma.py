@@ -10,25 +10,27 @@ from astropy import cosmology as apcy
 
 import h5py
 import numpy as np
-import pandas as pd
 import astropy.wcs as awc
 import subprocess as subpro
 import astropy.io.ascii as asc
 import astropy.io.fits as fits
 from scipy.interpolate import interp1d as interp
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, minimize
 
-from resamp import gen
-from extinction_redden import A_wave
 from light_measure import light_measure, flux_recal
 from light_measure import sigmamc
-##
+from matplotlib.patches import Circle
+
 kpc2cm = U.kpc.to(U.cm)
 Mpc2pc = U.Mpc.to(U.pc)
 Mpc2cm = U.Mpc.to(U.cm)
+kpc2m = U.kpc.to(U.m)
 rad2asec = U.rad.to(U.arcsec)
 pc2cm = U.pc.to(U.cm)
+Msun2kg = U.M_sun.to(U.kg)
 Lsun = C.L_sun.value*10**7
+G = C.G.value
+
 # cosmology model
 Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
 H0 = Test_model.H0.value
@@ -76,37 +78,24 @@ red_ra = ra_eff[(z_eff <= 0.3)&(z_eff >= 0.2)]
 red_dec = dec_eff[(z_eff <= 0.3)&(z_eff >= 0.2)]
 red_rich = rich_eff[(z_eff <= 0.3)&(z_eff >= 0.2)]
 
-def SB_fit(r, m0, Mc, c, M2L):
-    bl = m0
-    surf_mass = sigmamc(r, Mc, c)
-    surf_lit = surf_mass / M2L
-
-    Lz = surf_lit / ((1 + z_ref)**4 * np.pi * 4 * rad2asec**2)
-    Lob = Lz * Lsun / kpc2cm**2
-    fob = Lob/(10**(-9)*f0)
-    mock_SB = 22.5 - 2.5 * np.log10(fob)
-
-    mock_L = mock_SB + bl
-
-    return mock_L
-
-def stack_light(band_number, stack_number, subz, subra, subdec):
+def stack_light(band_number, stack_number, subz, subra, subdec, subrich):
     stack_N = np.int(stack_number)
     ii = np.int(band_number)
     sub_z = subz
     sub_ra = subra
     sub_dec = subdec
+    sub_rich = subrich
 
     x0 = 2427
     y0 = 1765
-    bins = 45
+    bins = 65
     Nx = np.linspace(0, 4854, 4855)
     Ny = np.linspace(0, 3530, 3531)
     sum_grid = np.array(np.meshgrid(Nx, Ny))
 
-    sum_array_0 = np.zeros((len(Ny), len(Nx)), dtype = np.float) # sum the flux value for each time
-    count_array_0 = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan # sum array but use for pixel count for each time
-    p_count_0 = np.zeros((len(Ny), len(Nx)), dtype = np.float) # how many times of each pixel get value
+    sum_array_A = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+    count_array_A = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
+    p_count_A = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
     for jj in range(stack_N):
 
@@ -118,8 +107,8 @@ def stack_light(band_number, stack_number, subz, subra, subdec):
         data = fits.getdata(load + 
             'resample/1_5sigma/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
         img = data[0]
-        xn = data_tt[1]['CENTER_X']
-        yn = data_tt[1]['CENTER_Y']
+        xn = data[1]['CENTER_X']
+        yn = data[1]['CENTER_Y']
 
         la0 = np.int(y0 - yn)
         la1 = np.int(y0 - yn + img.shape[0])
@@ -128,112 +117,251 @@ def stack_light(band_number, stack_number, subz, subra, subdec):
 
         idx = np.isnan(img)
         idv = np.where(idx == False)
-        sum_array_0[la0:la1, lb0:lb1][idv] = sum_array_0[la0:la1, lb0:lb1][idv] + img[idv]
-        count_array_0[la0: la1, lb0: lb1][idv] = img[idv]
-        id_nan = np.isnan(count_array_0)
+        sum_array_A[la0:la1, lb0:lb1][idv] = sum_array_A[la0:la1, lb0:lb1][idv] + img[idv]
+        count_array_A[la0: la1, lb0: lb1][idv] = img[idv]
+        id_nan = np.isnan(count_array_A)
         id_fals = np.where(id_nan == False)
-        p_count_0[id_fals] = p_count_0[id_fals] + 1
-        count_array_0[la0: la1, lb0: lb1][idv] = np.nan
+        p_count_A[id_fals] = p_count_A[id_fals] + 1
+        count_array_A[la0: la1, lb0: lb1][idv] = np.nan
 
-    mean_array_0 = sum_array_0 / p_count_0
+    # no subtraction
+    mean_array_0 = sum_array_A / p_count_A
     where_are_inf = np.isinf(mean_array_0)
     mean_array_0[where_are_inf] = np.nan
-    id_zeros = np.where(p_count_0 == 0)
+    id_zeros = np.where(p_count_A == 0)
     mean_array_0[id_zeros] = np.nan
 
-    SB, R, Ar, error = light_measure(mean_array_0, bins, 1, Rpp, x0, y0, pixel, z_ref)
-    SB_0 = SB[1:] + mag_add[ii]
-    R_0 = R[1:]
-    Ar_0 = Ar[1:]
-    err_0 = error[1:]
+    SB, R, Ar, error = light_measure(mean_array_0, bins, 1, Rpp, x0, y0, pixel, z_ref)[:4]
+    SB_0 = SB + mag_add[ii]
+    R_0 = R * 1
+    Ar_0 = Ar * 1
+    err_0 = error * 1
 
-    ix = R_0 >= 100
-    iy = R_0 <= 900
-    iz = ix & iy
-    r_fit = R_0[iz]
-    sb_fit = SB_0[iz]
+    cluster1 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5)
+    plt.figure()
+    ax = plt.subplot(111)
+    ax.set_title('Stacking %d clusters in %s band' % (stack_N, band[ii]))
+    fx = ax.imshow(mean_array_0, cmap = 'Greys', vmin = 1e-4, origin = 'lower', norm = mpl.colors.LogNorm())
+    plt.colorbar(fx, fraction = 0.045, pad = 0.01, label = '$flux [ 10^{-9} \, maggies]$')
+    ax.scatter(x0, y0, s = 10, marker = 'X', facecolors = '', edgecolors = 'r', linewidth = 0.5, alpha = 0.5)
+    ax.add_patch(cluster1)
+    ax.set_xlim(x0 - 1.2 * Rpp, x0 + 1.2 * Rpp)
+    ax.set_ylim(y0 - 1.2 * Rpp, y0 + 1.2 * Rpp)
 
-    m0 = 30.5
-    mc = 14.5
-    cc = 5
-    m2l = 237
-    po = np.array([m0, mc, cc, m2l])
-    popt, pcov = curve_fit(SB_fit, r_fit, sb_fit, p0 = po, method = 'trf')
+    xtick = ax.get_xticks()
+    xR = (xtick - x0) * pixel * Da_ref / rad2asec
+    xR = np.abs(xR)
+    ax.set_xticks(xtick)
+    ax.set_xticklabels(["%.2f" % uu for uu in xR])
+    ax.set_xlabel('$R[Mpc]$')
+    ytick = ax.get_yticks()
+    yR = (ytick - y0) * pixel * Da_ref / rad2asec
+    yR = np.abs(yR)
+    ax.set_yticks(ytick)
+    ax.set_yticklabels(["%.2f" % uu for uu in yR])
+    ax.set_ylabel('$R[Mpc]$')
 
-    M0 = popt[0]
-    Mc = popt[1]
-    Cc = popt[2]
-    M2L = popt[3]
-    fit_l = SB_fit(r_fit, M0, Mc, Cc, M2L)
-    f_SB = interp(Ar_0[iz], fit_l)
+    plt.subplots_adjust(bottom = 0.1, right = 0.8, top = 0.9)
+    plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/stack_%d_image_%s_band.png' % (stack_N, band[ii]), dpi = 300)
+    plt.close()
 
-    plt.figure(figsize = (16,9))
+    # BL subtraction after stacking
+    ox = np.linspace(0, mean_array_0.shape[1]-1, mean_array_0.shape[1])
+    oy = np.linspace(0, mean_array_0.shape[0]-1, mean_array_0.shape[0])
+    oo_grd = np.array(np.meshgrid(ox, oy))
+    cdr = np.sqrt(((2 * oo_grd[0,:] + 1)/2 - (2 * x0 + 1)/2)**2 + ((2 * oo_grd[1,:] + 1)/2 - (2 * y0 + 1)/2)**2)
+    idd = (cdr > (2 * Rpp + 1)/2) & (cdr < 1.1 * (2 * Rpp + 1)/2)
+    cut_region = mean_array_0[idd]
+    id_nan = np.isnan(cut_region)
+    idx = np.where(id_nan == False)
+    bl_array = cut_region[idx]
+    back_aft = np.mean(bl_array)
+    cc_mean = mean_array_0 - back_aft
+    BL_lel = 22.5 - 2.5 * np.log10(back_aft) + 2.5 * np.log10(pixel**2)
+
+    SB, R, Ar, error = light_measure(cc_mean, bins, 1, Rpp, x0, y0, pixel, z_ref)[:4]
+    SB_2 = SB + mag_add[ii]
+    R_2 = R * 1
+    Ar_2 = Ar * 1
+    err_2 = error * 1
+
+    cluster2 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5)
+    plt.figure()
+    ax = plt.subplot(111)
+    ax.set_title('Stacking %d clusters in %s band [applied BL subtraction on stacking image]' % (stack_N, band[ii]))
+    fx = ax.imshow(cc_mean, cmap = 'Greys', vmin = 1e-4, origin = 'lower', norm = mpl.colors.LogNorm())
+    plt.colorbar(fx, fraction = 0.045, pad = 0.01, label = '$flux [ 10^{-9} \, maggies]$')
+    ax.scatter(x0, y0, s = 10, marker = 'X', facecolors = '', edgecolors = 'r', linewidth = 0.5, alpha = 0.5)
+    ax.add_patch(cluster2)
+    ax.set_xlim(x0 - 1.2 * Rpp, x0 + 1.2 * Rpp)
+    ax.set_ylim(y0 - 1.2 * Rpp, y0 + 1.2 * Rpp)
+
+    xtick = ax.get_xticks()
+    xR = (xtick - x0) * pixel * Da_ref / rad2asec
+    xR = np.abs(xR)
+    ax.set_xticks(xtick)
+    ax.set_xticklabels(["%.2f" % uu for uu in xR])
+    ax.set_xlabel('$R[Mpc]$')
+    ytick = ax.get_yticks()
+    yR = (ytick - y0) * pixel * Da_ref / rad2asec
+    yR = np.abs(yR)
+    ax.set_yticks(ytick)
+    ax.set_yticklabels(["%.2f" % uu for uu in yR])
+    ax.set_ylabel('$R[Mpc]$')
+
+    plt.subplots_adjust(bottom = 0.1, right = 0.8, top = 0.9)
+    plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/stack_%d_image_%s_band_subBL.png' % (stack_N, band[ii]), dpi = 300)
+    plt.close()
+
+
+    fig = plt.figure(figsize = (16,9))
+    plt.suptitle('$ Stacking \; %d \; clusters \; in \; %s \; band $' % (stack_N, band[ii]), fontsize = 15)
     bx = plt.subplot(111)
-    bx.set_title('$stack \; light \; test \; in \; %s \; band$' % band[ii])
-    bx.errorbar(Ar_0, SB_0, yerr = err_0, xerr = None, color = 'r', marker = 'o', ls = '', linewidth = 1, markersize = 5, 
-        ecolor = 'r', elinewidth = 1, alpha = 0.5, label = '$stack%.0f$' % stack_N)
+
+    bx.errorbar(R_0, SB_0, yerr = err_0, xerr = None, color = 'b', marker = 's', ls = '', linewidth = 1, markersize = 5, 
+        ecolor = 'b', elinewidth = 1, alpha = 0.5 )
+    bx.axhline(y = BL_lel, color = 'g', linestyle = '--', label = '$ background $', alpha = 0.5)
+
     bx.set_xscale('log')
-    bx.set_xlabel('$R[arcsec]$')
+    bx.set_xlabel('$R[kpc]$')
     bx.set_ylabel('$SB[mag/arcsec^2]$')
+    bx.invert_yaxis()
+    bx.set_xlim(np.nanmin(R_0) + 1, np.nanmax(R_0) + 50)
     bx.tick_params(axis = 'both', which = 'both', direction = 'in')
+    bx.legend( loc = 1, fontsize = 12)
 
     bx1 = bx.twiny()
-    bx1.plot(R_0, SB_0, ls = '-', color = 'r', alpha = 0.5)
-    bx1.set_xscale('log')
-    bx1.set_xlabel('$R[kpc]$')
-    bx1.tick_params(axis = 'x', which = 'both', direction = 'in')
-
-    bx.invert_yaxis()
-    bx.legend( loc = 1, fontsize = 12)
-    plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/light_errorbar_%s_band.png' % band[ii], dpi = 600)
-    plt.close()
-
-    plt.figure(figsize = (16, 9))
-    ax = plt.subplot(111)
-    ax.set_title('stack %d image with background subtraction' % stack_N)
-    ax.plot(Ar_0[iz], SB_0[iz], yerr = err_0, xerr = None, color = 'b', marker = 'o', ls = '', linewidth = 1, markersize = 5, 
-        ecolor = 'b', elinewidth = 1, alpha = 0.5, label = '$SB_{stack%.0f}$' % stack_N)
-    ax.plot(Ar_0[iz], fit_l, 'r-', label = '$NFW + C$', alpha = 0.5)
-
-    ax.set_xscale('log')
-    ax.set_xlabel('$R[arcsec]$')
-    ax.set_ylabel('$SB[mag/arcsec^2]$')
-    ax.tick_params(axis = 'both', which = 'both', direction = 'in')
-    ax.invert_yaxis()
-    ax.legend(loc = 1, fontsize = 12)
-    ax.set_title('stacked SB with resample correct')
-
-    ax1 = ax.twiny()
-    xtik = ax.get_xticks(minor = True)
+    xtik = bx.get_xticks(minor = True)
     xR = xtik * 10**(-3) * rad2asec / Da_ref
-    ax1.set_xticks(xtik)
-    ax1.set_xticklabels(["%.2f" % uu for uu in xR])
-    ax1.set_xlim(ax.get_xlim())
-    ax1.set_xlabel('$R[arcsec]$')
-    ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
+    xR = xtik * 10**(-3) * rad2asec / Da_ref
+    id_tt = xtik >= 9e1 
+    bx1.set_xticks(xtik[id_tt])
+    bx1.set_xticklabels(["%.2f" % uu for uu in xR[id_tt]])
+    bx1.set_xlim(bx.get_xlim())
+    bx1.set_xlabel('$R[arcsec]$')
+    bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
 
-    ax.text(1.5e2, 29, s = 'BL = %.2f' % M0 + '\n' + '$Mc = %.2fM_\odot $' % Mc + '\n' 
-        + 'C = %.2f' % Cc + '\n' + 'M2L = %.2f' % M2L, fontsize = 15)
-    plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/light_test_%s_band.png' % band[ii], dpi = 600)
+    subax = fig.add_axes([0.55, 0.35, 0.25, 0.25])
+    subax.set_title('$Richness \; distribution$')
+    subax.hist(sub_rich, histtype = 'step', color = 'b')
+    subax.set_xlabel('$ Richness $')
+    subax.set_ylabel('$ Cluster \; Number$')
+
+    plt.savefig(
+        '/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/stack_%d_profile_in_%sband.png' % (stack_N, band[ii]), dpi = 300)
     plt.close()
 
-    return 
+
+    b0 = np.min([np.nanmin(R_0), np.nanmin(R_2)])
+    b1 = np.max([np.nanmax(R_0), np.nanmax(R_2)])
+
+    fig = plt.figure(figsize = (16,9))
+    plt.suptitle('$ Stacking \; %d \; clusters \; in \; %s \; band $' % (stack_N, band[ii]), fontsize = 15)
+    bx = plt.subplot(111)
+
+    bx.errorbar(R_0, SB_0, yerr = err_0, xerr = None, color = 'b', marker = 's', ls = '', linewidth = 1, markersize = 5, 
+        ecolor = 'b', elinewidth = 1, alpha = 0.5, label = '$ No BL subtraction $')
+    bx.errorbar(R_2, SB_2, yerr = err_2, xerr = None, color = 'r', marker = 'o', ls = '', linewidth = 1, markersize = 5, 
+        ecolor = 'r', elinewidth = 1, alpha = 0.5, label = '$ Applied BL subtraction $')
+
+    bx.set_xscale('log')
+    bx.set_xlabel('$R[kpc]$')
+    bx.set_ylabel('$SB[mag/arcsec^2]$')
+    bx.invert_yaxis()
+    bx.set_xlim(b0 +1, b1 + 50)
+    bx.tick_params(axis = 'both', which = 'both', direction = 'in')
+    bx.legend( loc = 1, fontsize = 12)
+
+    bx1 = bx.twiny()
+    xtik = bx.get_xticks(minor = True)
+    xR = xtik * 10**(-3) * rad2asec / Da_ref
+    xR = xtik * 10**(-3) * rad2asec / Da_ref
+    id_tt = xtik >= 9e1 
+    bx1.set_xticks(xtik[id_tt])
+    bx1.set_xticklabels(["%.2f" % uu for uu in xR[id_tt]])
+    bx1.set_xlim(bx.get_xlim())
+    bx1.set_xlabel('$R[arcsec]$')
+    bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
+
+    subax = fig.add_axes([0.18, 0.18, 0.25, 0.25])
+    subax.set_title('$\lambda \; distribution$')
+    subax.hist(sub_rich, histtype = 'step', color = 'b')
+    subax.set_xlabel('$\lambda$')
+    subax.set_ylabel('$N$')
+
+    plt.savefig(
+        '/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/stack_%d_in_%sband_profile_subBL_aft.png' % (stack_N, band[ii]), dpi = 300)
+    plt.close()
+
+    lit_record = np.array([SB_0, R_0, Ar_0, err_0])
+    with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/test_h5/stack_%d_clusters_SB_%s_band.h5' % (stack_N, band[ii]) , 'w') as f:
+        f['a'] = np.array(lit_record)
+    with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/test_h5/stack_%d_clusters_SB_%s_band.h5' % (stack_N, band[ii]) ) as f:
+        for kk in range(lit_record.shape[0]):
+            f['a'][kk, :] = lit_record[kk, :]
+
+    with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/test_h5/stack_%d_image_%s_band.h5' % (stack_N, band[ii]), 'w') as f:
+        f['a'] = np.array(mean_array_0)
+
+    return mean_array_0, SB_0, R_0
 
 def main():
+    bins = 65
 
-    ix = (red_rich >= 25) & (red_rich <= 29)
+    ix = red_rich >= 39
     RichN = red_rich[ix]
     zN = red_z[ix]
     raN = red_ra[ix]
     decN = red_dec[ix]
-    #stackn = len(zN)
-    stackn = 200
+    stackn = np.int(690)
 
-    for ii in range(len(band)):
+    GR_minus = []
+    Mag_minus = []
+    R_record = []
+    x0 = 2427
+    y0 = 1765
+    for ii in range(2):
         id_band = ii
 
-        stack_light(id_band, stackn, zN, raN, decN)
+        m_img, SB_cc, R_cc = stack_light(id_band, stackn, zN, raN, decN, RichN)
+        GR_minus.append(m_img)
+        Mag_minus.append(SB_cc)
+        R_record.append(R_cc)
         print(ii)
+
+    G_sub_R = GR_minus[1] / GR_minus[0]
+    SBt = Mag_minus[1] - Mag_minus[0]
+    Rt = np.nanmean(np.array(R_record), axis = 0)
+
+    fig = plt.figure()
+    plt.suptitle('$ g-r \,[stacking \, %d \, clusters] $' % stackn, fontsize = 9)
+    bx = plt.subplot(111)
+
+    bx.plot(Rt, SBt, 'r-')
+
+    bx.set_xscale('log')
+    bx.set_xlabel('$R[kpc]$')
+    bx.set_ylabel('$ g-r $')
+    bx.set_xlim(np.nanmin(Rt) + 1, np.nanmax(Rt) + 50)
+    bx.tick_params(axis = 'both', which = 'both', direction = 'in')
+    #bx.legend( loc = 1, fontsize = 12)
+
+    bx1 = bx.twiny()
+    xtik = bx.get_xticks(minor = True)
+    xR = xtik * 10**(-3) * rad2asec / Da_ref
+    xR = xtik * 10**(-3) * rad2asec / Da_ref
+    id_tt = xtik >= 9e1 
+    bx1.set_xticks(xtik[id_tt])
+    bx1.set_xticklabels(["%.2f" % uu for uu in xR[id_tt]], fontsize = 8)
+    bx1.set_xlim(bx.get_xlim())
+    bx1.set_xlabel('$R[arcsec]$')
+    bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
+
+    plt.savefig(
+        '/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/g-r_profile_stack_%d_image.png' % stackn, dpi = 300)
+    plt.close()
+
+    raise
 
 if __name__ == "__main__":
     main()

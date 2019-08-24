@@ -82,16 +82,22 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 	chi = theta * 180/np.pi
 
 	r = np.logspace(0, np.log10(Rp), Nbins) # in unit "pixel"
-	ia = r<= cen_close
+	ia = r <= cen_close
 	ib = np.array(np.where(ia == True))
 	ic = ib.shape[1]
 	rbin = r[ic-1:]
 	rbin[0] = np.mean(r[ia])
 
+	intens = np.zeros(len(r) - ic + 1, dtype = np.float)
+	intens_r = np.zeros(len(r) - ic + 1, dtype = np.float)
+	intens_err = np.zeros(len(r) - ic + 1, dtype = np.float)
+
 	light = np.zeros(len(r) - ic + 1, dtype = np.float)
 	R = np.zeros(len(r) - ic + 1, dtype = np.float)
 	Angur = np.zeros(len(r) - ic + 1, dtype = np.float)
-	SB_error = np.zeros(len(r)-ic+1, dtype = np.float)
+	SB_error = np.zeros(len(r) - ic + 1, dtype = np.float)
+	PN_rbin = np.zeros(len(r) - ic + 1, dtype = np.float)
+
 	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
 		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
 
@@ -101,130 +107,98 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 		phi = np.arange(0, 360, d_phi)
 		phi = phi - 180
 
-		if rbin[k] <= cen_close:
-			ig = rbin <= cen_close
-			subr = rbin[ig]
-			ih = rbin[ig]
-			im = len(ih)
+		ir = (dr > (2 * rbin[k] +1) / 2) & (dr <= (2 * rbin[k + 1] +1) / 2)
+		io = np.where(ir == True)
+		num = len(io[0])
 
-			ir = dr <= rbin[im-1]
-			io = np.where(ir == True)
-			num = len(io[0])
+		r_iner = (2 * rbin[k]+1) / 2
+		r_out = (2 * rbin[k + 1] +1) / 2
 
-			if num == 0:
-				light[k] = 0
-				SB_error[k] = 0
-				R[k] = np.mean(subr) * pixel * Da0*10**3/rad2arcsec
-				Angur[k] = np.mean(subr)*pixel
-			else:
-				iy = io[0]
-				ix = io[1]
-				#sampf = f_data[iy, ix][f_data[iy,ix] != 0]
+		if num == 0:
+			light[k] = np.nan
+			SB_error[k] = np.nan
+			R[k] = 0.5 * (r_iner + r_out) * pixel * Da0*10**3 / rad2arcsec
+			Angur[k] = 0.5 * (r_iner + r_out) * pixel
 
-				sub_img = np.isnan(f_data[iy, ix])
-				ntt = np.where(sub_img == False)
-				sampf = f_data[iy, ix][ntt]	
+			intens_r[k] = 0.5 * (r_iner + r_out) * pixel
+			intens[k] = np.nan
+			intens_err[k] = np.nan
 
-				tot_flux = np.mean(sampf)
-				tot_area = pixel**2
-				light[k] = 22.5-2.5*np.log10(tot_flux) + 2.5*np.log10(tot_area)
-				R[k] = np.mean(subr) * pixel * Da0 * 10**3 / rad2arcsec
-				Angur[k] = np.mean(subr)*pixel
-
-				terr = []
-				for tt in range(len(phi) - 1):
-					iv = (chi >= phi[tt]) & (chi <= phi[tt+1])
-					iu = iv & ir
-					#set_samp = f_data[iu][f_data[iu] != 0]
-
-					sub_img = np.isnan(f_data[iu])
-					ntt = np.where(sub_img == False)
-					set_samp = f_data[iu][ntt]
-
-					ttf = np.mean(set_samp)
-					SB_in = 22.5-2.5*np.log10(ttf)+2.5*np.log10(tot_area)
-					terr.append(SB_in)
-
-				terr = np.array(terr)
-				where_are_inf = np.isinf(terr)
-				terr[where_are_inf] = 0
-				where_are_nan = np.isnan(terr)
-				terr[where_are_nan] = 0
-
-				Terr = terr[terr != 0]
-				Trms = np.std(Terr)
-				SB_error[k] = Trms/np.sqrt(len(Terr) - 1)
-			k = im+1
-
+			PN_rbin[k] = np.nan
 		else:
-			ir = (dr > rbin[k]) & (dr <= rbin[k + 1])
-			io = np.where(ir == True)
-			num = len(io[0])
+			iy = io[0]
+			ix = io[1]
+			sampf = f_data[iy, ix]
 
-			if num == 0:
-				light[k] = 0
-				SB_error[k] = 0
-				R[k-im] = 0.5 * (rbin[k] + rbin[k + 1]) * pixel * Da0*10**3 / rad2arcsec
-				Angur[k-im] = 0.5 * (rbin[k+1] + rbin[k]) * pixel
-			else:
-				iy = io[0]
-				ix = io[1]
-				#sampf = f_data[iy, ix][f_data[iy,ix] != 0]
+			tot_flux = np.nanmean(sampf)
+			tot_area = pixel**2
+			light[k] = 22.5 - 2.5*np.log10(tot_flux) + 2.5*np.log10(tot_area)
+			R[k] = 0.5 * (r_iner + r_out) * pixel * Da0*10**3/rad2arcsec
+			Angur[k] = 0.5 * (r_iner + r_out) * pixel
 
-				sub_img = np.isnan(f_data[iy, ix])
-				ntt = np.where(sub_img == False)
-				sampf = f_data[iy, ix][ntt]	
+			intens[k] = tot_flux
+			intens_r[k] = 0.5 * (r_iner + r_out) * pixel
 
-				tot_flux = np.mean(sampf)
-				tot_area = pixel**2
-				light[k-im] = 22.5-2.5*np.log10(tot_flux)+2.5*np.log10(tot_area)
-				R[k-im] = 0.5 * (rbin[k + 1] + rbin[k]) * pixel * Da0*10**3/rad2arcsec
-				Angur[k-im] = 0.5 * (rbin[k + 1] + rbin[k]) * pixel
+			terr = []
+			tmpf = []
+			for tt in range(len(phi) - 1):
+				iv = (chi >= phi[tt]) & (chi <= phi[tt+1])
+				iu = iv & ir
+				set_samp = f_data[iu]
 
-				terr = []
-				for tt in range(len(phi) - 1):
-					iv = (chi >= phi[tt]) & (chi <= phi[tt+1])
-					iu = iv & ir
-					#set_samp = f_data[iu][f_data[iu] != 0 ]
+				ttf = np.nanmean(set_samp)
+				SB_in = 22.5 - 2.5*np.log10(ttf) + 2.5*np.log10(tot_area)
+				terr.append(SB_in)
+				tmpf.append(ttf)
+			# rms of SB
+			terr = np.array(terr)
+			where_are_inf = np.isinf(terr)
+			terr[where_are_inf] = np.nan
+			id_zero = terr == 0
+			terr[id_zero] = np.nan
+			Trms = np.nanstd(terr)
+			id_nan = np.isnan(terr)
+			id_fals = id_nan == False
+			Terr = terr[id_fals]
+			SB_error[k] = Trms / np.sqrt(len(Terr) - 1)
 
-					sub_img = np.isnan(f_data[iu])
-					ntt = np.where(sub_img == False)
-					set_samp = f_data[iu][ntt]
+			# rms of flux
+			tmpf = np.array(tmpf)
+			id_inf = np.isnan(tmpf)
+			tmpf[id_inf] = np.nan
+			id_zero = tmpf == 0
+			tmpf[id_zero] = np.nan
+			id_nan = np.isnan(tmpf)
+			id_fals = id_nan == False
+			Tmpf = tmpf[id_fals]
+			intens_err[k] = np.nanstd(tmpf) / np.sqrt(len(Tmpf) - 1)
 
-					ttf = np.mean(set_samp)
-					SB_in = 22.5-2.5*np.log10(ttf)+2.5*np.log10(tot_area)
-					terr.append(SB_in)
+			PN_rbin[k] = num * 1
 
-				terr = np.array(terr)
-				where_are_inf = np.isinf(terr)
-				terr[where_are_inf] = 0
-				where_are_nan = np.isnan(terr)
-				terr[where_are_nan] = 0
+	light[light == 0] = np.nan
+	ll = light * 1
 
-				Terr = terr[terr != 0]
-				Trms = np.std(Terr)
-				SB_error[k] = Trms/np.sqrt(len(Terr) - 1)
+	R[R == 0] = np.nan
+	RR = R * 1
 
-	# tick out the bad value
-	where_are_nan1 = np.isnan(light)
-	light[where_are_nan1] = 0
-	where_are_inf1 = np.isinf(light)
-	light[where_are_inf1] = 0
+	Angur[Angur == 0] = np.nan
+	AA = Angur * 1
 
-	where_are_nan2 = np.isnan(SB_error)
-	SB_error[where_are_nan2] = 0
-	where_are_inf2 = np.isinf(SB_error)
-	SB_error[where_are_inf2] = 0
+	SB_error[SB_error == 0] = np.nan
+	EE = SB_error * 1
 
-	ii = light != 0
-	jj = SB_error != 0
-	kk = ii & jj
+	intens[intens == 0] = np.nan
+	Intns = intens * 1
 
-	ll = light[kk]
-	RR = R[kk]
-	AA = Angur[kk]
-	EE = SB_error[kk]
-	return ll, RR, AA, EE
+	intens_r[intens_r == 0] = np.nan
+	Intns_r = intens_r * 1
+	
+	intens_err[intens_err == 0] = np.nan
+	Intns_err = intens_err * 1
+
+	PN_rbin[PN_rbin == 0] = np.nan
+
+	return ll, RR, AA, EE, Intns, Intns_r, Intns_err, PN_rbin
 
 def weit_l_measure(data, weit_M, Nbin, small, Rp, cx, cy, psize, z):
 	"""
@@ -258,7 +232,6 @@ def weit_l_measure(data, weit_M, Nbin, small, Rp, cx, cy, psize, z):
 	chi = theta * 180/np.pi
 
 	r = np.logspace(-1, np.log10(Rp), Nbins) # in unit "pixel"
-	#r = np.linspace(0, np.ceil(Rp), Nbins)
 	ia = r<= cen_close
 	ib = np.array(np.where(ia == True))
 	ic = ib.shape[1]
@@ -398,8 +371,8 @@ def sigmamc(r, Mc, c):
 	c = c
 	R = r
 	M = 10**Mc
-	rho_c = (kpc2m/Msun2kg)*(3*H0**2)/(8*np.pi*G)
-	r200_c = (3*M/(4*np.pi*rho_c*200))**(1/3) 
+	rho_c = (kpc2m/Msun2kg) * (3*H0**2)/(8*np.pi*G)
+	r200_c = (3*M/(4*np.pi*rho_c*200))**(1/3)
 	rs = r200_c / c
 	# next similar variables are for comoving coordinate, with simble "_c"
 	rho_0 = M/((np.log(1+c)-c/(1+c))*4*np.pi*rs**3)

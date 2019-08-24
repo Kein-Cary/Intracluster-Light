@@ -16,7 +16,6 @@ import astropy.io.ascii as asc
 import astropy.io.fits as fits
 
 from resamp import gen
-from numba import vectorize
 from extinction_redden import A_wave
 from light_measure import light_measure, flux_recal
 # constant
@@ -57,7 +56,8 @@ load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 
 band = ['r', 'g', 'i', 'z', 'u']
 mag_add = np.array([ 0, 0, 0, 0.02, -0.04])
-def resamp_15sigma():
+
+def resamp_Bpl():
 
 	for ii in range(len(band)):
 		print('Now band is %s' % band[ii])
@@ -67,25 +67,26 @@ def resamp_15sigma():
 			z_g = z[k]
 			Da_g = Test_model.angular_diameter_distance(z_g).value
 
-			data = fits.getdata(load + 'mask_data/A_plane/1.5sigma/A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
-			img = data[0]
-			head_mean = data[1]
-			cx0 = data[1]['CRPIX1']
-			cy0 = data[1]['CRPIX2']
-			RA0 = data[1]['CRVAL1']
-			DEC0 = data[1]['CRVAL2']
+			data_B = fits.getdata(load + 'mask_data/B_plane/B_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
+			img_B = data_B[0]
 
-			wcs = awc.WCS(data[1])
+			head_mean = data_B[1]
+			cx0 = data_B[1]['CRPIX1']
+			cy0 = data_B[1]['CRPIX2']
+			RA0 = data_B[1]['CRVAL1']
+			DEC0 = data_B[1]['CRVAL2']
+
+			wcs = awc.WCS(data_B[1])
 			cx, cy = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
 
-			Angur = (R0*rad2asec/Da_g)
+			Angur = (R0 * rad2asec/Da_g)
 			Rp = Angur/pixel
-			L_ref = Da_ref*pixel/rad2asec
+			L_ref = Da_ref * pixel / rad2asec
 			L_z0 = Da_g*pixel/rad2asec
 			b = L_ref/L_z0
 			Rref = (R0*rad2asec/Da_ref)/pixel
 
-			f_goal = flux_recal(img, z_g, z_ref)
+			f_goal = flux_recal(img_B, z_g, z_ref)
 			xn, yn, resam = gen(f_goal, 1, b, cx, cy)
 			xn = np.int(xn)
 			yn = np.int(yn)
@@ -107,7 +108,7 @@ def resamp_15sigma():
 			ff = dict(zip(keys,value))
 			fil = fits.Header(ff)
 			fits.writeto(load + 
-				'resample/1_5sigma/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam, header = fil, overwrite=True)
+				'resample/resam_B/frameB-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam, header = fil, overwrite=True)
 			'''
 			plt.figure()
 			ax = plt.imshow(resam, cmap = 'Greys', origin = 'lower', vmin = 1e-3, norm = mpl.colors.LogNorm())
@@ -116,11 +117,11 @@ def resamp_15sigma():
 			hsc.circles(xn, yn, s = Rpp, fc = '', ec = 'b', )
 			hsc.circles(xn, yn, s = 1.1 * Rpp, fc = '', ec = 'b', ls = '--')
 			plt.scatter(xn, yn, s = 10, marker = 'X', facecolors = '', edgecolors = 'r', linewidth = 0.5, alpha = 0.5)
-			plt.title('resample A mask ra%.3f dec%.3f z%.3f in %s band' % (ra_g, dec_g, z_g, band[ii]))
-			plt.xlim(0, mirro_A.shape[1])
-			plt.ylim(0, mirro_A.shape[0])
+			plt.title('resample B mask ra%.3f dec%.3f z%.3f in %s band' % (ra_g, dec_g, z_g, band[ii]))
+			plt.xlim(0, resam.shape[1])
+			plt.ylim(0, resam.shape[0])
 			plt.savefig(
-				'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/resamp_A/resampA_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[ii], ra_g, dec_g, z_g), dpi = 300)
+				'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/resamp_B/resampB_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[ii], ra_g, dec_g, z_g), dpi = 300)
 			plt.close()
 			'''
 		print('Now band %s have finished!!' % band[ii])
@@ -133,9 +134,9 @@ def fig_out():
 		for k in range(len(z)):
 			ra_g = ra[k]
 			dec_g = dec[k]
-			z_g = z[k]
+			z_g = z[k]			
 			data = fits.getdata(load + 
-				'resample/1_5sigma/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+				'resample/resam_B/frameB-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
 			img = data[0]
 			xn = data[1]['CENTER_X']
 			yn = data[1]['CENTER_Y']
@@ -147,17 +148,17 @@ def fig_out():
 			hsc.circles(xn, yn, s = Rpp, fc = '', ec = 'b', )
 			hsc.circles(xn, yn, s = 1.1 * Rpp, fc = '', ec = 'b', ls = '--')
 			plt.scatter(xn, yn, s = 10, marker = 'X', facecolors = '', edgecolors = 'r', linewidth = 0.5, alpha = 0.5)
-			plt.title('resample A mask ra%.3f dec%.3f z%.3f in %s band' % (ra_g, dec_g, z_g, band[ii]))
+			plt.title('resample B mask ra%.3f dec%.3f z%.3f in %s band' % (ra_g, dec_g, z_g, band[ii]))
 			plt.xlim(0, img.shape[1])
 			plt.ylim(0, img.shape[0])
 			plt.savefig(
-				'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/resamp_A/resampA_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[ii], ra_g, dec_g, z_g), dpi = 300)
+				'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/resamp_B/resampB_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[ii], ra_g, dec_g, z_g), dpi = 300)
 			plt.close()
 
 	return
 
 def main():
-	#resamp_15sigma()
+	#resamp_Bpl()
 	fig_out()
 
 if __name__ == "__main__":
