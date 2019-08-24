@@ -237,7 +237,7 @@ def stack_no_mask():
 
 		SB_ref = []
 		Ar_ref = []
-		for jj in range(10):
+		for jj in range(20):
 			ra_g = red_ra[jj]
 			dec_g = red_dec[jj]
 			z_g = red_z[jj]
@@ -260,68 +260,99 @@ def stack_no_mask():
 			a1 = np.min([cx_BCG + 0.8 * Rp, 2048])
 			b0 = np.max([0, cy_BCG - 0.8 * Rp])
 			b1 = np.min([cy_BCG + 0.8 * Rp, 1489])
+			'''
 			plt.figure()
 			plt.title('cluster ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[ii]) )
-			ax = plt.imshow(img, cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mpl.colors.LogNorm())
+			ax = plt.imshow(img, cmap = 'Greys', vmin = 1e-10, origin = 'lower', norm = mpl.colors.LogNorm())
 			plt.colorbar(ax, fraction = 0.045, pad = 0.01, label = '$flux[nmaggy]$')
-			#plt.scatter(cx_BCG, cy_BCG, s = 10, marker = 'X', edgecolors = 'r', facecolors = '', linewidth = 0.5, alpha = 0.5)
 
-			#plt.xlim(a0, a1)
-			#plt.ylim(b0, b1)
 			plt.xlim(cx_BCG - 0.8*Rp, cx_BCG + 0.8*Rp)
 			plt.ylim(cy_BCG - 0.8*Rp, cy_BCG + 0.8*Rp)
 			plt.subplots_adjust(bottom = 0.1, right = 0.8, top = 0.9)
 			plt.savefig('cluster_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
 			plt.close()
-
+			'''
 			'''
 			SB_ll, R_ll, Ar_ll, error_ll = light_measure(img, bins, 1, Rp, cx_BCG, cy_BCG, pixel, z_g)
 			L_SB = SB_ll[1:]
 			L_R = R_ll[1:]
 			L_Ar = Ar_ll[1:]
 			L_erro = error_ll[1:]
-
 			SB_set = L_SB - 10*np.log10((1 + z_g) / (1 + z_ref))
 			Ar_set = L_Ar * miu
 			SB_ref.append(SB_set)
 			Ar_ref.append(Ar_set)
 			'''
 			cc_img = flux_recal(img, z_g, z_ref)
+			surf_light0 = cc_img / pixel**2
 
 			plt.figure()
+			plt.title('SB of pixel in rescale img[ra%.3f dec%.3f z%.3f %s band]' % (ra_g, dec_g, z_g, band[ii]) )
+			ax = plt.imshow(surf_light0, cmap = 'Greys', vmin = 1e-10, origin = 'lower', norm = mpl.colors.LogNorm())
+			plt.colorbar(ax, fraction = 0.045, pad = 0.01, label = '$SB[nmaggy / arcsec^2]$')
+
+			plt.xlim(cx_BCG - 0.8*Rp, cx_BCG + 0.8*Rp)
+			plt.ylim(cy_BCG - 0.8*Rp, cy_BCG + 0.8*Rp)
+			plt.subplots_adjust(bottom = 0.1, right = 0.8, top = 0.9)
+			plt.savefig('SB_of_pixel_ra%.3f_dec%.3f_z%.3f_%s_band_rescale.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
+			plt.close()
+
+			'''
+			plt.figure()
 			plt.title('rescale ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[ii]) )
-			ax = plt.imshow(cc_img, cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mpl.colors.LogNorm())
+			ax = plt.imshow(cc_img, cmap = 'Greys', vmin = 1e-10, origin = 'lower', norm = mpl.colors.LogNorm())
 			plt.colorbar(ax, fraction = 0.045, pad = 0.01, label = '$flux[nmaggy]$')
-			#plt.scatter(cx_BCG, cy_BCG, s = 10, marker = 'X', edgecolors = 'r', facecolors = '', linewidth = 0.5, alpha = 0.5)
 
 			plt.xlim(cx_BCG - 0.8*Rp, cx_BCG + 0.8*Rp)
 			plt.ylim(cy_BCG - 0.8*Rp, cy_BCG + 0.8*Rp)
 			plt.subplots_adjust(bottom = 0.1, right = 0.8, top = 0.9)
 			plt.savefig('rescales_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
 			plt.close()
-
-			#xn, yn, resam = gen(cc_img, 1, eta, cx_BCG, cy_BCG)
-			xn, yn, resam = gen(cc_img, eta, 1, cx_BCG, cy_BCG)
+			'''
+			xn, yn, resam = gen(cc_img, 1, eta, cx_BCG, cy_BCG)
 			xn = np.int(xn)
 			yn = np.int(yn)
 			if eta > 1:
-			    resam = resam[1:, 1:]
+				resam = resam[1:, 1:]
 			elif eta == 1:
-			    resam = resam[1:-1, 1:-1]
+				resam = resam[1:-1, 1:-1]
 			else:
-			    resam = resam
+				resam = resam
+			surf_light1 = resam / pixel**2
 
 			plt.figure()
+			plt.title('SB of pixel in rescale + resample img[ra%.3f dec%.3f z%.3f %s band]' % (ra_g, dec_g, z_g, band[ii]), 
+				fontsize = 9)
+			ax = plt.imshow(surf_light1, cmap = 'Greys', vmin = 1e-10, origin = 'lower', norm = mpl.colors.LogNorm())
+			plt.colorbar(ax, fraction = 0.045, pad = 0.01, label = '$SB[nmaggy / arcsec^2]$')
+
+			plt.xlim(cx_BCG * miu - 0.8 * Rpp, cx_BCG * miu + 0.8 * Rpp)
+			plt.ylim(cy_BCG * miu - 0.8 * Rpp, cy_BCG * miu + 0.8 * Rpp)
+			plt.subplots_adjust(bottom = 0.1, right = 0.8, top = 0.9)
+			plt.savefig('SB_of_pixel_ra%.3f_dec%.3f_z%.3f_%s_band_resample.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
+			plt.close()
+
+			delt_SB = (surf_light1[yn - 250 : yn + 250, xn - 250: xn + 250] - 
+				surf_light0[np.int(cy_BCG) - 250: np.int(cy_BCG) + 250, np.int(cx_BCG) - 250: np.int(cx_BCG) + 250])
+			plt.figure()
+			ax = plt.imshow(delt_SB, cmap = 'Greys', vmin = 1e-10, origin = 'lower', norm = mpl.colors.LogNorm())
+			plt.colorbar(ax, fraction = 0.045, pad = 0.01, label = '$\Delta SB[nmaggy / arcsec^2]$')
+
+			plt.subplots_adjust(bottom = 0.1, right = 0.8, top = 0.9)
+			plt.savefig('SB_change_of_pixel_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
+			plt.close()
+			'''
+			plt.figure()
 			plt.title('rescale + resample ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[ii]) )
-			ax = plt.imshow(resam, cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mpl.colors.LogNorm())
+			ax = plt.imshow(resam, cmap = 'Greys', vmin = 1e-10, origin = 'lower', norm = mpl.colors.LogNorm())
 			plt.colorbar(ax, fraction = 0.045, pad = 0.01, label = '$flux[nmaggy]$')
-			#plt.scatter(cx_BCG * miu, cy_BCG * miu, s = 10, marker = 'X', edgecolors = 'r', facecolors = '', linewidth = 0.5, alpha = 0.5)
 
 			plt.xlim(cx_BCG * miu - 0.8 * Rpp, cx_BCG * miu + 0.8 * Rpp)
 			plt.ylim(cy_BCG * miu - 0.8 * Rpp, cy_BCG * miu + 0.8 * Rpp)
 			plt.subplots_adjust(bottom = 0.1, right = 0.8, top = 0.9)
 			plt.savefig('resample_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
 			plt.close()
+			'''
 
 		raise
 		'''

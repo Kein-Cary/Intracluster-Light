@@ -163,14 +163,22 @@ def stack_process(band_number, subz, subra, subdec):
 	return
 
 def main():
+	t0 = time.time()
 
 	bins = 65
+	'''
 	ix = red_rich >= 39
 	RichN = red_rich[ix]
 	zN = red_z[ix]
 	raN = red_ra[ix]
 	decN = red_dec[ix]
 	stackn = np.int(690)
+	'''
+	RichN = red_rich * 1
+	zN = red_z * 1
+	raN = red_ra * 1
+	decN = red_dec * 1
+	stackn = len(zN)
 
 	GR_minus = []
 	Mag_minus = []
@@ -187,8 +195,13 @@ def main():
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
 		if rank == cpus - 1:
 			N_sub1 += n
-		print('*' * 20)
-		print(zN[N_sub0 :N_sub1])
+
+		if rank == 14:
+			print('*' * 20)
+			print(rank, '-----', '\n', 
+				zN[N_sub0 :N_sub1], '\n',
+				raN[N_sub0 :N_sub1], '\n', 
+				decN[N_sub0 :N_sub1])
 
 		stack_process(tt, zN[N_sub0 :N_sub1], raN[N_sub0 :N_sub1], decN[N_sub0 :N_sub1])
 		commd.Barrier()
@@ -198,15 +211,15 @@ def main():
 
 	if rank == 0:
 		for pp in range(cpus):
-			with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/test_h5/stack_Amask_pcount_%d_in_r_band.h5' % pp, 'r') as f:
+			with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/test_h5/stack_Amask_pcount_%d_in_g_band.h5' % pp, 'r') as f:
 				p_count = np.array(f['a'])
-			with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/test_h5/stack_Amask_sum_%d_in_r_band.h5' % pp, 'r') as f:
+			with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/test_h5/stack_Amask_sum_%d_in_g_band.h5' % pp, 'r') as f:
 				sum_img = np.array(f['a'])
 
 			id_zero = p_count == 0
 			ivx = id_zero == False
 			mean_img[ivx] = mean_img[ivx] + sum_img[ivx]
-			p_add_count[ivx] = p_add_count[ivx] + 1
+			p_add_count[ivx] = p_add_count[ivx] + p_count[ivx]
 
 			# check sub-results
 			p_count[id_zero] = np.nan
@@ -219,20 +232,23 @@ def main():
 			plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
 			plt.xlim(x0 - 1.2*Rpp, x0 + 1.2*Rpp)
 			plt.ylim(y0 - 1.2*Rpp, y0 + 1.2*Rpp)
-			plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_%d_r_band.png' % pp, dpi = 300)
+			plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_%d_g_band.png' % pp, dpi = 300)
 			plt.close()
 
 		id_zero = p_add_count == 0
 		mean_img[id_zero] = np.nan
 		p_add_count[id_zero] = np.nan
 
-		t0 = time.time()
+		t1 = time.time()
 		stack_img = mean_img / p_add_count
 		SBt, Rt, Art, errt = light_measure(stack_img, bins, 1, Rpp, x0, y0, pixel, z_ref)[:4]
 		SBt = SBt + mag_add[0]
-		t1 = time.time() - t0
+		t2 = time.time() - t1
+		t3 = time.time() - t0
+
 		print('*' * 20)
-		print('t = ', t1)
+		print('t = ', t2)
+		print('t_tot = ', t3)
 
 		plt.figure()
 		plt.title('stack_%d_r_band.png' % stackn)
@@ -240,7 +256,7 @@ def main():
 		plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
 		plt.xlim(x0 - 1.2*Rpp, x0 + 1.2*Rpp)
 		plt.ylim(y0 - 1.2*Rpp, y0 + 1.2*Rpp)
-		plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_%d_r_band.png' % stackn, dpi = 300)
+		plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_%d_g_band.png' % stackn, dpi = 300)
 		plt.close()
 
 		plt.figure()
@@ -253,7 +269,7 @@ def main():
 		ax.set_xscale('log')
 		ax.invert_yaxis()
 		ax.tick_params(axis = 'both', which = 'both', direction = 'in')
-		plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_%d_r_band_SB.png' % stackn, dpi = 300)
+		plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_%d_g_band_SB.png' % stackn, dpi = 300)
 		plt.close()
 
 
