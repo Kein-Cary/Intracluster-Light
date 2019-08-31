@@ -27,6 +27,7 @@ from light_measure import light_measure, flux_recal, flux_scale
 from light_measure import sigmamc
 
 import time
+import random
 import sfdmap
 from matplotlib.patches import Circle
 # constant
@@ -96,120 +97,153 @@ ID_set = host_ID[(redshift >= 0.2) & (redshift <= 0.3)]
 use_z = redshift *1
 
 stack_N = 20
-def sky_light(zg, rag, decg, index):
-
-	z0 = zg
-	ra0 = rag
-	dec0 = decg
-	band0 = band[index]
+def resam_test():
 	load = '/home/xkchen/mywork/ICL/data/total_data/sample_02_03/'
-	param_sky = '/home/xkchen/mywork/ICL/data/SEX/default_sky_mask.sex'
-	out_cat = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A.param'
-	out_load_sky = '/home/xkchen/mywork/ICL/data/SEX/result/sky_mask_test.cat'
-	x0 = np.linspace(0, 2047, 2048)
-	y0 = np.linspace(0, 1488, 1489)
-	img_grid = np.array(np.meshgrid(x0, y0))
+	for jj in range(10):
+		ra_g = ra[jj]
+		dec_g = dec[jj]
+		z_g = z[jj]
+		data = fits.getdata(load + 
+			'frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % ('r', ra_g, dec_g, z_g), header = True)
+		img = data[0]
+		wcs = awc.WCS(data[1])
+		cx_BCG, cy_BCG = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
+		Da_g = Test_model.angular_diameter_distance(z_g).value
+		Angur = (R0 * rad2asec / Da_g)
+		Rp = Angur / pixel
+		L_ref = Da_ref * pixel / rad2asec
+		L_z0 = Da_g * pixel / rad2asec
+		eta = L_ref / L_z0
+		'''
+		# check total flux
+		x0 = [random.randint(900, 1100) for _ in range(100)]
+		y0 = [random.randint(700, 800) for _ in range(100)]
+		cut_size = 200
+		df2f0 = np.zeros(len(x0), dtype = np.float)
+		for kk in range(len(x0)):
+			sub_img = img[y0[kk] - 200: y0[kk] + 200, x0[kk] - 200: x0[kk] + 200]
+			tot_f0 = np.sum(sub_img)
+			xm, ym, new_sub = gen(sub_img, 1, eta, 200, 200)
+			if eta > 1:
+				new_smg = new_sub[1:, 1:]
+			elif eta == 1:
+				new_smg = new_sub[1:-1, 1:-1]
+			else:
+				new_smg = new_sub
+			tot_f1 = np.sum(new_smg)
+			df2f0[kk] = (tot_f1 - tot_f0) / tot_f0
+		plt.figure()
+		ax = plt.subplot(111)
+		ax.hist(df2f0, bins = 20, histtype = 'step', color = 'b')
+		ax.set_ylabel('Number of sample images')
+		ax.set_xlabel('$f_{after \, resampling } - f_{before \, resampling} / f_{before \, resampling}$')
+		plt.savefig('total_flux_test.png', dpi = 300)
+		plt.close()
+		'''
+		'''
+		# select points
+		x0 = np.array([1365, 1004, 1809, 1813, 1803, 1816, 1777, 1777, 1780, 
+						1787, 1031, 1031, 1011, 1005, 1003, 1019, 832, 838, 
+						825, 821, 360, 375])
+		y0 = np.array([198, 1002, 801, 804, 835, 815, 823, 817, 809, 
+						801, 996, 1005, 1014, 1007, 1001, 984, 358, 
+						362, 374, 369, 467, 463]) # points close to sources
+		x1 = np.array([1456, 1505, 1069, 1074, 1692, 1097, 1088, 1680, 1487, 
+						1485, 1502, 1514, 83, 90, 101, 102, 1202, 1218, 1221, 
+						1187, 1198, 1209])
+		y1 = np.array([1149, 230, 643, 636, 283, 632, 616, 286, 1102, 
+						1096, 1088, 1100, 901, 894, 885, 915, 1048, 1041, 
+						1033, 1053, 1038, 1028]) # points far away sources
 
-	file = load + 'frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (band0, ra0, dec0, z0)
-	data_f = fits.open(file)
-	img = data_f[0].data
-	Head = data_f[0].header
-	wcs = awc.WCS(Head)
-	cx_BCG, cy_BCG = wcs.all_world2pix(ra0 * U.deg, dec0 * U.deg, 1)
-	R_ph = rad2asec / (Test_model.angular_diameter_distance(z0).value)
-	R_p = R_ph / pixel
+		xn, yn, resam = gen(img, 1, eta, cx_BCG, cy_BCG)
+		xn = np.int(xn)
+		yn = np.int(yn)
+		if eta > 1:
+			resam = resam[1:, 1:]
+		elif eta == 1:
+			resam = resam[1:-1, 1:-1]
+		else:
+			resam = resam
+		x0n = [np.int(kk / eta) for kk in x0]
+		y0n = [np.int(kk / eta) for kk in y0]
+		x1n = [np.int(kk / eta) for kk in x1]
+		y1n = [np.int(kk / eta) for kk in y1]
+		fract0 = (resam[y0n, x0n] / (eta * pixel)**2 - img[y0, x0] / pixel**2) / (img[y0, x0] / pixel**2)
+		fract1 = (resam[y1n, x1n] / (eta * pixel)**2 - img[y1, x1] / pixel**2) / (img[y1, x1] / pixel**2)
 
-	ra_img, dec_img = wcs.all_pix2world(img_grid[0,:], img_grid[1,:], 1)
-	pos = SkyCoord(ra_img, dec_img, frame = 'fk5', unit = 'deg')
-	BEV = sfd(pos)
-	Av = Rv * BEV
-	Al = A_wave(l_wave[index], Rv) * Av
-	img = img * 10**(Al / 2.5)
+		plt.figure()
+		ax0 = plt.subplot(121)
+		ax1 = plt.subplot(122)
+		ax0.imshow(img, cmap = 'Greys', vmin = 1e-3, origin = 'lower', norm = mpl.colors.LogNorm())
+		ax0.scatter(x0, y0, s = 5, marker = 'o', facecolors = '', edgecolors = 'r', linewidth = 0.5)
+		ax0.scatter(x1, y1, s = 5, marker = 's', facecolors = '', edgecolors = 'b', linewidth = 0.5)
+		ax1.imshow(resam, cmap = 'Greys', vmin = 1e-3, origin = 'lower', norm = mpl.colors.LogNorm())
+		ax1.scatter(x0n, y0n, s = 5, marker = 'o', facecolors = '', edgecolors = 'r', linewidth = 0.5)
+		ax1.scatter(x1n, y1n, s = 5, marker = 's', facecolors = '', edgecolors = 'b', linewidth = 0.5)
 
-	hdu = fits.PrimaryHDU()
-	hdu.data = data_f[0].data
-	hdu.header = Head
-	hdu.writeto('/home/xkchen/mywork/ICL/data/test_data/sky_test.fits', overwrite = True)
+		plt.tight_layout()
+		plt.savefig('points_select.png', dpi = 300)
+		plt.close()
 
-	file_source = '/home/xkchen/mywork/ICL/data/test_data/sky_test.fits'
-	cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s'%(param_sky, out_load_sky, out_cat)
-	print(cmd)
-	a = subpro.Popen(cmd, shell = True)
-	a.wait()
+		plt.figure()
+		ax = plt.subplot(111)
+		ax.set_title('pixel SB changes')
+		ax.hist(fract0, histtype = 'step', color = 'r', label = '$ pixels[close \; to \; source] $', alpha = 0.5)
+		ax.hist(fract1, histtype = 'step', color = 'b', label = '$ pixels[from \; background] $', alpha = 0.5)
+		ax.set_ylabel('Pixel Number')
+		ax.set_xlabel('$ SB_{after \, resampling} - SB_{before \, resampling} / SB_{before \, resampling}$')
+		ax.legend(loc = 2)
+		plt.savefig('pixel_SB_change.png', dpi = 300)
+		plt.close()
+		'''
+		# mean SB of pixel
+		xn, yn, resam = gen(img, 1, eta, cx_BCG, cy_BCG)
+		xn = np.int(xn)
+		yn = np.int(yn)
+		if eta > 1:
+			resam = resam[1:, 1:]
+		elif eta == 1:
+			resam = resam[1:-1, 1:-1]
+		else:
+			resam = resam
+		bins = 45
+		Nx = np.linspace(0, img.shape[1] - 1, img.shape[1])
+		Ny = np.linspace(0, img.shape[0] - 1, img.shape[0])
+		ngrd = np.array(np.meshgrid(Nx, Ny))
+		ndr = np.sqrt(( (2 * ngrd[0,:] + 1) / 2 - (2 * cx_BCG + 1) / 2)**2 + 
+					( (2 * ngrd[1,:] + 1) / 2 - (2 * cy_BCG + 1) / 2)**2)
+		ndr1 = ndr * pixel * Da_g * 10**3 / rad2asec
 
-	source = asc.read(out_load_sky)
-	Numb = np.array(source['NUMBER'][-1])
-	A = np.array(source['A_IMAGE'])
-	B = np.array(source['B_IMAGE'])
-	theta = np.array(source['THETA_IMAGE'])
-	cx = np.array(source['X_IMAGE']) - 1
-	cy = np.array(source['Y_IMAGE']) - 1
-	Kron = 6
-	a = Kron*A
-	b = Kron*B
+		Nx = np.linspace(0, resam.shape[1] - 1, resam.shape[1])
+		Ny = np.linspace(0, resam.shape[0] - 1, resam.shape[0])
+		ngrd = np.array(np.meshgrid(Nx, Ny))
+		ndr = np.sqrt(( (2 * ngrd[0,:] + 1) / 2 - (2 * xn + 1) / 2)**2 + 
+					( (2 * ngrd[1,:] + 1) / 2 - (2 * yn + 1) / 2)**2)
+		ndr2 = ndr * pixel * Da_ref * 10**3 / rad2asec
 
-	ddr = np.sqrt((cx - cx_BCG)**2 + (cy - cy_BCG)**2)
-	ix = ddr >= 0.95*R_p
-	iy = ddr <= 1.15*R_p
-	iz = ix & iy
-	s_cx = cx[iz]
-	s_cy = cy[iz]
-	s_a = a[iz]
-	s_b = b[iz]
-	s_phi = theta[iz]
-	s_Num = len(s_b)
+		nr = np.linspace(0, Rpp, bins) * pixel * Da_ref * 10**3 / rad2asec
 
-	mask_sky = np.ones((img.shape[0], img.shape[1]), dtype = np.float)
-	ox = np.linspace(0, 2047, 2048)
-	oy = np.linspace(0, 1488, 1489)
-	basic_coord = np.array(np.meshgrid(ox,oy))
-	major = s_a/2
-	minor = s_b/2
-	senior = np.sqrt(major**2 - minor**2)
-	for k in range(s_Num):
-		xc = s_cx[k]
-		yc = s_cy[k]
-		set_r = np.int(np.ceil(1.2 * major[k]))
+		fract = np.zeros(len(nr), dtype = np.float)
+		for kk in range(len(nr) - 1):
+			idr1 = (ndr1 >= nr[kk]) & (ndr1 < nr[kk + 1])
+			subf1 = np.mean(img[idr1] / pixel**2)
+			idr2 = (ndr2 >= nr[kk]) & (ndr2 < nr[kk + 1])
+			subf2 = np.mean(resam[idr2] / (eta * pixel)**2)
+			fract[kk + 1] = (subf2 - subf1) / subf1
+		rbin = 0.5 * (nr[1:] + nr[:-1])
 
-		la0 = np.int(xc - set_r)
-		la1 = np.int(xc + set_r +1)
-		lb0 = np.int(yc - set_r)
-		lb1 = np.int(yc + set_r +1)
+		fig = plt.figure()
+		plt.title('mean pixel surface brightness variation')
+		plt.plot(rbin, fract[1:], 'g*')
+		plt.axhline(y = 0, linestyle = '--', color = 'r', label = 'y = 0')
+		plt.legend(loc = 1)
+		plt.xlabel('R[kpc]')
+		plt.ylabel('$ SB_{after \, resampling} - SB_{before \, resampling} / SB_{before \, resampling}$')
+		plt.savefig('mean_pixel_SB_%d.png' % jj, dpi = 300)
+		plt.show()
 
-		lr = major[k]
-		sr = minor[k]
-		cr = senior[k]
-
-		chi = s_phi[k]*np.pi/180
-		df1 = lr**2 - cr**2*np.cos(chi)**2
-		df2 = lr**2 - cr**2*np.sin(chi)**2
-		fr = (basic_coord[0,:][lb0: lb1, la0: la1] - xc)**2*df1 +(basic_coord[1,:][lb0: lb1, la0: la1] - yc)**2*df2\
-		- cr**2*np.sin(2*chi)*(basic_coord[0,:][lb0: lb1, la0: la1] - xc)*(basic_coord[1,:][lb0: lb1, la0: la1] - yc)
-		idr = fr/(lr**2*sr**2)
-		jx = idr <= 1
-
-		iu = np.where(jx == True)
-		iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float)
-		iv[iu] = np.nan
-		mask_sky[lb0: lb1, la0: la1] = mask_sky[lb0: lb1, la0: la1] * iv
-
-	mirro_sky = img * mask_sky
-	cdr = np.sqrt((img_grid[0,:] - cx_BCG)**2 + (img_grid[1,:] - cy_BCG)**2)
-	idx = (cdr > R_p) & (cdr < 1.1 * R_p)
-	iu = np.where(idx == True)
-
-	cut_region = mirro_sky[idx]
-	id_nan = np.isnan(cut_region)
-	idy = np.where(id_nan == False)
-	bl_array = cut_region[idy]
-	bl_set = bl_array
-	BL_cc = np.mean(bl_set)
-
-	print('*' * 10)
-	print('back array = ', bl_array)
-	print('mean = ', BL_cc)
-
-	return BL_cc
+	raise
+	return
 
 def stack_no_mask():
 	x0 = 2427
@@ -237,7 +271,7 @@ def stack_no_mask():
 
 		SB_ref = []
 		Ar_ref = []
-		for jj in range(20):
+		for jj in range(10):
 			ra_g = red_ra[jj]
 			dec_g = red_dec[jj]
 			z_g = red_z[jj]
@@ -247,6 +281,9 @@ def stack_no_mask():
 			img = data[0]
 			wcs = awc.WCS(data[1])
 			cx_BCG, cy_BCG = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
+
+			x_set = [random.randint(50, img.shape[1] - 51) for _ in range(1000)]
+			y_set = [random.randint(50, img.shape[0] - 51) for _ in range(1000)]
 
 			Angur = (R0*rad2asec/Da_g)
 			Rp = Angur/pixel
@@ -272,171 +309,97 @@ def stack_no_mask():
 			plt.savefig('cluster_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
 			plt.close()
 			'''
-			'''
-			SB_ll, R_ll, Ar_ll, error_ll = light_measure(img, bins, 1, Rp, cx_BCG, cy_BCG, pixel, z_g)
-			L_SB = SB_ll[1:]
-			L_R = R_ll[1:]
-			L_Ar = Ar_ll[1:]
-			L_erro = error_ll[1:]
-			SB_set = L_SB - 10*np.log10((1 + z_g) / (1 + z_ref))
-			Ar_set = L_Ar * miu
-			SB_ref.append(SB_set)
-			Ar_ref.append(Ar_set)
-			'''
+			R_set = 10 # kpc
+			Rp_set = 10**(-2) * rad2asec / Da_ref
 			cc_img = flux_recal(img, z_g, z_ref)
-			surf_light0 = cc_img / pixel**2
+			n_set = np.int(Rp_set / (miu * pixel))
+
+			f_set = np.zeros(len(y_set), dtype = np.float)
+			for qq in range(len(y_set)):
+				f_set[qq] = np.sum(cc_img[y_set[qq] - n_set : y_set[qq] + n_set, 
+					x_set[qq] - n_set : x_set[qq] + n_set]) / (2 * n_set * miu * pixel**2)
 
 			plt.figure()
-			plt.title('SB of pixel in rescale img[ra%.3f dec%.3f z%.3f %s band]' % (ra_g, dec_g, z_g, band[ii]) )
-			ax = plt.imshow(surf_light0, cmap = 'Greys', vmin = 1e-10, origin = 'lower', norm = mpl.colors.LogNorm())
-			plt.colorbar(ax, fraction = 0.045, pad = 0.01, label = '$SB[nmaggy / arcsec^2]$')
-
-			plt.xlim(cx_BCG - 0.8*Rp, cx_BCG + 0.8*Rp)
-			plt.ylim(cy_BCG - 0.8*Rp, cy_BCG + 0.8*Rp)
+			plt.title('cluster ra%.3f dec%.3f z%.3f %s band[point select]' % (ra_g, dec_g, z_g, band[ii]) )
+			ax = plt.imshow(img, cmap = 'Greys', vmin = 1e-10, origin = 'lower', norm = mpl.colors.LogNorm())
+			plt.colorbar(ax, fraction = 0.035, pad = 0.01, label = '$flux[nmaggy]$')
+			plt.scatter(x_set, y_set, s = 1, marker = 'o', facecolors = '', edgecolors = 'b', linewidth = 0.5)
+			plt.xlim(0, img.shape[1])
+			plt.ylim(0, img.shape[0])
 			plt.subplots_adjust(bottom = 0.1, right = 0.8, top = 0.9)
-			plt.savefig('SB_of_pixel_ra%.3f_dec%.3f_z%.3f_%s_band_rescale.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
+			plt.savefig('cluster_ra%.3f_dec%.3f_z%.3f_%s_band_points.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
 			plt.close()
-
 			'''
 			plt.figure()
 			plt.title('rescale ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[ii]) )
 			ax = plt.imshow(cc_img, cmap = 'Greys', vmin = 1e-10, origin = 'lower', norm = mpl.colors.LogNorm())
 			plt.colorbar(ax, fraction = 0.045, pad = 0.01, label = '$flux[nmaggy]$')
-
-			plt.xlim(cx_BCG - 0.8*Rp, cx_BCG + 0.8*Rp)
-			plt.ylim(cy_BCG - 0.8*Rp, cy_BCG + 0.8*Rp)
+			plt.xlim(cx_BCG - 0.8 * Rp, cx_BCG + 0.8 * Rp)
+			plt.ylim(cy_BCG - 0.8 * Rp, cy_BCG + 0.8 * Rp)
 			plt.subplots_adjust(bottom = 0.1, right = 0.8, top = 0.9)
 			plt.savefig('rescales_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
 			plt.close()
 			'''
-			xn, yn, resam = gen(cc_img, 1, eta, cx_BCG, cy_BCG)
+			alpha = pixel / (miu * pixel)
+			xn, yn, resam = gen(cc_img, 1, alpha, cx_BCG, cy_BCG)
 			xn = np.int(xn)
 			yn = np.int(yn)
-			if eta > 1:
+			if alpha > 1:
 				resam = resam[1:, 1:]
-			elif eta == 1:
+			elif alpha == 1:
 				resam = resam[1:-1, 1:-1]
 			else:
 				resam = resam
-			surf_light1 = resam / pixel**2
+			nx_set = [np.int( ll / alpha ) for ll in x_set]
+			ny_set = [np.int( ll / alpha ) for ll in y_set]
+			n_set = np.int(Rp_set / pixel)
+			nf_set = np.zeros(len(nx_set), dtype = np.float)
+			for qq in range(len(nx_set)):
+				nf_set[qq] = np.sum(resam[ny_set[qq] - n_set : ny_set[qq] + n_set, 
+					nx_set[qq] - n_set : nx_set[qq] + n_set]) / (2 * n_set * pixel**2)
+
+			f_fract = (nf_set - f_set) / f_set
 
 			plt.figure()
-			plt.title('SB of pixel in rescale + resample img[ra%.3f dec%.3f z%.3f %s band]' % (ra_g, dec_g, z_g, band[ii]), 
-				fontsize = 9)
-			ax = plt.imshow(surf_light1, cmap = 'Greys', vmin = 1e-10, origin = 'lower', norm = mpl.colors.LogNorm())
-			plt.colorbar(ax, fraction = 0.045, pad = 0.01, label = '$SB[nmaggy / arcsec^2]$')
-
-			plt.xlim(cx_BCG * miu - 0.8 * Rpp, cx_BCG * miu + 0.8 * Rpp)
-			plt.ylim(cy_BCG * miu - 0.8 * Rpp, cy_BCG * miu + 0.8 * Rpp)
+			plt.title('rescale+resample ra%.3f dec%.3f z%.3f %s band[point select]' % (ra_g, dec_g, z_g, band[ii]) )
+			ax = plt.imshow(resam, cmap = 'Greys', vmin = 1e-10, origin = 'lower', norm = mpl.colors.LogNorm())
+			plt.colorbar(ax, fraction = 0.035, pad = 0.01, label = '$flux[nmaggy]$')
+			plt.scatter(nx_set, ny_set, s = 1, marker = 'o', facecolors = '', edgecolors = 'r', linewidth = 0.5)
+			plt.xlim(0, resam.shape[1])
+			plt.ylim(0, resam.shape[0])
 			plt.subplots_adjust(bottom = 0.1, right = 0.8, top = 0.9)
-			plt.savefig('SB_of_pixel_ra%.3f_dec%.3f_z%.3f_%s_band_resample.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
-			plt.close()
-
-			delt_SB = (surf_light1[yn - 250 : yn + 250, xn - 250: xn + 250] - 
-				surf_light0[np.int(cy_BCG) - 250: np.int(cy_BCG) + 250, np.int(cx_BCG) - 250: np.int(cx_BCG) + 250])
-			plt.figure()
-			ax = plt.imshow(delt_SB, cmap = 'Greys', vmin = 1e-10, origin = 'lower', norm = mpl.colors.LogNorm())
-			plt.colorbar(ax, fraction = 0.045, pad = 0.01, label = '$\Delta SB[nmaggy / arcsec^2]$')
-
-			plt.subplots_adjust(bottom = 0.1, right = 0.8, top = 0.9)
-			plt.savefig('SB_change_of_pixel_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
+			plt.savefig('rescale+resample_ra%.3f_dec%.3f_z%.3f_%s_band_points.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
 			plt.close()
 			'''
 			plt.figure()
 			plt.title('rescale + resample ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[ii]) )
 			ax = plt.imshow(resam, cmap = 'Greys', vmin = 1e-10, origin = 'lower', norm = mpl.colors.LogNorm())
 			plt.colorbar(ax, fraction = 0.045, pad = 0.01, label = '$flux[nmaggy]$')
-
-			plt.xlim(cx_BCG * miu - 0.8 * Rpp, cx_BCG * miu + 0.8 * Rpp)
-			plt.ylim(cy_BCG * miu - 0.8 * Rpp, cy_BCG * miu + 0.8 * Rpp)
+			plt.xlim(cx_BCG / alpha - 0.8 * Rpp, cx_BCG / alpha + 0.8 * Rpp)
+			plt.ylim(cy_BCG / alpha - 0.8 * Rpp, cy_BCG / alpha + 0.8 * Rpp)
 			plt.subplots_adjust(bottom = 0.1, right = 0.8, top = 0.9)
 			plt.savefig('resample_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
 			plt.close()
 			'''
+			plt.figure()
+			ax = plt.subplot(111)
+			ax.set_title('SB of pixel variation distribution [ra%.3f dec%.3f z%.3f %s band]' % (ra_g, dec_g, z_g, band[ii]) )
+			ax.hist(f_fract, bins = 45, histtype = 'step', color = 'b')
+			ax.axvline(x = 0, linestyle = '--', color = 'r', label = '$ x = 0 $', alpha = 0.5)
+			ax.axvline(x = np.mean(f_fract), linestyle = '--', color = 'b', label = '$ mean \; value$', alpha = 0.5)
+			ax.set_xlabel('SB variation fraction of pixel')
+			ax.set_ylabel('pixel numbers')
+			ax.set_yscale('log')
+
+			ax.text(0, 1e2, s = '$ \sigma = %.3f $' % np.std(f_fract) + '\n' + 'Mean = %.3f' % np.mean(f_fract) 
+				+ '\n' + 'Median = %.3f' % np.median(f_fract) )
+
+			plt.legend(loc = 2)
+			plt.savefig('SB variation distribution [ra%.3f dec%.3f z%.3f %s band].png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
+			plt.close()
 
 		raise
-		'''
-			la0 = np.int(y0 - yn)
-			la1 = np.int(y0 - yn + resam.shape[0])
-			lb0 = np.int(x0 - xn)
-			lb1 = np.int(x0 - xn + resam.shape[1])
 
-			sum_array_0[la0:la1, lb0:lb1] = sum_array_0[la0:la1, lb0:lb1] + resam
-			count_array_0[la0: la1, lb0: lb1] = resam
-			id_nan = np.isnan(count_array_0)
-			id_fals = np.where(id_nan == False)
-			p_count_0[id_fals] = p_count_0[id_fals] + 1
-			count_array_0[la0: la1, lb0: lb1] = np.nan
-
-		mean_array_0 = sum_array_0 / p_count_0
-		where_are_inf = np.isinf(mean_array_0)
-		mean_array_0[where_are_inf] = np.nan
-		id_zeros = np.where(p_count_0 == 0)
-		mean_array_0[id_zeros] = np.nan
-
-		SB, R, Ar, error = light_measure(mean_array_0, bins, 1, Rpp, x0, y0, pixel, z_ref)
-		SB_0 = SB[1:] + mag_add[ii]
-		R_0 = R[1:]
-		Ar_0 = Ar[1:]
-		err_0 = error[1:]
-
-		ll0 = [np.max(kk / np.max(kk)) for kk in Ar_ref]
-		tar1 = np.min(ll0)
-		ll1 = [np.min(kk / np.max(kk)) for kk in Ar_ref]
-		tar0 = np.max(ll1)
-
-		tar_down = tar0 * Angu_ref
-		tar_up = tar1 * Angu_ref
-		inter_frac = np.logspace(np.log10(tar0 * 1.01), np.log10(tar1 / 1.01), bins)
-		inter_ar = inter_frac * Angu_ref
-
-		m_flux = []
-		for pp in range(len(SB_ref)):
-			tsb = SB_ref[pp]
-			tar = Ar_ref[pp] / np.max(Ar_ref[pp])
-			t_flux = 10**((22.5 - tsb) / 2.5)
-			flux_ff = interp(tar, t_flux, kind = 'cubic')
-			mflux = flux_ff(inter_frac)
-			m_flux.append(mflux)
-
-		inter_flux = np.mean(m_flux, axis = 0)
-		inter_SB = 22.5 - 2.5 * np.log10(inter_flux)
-		f_SB = interp(inter_ar, inter_SB, kind = 'cubic')
-		Ar_0 = (Ar_0 / np.max(Ar_0)) * Angu_ref
-
-		plt.figure(figsize = (16, 8))
-		gs = gridspec.GridSpec(1, 2, width_ratios = [1,1])
-		ax = plt.subplot(gs[0])
-		bx = plt.subplot(gs[1])
-
-		ax.plot(inter_ar, inter_SB, 'r--', label = '$SB_{ref}$', alpha = 0.5)
-		ax.plot(inter_ar, inter_SB, 'ro')
-		ax.plot(Ar_0, SB_0, 'b-', label = '$SB_{stack} \, no \, correct$', alpha = 0.5)
-		ax.plot(Ar_0, SB_0, 'b*')
-
-		bx.plot(Ar_0[(Ar_0 > tar_down) & (Ar_0 < tar_up)], SB_0[(Ar_0 > tar_down) & (Ar_0 < tar_up)] - 
-			f_SB(Ar_0[(Ar_0 > tar_down) & (Ar_0 < tar_up)]), 'g*', alpha = 0.5)
-		bx.axhline(y = np.mean(SB_0[(Ar_0 > tar_down) & (Ar_0 < tar_up)] - 
-			f_SB(Ar_0[(Ar_0 > tar_down) & (Ar_0 < tar_up)])), ls = '--', color = 'b', alpha = 0.5)
-
-		ax.set_xscale('log')
-		ax.set_xlabel('$R[arcsec]$')
-		ax.set_ylabel('$SB[mag/arcsec^2]$')
-		ax.tick_params(axis = 'both', which = 'both', direction = 'in')
-		ax.invert_yaxis()
-		ax.legend(loc = 1, fontsize = 12)
-		ax.set_title('stacked SB with no resample correct')
-
-		bx.set_xlabel('$R[arcsec]$')
-		bx.set_xscale('log')
-		bx.set_ylabel('$ \Delta{SB}[mag/arcsec^2] $')
-		bx.tick_params(axis = 'both', which = 'both', direction = 'in')
-
-		plt.subplots_adjust(hspace = 0)
-		plt.tight_layout()
-		plt.savefig('/home/xkchen/mywork/ICL/code/stack_test_%s_band.png' % band[ii], dpi = 300)
-		plt.close()
-		'''	
 	return
 
 def mask_part():
@@ -1833,6 +1796,7 @@ def SB_ICL():
 	return
 
 def main():
+	#resam_test()
 	stack_no_mask()
 	#mask_part()
 

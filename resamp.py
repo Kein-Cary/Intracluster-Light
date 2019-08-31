@@ -194,15 +194,15 @@ def gen( d, res1, res2, cx, cy ):
     if res1 > res2:
         xn = cx/res2
         yn = cy/res2
-        return xn,yn,gen1( d, res1, res2)
+        return xn, yn, gen1( d, res1, res2)
     if res1 < res2:
         xn = cx/res2
         yn = cy/res2
-        return xn,yn,gen2( d, res1, res2)
+        return xn, yn, gen2( d, res1, res2)
     if res1 == res2:
         xn = cx*1
         yn = cy*1
-        return xn, yn,gen2( d, res1, res2)
+        return xn, yn, gen2( d, res1, res2)
 
 def test():
     z_ref = 0.25
@@ -224,13 +224,18 @@ def test():
     b = L_ref/L_z
     b = np.float('%.3f'%b)
     print('b = ', b)
-    xn, yn, resam = gen(f[0], 1, b, cx, cy)
-    ax1 = plt.subplot(121)
+    xn1, yn1, resam1 = gen(f[0], 1, b, cx, cy)
+    xn2, yn2, resam2 = gen(f[0], 1, 1 / b, cx, cy)
+    ax1 = plt.subplot(221)
     ax1.imshow(f[0], cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mplc.LogNorm())
     ax1.plot(cx, cy, 'ro')
-    ax2 = plt.subplot(122)
-    ax2.imshow(resam, cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mplc.LogNorm())
-    ax2.plot(xn, yn, 'ro')
+    ax2 = plt.subplot(222)
+    ax2.imshow(resam1, cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mplc.LogNorm())
+    ax2.plot(xn1, yn1, 'ro')
+    ax3 = plt.subplot(223)
+    ax3.imshow(resam2, cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mplc.LogNorm())
+    ax3.plot(xn2, yn2, 'gs')
+
     plt.show()
     raise
     '''
