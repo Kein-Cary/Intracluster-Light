@@ -37,6 +37,7 @@ Angu_ref = rad2arsec / Da_ref
 Rpp = Angu_ref / pixel
 Jy = 10**(-23) # (erg/s)/cm^2
 f0 = 3631*Jy # zero point in unit (erg/s)/cm^-2
+Lstar = 2e10 # in unit Lsun
 
 with h5py.File('/home/xkchen/mywork/ICL/code/sample_catalog.h5') as f:
     catalogue = np.array(f['a'])
@@ -44,7 +45,6 @@ z = catalogue[0]
 ra = catalogue[1]
 dec = catalogue[2]
 
-Lstar = 2e10 # in unit Lsun
 def lumi_fun(M_arr, Mag_c, alpha_c, phi_c):
 	M_c = Mag_c 
 	alpha = alpha_c

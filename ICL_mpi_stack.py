@@ -12,6 +12,7 @@ from astropy import cosmology as apcy
 import h5py
 import time
 import numpy as np
+import pandas as pds
 import astropy.wcs as awc
 import subprocess as subpro
 import astropy.io.ascii as asc
@@ -79,47 +80,35 @@ band = ['r', 'g', 'i', 'u', 'z']
 mag_add = np.array([0, 0, 0, -0.04, 0.02])
 
 # bad data list
-except_ra_r = ['128.611', '133.229', '177.809', '183.580', '221.403', '242.344', '130.537',
-				'32.906', '38.382', '168.057', '202.923', '212.342', '237.591', '180.927']
-except_dec_r = ['36.515', '18.196', '33.577', '32.835', '8.243', '36.393', '38.226', '0.387',
-				'1.911', '15.760', '13.325', '39.952', '2.756', '1.032']
-except_z_r = ['0.289', '0.257', '0.212', '0.226', '0.268', '0.281', '0.244', '0.295', '0.243',
-				'0.275', '0.242', '0.267', '0.240', '0.255']
+csv_r = pds.read_csv(load + 'Except_r_sample.csv')
+except_ra_r = ['%.3f' % ll for ll in csv_r['ra'] ]
+except_dec_r = ['%.3f' % ll for ll in csv_r['dec'] ]
+except_z_r = ['%.3f' % ll for ll in csv_r['z'] ]
 
-except_ra_g = ['168.215', '8.320', '128.611', '133.229', '177.809', '242.344', '351.680',
-				'35.888', '180.927', '186.666', '130.537', '34.675', '121.566', '124.701',
-				'172.033', '188.950', '215.244', '227.367']
-except_dec_g = ['56.464', '-0.633', '36.515', '18.196', '33.577', '36.393', '1.134', '-7.228',
-				'1.032', '3.383', '38.226', '0.114', '19.247', '4.898', '41.322', '15.556', 
-				'0.229', '0.899']
-except_z_g = ['0.227', '0.261', '0.289', '0.257', '0.212', '0.281', '0.277', '0.279', '0.255',
-				'0.226', '0.244', '0.272', '0.285', '0.252', '0.288', '0.285', '0.277', '0.263']
+csv_g = pds.read_csv(load + 'Except_g_sample.csv')
+except_ra_g = ['%.3f' % ll for ll in csv_g['ra'] ]
+except_dec_g = ['%.3f' % ll for ll in csv_g['dec'] ]
+except_z_g = ['%.3f' % ll for ll in csv_g['z'] ]
 
-except_ra_i = ['5.200', '8.320', '10.708', '21.224', '24.320', '37.108', '37.662', '117.410',
-				'117.585', '126.251', '129.462', '141.919', '143.950', '148.541', '162.793',
-				'174.080', '179.024', '180.927', '183.580', '186.372', '130.537', '190.946',
-				'196.951', '214.913', '218.217', '242.344', '330.691']
-except_dec_i = ['1.585', '-0.633', '0.215', '2.508', '7.882', '1.503', '-4.991', '27.287',
-				'26.293', '4.430', '6.777', '4.352', '12.151', '36.054', '9.066', '50.425',
-				'42.024', '1.032', '32.835', '0.726', '38.226', '51.831', '43.153', '43.195',
-				'30.489', '36.393', '-8.544']
-except_z_i = ['0.208', '0.261', '0.269', '0.217', '0.258', '0.264', '0.292', '0.243', '0.205',
-				'0.224', '0.236', '0.275', '0.255', '0.291', '0.221', '0.286', '0.245', '0.255',
-				'0.226', '0.238', '0.244', '0.268', '0.210', '0.219', '0.266', '0.281', '0.210']
+csv_i = pds.read_csv(load + 'Except_i_sample.csv')
+except_ra_i = ['%.3f' % ll for ll in csv_i['ra'] ]
+except_dec_i = ['%.3f' % ll for ll in csv_i['dec'] ]
+except_z_i = ['%.3f' % ll for ll in csv_i['z'] ]
 
-except_ra_z = ['24.320', '126.251', '130.537', '140.078', '148.541', '153.281', '186.372', '190.640',
-				'192.743', '196.951', '222.069', '228.094', '242.344', '334.357', '346.984']
-except_dec_z = ['7.882', '4.430', '38.226', '37.105', '36.054', '17.932', '0.726', '35.537', '9.056',
-				'43.153', '13.622', '59.217', '36.393', '27.836', '15.373']
-except_z_z = ['0.258', '0.224', '0.244', '0.235', '0.291', '0.261', '0.238', '0.269', '0.298', '0.210',
-				'0.226', '0.295', '0.281', '0.298', '0.249']
+csv_z = pds.read_csv(load + 'Except_z_sample.csv')
+except_ra_z = ['%.3f' % ll for ll in csv_z['ra'] ]
+except_dec_z = ['%.3f' % ll for ll in csv_z['dec'] ]
+except_z_z = ['%.3f' % ll for ll in csv_z['z'] ]
 
-except_ra_u = ['35.888', '130.537', '140.296', '147.783', '155.783', '189.004', '204.525', '208.380',
-				'219.787', '242.344', '244.422', '327.180', '334.357', '346.734']
-except_dec_u = ['-7.228', '38.226', '34.860', '43.745', '7.108', '53.394', '5.434', '53.575', '29.039',
-				'36.393', '42.539', '7.024', '27.836', '15.375']
-except_z_u = ['0.279', '0.244', '0.238', '0.287', '0.290', '0.275', '0.237', '0.255', '0.251', '0.281',
-				'0.294', '0.282', '0.298', '0.220']
+csv_u = pds.read_csv(load + 'Except_u_sample.csv')
+except_ra_u = ['%.3f' % ll for ll in csv_u['ra'] ]
+except_dec_u = ['%.3f' % ll for ll in csv_u['dec'] ]
+except_z_u = ['%.3f' % ll for ll in csv_u['z'] ]
+
+csv_UN = pds.read_csv(load + 'No_star_query_match.csv')
+except_ra_Nu = ['%.3f' % ll for ll in csv_UN['ra'] ]
+except_dec_Nu = ['%.3f' % ll for ll in csv_UN['dec'] ]
+except_z_Nu = ['%.3f' % ll for ll in csv_UN['z'] ]
 def stack_process(band_number, subz, subra, subdec):
 
 	stack_N = len(subz)
@@ -148,12 +137,20 @@ def stack_process(band_number, subz, subra, subdec):
 		ra_g = sub_ra[jj]
 		dec_g = sub_dec[jj]
 		z_g = sub_z[jj]
-
+		'''
 		identi = (( ('%.3f'%ra_g in except_ra_r) & ('%.3f'%dec_g in except_dec_r) & ('%.3f'%z_g in except_z_r) ) | 
 					( ('%.3f'%ra_g in except_ra_g) & ('%.3f'%dec_g in except_dec_g) & ('%.3f'%z_g in except_z_g) ) | 
 					( ('%.3f'%ra_g in except_ra_i) & ('%.3f'%dec_g in except_dec_i) & ('%.3f'%z_g in except_z_i) ) | 
 					( ('%.3f'%ra_g in except_ra_u) & ('%.3f'%dec_g in except_dec_u) & ('%.3f'%z_g in except_z_u) ) | 
-					( ('%.3f'%ra_g in except_ra_z) & ('%.3f'%dec_g in except_dec_z) & ('%.3f'%z_g in except_z_z) ))
+					( ('%.3f'%ra_g in except_ra_z) & ('%.3f'%dec_g in except_dec_z) & ('%.3f'%z_g in except_z_z) ) |
+					( ('%.3f'%ra_g in except_ra_Nu) & ('%.3f'%dec_g in except_dec_Nu) & ('%.3f'%z_g in except_z_Nu) ) )
+		'''
+		identi = (( ('%.3f'%ra_g in except_ra_r) & ('%.3f'%dec_g in except_dec_r) & ('%.3f'%z_g in except_z_r) ) | 
+					( ('%.3f'%ra_g in except_ra_g) & ('%.3f'%dec_g in except_dec_g) & ('%.3f'%z_g in except_z_g) ) | 
+					( ('%.3f'%ra_g in except_ra_i) & ('%.3f'%dec_g in except_dec_i) & ('%.3f'%z_g in except_z_i) ) | 
+					( ('%.3f'%ra_g in except_ra_u) & ('%.3f'%dec_g in except_dec_u) & ('%.3f'%z_g in except_z_u) ) | 
+					( ('%.3f'%ra_g in except_ra_z) & ('%.3f'%dec_g in except_dec_z) & ('%.3f'%z_g in except_z_z) ) )
+
 		if  identi == True: 
 			continue
 		else:
