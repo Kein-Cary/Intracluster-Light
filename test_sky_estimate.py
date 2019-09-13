@@ -1,4 +1,5 @@
 import matplotlib as mpl
+import handy.scatter as hsc
 import matplotlib.pyplot as plt
 from scipy.ndimage import map_coordinates as mapcd
 
@@ -47,35 +48,58 @@ ra = catalogue[1]
 dec = catalogue[2]
 
 def mask_B():
-	load = '/home/xkchen/mywork/ICL/query/'
-	file = 'frame-r-ra203.834-dec41.001-z0.228.fits'
+	cra = 203.834
+	cdec = 41.001
+	z_g = 0.228
+	load = '/home/xkchen/mywork/ICL/data/total_data/'
+	file = 'frame-r-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (cra, cdec, z_g)
 	data = fits.open(load + file)
 	img = data[0].data
 	wcs = awc.WCS(data[0].header)
 	x_side = data[0].data.shape[1]
 	y_side = data[0].data.shape[0]
 
-	R_ph = rad2asec/(Test_model.angular_diameter_distance(0.228).value)
+	R_ph = rad2asec/(Test_model.angular_diameter_distance(z_g).value)
 	R_p = R_ph / pixel
-	cra = 203.834
-	cdec = 41.001
+
 	cenx, ceny = wcs.all_world2pix(cra*U.deg, cdec*U.deg, 0)
-	# new location with iso_radius
-	cat = pd.read_csv('/home/xkchen/mywork/ICL/query/source_SQL_Z0.228_ra203.834_dec41.001.txt')
-	ra = np.array(cat['ra'])
-	dec = np.array(cat['dec'])
+	'''
+	cat = pd.read_csv('/home/xkchen/mywork/ICL/data/star_catalog/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' %(z_g, cra, cdec) )
+	set_ra = np.array(cat['ra'])
+	set_dec = np.array(cat['dec'])
 	mag = np.array(cat['r'])
 
 	A = np.array(cat['isoA_r'])
 	B = np.array(cat['isoB_r'])
 	chi = np.array(cat['isoPhi_r'])
 	OBJ = np.array(cat['type'])
+	xt = cat['Unnamed: 24']
+	'''
+	cat = pd.read_csv('/home/xkchen/mywork/ICL/data/star_dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' % (z_g, cra, cdec), skiprows = 1)
+	set_ra = np.array(cat['ra'])
+	set_dec = np.array(cat['dec'])
+	mag = np.array(cat['r'])
+	xt = cat['Column1']
+	OBJ = np.array(cat['type'])
 
+	#A = np.array(cat['petroR90_r']) / pixel
+	#B = np.array(cat['petroR90_r']) / pixel
+	#A = np.array(cat['psffwhm_r']) * 2.6 / pixel
+	#B = np.array(cat['psffwhm_r']) * 2.6 / pixel
+	#chi = np.zeros(len(A), dtype = np.float)
+
+	A = np.array(cat['expRad_r']) / pixel
+	B = np.array(cat['expRad_r']) / pixel
+	chi = np.array(cat['expPhi_r'])
+	
+	'''
+	'psffwhm_r', 'petroR90_r', // 'deVRad_r', 'deVAB_r', 'deVPhi_r', // 'expRad_r', 'expAB_r', 'expPhi_r',
+	'''
 	# bright stars
-	x, y = wcs.all_world2pix(ra * U.deg, dec * U.deg, 1)
+	x, y = wcs.all_world2pix(set_ra * U.deg, set_dec * U.deg, 1)
 	ia = (x >= 0) & (x <= x_side)
 	ib = (y >= 0) & (y <= y_side)
-	ie = (mag <= 20) & (mag > 14)
+	ie = (mag <= 20)
 	ig = OBJ == 6
 	ic = (ia & ib & ie & ig)
 	sub_x0 = x[ic]
@@ -94,7 +118,6 @@ def mask_B():
 	sub_chi1 = chi[ikk]
 
 	# saturated source(may not stars)
-	xt = cat['Unnamed: 24']
 	xa = ['SATURATED' in kk for kk in xt]
 	xv = np.array(xa)
 	idx = np.where(xv == True)[0]
@@ -109,7 +132,21 @@ def mask_B():
 	Lr = np.r_[sub_A0[sub_A0 > 0], sub_A2[sub_A2 > 0]]
 	Sr = np.r_[sub_B0[sub_A0 > 0], sub_B2[sub_A2 > 0]]
 	phi = np.r_[sub_chi0[sub_A0 > 0], sub_chi2[sub_A2 > 0]]
-
+	'''
+	plt.figure(figsize = (16, 8))
+	plt.title('source form dr12 ')
+	#plt.title('source form dr7 ')
+	plt.imshow(img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, norm = mpl.colors.LogNorm())
+	plt.scatter(sub_x2, sub_y2, s = 5, marker = 'o', facecolors = '', edgecolors = 'r', label = '$Saturated$')
+	plt.scatter(sub_x0, sub_y0, s = 5, marker = 's', facecolors = '', edgecolors = 'b', label = '$bright \; stars$')
+	hsc.circles(cenx, ceny, s = R_p, fc = '', ec = 'r')
+	plt.legend(loc = 3)
+	plt.xlim(0, img.shape[1])
+	plt.ylim(0, img.shape[0])
+	plt.savefig('source_dr12.png', dpi = 300)
+	#plt.savefig('source_dr7.png', dpi = 300)
+	plt.show()
+	'''
 	Numb = len(comx)
 	mask_B = np.ones((img.shape[0], img.shape[1]), dtype = np.float)
 	ox = np.linspace(0,2047,2048)
@@ -144,6 +181,27 @@ def mask_B():
 		iv[iu] = np.nan
 		mask_B[lb0: lb1, la0: la1] = mask_B[lb0: lb1, la0: la1] * iv
 	mirro_B = mask_B * img
+
+	fig = plt.figure()
+
+	#fig.suptitle('mask B with isoRad')
+	#fig.suptitle('mask B with petroR90')
+	#fig.suptitle('mask B with FWHM')
+	fig.suptitle('mask B with expRad')
+
+	plt.imshow(mirro_B, cmap = 'Greys', origin = 'lower', vmin = 1e-5, norm = mpl.colors.LogNorm())
+	hsc.circles(cenx, ceny, s = R_p, fc = '', ec = 'r')
+	plt.xlim(0, img.shape[1])
+	plt.ylim(0, img.shape[0])
+
+	#plt.savefig('mask_B_with_isoRad.png', dpi = 300)
+	#plt.savefig('mask_B_with_petroR90.png', dpi = 300)
+	#plt.savefig('mask_B_with_PSF.png', dpi = 300)
+	plt.savefig('mask_B_with_expRad.png', dpi = 300)
+	#plt.savefig('mask_B_with_deVRad.png', dpi = 300)
+
+	plt.show()
+	raise
 	return
 
 def add_sky():
@@ -436,9 +494,9 @@ def data_select():
 	return
 
 def main():
-	# mask_B()
-	add_sky()
+	mask_B()
+	# add_sky()
 	# source_detect()
-	data_select()
+	# data_select()
 if __name__ == "__main__":
 	main()

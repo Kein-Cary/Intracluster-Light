@@ -176,7 +176,6 @@ def mock_img():
 	z = 0.2
 	mock_img = cluster(Mh, Nbin, Nx1, Nx2, z)
 
-
 	return
 
 def fig_out():

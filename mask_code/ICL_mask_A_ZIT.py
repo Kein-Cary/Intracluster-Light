@@ -51,8 +51,8 @@ with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/sample_catalog.h5', 'r') 
 z = catalogue[0]
 ra = catalogue[1]
 dec = catalogue[2]
-#d_file = '/mnt/ddnfs/data_users/cxkttwl/ICL/wget_data/' # for 1.5sigma method
-d_file = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/sky_sub_img/'
+d_file = '/mnt/ddnfs/data_users/cxkttwl/ICL/wget_data/'
+#d_file = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/sky_sub_img/' # add sky information
 
 load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 band = ['r', 'g', 'i', 'u', 'z']
@@ -84,7 +84,8 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 		else:
 			print('Now band is', band[band_id])
 			print('*' * 20)
-			pro_f = d_file + 'Revis-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk])
+			#pro_f = d_file + 'Revis-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk]) # add sky information
+			pro_f = d_file + 'frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (band[kk], ra_g, dec_g, z_g)
 
 			data_f = fits.open(pro_f)
 			img = data_f[0].data
@@ -104,7 +105,14 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 			Al = A_wave(l_wave[kk], Rv) * Av
 			img = img * 10 ** (Al / 2.5)
 
-			file_source = d_file + 'Revis-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk])	
+			#file_source = d_file + 'Revis-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk])	# add sky information
+
+			hdu = fits.PrimaryHDU()
+			hdu.data = img
+			hdu.header = head_inf
+			hdu.writeto('/mnt/ddnfs/data_users/cxkttwl/PC/source_data_%d.fits' % rank, overwrite = True)
+			file_source = '/mnt/ddnfs/data_users/cxkttwl/PC/source_data_%d.fits' % rank
+
 			dete_thresh = sb_lim[kk] + 10*np.log10((1 + z_g)/(1 + z_ref))
 			dete_thresh = '%.3f' % dete_thresh + ',%.2f' % zopt[kk]
 			dete_min = '10'

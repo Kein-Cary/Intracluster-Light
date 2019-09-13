@@ -97,7 +97,7 @@ def mask_A():
 			img = img*10**(Al / 2.5)
 
 			hdu = fits.PrimaryHDU()
-			hdu.data = data_f[0].data
+			hdu.data = img
 			hdu.header = head_inf
 			hdu.writeto('source_data_15.fits', overwrite = True)
 			file_source = './source_data_15.fits'
@@ -191,7 +191,7 @@ def mask_A():
 					iv[iu] = np.nan
 					mask_A[lb0: lb1, la0: la1] = mask_A[lb0: lb1, la0: la1] * iv
 
-			mirro_A = mask_A *img
+			mirro_A = mask_A * img
 
 			hdu = fits.PrimaryHDU()
 			hdu.data = mirro_A

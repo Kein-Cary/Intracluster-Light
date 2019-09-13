@@ -51,10 +51,10 @@ with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/sample_catalog.h5', 'r') 
 z = catalogue[0]
 ra = catalogue[1]
 dec = catalogue[2]
-#d_file = '/mnt/ddnfs/data_users/cxkttwl/ICL/wget_data/' # for 1.5sigma method
-d_file = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/sky_sub_img/'
-load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
+d_file = '/mnt/ddnfs/data_users/cxkttwl/ICL/wget_data/'
+#d_file = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/sky_sub_img/' # add sky information
 
+load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 band = ['r', 'g', 'i', 'u', 'z']
 l_wave = np.array([6166, 4686, 7480, 3551, 8932])
 mag_add = np.array([0, 0, 0, -0.04, 0.02])
@@ -80,7 +80,9 @@ def mask_B(band_id, z_set, ra_set, dec_set):
 		if ('%.3f' % ra_g in except_ra_Nu ) & ('%.3f' % dec_g in except_dec_Nu) & ('%.3f' % z_g in except_z_Nu):
 			continue
 		else:
-			file = d_file + 'Revis-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk])
+			#file = d_file + 'Revis-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk]) # add sky information
+			file = d_file + 'frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (band[kk], ra_g, dec_g, z_g)
+
 			data = fits.open(file)
 			img = data[0].data
 			head_inf = data[0].header

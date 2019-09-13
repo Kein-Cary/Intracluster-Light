@@ -137,7 +137,7 @@ def stack_process(band_number, subz, subra, subdec):
 		ra_g = sub_ra[jj]
 		dec_g = sub_dec[jj]
 		z_g = sub_z[jj]
-		'''
+		
 		identi = (( ('%.3f'%ra_g in except_ra_r) & ('%.3f'%dec_g in except_dec_r) & ('%.3f'%z_g in except_z_r) ) | 
 					( ('%.3f'%ra_g in except_ra_g) & ('%.3f'%dec_g in except_dec_g) & ('%.3f'%z_g in except_z_g) ) | 
 					( ('%.3f'%ra_g in except_ra_i) & ('%.3f'%dec_g in except_dec_i) & ('%.3f'%z_g in except_z_i) ) | 
@@ -150,14 +150,20 @@ def stack_process(band_number, subz, subra, subdec):
 					( ('%.3f'%ra_g in except_ra_i) & ('%.3f'%dec_g in except_dec_i) & ('%.3f'%z_g in except_z_i) ) | 
 					( ('%.3f'%ra_g in except_ra_u) & ('%.3f'%dec_g in except_dec_u) & ('%.3f'%z_g in except_z_u) ) | 
 					( ('%.3f'%ra_g in except_ra_z) & ('%.3f'%dec_g in except_dec_z) & ('%.3f'%z_g in except_z_z) ) )
-
+		'''
 		if  identi == True: 
 			continue
 		else:
 			Da_g = Test_model.angular_diameter_distance(z_g).value
-
+			'''
+			# 1.5sigma
 			data_A = fits.getdata(load + 
 				'resample/1_5sigma/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+			'''
+			# Zibetti
+			data_A = fits.getdata(load + 
+				'resample/Zibetti/A_mask/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+
 			img_A = data_A[0]
 			xn = data_A[1]['CENTER_X']
 			yn = data_A[1]['CENTER_Y']
@@ -175,9 +181,15 @@ def stack_process(band_number, subz, subra, subdec):
 			id_fals = np.where(id_nan == False)
 			p_count_A[id_fals] = p_count_A[id_fals] + 1
 			count_array_A[la0: la1, lb0: lb1][idv] = np.nan
-
+			'''
+			# 1.5sigma
 			data_B = fits.getdata(load + 
 				'resample/resam_B/frameB-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+			'''
+			# Zibetti
+			data_B = fits.getdata(load + 
+				'resample/Zibetti/B_mask/frameB-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+
 			img_B = data_B[0]
 			xn = data_B[1]['CENTER_X']
 			yn = data_B[1]['CENTER_Y']
@@ -238,7 +250,8 @@ def main():
 	sum_grid = np.array(np.meshgrid(Nx, Ny))
 
 	commd.Barrier()
-	for tt in range(len(band)):
+	#for tt in range(len(band)):
+	for tt in range(3):
 		m, n = divmod(stackn, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
 		if rank == cpus - 1:
@@ -250,7 +263,7 @@ def main():
 	p_add_count = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
 	if rank == 0:
-		for qq in range(len(band)):
+		for qq in range(3):
 
 			tot_N = 0
 			for pp in range(cpus):

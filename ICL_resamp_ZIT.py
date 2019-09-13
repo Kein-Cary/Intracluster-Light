@@ -64,7 +64,7 @@ csv_UN = pds.read_csv(load + 'No_star_query_match.csv')
 except_ra_Nu = ['%.3f' % ll for ll in csv_UN['ra'] ]
 except_dec_Nu = ['%.3f' % ll for ll in csv_UN['dec'] ]
 except_z_Nu = ['%.3f' % ll for ll in csv_UN['z'] ]
-def resamp_Bpl(band_id, sub_z, sub_ra, sub_dec):
+def resamp_ZIT(band_id, sub_z, sub_ra, sub_dec):
 	ii = np.int(band_id)
 	zn = len(sub_z)
 
@@ -78,23 +78,18 @@ def resamp_Bpl(band_id, sub_z, sub_ra, sub_dec):
 			continue
 		else:
 			Da_g = Test_model.angular_diameter_distance(z_g).value
-			'''
-			# use star catalog dr12
-			data_B = fits.getdata(load + 
-				'mask_data/B_plane/2time1.5arsec/B_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
-			img_B = data_B[0]
-			'''
-			# use star catalog dr7 (only g, r, i band)
-			data_B = fits.getdata(load + 
-				'mask_data/B_plane/Zibetti/B_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
-			img_B = data_B[0]
 
-			head_mean = data_B[1]
-			cx0 = data_B[1]['CRPIX1']
-			cy0 = data_B[1]['CRPIX2']
-			RA0 = data_B[1]['CRVAL1']
-			DEC0 = data_B[1]['CRVAL2']
-			wcs = awc.WCS(data_B[1])
+			# use star catalog dr7 (only g, r, i band)
+			data_A = fits.getdata(load + 
+				'mask_data/A_plane/Zibetti/A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+			img_A = data_A[0]
+
+			head_mean = data_A[1]
+			cx0 = data_A[1]['CRPIX1']
+			cy0 = data_A[1]['CRPIX2']
+			RA0 = data_A[1]['CRVAL1']
+			DEC0 = data_A[1]['CRVAL2']
+			wcs = awc.WCS(data_A[1])
 			cx, cy = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
 
 			Angur = (R0 * rad2asec/Da_g)
@@ -104,7 +99,7 @@ def resamp_Bpl(band_id, sub_z, sub_ra, sub_dec):
 			b = L_ref/L_z0
 			Rref = (R0*rad2asec/Da_ref)/pixel
 
-			f_goal = flux_recal(img_B, z_g, z_ref)
+			f_goal = flux_recal(img_A, z_g, z_ref)
 			xn, yn, resam = gen(f_goal, 1, b, cx, cy)
 			xn = np.int(xn)
 			yn = np.int(yn)
@@ -125,12 +120,9 @@ def resamp_Bpl(band_id, sub_z, sub_ra, sub_dec):
 			value = ['T', 32, 2, x0, y0, ix0, iy0, xn, yn, RA0, DEC0, ra_g, dec_g, z_g, pixel]
 			ff = dict(zip(keys,value))
 			fil = fits.Header(ff)
-			'''
+
 			fits.writeto(load + 
-				'resample/resam_B/frameB-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam, header = fil, overwrite=True)
-			'''
-			fits.writeto(load + 
-				'resample/Zibetti/B_mask/frameB-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam, header = fil, overwrite=True)
+				'resample/Zibetti/A_mask/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam, header = fil, overwrite=True)
 
 	print('Now band %s have finished!!' % band[ii])
 	return
@@ -160,7 +152,7 @@ def fig_out():
 			plt.xlim(0, img.shape[1])
 			plt.ylim(0, img.shape[0])
 			plt.savefig(
-				'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/resamp_B/resampB_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[ii], ra_g, dec_g, z_g), dpi = 300)
+				'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/resamp_A/resampA_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[ii], ra_g, dec_g, z_g), dpi = 300)
 			plt.close()
 
 	return
@@ -175,7 +167,7 @@ def main():
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
 		if rank == cpus - 1:
 			N_sub1 += n
-		resamp_Bpl(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
+		resamp_ZIT(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
 		commd.Barrier()
 	t1 = time.time() - t0
 	print('total time = ', t1)

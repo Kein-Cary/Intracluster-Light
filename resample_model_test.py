@@ -60,7 +60,7 @@ def resamp_test():
     zg = z[kd]
     rag = ra[kd]
     decg = dec[kd]
-    load = '/home/xkchen/mywork/ICL/data/total_data/sample_02_03/'
+    load = '/home/xkchen/mywork/ICL/data/total_data/'
     file = 'frame-r-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (rag, decg, zg)
     data = fits.open(load + file)
     img = data[0].data
@@ -71,16 +71,12 @@ def resamp_test():
     Da = Test_model.angular_diameter_distance(zg).value
     Da_ref = Test_model.angular_diameter_distance(z_ref).value
 
-    #eta = Da_ref / Da
-    eta = 1
+    eta = 0.8
     mu = 1 / eta
     if eta > 1:
-        resam_data, cpos = sum_samp(eta, eta, img, cx, cy)
+        resam_data, nx, ny = sum_samp(eta, eta, img, cx, cy)
     else:
-        resam_data, cpos = down_samp(eta, eta, img, cx, cy)
-    cx1 = cpos[0]
-    cy1 = cpos[1]
-
+        resam_data, nx, ny = down_samp(eta, eta, img, cx, cy)
     t1 = time.time() - t0
     print(t1)
 
@@ -91,7 +87,7 @@ def resamp_test():
     ax.imshow(img, cmap = 'Greys', vmin = 1e-3, origin = 'lower', norm = mpl.colors.LogNorm())
     ax.scatter(cx, cy, s = 10, marker = 'o', facecolors = '', edgecolors = 'r', linewidth = 0.5, alpha = 0.5)
     bx.imshow(resam_data, cmap = 'Greys', vmin = 1e-3, origin = 'lower', norm = mpl.colors.LogNorm())
-    bx.scatter(cx1, cy1, s = 10, marker = 'o', facecolors = '', edgecolors = 'r', linewidth = 0.5, alpha = 0.5)
+    bx.scatter(nx, ny, s = 10, marker = 'o', facecolors = '', edgecolors = 'r', linewidth = 0.5, alpha = 0.5)
 
     plt.tight_layout()
     plt.savefig('/home/xkchen/mywork/ICL/code/resamp_test.png', dpi = 600)
