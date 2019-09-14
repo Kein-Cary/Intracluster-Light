@@ -67,6 +67,11 @@ csv_UN = pds.read_csv(load + 'No_star_query_match.csv')
 except_ra_Nu = ['%.3f' % ll for ll in csv_UN['ra'] ]
 except_dec_Nu = ['%.3f' % ll for ll in csv_UN['dec'] ]
 except_z_Nu = ['%.3f' % ll for ll in csv_UN['z'] ]
+
+csv_BAD = pds.read_csv(load + 'Bad_match_dr7_cat.csv')
+Bad_ra = ['%.3f' % ll for ll in csv_BAD['ra'] ]
+Bad_dec = ['%.3f' % ll for ll in csv_BAD['dec'] ]
+Bad_z = ['%.3f' % ll for ll in csv_BAD['z'] ]
 def mask_A(band_id, z_set, ra_set, dec_set):
 	kk = np.int(band_id)
 	Nz = len(z_set)
@@ -78,175 +83,192 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 		z_g = z_set[q]
 		ra_g = ra_set[q]
 		dec_g = dec_set[q]
+		idt = ( ( ('%.3f' % ra_g in except_ra_Nu ) & ('%.3f' % dec_g in except_dec_Nu) & ('%.3f' % z_g in except_z_Nu) ) | 
+			( ('%.3f' % ra_g in Bad_ra) & ('%.3f' % dec_g in Bad_dec) & ('%.3f' % z_g in Bad_z) ) )
 
-		if ('%.3f' % ra_g in except_ra_Nu ) & ('%.3f' % dec_g in except_dec_Nu) & ('%.3f' % z_g in except_z_Nu):
-			continue
+		print('Now band is', band[band_id])
+		print('*' * 20)
+		#pro_f = d_file + 'Revis-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk]) # add sky information
+		pro_f = d_file + 'frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (band[kk], ra_g, dec_g, z_g)
+
+		data_f = fits.open(pro_f)
+		img = data_f[0].data
+		head_inf = data_f[0].header
+		wcs = awc.WCS(head_inf)
+		cx_BCG, cy_BCG = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
+		R_ph = rad2asec / (Test_model.angular_diameter_distance(z_g).value)
+		R_p = R_ph / pixel
+
+		x0 = np.linspace(0, img.shape[1] - 1, img.shape[1])
+		y0 = np.linspace(0, img.shape[0] - 1, img.shape[0])
+		img_grid = np.array(np.meshgrid(x0, y0))
+		ra_img, dec_img = wcs.all_pix2world(img_grid[0,:], img_grid[1,:], 1)
+		pos = SkyCoord(ra_img, dec_img, frame = 'fk5', unit = 'deg')
+		BEV = sfd(pos)
+		Av = Rv * BEV * 0.86
+		Al = A_wave(l_wave[kk], Rv) * Av
+		img = img * 10 ** (Al / 2.5)
+
+		#file_source = d_file + 'Revis-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk])	# add sky information
+
+		hdu = fits.PrimaryHDU()
+		hdu.data = img
+		hdu.header = head_inf
+		hdu.writeto('/mnt/ddnfs/data_users/cxkttwl/PC/source_data_%d.fits' % rank, overwrite = True)
+		file_source = '/mnt/ddnfs/data_users/cxkttwl/PC/source_data_%d.fits' % rank
+
+		dete_thresh = sb_lim[kk] + 10*np.log10((1 + z_g)/(1 + z_ref))
+		dete_thresh = '%.3f' % dete_thresh + ',%.2f' % zopt[kk]
+		dete_min = '10'
+		ana_thresh = dete_thresh *1
+		cmd = (
+			'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s -DETECT_MINAREA %s -DETECT_THRESH %s -ANALYSIS_THRESH %s'
+			%(param_A, out_load_A, out_cat, dete_min, dete_thresh, ana_thresh))
+		#print(cmd)
+		a = subpro.Popen(cmd, shell = True)
+		a.wait()
+
+		source = asc.read(out_load_A)
+		Numb = np.array(source['NUMBER'][-1])
+		A = np.array(source['A_IMAGE'])
+		B = np.array(source['B_IMAGE'])
+		theta = np.array(source['THETA_IMAGE'])
+		cx = np.array(source['X_IMAGE']) - 1
+		cy = np.array(source['Y_IMAGE']) - 1
+		p_type = np.array(source['CLASS_STAR'])
+		#Kron = source['KRON_RADIUS']
+		Kron = 6
+		a = Kron * A
+		b = Kron * B
+
+		if idt == True:
+			mask = load + 'bright_star_dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'%(z_g, ra_g, dec_g)
+			cat = pds.read_csv(mask, skiprows = 1)
+			set_ra = np.array(cat['ra'])
+			set_dec = np.array(cat['dec'])
+			set_mag = np.array(cat['r'])
+			OBJ = np.array(cat['type'])
+			xt = cat['Column1']
+			tau = 6 # the mask size set as 6 * FWHM from dr12
+
+			set_A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
+			set_B = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
+			set_chi = np.zeros(set_A.shape[1], dtype = np.float)
+
+			lln = np.array([len(set_A[:,ll][set_A[:,ll] > 0 ]) for ll in range(set_A.shape[1]) ])
+			lr_iso = np.array([np.max(set_A[:,ll]) for ll in range(set_A.shape[1]) ])
+			sr_iso = np.array([np.max(set_B[:,ll]) for ll in range(set_B.shape[1]) ])
 		else:
-			print('Now band is', band[band_id])
-			print('*' * 20)
-			#pro_f = d_file + 'Revis-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk]) # add sky information
-			pro_f = d_file + 'frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (band[kk], ra_g, dec_g, z_g)
-
-			data_f = fits.open(pro_f)
-			img = data_f[0].data
-			head_inf = data_f[0].header
-			wcs = awc.WCS(head_inf)
-			cx_BCG, cy_BCG = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
-			R_ph = rad2asec / (Test_model.angular_diameter_distance(z_g).value)
-			R_p = R_ph / pixel
-
-			x0 = np.linspace(0, img.shape[1] - 1, img.shape[1])
-			y0 = np.linspace(0, img.shape[0] - 1, img.shape[0])
-			img_grid = np.array(np.meshgrid(x0, y0))
-			ra_img, dec_img = wcs.all_pix2world(img_grid[0,:], img_grid[1,:], 1)
-			pos = SkyCoord(ra_img, dec_img, frame = 'fk5', unit = 'deg')
-			BEV = sfd(pos)
-			Av = Rv * BEV * 0.86
-			Al = A_wave(l_wave[kk], Rv) * Av
-			img = img * 10 ** (Al / 2.5)
-
-			#file_source = d_file + 'Revis-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk])	# add sky information
-
-			hdu = fits.PrimaryHDU()
-			hdu.data = img
-			hdu.header = head_inf
-			hdu.writeto('/mnt/ddnfs/data_users/cxkttwl/PC/source_data_%d.fits' % rank, overwrite = True)
-			file_source = '/mnt/ddnfs/data_users/cxkttwl/PC/source_data_%d.fits' % rank
-
-			dete_thresh = sb_lim[kk] + 10*np.log10((1 + z_g)/(1 + z_ref))
-			dete_thresh = '%.3f' % dete_thresh + ',%.2f' % zopt[kk]
-			dete_min = '10'
-			ana_thresh = dete_thresh *1
-			cmd = (
-				'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s -DETECT_MINAREA %s -DETECT_THRESH %s -ANALYSIS_THRESH %s'
-				%(param_A, out_load_A, out_cat, dete_min, dete_thresh, ana_thresh))
-			#print(cmd)
-			a = subpro.Popen(cmd, shell = True)
-			a.wait()
-
-			source = asc.read(out_load_A)
-			Numb = np.array(source['NUMBER'][-1])
-			A = np.array(source['A_IMAGE'])
-			B = np.array(source['B_IMAGE'])
-			theta = np.array(source['THETA_IMAGE'])
-			cx = np.array(source['X_IMAGE']) - 1
-			cy = np.array(source['Y_IMAGE']) - 1
-			p_type = np.array(source['CLASS_STAR'])
-			#Kron = source['KRON_RADIUS']
-			Kron = 6
-			a = Kron * A
-			b = Kron * B
-
 			mask = load + 'bright_star_dr7/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'%(z_g, ra_g, dec_g)
 			cat = pds.read_csv(mask)
 			set_ra = np.array(cat['ra'])
 			set_dec = np.array(cat['dec'])
 			set_mag = np.array(cat['r'])
-			set_chi = np.array(cat['isoPhi_%s' % band[kk] ] )
+			OBJ = np.array(cat['type'])
+			xt = cat['Unnamed: 24']
 
+			set_chi = np.array(cat['isoPhi_%s' % band[kk] ] )
 			set_A = np.array( [ cat['isoA_r'], cat['isoA_g'], cat['isoA_i'] ])
 			set_B = np.array( [ cat['isoB_r'], cat['isoB_g'], cat['isoB_i'] ])
-			OBJ = np.array(cat['type'])
 
 			lln = np.array([len(set_A[:,ll][set_A[:,ll] > 0 ]) for ll in range(set_A.shape[1]) ])
 			lr_iso = np.array([np.max(set_A[:,ll]) for ll in range(set_A.shape[1]) ])
 			sr_iso = np.array([np.max(set_B[:,ll]) for ll in range(set_B.shape[1]) ])
-			# bright stars
-			x, y = wcs.all_world2pix(set_ra * U.deg, set_dec * U.deg, 1)
-			ia = (x >= 0) & (x <= img.shape[1])
-			ib = (y >= 0) & (y <= img.shape[0])
-			ie = (set_mag <= 20)
-			iq = lln >= 2
-			ig = OBJ == 6
-			ic = (ia & ib & ie & ig & iq)
-			sub_x0 = x[ic]
-			sub_y0 = y[ic]
-			sub_A0 = lr_iso[ic]
-			sub_B0 = sr_iso[ic]
-			sub_chi0 = set_chi[ic]
+		# bright stars
+		x, y = wcs.all_world2pix(set_ra * U.deg, set_dec * U.deg, 1)
+		ia = (x >= 0) & (x <= img.shape[1])
+		ib = (y >= 0) & (y <= img.shape[0])
+		ie = (set_mag <= 20)
+		iq = lln >= 2
+		ig = OBJ == 6
+		ic = (ia & ib & ie & ig & iq)
+		sub_x0 = x[ic]
+		sub_y0 = y[ic]
+		sub_A0 = lr_iso[ic]
+		sub_B0 = sr_iso[ic]
+		sub_chi0 = set_chi[ic]
 
-			# saturated source(may not stars)
-			xt = cat['Unnamed: 24']
-			xa = ['SATURATED' in qq for qq in xt]			
-			xv = np.array(xa)
-			idx = xv == True
-			ipx = (idx & ia & ib)
+		# saturated source(may not stars)
+		xa = ['SATURATED' in qq for qq in xt]			
+		xv = np.array(xa)
+		idx = xv == True
+		ipx = (idx & ia & ib)
 
-			sub_x2 = x[ipx]
-			sub_y2 = y[ipx]
-			sub_A2 = 3 * lr_iso[ipx]
-			sub_B2 = 3 * sr_iso[ipx]
-			sub_chi2 = set_chi[ipx]
+		sub_x2 = x[ipx]
+		sub_y2 = y[ipx]
+		sub_A2 = 3 * lr_iso[ipx]
+		sub_B2 = 3 * sr_iso[ipx]
+		sub_chi2 = set_chi[ipx]
 
-			comx = np.r_[sub_x0[sub_A0 > 0], sub_x2[sub_A2 > 0]]
-			comy = np.r_[sub_y0[sub_A0 > 0], sub_y2[sub_A2 > 0]]
-			Lr = np.r_[sub_A0[sub_A0 > 0], sub_A2[sub_A2 > 0]]
-			Sr = np.r_[sub_B0[sub_A0 > 0], sub_B2[sub_A2 > 0]]
-			phi = np.r_[sub_chi0[sub_A0 > 0], sub_chi2[sub_A2 > 0]]
+		comx = np.r_[sub_x0[sub_A0 > 0], sub_x2[sub_A2 > 0]]
+		comy = np.r_[sub_y0[sub_A0 > 0], sub_y2[sub_A2 > 0]]
+		Lr = np.r_[sub_A0[sub_A0 > 0], sub_A2[sub_A2 > 0]]
+		Sr = np.r_[sub_B0[sub_A0 > 0], sub_B2[sub_A2 > 0]]
+		phi = np.r_[sub_chi0[sub_A0 > 0], sub_chi2[sub_A2 > 0]]
 
-			cx = np.r_[cx, comx]
-			cy = np.r_[cy, comy]
-			a = np.r_[a, Lr]
-			b = np.r_[b, Sr]
-			theta = np.r_[theta, phi]
-			Numb = Numb + len(comx)
+		cx = np.r_[cx, comx]
+		cy = np.r_[cy, comy]
+		a = np.r_[a, Lr]
+		b = np.r_[b, Sr]
+		theta = np.r_[theta, phi]
+		Numb = Numb + len(comx)
 
-			mask_A = np.ones((img.shape[0], img.shape[1]), dtype = np.float)
-			ox = np.linspace(0, img.shape[1] - 1, img.shape[1])
-			oy = np.linspace(0, img.shape[0] - 1, img.shape[0])
-			basic_coord = np.array(np.meshgrid(ox,oy))
-			major = a / 2
-			minor = b / 2 # set the star mask based on the major and minor radius
-			senior = np.sqrt(major**2 - minor**2)
+		mask_A = np.ones((img.shape[0], img.shape[1]), dtype = np.float)
+		ox = np.linspace(0, img.shape[1] - 1, img.shape[1])
+		oy = np.linspace(0, img.shape[0] - 1, img.shape[0])
+		basic_coord = np.array(np.meshgrid(ox,oy))
+		major = a / 2
+		minor = b / 2 # set the star mask based on the major and minor radius
+		senior = np.sqrt(major**2 - minor**2)
 
-			tdr = np.sqrt((cx - cx_BCG)**2 + (cy - cy_BCG)**2)
-			dr00 = np.where(tdr == np.min(tdr))[0]
+		tdr = np.sqrt((cx - cx_BCG)**2 + (cy - cy_BCG)**2)
+		dr00 = np.where(tdr == np.min(tdr))[0]
 
-			for k in range(Numb):
-				xc = cx[k]
-				yc = cy[k]
+		for k in range(Numb):
+			xc = cx[k]
+			yc = cy[k]
 
-				lr = major[k]
-				sr = minor[k]
-				cr = senior[k]
-				chi = theta[k]*np.pi/180
+			lr = major[k]
+			sr = minor[k]
+			cr = senior[k]
+			chi = theta[k]*np.pi/180
 
-				set_r = np.int(np.ceil(1.2 * lr))
-				la0 = np.max( [np.int(xc - set_r), 0])
-				la1 = np.min( [np.int(xc + set_r +1), img.shape[1] - 1] )
-				lb0 = np.max( [np.int(yc - set_r), 0] ) 
-				lb1 = np.min( [np.int(yc + set_r +1), img.shape[0] - 1] )
+			set_r = np.int(np.ceil(1.2 * lr))
+			la0 = np.max( [np.int(xc - set_r), 0])
+			la1 = np.min( [np.int(xc + set_r +1), img.shape[1] - 1] )
+			lb0 = np.max( [np.int(yc - set_r), 0] ) 
+			lb1 = np.min( [np.int(yc + set_r +1), img.shape[0] - 1] )
 
-				if k == dr00[0] :
-					continue
-				else:
-					df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.cos(chi) + (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.sin(chi)
-					df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.cos(chi) - (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.sin(chi)
-					fr = df1**2 / lr**2 + df2**2 / sr**2
-					jx = fr <= 1
+			if k == dr00[0] :
+				continue
+			else:
+				df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.cos(chi) + (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.sin(chi)
+				df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.cos(chi) - (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.sin(chi)
+				fr = df1**2 / lr**2 + df2**2 / sr**2
+				jx = fr <= 1
 
-					iu = np.where(jx == True)
-					iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float)
-					iv[iu] = np.nan
-					mask_A[lb0: lb1, la0: la1] = mask_A[lb0: lb1, la0: la1] * iv
+				iu = np.where(jx == True)
+				iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float)
+				iv[iu] = np.nan
+				mask_A[lb0: lb1, la0: la1] = mask_A[lb0: lb1, la0: la1] * iv
 
-			mirro_A = mask_A * img
+		mirro_A = mask_A * img
 
-			hdu = fits.PrimaryHDU()
-			hdu.data = mirro_A
-			hdu.header = head_inf
-			hdu.writeto(load + 'mask_data/A_plane/Zibetti/A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits' % (band[kk], ra_g, dec_g, z_g),overwrite = True)
+		hdu = fits.PrimaryHDU()
+		hdu.data = mirro_A
+		hdu.header = head_inf
+		hdu.writeto(load + 'mask_data/A_plane/Zibetti/A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits' % (band[kk], ra_g, dec_g, z_g),overwrite = True)
 
-			plt.figure()
-			plt.imshow(mirro_A, cmap = 'Greys', origin = 'lower', vmin = 1e-5, norm = mpl.colors.LogNorm())
-			hsc.circles(cx_BCG, cy_BCG, s = R_p, fc = '', ec = 'b', )
-			hsc.circles(cx_BCG, cy_BCG, s = 1.1 * R_p, fc = '', ec = 'b', ls = '--')
-			plt.plot(cx_BCG, cy_BCG, 'bo', alpha = 0.5)
-			plt.title('A mask %s ra%.3f dec%.3f z%.3f' % (band[kk], ra_g, dec_g, z_g) )
-			plt.xlim(0, img.shape[1])
-			plt.ylim(0, img.shape[0])
-			plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/Amask_Zibetti/A_mask_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[kk], ra_g, dec_g, z_g), dpi = 300)
-			plt.close()
+		plt.figure()
+		plt.imshow(mirro_A, cmap = 'Greys', origin = 'lower', vmin = 1e-5, norm = mpl.colors.LogNorm())
+		hsc.circles(cx_BCG, cy_BCG, s = R_p, fc = '', ec = 'b', )
+		hsc.circles(cx_BCG, cy_BCG, s = 1.1 * R_p, fc = '', ec = 'b', ls = '--')
+		plt.plot(cx_BCG, cy_BCG, 'bo', alpha = 0.5)
+		plt.title('A mask %s ra%.3f dec%.3f z%.3f' % (band[kk], ra_g, dec_g, z_g) )
+		plt.xlim(0, img.shape[1])
+		plt.ylim(0, img.shape[0])
+		plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/Amask_Zibetti/A_mask_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[kk], ra_g, dec_g, z_g), dpi = 300)
+		plt.close()
 
 	return
 
