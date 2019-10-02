@@ -1,5 +1,4 @@
 import matplotlib as mpl
-import handy.scatter as hsc
 import matplotlib.pyplot as plt
 from scipy.ndimage import map_coordinates as mapcd
 
@@ -62,8 +61,8 @@ def mask_B():
 	R_ph = rad2asec/(Test_model.angular_diameter_distance(z_g).value)
 	R_p = R_ph / pixel
 
-	cenx, ceny = wcs.all_world2pix(cra*U.deg, cdec*U.deg, 0)
-	'''
+	cenx, ceny = wcs.all_world2pix(cra*U.deg, cdec*U.deg, 1)
+	'''	
 	cat = pd.read_csv('/home/xkchen/mywork/ICL/data/star_catalog/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' %(z_g, cra, cdec) )
 	set_ra = np.array(cat['ra'])
 	set_dec = np.array(cat['dec'])
@@ -76,6 +75,9 @@ def mask_B():
 	xt = cat['Unnamed: 24']
 	'''
 	cat = pd.read_csv('/home/xkchen/mywork/ICL/data/star_dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' % (z_g, cra, cdec), skiprows = 1)
+	"""
+	'psffwhm_r', 'petroR90_r', // 'deVRad_r', 'deVAB_r', 'deVPhi_r', // 'expRad_r', 'expAB_r', 'expPhi_r',
+	"""
 	set_ra = np.array(cat['ra'])
 	set_dec = np.array(cat['dec'])
 	mag = np.array(cat['r'])
@@ -84,17 +86,18 @@ def mask_B():
 
 	#A = np.array(cat['petroR90_r']) / pixel
 	#B = np.array(cat['petroR90_r']) / pixel
-	#A = np.array(cat['psffwhm_r']) * 2.6 / pixel
-	#B = np.array(cat['psffwhm_r']) * 2.6 / pixel
-	#chi = np.zeros(len(A), dtype = np.float)
+	A = np.array(cat['psffwhm_r']) * 2.6 / pixel
+	B = np.array(cat['psffwhm_r']) * 2.6 / pixel
+	chi = np.zeros(len(A), dtype = np.float)
 
-	A = np.array(cat['expRad_r']) / pixel
-	B = np.array(cat['expRad_r']) / pixel
-	chi = np.array(cat['expPhi_r'])
-	
-	'''
-	'psffwhm_r', 'petroR90_r', // 'deVRad_r', 'deVAB_r', 'deVPhi_r', // 'expRad_r', 'expAB_r', 'expPhi_r',
-	'''
+	#A = np.array(cat['expRad_r']) / pixel
+	#B = np.array(cat['expRad_r']) / pixel
+	#chi = np.array(cat['expPhi_r'])
+
+	#A = np.array(cat['deVRad_r']) / pixel
+	#B = np.array(cat['deVRad_r']) / pixel
+	#chi = np.array(cat['deVPhi_r'])
+
 	# bright stars
 	x, y = wcs.all_world2pix(set_ra * U.deg, set_dec * U.deg, 1)
 	ia = (x >= 0) & (x <= x_side)
@@ -133,18 +136,20 @@ def mask_B():
 	Sr = np.r_[sub_B0[sub_A0 > 0], sub_B2[sub_A2 > 0]]
 	phi = np.r_[sub_chi0[sub_A0 > 0], sub_chi2[sub_A2 > 0]]
 	'''
-	plt.figure(figsize = (16, 8))
-	plt.title('source form dr12 ')
-	#plt.title('source form dr7 ')
-	plt.imshow(img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, norm = mpl.colors.LogNorm())
-	plt.scatter(sub_x2, sub_y2, s = 5, marker = 'o', facecolors = '', edgecolors = 'r', label = '$Saturated$')
-	plt.scatter(sub_x0, sub_y0, s = 5, marker = 's', facecolors = '', edgecolors = 'b', label = '$bright \; stars$')
-	hsc.circles(cenx, ceny, s = R_p, fc = '', ec = 'r')
-	plt.legend(loc = 3)
+	plt.figure()
+	ax = plt.subplot(111)
+	#ax.set_title('source form dr12 ')
+	ax.set_title('source form dr7 ')
+	ax.imshow(img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, norm = mpl.colors.LogNorm())
+	ax.scatter(sub_x2, sub_y2, s = 5, marker = 'o', facecolors = '', edgecolors = 'r', label = '$Saturated$')
+	ax.scatter(sub_x0, sub_y0, s = 5, marker = 's', facecolors = '', edgecolors = 'b', label = '$bright \; stars$')
+	cluster = Circle(xy = (cenx, ceny), radius = R_p, fill = False, ec = 'b', alpha = 0.5, label = 'cluster region[1Mpc]')
+	ax.add_patch(cluster)
+	plt.legend(loc = 4)
 	plt.xlim(0, img.shape[1])
 	plt.ylim(0, img.shape[0])
-	plt.savefig('source_dr12.png', dpi = 300)
-	#plt.savefig('source_dr7.png', dpi = 300)
+	#plt.savefig('source_dr12.png', dpi = 300)
+	plt.savefig('source_dr7.png', dpi = 300)
 	plt.show()
 	'''
 	Numb = len(comx)
@@ -186,22 +191,155 @@ def mask_B():
 
 	#fig.suptitle('mask B with isoRad')
 	#fig.suptitle('mask B with petroR90')
-	#fig.suptitle('mask B with FWHM')
-	fig.suptitle('mask B with expRad')
+	fig.suptitle('mask B with FWHM')
+	#fig.suptitle('mask B with expRad')
+	#fig.suptitle('mask B with deVRad')
 
-	plt.imshow(mirro_B, cmap = 'Greys', origin = 'lower', vmin = 1e-5, norm = mpl.colors.LogNorm())
-	hsc.circles(cenx, ceny, s = R_p, fc = '', ec = 'r')
-	plt.xlim(0, img.shape[1])
-	plt.ylim(0, img.shape[0])
+	ax = plt.subplot(111)
+	ax.imshow(mirro_B, cmap = 'Greys', origin = 'lower', vmin = 1e-5, norm = mpl.colors.LogNorm())
+	cluster = Circle(xy = (cenx, ceny), radius = R_p, fill = False, ec = 'r', alpha = 0.5)
+	ax.add_patch(cluster)
+	ax.set_xlim(0, img.shape[1])
+	ax.set_ylim(0, img.shape[0])
 
 	#plt.savefig('mask_B_with_isoRad.png', dpi = 300)
 	#plt.savefig('mask_B_with_petroR90.png', dpi = 300)
-	#plt.savefig('mask_B_with_PSF.png', dpi = 300)
-	plt.savefig('mask_B_with_expRad.png', dpi = 300)
+	plt.savefig('mask_B_with_PSF.png', dpi = 300)
+	#plt.savefig('mask_B_with_expRad.png', dpi = 300)
 	#plt.savefig('mask_B_with_deVRad.png', dpi = 300)
 
 	plt.show()
+
 	raise
+	return
+
+def mask_test():
+	for qq in range(10):
+		cra = 38.382
+		cdec = 1.911
+		z_g = 0.243
+		load = '/home/xkchen/mywork/ICL/data/total_data/'
+		file = 'frame-r-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (cra, cdec, z_g)
+		data = fits.open(load + file)
+		img = data[0].data
+		wcs = awc.WCS(data[0].header)
+		x_side = data[0].data.shape[1]
+		y_side = data[0].data.shape[0]
+
+		R_ph = rad2asec/(Test_model.angular_diameter_distance(z_g).value)
+		R_p = R_ph / pixel
+		cenx, ceny = wcs.all_world2pix(cra*U.deg, cdec*U.deg, 1)
+
+		cat = pd.read_csv('/home/xkchen/mywork/ICL/data/star_dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' % (z_g, cra, cdec), skiprows = 1)
+		"""
+		'psffwhm_r', 'petroR90_r', // 'deVRad_r', 'deVAB_r', 'deVPhi_r', // 'expRad_r', 'expAB_r', 'expPhi_r',
+		"""
+		set_ra = np.array(cat['ra'])
+		set_dec = np.array(cat['dec'])
+		mag = np.array(cat['r'])
+		xt = cat['Column1']
+		OBJ = np.array(cat['type'])
+		'''
+		DECAY = 10000
+		tau = np.sqrt(np.log(DECAY) / np.log(2))
+		print('tau = ', tau)
+		'''
+		tau = 6
+		A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
+		B = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
+		chi = np.zeros(A.shape[1], dtype = np.float)
+
+		lln = np.array([len(A[:,ll][A[:,ll] > 0 ]) for ll in range(A.shape[1]) ])
+		lr_iso = np.array([np.max(A[:,ll]) for ll in range(A.shape[1]) ])
+		sr_iso = np.array([np.max(B[:,ll]) for ll in range(B.shape[1]) ])
+
+		# bright stars
+		x, y = wcs.all_world2pix(set_ra * U.deg, set_dec * U.deg, 1)
+		ia = (x >= 0) & (x <= x_side)
+		ib = (y >= 0) & (y <= y_side)
+		ie = (mag <= 20)
+		ig = OBJ == 6
+		iq = lln >= 2
+		ic = (ia & ib & ie & ig & iq)
+		sub_x0 = x[ic]
+		sub_y0 = y[ic]
+		sub_A0 = lr_iso[ic]
+		sub_B0 = sr_iso[ic]
+		sub_chi0 = chi[ic]
+
+		# saturated objs
+		ih = (mag <= 14)
+		ikk = (ia & ib & ig & ih)
+		sub_x1 = x[ikk]
+		sub_y1 = y[ikk]
+		sub_A1 = 3 * A[ikk]
+		sub_B1 = 3 * B[ikk]
+		sub_chi1 = chi[ikk]
+
+		# saturated source(may not stars)
+		xa = ['SATURATED' in kk for kk in xt]
+		xv = np.array(xa)
+		idx = np.where(xv == True)[0]
+		sub_x2 = x[idx]
+		sub_y2 = y[idx]
+		sub_A2 = 3 * A[idx]
+		sub_B2 = 3 * B[idx]
+		sub_chi2 = chi[idx]
+
+		comx = np.r_[sub_x0[sub_A0 > 0], sub_x2[sub_A2 > 0]]
+		comy = np.r_[sub_y0[sub_A0 > 0], sub_y2[sub_A2 > 0]]
+		Lr = np.r_[sub_A0[sub_A0 > 0], sub_A2[sub_A2 > 0]]
+		Sr = np.r_[sub_B0[sub_A0 > 0], sub_B2[sub_A2 > 0]]
+		phi = np.r_[sub_chi0[sub_A0 > 0], sub_chi2[sub_A2 > 0]]
+		Numb = len(comx)
+		mask_B = np.ones((img.shape[0], img.shape[1]), dtype = np.float)
+		ox = np.linspace(0,2047,2048)
+		oy = np.linspace(0,1488,1489)
+		basic_coord = np.array(np.meshgrid(ox,oy))
+
+		major = Lr / 2
+		minor = Sr / 2
+		senior = np.sqrt(major**2 - minor**2)
+		## mask B
+		for k in range(Numb):
+			xc = comx[k]
+			yc = comy[k]
+			lr = major[k]
+			sr = minor[k]
+			cr = senior[k]
+			theta = phi[k] * np.pi / 180
+
+			set_r = np.int(np.ceil(1.2 * lr))
+			la0 = np.max( [np.int(xc - set_r), 0])
+			la1 = np.min( [np.int(xc + set_r +1), img.shape[1] - 1] )
+			lb0 = np.max( [np.int(yc - set_r), 0] ) 
+			lb1 = np.min( [np.int(yc + set_r +1), img.shape[0] - 1] )
+
+			df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.cos(theta) + (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.sin(theta)
+			df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.cos(theta) - (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.sin(theta)
+			fr = df1**2 / lr**2 + df2**2 / sr**2
+			jx = fr <= 1
+
+			iu = np.where(jx == True)
+			iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float)
+			iv[iu] = np.nan
+			mask_B[lb0: lb1, la0: la1] = mask_B[lb0: lb1, la0: la1] * iv
+		mirro_B = mask_B * img
+
+		fig = plt.figure(figsize = (16, 8))
+		fig.suptitle('mask B [%.2f FWHM]' % tau)
+		ax0 = plt.subplot(121)
+		ax1 = plt.subplot(122)
+		ax0.imshow(img, cmap = 'Greys', vmin = 1e-5, vmax = 1e2, origin = 'lower', norm = mpl.colors.LogNorm())
+		ax0.set_xlim(0, img.shape[1])
+		ax0.set_ylim(0, img.shape[0])
+		ax1.imshow(mirro_B, cmap = 'Greys', vmin = 1e-5, vmax = 1e2, origin = 'lower', norm = mpl.colors.LogNorm())
+		ax1.set_xlim(0, img.shape[1])
+		ax1.set_ylim(0, img.shape[0])
+		plt.savefig('fwhm_mask_%d.png' % qq, dpi = 300)
+		plt.close()
+	raise
+
 	return
 
 def add_sky():
@@ -216,7 +354,7 @@ def add_sky():
 	sky_y = data[2].data['YINTERP'][0]
 	x0 = np.linspace(0, sky0.shape[1] - 1, sky0.shape[1])
 	y0 = np.linspace(0, sky0.shape[0] - 1, sky0.shape[0])
-	f_sky = inter2(x0, y0, sky0)
+	f_sky = inter2(x0, y0, sky0, kind = 'linear')
 	New_sky = f_sky(sky_x, sky_y)
 	sky_bl = New_sky * data[0].header['NMGY'] / eta
 	cimg = img + sky_bl
@@ -253,7 +391,7 @@ def add_sky():
 
 	plt.tight_layout()
 	plt.savefig('sky_information.png', dpi = 300)
-	plt.close()
+	plt.show()
 	raise
 	return
 
@@ -490,12 +628,29 @@ def data_select():
 	data = pds.DataFrame(fill)
 	data.to_csv(lod + csv_5)
 
+	# dr7 select [mainly include "over-masking" part]
+	except_ra = ['1.980', '6.566', '29.162', '34.432', '119.661', '129.197', '142.096', '162.870', 
+				'167.538', '180.610', '247.334', '337.717', '180.211', '242.027']
+	except_dec = ['-8.845', '1.221', '0.842', '-9.105', '13.152', '15.150', '18.003', '17.351', 
+				'8.920', '10.562', '47.148', '-0.538', '-1.465', '25.346']
+	except_z = ['0.260', '0.292', '0.217', '0.239', '0.230', '0.279', '0.291', '0.202', '0.225', 
+				'0.229', '0.211', '0.282', '0.267', '0.270']
+	x_ra = np.array( [ np.float(ll) for ll in except_ra] )
+	x_dec = np.array( [ np.float(ll) for ll in except_dec] )
+	x_z = np.array( [np.float(ll) for ll in except_z] )
+	keys = ['ra', 'dec', 'z']
+	values = [x_ra, x_dec, x_z]
+	fill = dict(zip(keys, values))
+	data = pds.DataFrame(fill)
+	data.to_csv(lod + 'Bad_match_dr7_cat.csv')
+
 	raise
 	return
 
 def main():
-	mask_B()
-	# add_sky()
+	# mask_B()
+	# mask_test()
+	add_sky()
 	# source_detect()
 	# data_select()
 if __name__ == "__main__":

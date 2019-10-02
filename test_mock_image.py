@@ -9,6 +9,7 @@ import astropy.io.fits as fits
 from astropy import cosmology as apcy
 
 from resamp import gen
+from resample_modelu import down_samp, sum_samp
 from ICL_surface_mass_density import sigma_m_c
 from light_measure import light_measure, flux_recal
 
@@ -16,7 +17,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import random
-import skimage as skim
 import time
 # constant
 kpc2cm = U.kpc.to(U.cm)
@@ -58,15 +58,14 @@ def SB_lightpro():
 	sigma_m_c: calculate the 2D density profile of cluster, rho_2d
 	R : r200, rbin: a radius array
 	"""
-	Mh = 15-np.log10(8) # make the radius close to 1 Mpc
-	N = 131
+	Mh = 14.3 # make the radius close to 1 Mpc
+	N = 151
 	R, rho_2d, rbin = sigma_m_c(Mh, N)
 
 	Lc = rho_2d / 100 # in unit L_sun/kpc^2, Lc = Lc(r)
 	# creat series cluster intrinsic SB profile
 	set_z = np.r_[ set_z0[:10], set_z1[:10] ]
 	a = 1 / (1 + set_z)
-	SB = 21.572 + 4.75 - 2.5 * np.log10(10**(-6) * np.tile(Lc, (len(set_z),1))) + 10 * np.log10(np.tile(set_z+1, (N,1)).T)
 	Lz = np.tile(a**4, (N,1)).T * np.tile(Lc, (len(set_z), 1)) / (4 * np.pi * rad2asec**2) # L at z in unit: (Lsun/kpc^2)/arcsec^2
 	Lob = Lz * Lsun / kpc2cm**2
 	Iner_SB = 22.5 - 2.5*np.log10(Lob / (10**(-9) * f0))
@@ -128,6 +127,7 @@ def mock_ccd():
 	set_z = np.r_[ set_z0[:10], set_z1[:10] ]
 	set_ra = np.r_[ ra_z0[:10], ra_z1[:10] ]
 	set_dec = np.r_[ dec_z0[:10], dec_z1[:10] ]
+
 	def centered_loc(xc, yc, zc, kd):
 		cc_Lob = Lob[kd]
 
@@ -137,6 +137,13 @@ def mock_ccd():
 		pxl = np.meshgrid(x0, y0)
 
 		flux_func = interp.interp1d(r_sc, cc_Lob, kind = 'cubic')
+
+		test_f = interp.interp1d(rbin, cc_Lob, kind = 'cubic')
+		mean_r = 0.5 * (rbin[:-1] + rbin[1:])
+		sqrt_r = np.sqrt(rbin[:-1] * rbin[1:])
+		m_L = test_f(mean_r)
+		s_L = test_f(sqrt_r)
+
 		Da0 = Test_model.angular_diameter_distance(zc).value
 		Angu_r = (10**(-3) * R / Da0) * rad2asec
 		R_pixel = Angu_r / pixel
@@ -150,28 +157,32 @@ def mock_ccd():
 		iy = np.abs(y0 - yc)
 		ix0 = np.where(ix == np.min(ix))[0][0]
 		iy0 = np.where(iy == np.min(iy))[0][0]
-
-		if ix0 + 1 + np.int(R_pixel) > 2047:
-			test_dr = dr_sc[iy0, ix0 + 1 - np.int(R_pixel): ix0 + 1]
+		'''
+		## set ccd flux radius by radius
+		if ix0 + 1 + np.int(R_pixel) >= 2047:
+			test_dr = dr_sc[iy0, ix0 - np.int(R_pixel) - 1: ix0 - 1]
 		else:
-			test_dr = dr_sc[iy0, ix0 + 1: ix0 + 1 + np.int(R_pixel)]
+			test_dr = dr_sc[iy0, ix0 + 1: ix0 + np.int(R_pixel) + 1]
 
-		test = flux_func(test_dr)
-		iat = r_sc <= test_dr[0]
-		ibt = r_in[iat]
-		ict = cc_Lob[iat]
+		for k in range(len(test_dr) - 1):
+			ia = (dr_sc >= test_dr[k]) & (dr_sc <= test_dr[k + 1])
+			ib = np.where(ia == True)
+			#frame[ib[0], ib[1]] = flux_func( np.sqrt(test_dr[k] * test_dr[k + 1]) ) * pixel**2 /(f0 * 10**(-9) ) # set r = sqrt(r1 * r2)
+			frame[ib[0], ib[1]] = flux_func( (test_dr[k] + test_dr[k + 1]) / 2 ) * pixel**2 /(f0 * 10**(-9) ) # set r = (r1 + r2) / 2
+		'''
+		## set ccd flux pixel by pixel
+		for kk in range(dr_sc.shape[0]):
+			for jj in range(dr_sc.shape[1]):
+				if (dr_sc[kk, jj] >= np.max(r_sc) ) | (dr_sc[kk, jj] <= np.min(r_sc) ):
+					continue
+				else:
+					frame[kk, jj] = flux_func( dr_sc[kk, jj] ) * pixel**2 /(f0 * 10**(-9) )
 
-		for k in range(len(test_dr)):
-			if k == 0:
-				continue
-			else:
-				ia = (dr_sc >= test_dr[k-1]) & (dr_sc <= test_dr[k])
-				ib = np.where(ia == True)
-				frame[ib[0], ib[1]] = flux_func(test_dr[k-1]) * pixel**2 /(f0 * 10**(-9) )
 		x = frame.shape[1]
 		y = frame.shape[0]
+
 		# add noise
-		xfree = np.random.normal(0, 1.5, (1489, 2048))
+		xfree = np.random.normal(0, 0.15, (1489, 2048))
 		Noise = (xfree / np.max( np.abs(xfree) )) * np.min(cc_Lob * pixel**2 /(f0 * 10**(-9) )) / 100
 		frame1 = frame + Noise
 
@@ -181,13 +192,13 @@ def mock_ccd():
 		ff = dict(zip(keys, values))
 		fil = fits.Header(ff)
 
-		fits.writeto('/home/xkchen/mywork/ICL/data/mock_frame/mock_z%.3f_ra%.3f_dec%.3f.fits' % 
+		fits.writeto('/home/xkchen/mywork/ICL/data/mock_frame/mock/mock_z%.3f_ra%.3f_dec%.3f.fits' % 
 			(zc, set_ra[kd], set_dec[kd]), frame, header = fil, overwrite=True)
 		fits.writeto('/home/xkchen/mywork/ICL/data/mock_frame/noise/noise_frame_z%.3f_ra%.3f_dec%.3f.fits' % 
 			(zc, set_ra[kd], set_dec[kd]), frame1, header = fil, overwrite=True)
 
 		# add noise + mask
-		N_s = 200
+		N_s = 450
 		xa0 = np.max( [xc - np.int(R_pixel), 0] )
 		xa1 = np.min( [xc + np.int(R_pixel), 2047] )
 		ya0 = np.max( [yc - np.int(R_pixel), 0] )
@@ -249,50 +260,6 @@ def mock_ccd():
 	return
 
 def mock_image():
-	'''
-	# physical image
-	Npi = 1000
-	with h5py.File('mock_flux_data.h5') as f:
-		Lob = np.array(f['a'])
-	with h5py.File('mock_mag_data.h5') as f:
-		Iner_SB = np.array(f['a'])
-	with h5py.File('mock_intric_SB.h5') as f:
-		Lc = np.array(f['a'][0])
-		rbin = np.array(f['a'][1])
-	R = np.max(rbin)
-	r_sc = rbin / np.max(rbin)
-	flux_func = interp.interp1d(r_sc, Lob[0], kind = 'cubic')
-
-	x1 = np.linspace(-1.2 * R, 1.2 * R, 2 * Npi +1)
-	y1 = np.linspace(-1.2 * R, 1.2 * R, 2 * Npi +1)
-	plane = np.meshgrid(x1, y1)
-	dr = np.sqrt((plane[0]-0)**2 + (plane[1]-0)**2)
-	dr_sc = dr / R
-	test_dr = dr_sc[Npi + 1, Npi + 1: Npi + 833]
-	test = flux_func(test_dr)
-	iat = r_sc <= test_dr[0]
-	ibt = rbin[iat]
-	ict = Lob[0][iat]
-
-	mock_ana = np.zeros((2*Npi+1, 2*Npi+1), dtype = np.float)
-	for k in range(len(test_dr)):
-		if k == 0:
-			mock_ana[Npi+1, Npi+1] = ict[-2]
-		elif k == 1:
-			mock_ana[Npi+1-1, Npi+1-1: Npi+1+2] = ict[-1]
-			mock_ana[Npi+1+1, Npi+1-1: Npi+1+2] = ict[-1]
-			mock_ana[Npi+1-1: Npi+1+2, Npi+1-1] = ict[-1]
-			mock_ana[Npi+1-1: Npi+1+2, Npi+1+2] = ict[-1]
-		else:
-			ia = (dr_sc >= test_dr[k-1]) & (dr_sc < test_dr[k])
-			ib = np.where(ia == True)
-			mock_ana[ib[0], ib[1]] = flux_func(test_dr[k-1])
-	plt.pcolormesh(plane[0], plane[1], mock_ana, cmap = 'plasma', norm = mpl.colors.LogNorm())
-	plt.colorbar(label = '$flux[(erg/s)/cm^2]$')
-	plt.xlabel('R[kpc]')
-	plt.ylabel('R[kpc]')
-	plt.show()
-	'''
 	# ccd image
 	with h5py.File(load +'mock_flux_data.h5') as f:
 		Lob = np.array(f['a'])
@@ -337,11 +304,11 @@ def mock_image():
 	plt.savefig('add_mask_sample_view.png', dpi = 300)
 	plt.close()
 
-	raise
+	#raise
 	return
 
 def light_test():
-	bins = 95
+	bins = 65
 	with h5py.File(load + 'mock_flux_data.h5') as f:
 		Lob = np.array(f['a'])
 	with h5py.File(load + 'mock_mag_data.h5') as f:
@@ -369,7 +336,7 @@ def light_test():
 		data = fits.getdata(load + 'mock/mock_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
 		img = data[0]
 		Dag = Test_model.angular_diameter_distance(set_z[k]).value
-		Rp = (rad2asec * 10**(-3) * R / Dag) / pixel
+		Rp = (rad2asec / Dag) / pixel
 		cenx = data[1]['CENTER_X']
 		ceny = data[1]['CENTER_Y']
 		SBt, Rt, Art, errt = light_measure(img, bins, 1, Rp, cenx, ceny, pixel, set_z[k])[:4]
@@ -380,6 +347,7 @@ def light_test():
 	plt.figure(figsize = (20, 24))
 	gs = gridspec.GridSpec(5, 4)
 	for k in range(Nz):
+		Dag = Test_model.angular_diameter_distance(set_z[k]).value
 		cc_SB = Iner_SB[k,:]
 		f_SB = interp.interp1d(rbin, cc_SB, kind = 'cubic')
 		id_nan = np.isnan(SB_t[k,:])
@@ -391,29 +359,39 @@ def light_test():
 		gs0 = gridspec.GridSpecFromSubplotSpec(5, 1, subplot_spec = gs[ k // 4, k % 4])
 		ax0 = plt.subplot(gs0[:4])
 		ax1 = plt.subplot(gs0[-1])
-
+		##
 		ax0.plot(rbin, cc_SB, 'r-', label = '$ Intrinsic $', alpha = 0.5)
 		ax0.plot(ss_R, ss_SB, 'g--', label = '$ Measurement $', alpha = 0.5)
 		ax0.set_xscale('log')
-		ax0.set_xlim(1e1, 1e3)
-		#ax0.set_xlabel('$R[kpc]$')
 		ax0.set_ylabel('$SB[mag/arcsec^2]$')
 		ax0.invert_yaxis()
 		ax0.legend(loc = 1)
+		ax0.set_xlim(1e1, 1e3)
 		ax0.tick_params(axis = 'both', which = 'both', direction = 'in')
 
-		ax1.plot(ddsr, ddsb, 'g*', alpha = 0.5)
-		ax1.axhline(y = 0, linestyle = '--', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
+		bx1 = ax0.twiny()
+		xtik = ax0.get_xticks()
+		xtik = np.array(xtik)
+		xR = xtik * 10**(-3) * rad2asec / Dag
+		bx1.set_xscale('log')
+		bx1.set_xticks(xtik)
+		bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
+		bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
+		bx1.set_xlim(ax0.get_xlim())
+		ax0.set_xticks([])
+		##
+		ax1.plot(ddsr, ddsb, 'g-', alpha = 0.5)
+		ax1.axhline(y = 0, linestyle = '--', color = 'r', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
 		ax1.set_xscale('log')
 		ax1.set_xlim(1e1, 1e3)
 		ax1.set_xlabel('$R[kpc]$')
 		ax1.set_ylabel('$ SB_{M} - SB_{I} $')
-
+		ax1.set_ylim(-1e-2, 1e-2)
+		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
 	plt.tight_layout()
-	#plt.savefig('mock_light_measure_test.pdf', dpi = 300)
-	plt.savefig('mock_light_measure_bins_%d.pdf' % bins, dpi = 300)
+	plt.savefig('mock_light_measure_test.pdf', dpi = 300)
 	plt.close()
-	'''
+	raise
 	R_m = np.zeros((Nz, bins), dtype = np.float)
 	SB_m = np.zeros((Nz, bins), dtype = np.float)
 	err_m = np.zeros((Nz, bins), dtype = np.float)
@@ -432,6 +410,7 @@ def light_test():
 	plt.figure(figsize = (20, 24))
 	gs = gridspec.GridSpec(5, 4)
 	for k in range(Nz):
+		Dag = Test_model.angular_diameter_distance(set_z[k]).value
 		cc_SB = Iner_SB[k,:]
 		f_SB = interp.interp1d(rbin, cc_SB, kind = 'cubic')
 		id_nan = np.isnan(SB_m[k,:])
@@ -447,20 +426,31 @@ def light_test():
 		ax0.plot(rbin, cc_SB, 'r-', label = '$ Intrinsic $', alpha = 0.5)
 		ax0.plot(ss_R, ss_SB, 'g--', label = '$ Measurement $', alpha = 0.5)
 		ax0.set_xscale('log')
-		ax0.set_xlim(1e1, 1e3)
-		#ax0.set_xlabel('$R[kpc]$')
 		ax0.set_ylabel('$SB[mag/arcsec^2]$')
 		ax0.invert_yaxis()
 		ax0.legend(loc = 1)
+		ax0.set_xlim(1e1, 1e3)
 		ax0.tick_params(axis = 'both', which = 'both', direction = 'in')
 
-		ax1.plot(ddsr, ddsb, 'g*', alpha = 0.5)
-		ax1.axhline(y = 0, linestyle = '--', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
+		bx1 = ax0.twiny()
+		xtik = ax0.get_xticks()
+		xtik = np.array(xtik)
+		xR = xtik * 10**(-3) * rad2asec / Dag
+		bx1.set_xscale('log')
+		bx1.set_xticks(xtik)
+		bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
+		bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
+		bx1.set_xlim(ax0.get_xlim())
+		ax0.set_xticks([])
+
+		ax1.plot(ddsr, ddsb, 'g-', alpha = 0.5)
+		ax1.axhline(y = 0, linestyle = '--', color = 'r', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
 		ax1.set_xscale('log')
 		ax1.set_xlim(1e1, 1e3)
 		ax1.set_xlabel('$R[kpc]$')
 		ax1.set_ylabel('$ SB_{M} - SB_{I} $')
-
+		ax1.set_ylim(-1e-2, 1e-2)
+		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
 	plt.tight_layout()
 	plt.savefig('noise_light_measure_test.pdf', dpi = 300)
 	plt.close()
@@ -483,6 +473,7 @@ def light_test():
 	plt.figure(figsize = (20, 24))
 	gs = gridspec.GridSpec(5, 4)
 	for k in range(Nz):
+		Dag = Test_model.angular_diameter_distance(set_z[k]).value
 		cc_SB = Iner_SB[k,:]
 		f_SB = interp.interp1d(rbin, cc_SB, kind = 'cubic')
 		id_nan = np.isnan(SB_m[k,:])
@@ -498,24 +489,35 @@ def light_test():
 		ax0.plot(rbin, cc_SB, 'r-', label = '$ Intrinsic $', alpha = 0.5)
 		ax0.plot(ss_R, ss_SB, 'g--', label = '$ Measurement $', alpha = 0.5)
 		ax0.set_xscale('log')
-		ax0.set_xlim(1e1, 1e3)
-		#ax0.set_xlabel('$R[kpc]$')
 		ax0.set_ylabel('$SB[mag/arcsec^2]$')
 		ax0.invert_yaxis()
 		ax0.legend(loc = 1)
+		ax0.set_xlim(1e1, 1e3)
 		ax0.tick_params(axis = 'both', which = 'both', direction = 'in')
 
-		ax1.plot(ddsr, ddsb, 'g*', alpha = 0.5)
-		ax1.axhline(y = 0, linestyle = '--', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
+		bx1 = ax0.twiny()
+		xtik = ax0.get_xticks()
+		xtik = np.array(xtik)
+		xR = xtik * 10**(-3) * rad2asec / Dag
+		bx1.set_xscale('log')
+		bx1.set_xticks(xtik)
+		bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
+		bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
+		bx1.set_xlim(ax0.get_xlim())
+		ax0.set_xticks([])
+
+		ax1.plot(ddsr, ddsb, 'g-', alpha = 0.5)
+		ax1.axhline(y = 0, linestyle = '--', color = 'r', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
 		ax1.set_xscale('log')
 		ax1.set_xlim(1e1, 1e3)
 		ax1.set_xlabel('$R[kpc]$')
 		ax1.set_ylabel('$ SB_{M} - SB_{I} $')
-
+		ax1.set_ylim(-1e-2, 1e-2)
+		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
 	plt.tight_layout()
 	plt.savefig('add_mask_light_measure_test.pdf', dpi = 300)
 	plt.close()
-	'''
+
 	raise
 	return
 
@@ -545,6 +547,9 @@ def resample_test():
 	R_t = np.zeros((Nz, bins), dtype = np.float)
 	SB_t = np.zeros((Nz, bins), dtype = np.float)
 	err_t = np.zeros((Nz, bins), dtype = np.float)
+	R_01 = np.zeros((Nz, bins), dtype = np.float)
+	SB_01 = np.zeros((Nz, bins), dtype = np.float)
+	err_01 = np.zeros((Nz, bins), dtype = np.float)
 	for k in range(Nz):
 		data = fits.getdata(load + 'mock/mock_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
 		img = data[0]
@@ -556,17 +561,14 @@ def resample_test():
 		Len_z0 = Dag * pixel / rad2asec
 		eta = Len_ref/Len_z0
 		mu = 1 / eta
-
 		scale_img = flux_recal(img, set_z[k], z_ref)
-		xn, yn, resam = gen(scale_img, 1, eta, cenx, ceny)
+		if eta > 1:
+			resamt, xn, yn = sum_samp(eta, eta, scale_img, cenx, ceny)
+		else:
+			resamt, xn, yn = down_samp(eta, eta, scale_img, cenx, ceny)
+
 		xn = np.int(xn)
 		yn = np.int(yn)
-		if eta > 1:
-			resamt = resam[1:, 1:]
-		elif eta == 1:
-			resamt = resam[1:-1, 1:-1]
-		else:
-			resamt = resam
 		Nx = resamt.shape[1]
 		Ny = resamt.shape[0]
 
@@ -581,43 +583,73 @@ def resample_test():
 		R_t[k, :] = Rt
 		err_t[k, :] = errt
 
+		SB, R, Anr, err = light_measure(scale_img, bins, 1, Rp, cenx, ceny, pixel * mu, z_ref)[:4]
+		SB_01[k, :] = SB
+		R_01[k, :] = R
+		err_01[k, :] = err
+
 	plt.figure(figsize = (20, 24))
 	gs = gridspec.GridSpec(5, 4)
 	for k in range(Nz):
+		Dag = Test_model.angular_diameter_distance(set_z[k]).value
 		id_nan = np.isnan(SB_t[k,:])
 		ivx = id_nan == False
 		ss_R = R_t[k, ivx]
 		ss_SB = SB_t[k, ivx]
 		ddsb = ss_SB[ (ss_R > np.min(rbin)) & (ss_R < np.max(rbin)) ] - f_SB( ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))] )
 		ddsr = ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))]
+
+		id_nan = np.isnan(SB_01[k,:])
+		ivx = id_nan == False
+		st_R = R_01[k, ivx]
+		st_SB = SB_01[k, ivx]
+		ddtb = st_SB[ (st_R > np.min(rbin)) & (st_R < np.max(rbin)) ] - f_SB( st_R[(st_R > np.min(rbin)) & (st_R < np.max(rbin))] )
+		ddtr = st_R[ (st_R > np.min(rbin)) & (st_R < np.max(rbin))]
+
 		gs0 = gridspec.GridSpecFromSubplotSpec(5, 1, subplot_spec = gs[ k // 4, k % 4])
 		ax0 = plt.subplot(gs0[:4])
 		ax1 = plt.subplot(gs0[-1])
 
 		ax0.plot(rbin, SB_ref, 'r-', label = '$ Intrinsic $', alpha = 0.5)
-		ax0.plot(ss_R, ss_SB, 'g--', label = '$ Measurement $', alpha = 0.5)
+		ax0.plot(ss_R, ss_SB, 'g--', label = '$ After \; resampling $', alpha = 0.5)
+		ax0.plot(st_R, st_SB, 'b-.', label = '$ Before \; resampling $')
 		ax0.set_xscale('log')
 		ax0.set_xlim(1e1, 1e3)
-		ax0.set_xticks([])
 		ax0.set_ylabel('$SB[mag/arcsec^2]$')
 		ax0.invert_yaxis()
 		ax0.legend(loc = 1)
 		ax0.tick_params(axis = 'both', which = 'both', direction = 'in')
 
-		ax1.plot(ddsr, ddsb, 'g*', alpha = 0.5)
-		ax1.axhline(y = 0, linestyle = '--', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
+		bx1 = ax0.twiny()
+		xtik = ax0.get_xticks()
+		xtik = np.array(xtik)
+		xR = xtik * 10**(-3) * rad2asec / Dag
+		bx1.set_xscale('log')
+		bx1.set_xticks(xtik)
+		bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
+		bx1.set_xlim(ax0.get_xlim())
+		bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
+		ax0.set_xticks([])
+
+		ax1.plot(ddsr, ddsb, 'g-', alpha = 0.5)
+		ax1.plot(ddtr, ddtb, 'b-.', alpha = 0.5)
+		ax1.axhline(y = 0, linestyle = '--', color = 'k', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
 		ax1.set_xscale('log')
 		ax1.set_xlim(1e1, 1e3)
 		ax1.set_xlabel('$R[kpc]$')
 		ax1.set_ylabel('$ SB_{M} - SB_{I} $')
-
+		ax1.set_ylim(-1e-2, 1e-2)
+		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
 	plt.tight_layout()
 	plt.savefig('mock_resample_SB.pdf', dpi = 300)
 	plt.close()
-	'''
+
 	R_m = np.zeros((Nz, bins), dtype = np.float)
 	SB_m = np.zeros((Nz, bins), dtype = np.float)
 	err_m = np.zeros((Nz, bins), dtype = np.float)
+	R_02 = np.zeros((Nz, bins), dtype = np.float)
+	SB_02 = np.zeros((Nz, bins), dtype = np.float)
+	err_02 = np.zeros((Nz, bins), dtype = np.float)	
 	for k in range(Nz):
 		data = fits.getdata(load + 'noise/noise_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
 		img = data[0]
@@ -631,15 +663,13 @@ def resample_test():
 		mu = 1 / eta
 
 		scale_img = flux_recal(img, set_z[k], z_ref)
-		xn, yn, resam = gen(scale_img, 1, eta, cenx, ceny)
+		if eta > 1:
+			resamt, xn, yn = sum_samp(eta, eta, scale_img, cenx, ceny)
+		else:
+			resamt, xn, yn = down_samp(eta, eta, scale_img, cenx, ceny)
+
 		xn = np.int(xn)
 		yn = np.int(yn)
-		if eta > 1:
-			resamt = resam[1:, 1:]
-		elif eta == 1:
-			resamt = resam[1:-1, 1:-1]
-		else:
-			resamt = resam
 		Nx = resamt.shape[1]
 		Ny = resamt.shape[0]
 
@@ -654,36 +684,63 @@ def resample_test():
 		R_m[k, :] = Rt
 		err_m[k, :] = errt
 
+		SB, R, Anr, err = light_measure(scale_img, bins, 1, Rp, cenx, ceny, pixel * mu, z_ref)[:4]
+		SB_02[k, :] = SB
+		R_02[k, :] = R
+		err_02[k, :] = err
+
 	plt.figure(figsize = (20, 24))
 	gs = gridspec.GridSpec(5, 4)
 	for k in range(Nz):
+		Dag = Test_model.angular_diameter_distance(set_z[k]).value
 		id_nan = np.isnan(SB_m[k,:])
 		ivx = id_nan == False
 		ss_R = R_m[k, ivx]
 		ss_SB = SB_m[k, ivx]
 		ddsb = ss_SB[ (ss_R > np.min(rbin)) & (ss_R < np.max(rbin)) ] - f_SB( ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))] )
 		ddsr = ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))]
+
+		id_nan = np.isnan(SB_02[k,:])
+		ivx = id_nan == False
+		st_R = R_02[k, ivx]
+		st_SB = SB_02[k, ivx]
+		ddtb = st_SB[ (st_R > np.min(rbin)) & (st_R < np.max(rbin)) ] - f_SB( st_R[(st_R > np.min(rbin)) & (st_R < np.max(rbin))] )
+		ddtr = st_R[ (st_R > np.min(rbin)) & (st_R < np.max(rbin))]
+
 		gs0 = gridspec.GridSpecFromSubplotSpec(5, 1, subplot_spec = gs[ k // 4, k % 4])
 		ax0 = plt.subplot(gs0[:4])
 		ax1 = plt.subplot(gs0[-1])
 
 		ax0.plot(rbin, SB_ref, 'r-', label = '$ Intrinsic $', alpha = 0.5)
-		ax0.plot(ss_R, ss_SB, 'g--', label = '$ Measurement $', alpha = 0.5)
+		ax0.plot(ss_R, ss_SB, 'g--', label = '$ After \; resampling $', alpha = 0.5)
+		ax0.plot(st_R, st_SB, 'b-.', label = '$ Before \; resampling $')
 		ax0.set_xscale('log')
 		ax0.set_xlim(1e1, 1e3)
-		ax0.set_xticks([])
 		ax0.set_ylabel('$SB[mag/arcsec^2]$')
 		ax0.invert_yaxis()
 		ax0.legend(loc = 1)
 		ax0.tick_params(axis = 'both', which = 'both', direction = 'in')
 
-		ax1.plot(ddsr, ddsb, 'g*', alpha = 0.5)
-		ax1.axhline(y = 0, linestyle = '--', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
+		bx1 = ax0.twiny()
+		xtik = ax0.get_xticks()
+		xtik = np.array(xtik)
+		xR = xtik * 10**(-3) * rad2asec / Dag
+		bx1.set_xscale('log')
+		bx1.set_xticks(xtik)
+		bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
+		bx1.set_xlim(ax0.get_xlim())
+		bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
+		ax0.set_xticks([])
+
+		ax1.plot(ddsr, ddsb, 'g-', alpha = 0.5)
+		ax1.plot(ddtr, ddtb, 'b-.', alpha = 0.5)
+		ax1.axhline(y = 0, linestyle = '--', color = 'k', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
 		ax1.set_xscale('log')
 		ax1.set_xlim(1e1, 1e3)
 		ax1.set_xlabel('$R[kpc]$')
 		ax1.set_ylabel('$ SB_{M} - SB_{I} $')
-
+		ax1.set_ylim(-1e-2, 1e-2)
+		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
 	plt.tight_layout()
 	plt.savefig('noise_resample_SB.pdf', dpi = 300)
 	plt.close()
@@ -691,6 +748,9 @@ def resample_test():
 	R_n = np.zeros((Nz, bins), dtype = np.float)
 	SB_n = np.zeros((Nz, bins), dtype = np.float)
 	err_n = np.zeros((Nz, bins), dtype = np.float)
+	R_03 = np.zeros((Nz, bins), dtype = np.float)
+	SB_03 = np.zeros((Nz, bins), dtype = np.float)
+	err_03 = np.zeros((Nz, bins), dtype = np.float)
 	for k in range(Nz):
 		data = fits.getdata(load + 'noise_mask/add_mask_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
 		img = data[0]
@@ -704,15 +764,13 @@ def resample_test():
 		mu = 1 / eta
 
 		scale_img = flux_recal(img, set_z[k], z_ref)
-		xn, yn, resam = gen(scale_img, 1, eta, cenx, ceny)
+		if eta > 1:
+			resamt, xn, yn = sum_samp(eta, eta, scale_img, cenx, ceny)
+		else:
+			resamt, xn, yn = down_samp(eta, eta, scale_img, cenx, ceny)
+
 		xn = np.int(xn)
 		yn = np.int(yn)
-		if eta > 1:
-			resamt = resam[1:, 1:]
-		elif eta == 1:
-			resamt = resam[1:-1, 1:-1]
-		else:
-			resamt = resam
 		Nx = resamt.shape[1]
 		Ny = resamt.shape[0]
 
@@ -727,41 +785,68 @@ def resample_test():
 		R_n[k, :] = Rt
 		err_n[k, :] = errt
 
+		SB, R, Anr, err = light_measure(scale_img, bins, 1, Rp, cenx, ceny, pixel * mu, z_ref)[:4]
+		SB_03[k, :] = SB
+		R_03[k, :] = R
+		err_03[k, :] = err
+
 	plt.figure(figsize = (20, 24))
 	gs = gridspec.GridSpec(5, 4)
 	for k in range(Nz):
+		Dag = Test_model.angular_diameter_distance(set_z[k]).value
 		id_nan = np.isnan(SB_n[k,:])
 		ivx = id_nan == False
 		ss_R = R_n[k, ivx]
 		ss_SB = SB_n[k, ivx]
 		ddsb = ss_SB[ (ss_R > np.min(rbin)) & (ss_R < np.max(rbin)) ] - f_SB( ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))] )
 		ddsr = ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))]
+
+		id_nan = np.isnan(SB_03[k,:])
+		ivx = id_nan == False
+		st_R = R_03[k, ivx]
+		st_SB = SB_03[k, ivx]
+		ddtb = st_SB[ (st_R > np.min(rbin)) & (st_R < np.max(rbin)) ] - f_SB( st_R[(st_R > np.min(rbin)) & (st_R < np.max(rbin))] )
+		ddtr = st_R[ (st_R > np.min(rbin)) & (st_R < np.max(rbin))]
+
 		gs0 = gridspec.GridSpecFromSubplotSpec(5, 1, subplot_spec = gs[ k // 4, k % 4])
 		ax0 = plt.subplot(gs0[:4])
 		ax1 = plt.subplot(gs0[-1])
 
 		ax0.plot(rbin, SB_ref, 'r-', label = '$ Intrinsic $', alpha = 0.5)
-		ax0.plot(ss_R, ss_SB, 'g--', label = '$ Measurement $', alpha = 0.5)
+		ax0.plot(ss_R, ss_SB, 'g--', label = '$ After \; resampling $', alpha = 0.5)
+		ax0.plot(st_R, st_SB, 'b-.', label = '$ Before \; resampling $')
 		ax0.set_xscale('log')
 		ax0.set_xlim(1e1, 1e3)
-		ax0.set_xticks([])
 		ax0.set_ylabel('$SB[mag/arcsec^2]$')
 		ax0.invert_yaxis()
 		ax0.legend(loc = 1)
 		ax0.tick_params(axis = 'both', which = 'both', direction = 'in')
 
-		ax1.plot(ddsr, ddsb, 'g*', alpha = 0.5)
-		ax1.axhline(y = 0, linestyle = '--', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
+		bx1 = ax0.twiny()
+		xtik = ax0.get_xticks()
+		xtik = np.array(xtik)
+		xR = xtik * 10**(-3) * rad2asec / Dag
+		bx1.set_xscale('log')
+		bx1.set_xticks(xtik)
+		bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
+		bx1.set_xlim(ax0.get_xlim())
+		bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
+		ax0.set_xticks([])
+
+		ax1.plot(ddsr, ddsb, 'g-', alpha = 0.5)
+		ax1.plot(ddtr, ddtb, 'b-.', alpha = 0.5)
+		ax1.axhline(y = 0, linestyle = '--', color = 'k', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
 		ax1.set_xscale('log')
 		ax1.set_xlim(1e1, 1e3)
 		ax1.set_xlabel('$R[kpc]$')
 		ax1.set_ylabel('$ SB_{M} - SB_{I} $')
-
+		ax1.set_ylim(-1e-2, 1e-2)
+		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
 	plt.tight_layout()
 	plt.savefig('mask_resample_SB.pdf', dpi = 300)
 	plt.close()
-	'''
-	raise
+
+	#raise
 	return
 
 def random_test():
@@ -820,40 +905,14 @@ def random_test():
 	mean_array_D[where_are_inf] = np.nan
 	id_zeros = np.where(p_count_D == 0)
 	mean_array_D[id_zeros] = np.nan
-	SBt, Rt, Art, errt = light_measure(mean_array_D, bins, 1, Rpp, x0, y0, pixel, z_ref)[:4]
+	SBt0, Rt0, Art0, errt0 = light_measure(mean_array_D, bins, 1, Rpp, x0, y0, pixel, z_ref)[:4]
 
-	id_nan = np.isnan(SBt)
+	id_nan = np.isnan(SBt0)
 	ivx = id_nan == False
-	ss_R = Rt[ivx]
-	ss_SB = SBt[ivx]
-	ddsb = ss_SB[ (ss_R > np.min(rbin)) & (ss_R < np.max(rbin)) ] - f_SB( ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))] )
-	ddsr = ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))]
-
-	plt.figure()
-	gs = gridspec.GridSpec(2,1, height_ratios = [4,1])
-	ax0 = plt.subplot(gs[0])
-	ax1 = plt.subplot(gs[1])
-
-	ax0.plot(rbin, SB_ref, 'r-', label = '$ reference $', alpha = 0.5)
-	ax0.plot(Rt, SBt, 'g--', label = '$ stacking \; image $', alpha = 0.5)
-	ax0.set_xscale('log')
-	ax0.set_xlabel('$R[kpc]$')
-	ax0.set_xlim(1e1, 1e3)
-	ax0.set_ylabel('$SB[mag/arcsec^2]$')
-	ax0.set_xticks([])
-	ax0.invert_yaxis()
-	ax0.legend(loc = 1)
-
-	ax1.plot(ddsr, ddsb, 'g*', alpha = 0.5)
-	ax1.axhline(y = 0, linestyle = '--', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
-	ax1.set_xscale('log')
-	ax1.set_xlim(1e1, 1e3)
-	ax1.set_xlabel('$R[kpc]$')
-	ax1.set_ylabel('$ SB_{stacking} - SB_{reference} $')
-
-	plt.subplots_adjust(hspace = 0)
-	plt.savefig('stack_noise.png', dpi = 300)
-	plt.close()
+	ss_R = Rt0[ivx]
+	ss_SB = SBt0[ivx]
+	ddsb0 = ss_SB[ (ss_R > np.min(rbin)) & (ss_R < np.max(rbin)) ] - f_SB( ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))] )
+	ddsr0 = ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))]
 
 	sum_array_D = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 	count_array_D = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
@@ -883,39 +942,96 @@ def random_test():
 	mean_array_D[where_are_inf] = np.nan
 	id_zeros = np.where(p_count_D == 0)
 	mean_array_D[id_zeros] = np.nan
-	SBt, Rt, Art, errt = light_measure(mean_array_D, bins, 1, Rpp, x0, y0, pixel, z_ref)[:4]
+	SBt1, Rt1, Art1, errt1 = light_measure(mean_array_D, bins, 1, Rpp, x0, y0, pixel, z_ref)[:4]
 
-	id_nan = np.isnan(SBt)
+	id_nan = np.isnan(SBt1)
 	ivx = id_nan == False
-	ss_R = Rt[ivx]
-	ss_SB = SBt[ivx]
-	ddsb = ss_SB[ (ss_R > np.min(rbin)) & (ss_R < np.max(rbin)) ] - f_SB( ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))] )
-	ddsr = ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))]
+	ss_R = Rt1[ivx]
+	ss_SB = SBt1[ivx]
+	ddsb1 = ss_SB[ (ss_R > np.min(rbin)) & (ss_R < np.max(rbin)) ] - f_SB( ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))] )
+	ddsr1 = ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))]
+
+	sum_array_D = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+	count_array_D = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
+	p_count_D = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+	for k in range(Nz):
+		data = fits.getdata(load + 'resamp-mock-ra%.3f-dec%.3f-redshift%.3f.fits' % (set_ra[k], set_dec[k], set_z[k]), header = True)
+		img = data[0]
+		cenx = data[1]['CENTER_X']
+		ceny = data[1]['CENTER_Y']
+
+		la0 = np.int(y0 - ceny)
+		la1 = np.int(y0 - ceny + img.shape[0])
+		lb0 = np.int(x0 - cenx)
+		lb1 = np.int(x0 - cenx + img.shape[1])
+
+		idx = np.isnan(img)
+		idv = np.where(idx == False)
+		sum_array_D[la0:la1, lb0:lb1][idv] = sum_array_D[la0:la1, lb0:lb1][idv] + img[idv]
+		count_array_D[la0: la1, lb0: lb1][idv] = img[idv]
+		id_nan = np.isnan(count_array_D)
+		id_fals = np.where(id_nan == False)
+		p_count_D[id_fals] = p_count_D[id_fals] + 1
+		count_array_D[la0: la1, lb0: lb1][idv] = np.nan
+
+	mean_array_D = sum_array_D / p_count_D
+	where_are_inf = np.isinf(mean_array_D)
+	mean_array_D[where_are_inf] = np.nan
+	id_zeros = np.where(p_count_D == 0)
+	mean_array_D[id_zeros] = np.nan
+	SBt2, Rt2, Art2, errt2 = light_measure(mean_array_D, bins, 1, Rpp, x0, y0, pixel, z_ref)[:4]
+
+	id_nan = np.isnan(SBt2)
+	ivx = id_nan == False
+	ss_R = Rt2[ivx]
+	ss_SB = SBt2[ivx]
+	ddsb2 = ss_SB[ (ss_R > np.min(rbin)) & (ss_R < np.max(rbin)) ] - f_SB( ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))] )
+	ddsr2 = ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))]
 
 	plt.figure()
 	gs = gridspec.GridSpec(2,1, height_ratios = [4,1])
 	ax0 = plt.subplot(gs[0])
 	ax1 = plt.subplot(gs[1])
 
+	ax0.set_title('stack image')
 	ax0.plot(rbin, SB_ref, 'r-', label = '$ reference $', alpha = 0.5)
-	ax0.plot(Rt, SBt, 'g--', label = '$ stacking \; image $', alpha = 0.5)
+	ax0.plot(Rt2, SBt2, 'g--', label = '$ No \; noise + No \; mask $', alpha = 0.5)
+	ax0.plot(Rt1, SBt1, 'b-.', label = '$ noise + mask $', alpha = 0.5)
+	ax0.plot(Rt0, SBt0, 'm:', label = '$ noise $', alpha = 0.5)
+
 	ax0.set_xscale('log')
 	ax0.set_xlabel('$R[kpc]$')
 	ax0.set_xlim(1e1, 1e3)
 	ax0.set_ylabel('$SB[mag/arcsec^2]$')
 	ax0.invert_yaxis()
-	ax0.set_xticks([])
 	ax0.legend(loc = 1)
+	ax0.tick_params(axis = 'both', which = 'both', direction = 'in')
 
-	ax1.plot(ddsr, ddsb, 'g*', alpha = 0.5)
-	ax1.axhline(y = 0, linestyle = '--', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
+	bx1 = ax0.twiny()
+	xtik = ax0.get_xticks()
+	xtik = np.array(xtik)
+	Dag = Test_model.angular_diameter_distance(z_ref).value
+	xR = xtik * 10**(-3) * rad2asec / Dag
+	bx1.set_xscale('log')
+	bx1.set_xticks(xtik)
+	bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
+	bx1.set_xlim(ax0.get_xlim())
+	bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
+	ax0.set_xticks([])
+
+	ax1.plot(ddsr0, ddsb0, 'm--', alpha = 0.5)
+	ax1.plot(ddsr1, ddsb1, 'b--', alpha = 0.5)
+	ax1.plot(ddsr2, ddsb2, 'g--', alpha = 0.5)
+	ax1.axhline(y = 0, linestyle = '--', color = 'k', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
 	ax1.set_xscale('log')
 	ax1.set_xlim(1e1, 1e3)
+	ax1.set_ylim(-1e-2, 1e-2)
 	ax1.set_xlabel('$R[kpc]$')
 	ax1.set_ylabel('$ SB_{stacking} - SB_{reference} $')
+	ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
 
 	plt.subplots_adjust(hspace = 0)
-	plt.savefig('stack_mask.png', dpi = 300)
+	plt.savefig('stack_test.png', dpi = 300)
 	plt.close()
 
 	raise
@@ -923,9 +1039,9 @@ def random_test():
 
 def test():
 	#SB_lightpro()
-	#mock_ccd()
+	mock_ccd()
 	#mock_image()
-	light_test()
+	#light_test()
 	#resample_test()
 	#random_test()
 

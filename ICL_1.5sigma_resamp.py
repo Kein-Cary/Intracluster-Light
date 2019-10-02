@@ -16,6 +16,7 @@ import astropy.io.fits as fits
 
 from resamp import gen
 from light_measure import flux_recal
+from resample_modelu import sum_samp, down_samp
 from mpi4py import MPI
 commd = MPI.COMM_WORLD
 rank = commd.Get_rank()
@@ -91,18 +92,24 @@ def resamp_15sigma(band_id, sub_z, sub_ra, sub_dec):
 		Rref = (R0*rad2asec/Da_ref)/pixel
 
 		f_goal = flux_recal(img, z_g, z_ref)
-		xn, yn, resam = gen(f_goal, 1, b, cx, cy)
-		xn = np.int(xn)
-		yn = np.int(yn)
 		ix0 = np.int(cx0/b)
 		iy0 = np.int(cy0/b)
+		'''
+		xn, yn, resam = gen(f_goal, 1, b, cx, cy)
 		if b > 1:
 			resam = resam[1:, 1:]
 		elif b == 1:
 			resam = resam[1:-1, 1:-1]
 		else:
 			resam = resam
+		'''
+		if b > 1:
+			resam, xn, yn = sum_samp(b, b, f_goal, cx, cy)
+		else:
+			resam, xn, yn = down_samp(b, b, f_goal, cx, cy)
 
+		xn = np.int(xn)
+		yn = np.int(yn)
 		x0 = resam.shape[1]
 		y0 = resam.shape[0]
 
@@ -113,7 +120,7 @@ def resamp_15sigma(band_id, sub_z, sub_ra, sub_dec):
 		fil = fits.Header(ff)
 		fits.writeto(load + 
 			'resample/1_5sigma/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam, header = fil, overwrite=True)
-		'''
+
 		plt.figure()
 		ax = plt.imshow(resam, cmap = 'Greys', origin = 'lower', vmin = 1e-3, norm = mpl.colors.LogNorm())
 		plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
@@ -122,12 +129,12 @@ def resamp_15sigma(band_id, sub_z, sub_ra, sub_dec):
 		hsc.circles(xn, yn, s = 1.1 * Rpp, fc = '', ec = 'b', ls = '--')
 		plt.scatter(xn, yn, s = 10, marker = 'X', facecolors = '', edgecolors = 'r', linewidth = 0.5, alpha = 0.5)
 		plt.title('resample A mask ra%.3f dec%.3f z%.3f in %s band' % (ra_g, dec_g, z_g, band[ii]))
-		plt.xlim(0, mirro_A.shape[1])
-		plt.ylim(0, mirro_A.shape[0])
+		plt.xlim(0, resam.shape[1])
+		plt.ylim(0, resam.shape[0])
 		plt.savefig(
 			'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/resamp_A/resampA_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[ii], ra_g, dec_g, z_g), dpi = 300)
 		plt.close()
-		'''
+
 	print('Now band %s have finished!!' % band[ii])
 	return
 
@@ -165,14 +172,14 @@ def main():
 	t0 = time.time()
 	tot_N = len(z)
 
-	commd.Barrier()
+	#commd.Barrier()
 	for tt in range(len(band)):
 		m, n = divmod(tot_N, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
 		if rank == cpus - 1:
 			N_sub1 += n
 		resamp_15sigma(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
-		commd.Barrier()
+	commd.Barrier()
 	t1 = time.time() - t0
 	print('total time = ', t1)
 

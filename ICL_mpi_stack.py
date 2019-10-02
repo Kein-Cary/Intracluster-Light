@@ -79,7 +79,7 @@ load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 band = ['r', 'g', 'i', 'u', 'z']
 mag_add = np.array([0, 0, 0, -0.04, 0.02])
 
-# bad data list
+# bad image list
 csv_r = pds.read_csv(load + 'Except_r_sample.csv')
 except_ra_r = ['%.3f' % ll for ll in csv_r['ra'] ]
 except_dec_r = ['%.3f' % ll for ll in csv_r['dec'] ]
@@ -105,10 +105,6 @@ except_ra_u = ['%.3f' % ll for ll in csv_u['ra'] ]
 except_dec_u = ['%.3f' % ll for ll in csv_u['dec'] ]
 except_z_u = ['%.3f' % ll for ll in csv_u['z'] ]
 
-csv_UN = pds.read_csv(load + 'No_star_query_match.csv')
-except_ra_Nu = ['%.3f' % ll for ll in csv_UN['ra'] ]
-except_dec_Nu = ['%.3f' % ll for ll in csv_UN['dec'] ]
-except_z_Nu = ['%.3f' % ll for ll in csv_UN['z'] ]
 def stack_process(band_number, subz, subra, subdec):
 
 	stack_N = len(subz)
@@ -137,25 +133,18 @@ def stack_process(band_number, subz, subra, subdec):
 		ra_g = sub_ra[jj]
 		dec_g = sub_dec[jj]
 		z_g = sub_z[jj]
-		
-		identi = (( ('%.3f'%ra_g in except_ra_r) & ('%.3f'%dec_g in except_dec_r) & ('%.3f'%z_g in except_z_r) ) | 
-					( ('%.3f'%ra_g in except_ra_g) & ('%.3f'%dec_g in except_dec_g) & ('%.3f'%z_g in except_z_g) ) | 
-					( ('%.3f'%ra_g in except_ra_i) & ('%.3f'%dec_g in except_dec_i) & ('%.3f'%z_g in except_z_i) ) | 
-					( ('%.3f'%ra_g in except_ra_u) & ('%.3f'%dec_g in except_dec_u) & ('%.3f'%z_g in except_z_u) ) | 
-					( ('%.3f'%ra_g in except_ra_z) & ('%.3f'%dec_g in except_dec_z) & ('%.3f'%z_g in except_z_z) ) |
-					( ('%.3f'%ra_g in except_ra_Nu) & ('%.3f'%dec_g in except_dec_Nu) & ('%.3f'%z_g in except_z_Nu) ) )
-		'''
+
 		identi = (( ('%.3f'%ra_g in except_ra_r) & ('%.3f'%dec_g in except_dec_r) & ('%.3f'%z_g in except_z_r) ) | 
 					( ('%.3f'%ra_g in except_ra_g) & ('%.3f'%dec_g in except_dec_g) & ('%.3f'%z_g in except_z_g) ) | 
 					( ('%.3f'%ra_g in except_ra_i) & ('%.3f'%dec_g in except_dec_i) & ('%.3f'%z_g in except_z_i) ) | 
 					( ('%.3f'%ra_g in except_ra_u) & ('%.3f'%dec_g in except_dec_u) & ('%.3f'%z_g in except_z_u) ) | 
 					( ('%.3f'%ra_g in except_ra_z) & ('%.3f'%dec_g in except_dec_z) & ('%.3f'%z_g in except_z_z) ) )
-		'''
+
 		if  identi == True: 
 			continue
 		else:
 			Da_g = Test_model.angular_diameter_distance(z_g).value
-			'''
+
 			# 1.5sigma
 			data_A = fits.getdata(load + 
 				'resample/1_5sigma/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
@@ -163,6 +152,7 @@ def stack_process(band_number, subz, subra, subdec):
 			# Zibetti
 			data_A = fits.getdata(load + 
 				'resample/Zibetti/A_mask/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+			'''
 
 			img_A = data_A[0]
 			xn = data_A[1]['CENTER_X']
@@ -181,7 +171,7 @@ def stack_process(band_number, subz, subra, subdec):
 			id_fals = np.where(id_nan == False)
 			p_count_A[id_fals] = p_count_A[id_fals] + 1
 			count_array_A[la0: la1, lb0: lb1][idv] = np.nan
-			'''
+
 			# 1.5sigma
 			data_B = fits.getdata(load + 
 				'resample/resam_B/frameB-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
@@ -189,7 +179,7 @@ def stack_process(band_number, subz, subra, subdec):
 			# Zibetti
 			data_B = fits.getdata(load + 
 				'resample/Zibetti/B_mask/frameB-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
-
+			'''
 			img_B = data_B[0]
 			xn = data_B[1]['CENTER_X']
 			yn = data_B[1]['CENTER_Y']
@@ -226,14 +216,6 @@ def main():
 	t0 = time.time()
 
 	bins = 65
-	'''
-	ix = red_rich >= 39
-	RichN = red_rich[ix]
-	zN = red_z[ix]
-	raN = red_ra[ix]
-	decN = red_dec[ix]
-	stackn = np.int(690)
-	'''
 	RichN = red_rich * 1
 	zN = red_z * 1
 	raN = red_ra * 1
@@ -248,8 +230,8 @@ def main():
 	Nx = np.linspace(0, 4854, 4855)
 	Ny = np.linspace(0, 3530, 3531)
 	sum_grid = np.array(np.meshgrid(Nx, Ny))
-
-	commd.Barrier()
+	'''
+	#commd.Barrier()
 	#for tt in range(len(band)):
 	for tt in range(3):
 		m, n = divmod(stackn, cpus)
@@ -257,11 +239,13 @@ def main():
 		if rank == cpus - 1:
 			N_sub1 += n
 		stack_process(tt, zN[N_sub0 :N_sub1], raN[N_sub0 :N_sub1], decN[N_sub0 :N_sub1])
-		commd.Barrier()
+	commd.Barrier()
+	'''
 
+	### stack all of the sub-stack image
+	# stack sub-stack img of A mask
 	mean_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 	p_add_count = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-
 	if rank == 0:
 		for qq in range(3):
 
@@ -288,15 +272,15 @@ def main():
 				sub_mean = sum_img / p_count
 				
 				plt.figure()
-				plt.title('stack_%d_%s_band_%d_cpus.png' % (np.int(sub_Num), band[qq], pp) )
-				ax = plt.imshow(sub_mean, cmap = 'Greys', vmin = 1e-7, origin = 'lower', norm = mpl.colors.LogNorm())
+				plt.title('[A]stack_%d_%s_band_%d_cpus.png' % (np.int(sub_Num), band[qq], pp) )
+				ax = plt.imshow(sub_mean, cmap = 'Greys', vmin = 1e-7, vmax = 5e1, origin = 'lower', norm = mpl.colors.LogNorm())
 				plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
 				hsc.circles(x0, y0, s = Rpp, fc = '', ec = 'r', linestyle = '-', alpha = 0.5)
 				hsc.circles(x0, y0, s = 0.2 * Rpp, fc = '', ec = 'g', linestyle = '--', alpha = 0.5)
 				plt.xlim(x0 - 1.2 * Rpp, x0 + 1.2 * Rpp)
 				plt.ylim(y0 - 1.2 * Rpp, y0 + 1.2 * Rpp)
 				plt.savefig(
-					'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_%d_%s_band_%d_cpus.png' % (np.int(sub_Num), band[qq], pp), dpi = 300)
+					'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/A_mask/A_stack_%d_%s_band_%d_cpus.png' % (np.int(sub_Num), band[qq], pp), dpi = 300)
 				plt.close()
 
 			id_zero = p_add_count == 0
@@ -316,20 +300,20 @@ def main():
 			print('t_tot = ', t3)
 
 			plt.figure()
-			plt.title('stack_%d_%s_band.png' % (tot_N, band[qq]) )
-			ax = plt.imshow(stack_img, cmap = 'Greys', vmin = 1e-7, origin = 'lower', norm = mpl.colors.LogNorm())
+			plt.title('[A]stack_%d_%s_band.png' % (tot_N, band[qq]) )
+			ax = plt.imshow(stack_img, cmap = 'Greys', vmin = 1e-7, vmax = 5e1, origin = 'lower', norm = mpl.colors.LogNorm())
 			plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
 			hsc.circles(x0, y0, s = Rpp, fc = '', ec = 'r', linestyle = '-', alpha = 0.5)
 			hsc.circles(x0, y0, s = 0.2 * Rpp, fc = '', ec = 'g', linestyle = '--', alpha = 0.5)	
 			plt.xlim(x0 - 1.2 * Rpp, x0 + 1.2 * Rpp)
 			plt.ylim(y0 - 1.2 * Rpp, y0 + 1.2 * Rpp)
 			plt.savefig(
-				'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_%d_%s_band.png' % (tot_N, band[qq]), dpi = 300)
+				'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/A_mask/A_stack_%d_%s_band.png' % (tot_N, band[qq]), dpi = 300)
 			plt.close()
 
 			plt.figure()
 			ax = plt.subplot(111)
-			ax.set_title('stack_%d_%s_band_SB.png' % (tot_N, band[qq]) )
+			ax.set_title('[A]stack_%d_%s_band_SB.png' % (tot_N, band[qq]) )
 			ax.errorbar(Rt, SBt, yerr = errt, xerr = None, color = 'r', marker = 'o', ls = '', linewidth = 1, markersize = 5, 
 				ecolor = 'r', elinewidth = 1, alpha = 0.5)
 			ax.set_xlabel('$R[kpc]$')
@@ -337,9 +321,93 @@ def main():
 			ax.set_xscale('log')
 			ax.invert_yaxis()
 			ax.tick_params(axis = 'both', which = 'both', direction = 'in')
-			plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_%d_%s_band_SB.png' % (tot_N, band[qq]), dpi = 300)
+			plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/A_mask/A_stack_%d_%s_band_SB.png' % (tot_N, band[qq]), dpi = 300)
 			plt.close()
 
 			print('Now %s band finished!' % band[qq])
+
+	# stack sub-stack img of B mask
+	mean_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+	p_add_count = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+	if rank == 1:
+		for qq in range(3):
+
+			tot_N = 0
+			for pp in range(cpus):
+				
+				with h5py.File(
+					'/mnt/ddnfs/data_users/cxkttwl/ICL/data/test_h5/stack_Bmask_pcount_%d_in_%s_band.h5' % (pp, band[qq]), 'r')as f:
+					p_count = np.array(f['a'])
+				with h5py.File(
+					'/mnt/ddnfs/data_users/cxkttwl/ICL/data/test_h5/stack_Bmask_sum_%d_in_%s_band.h5' % (pp, band[qq]), 'r') as f:
+					sum_img = np.array(f['a'])
+
+				sub_Num = np.nanmax(p_count)
+				tot_N += sub_Num
+				id_zero = p_count == 0
+				ivx = id_zero == False
+				mean_img[ivx] = mean_img[ivx] + sum_img[ivx]
+				p_add_count[ivx] = p_add_count[ivx] + p_count[ivx]
+
+				# check sub-results
+				p_count[id_zero] = np.nan
+				sum_img[id_zero] = np.nan
+				sub_mean = sum_img / p_count
+				
+				plt.figure()
+				plt.title('[B]stack_%d_%s_band_%d_cpus.png' % (np.int(sub_Num), band[qq], pp) )
+				ax = plt.imshow(sub_mean, cmap = 'Greys', vmin = 1e-7, vmax = 5e1, origin = 'lower', norm = mpl.colors.LogNorm())
+				plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
+				hsc.circles(x0, y0, s = Rpp, fc = '', ec = 'r', linestyle = '-', alpha = 0.5)
+				hsc.circles(x0, y0, s = 0.2 * Rpp, fc = '', ec = 'g', linestyle = '--', alpha = 0.5)
+				plt.xlim(x0 - 1.2 * Rpp, x0 + 1.2 * Rpp)
+				plt.ylim(y0 - 1.2 * Rpp, y0 + 1.2 * Rpp)
+				plt.savefig(
+					'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/B_mask/B_stack_%d_%s_band_%d_cpus.png' % (np.int(sub_Num), band[qq], pp), dpi = 300)
+				plt.close()
+
+			id_zero = p_add_count == 0
+			mean_img[id_zero] = np.nan
+			p_add_count[id_zero] = np.nan
+			tot_N = np.int(tot_N)
+
+			t1 = time.time()
+			stack_img = mean_img / p_add_count
+			SBt, Rt, Art, errt = light_measure(stack_img, bins, 1, Rpp, x0, y0, pixel, z_ref)[:4]
+			SBt = SBt + mag_add[0]
+			t2 = time.time() - t1
+			t3 = time.time() - t0
+
+			print('*' * 20)
+			print('t = ', t2)
+			print('t_tot = ', t3)
+
+			plt.figure()
+			plt.title('[B]stack_%d_%s_band.png' % (tot_N, band[qq]) )
+			ax = plt.imshow(stack_img, cmap = 'Greys', vmin = 1e-7, vmax = 5e1, origin = 'lower', norm = mpl.colors.LogNorm())
+			plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
+			hsc.circles(x0, y0, s = Rpp, fc = '', ec = 'r', linestyle = '-', alpha = 0.5)
+			hsc.circles(x0, y0, s = 0.2 * Rpp, fc = '', ec = 'g', linestyle = '--', alpha = 0.5)	
+			plt.xlim(x0 - 1.2 * Rpp, x0 + 1.2 * Rpp)
+			plt.ylim(y0 - 1.2 * Rpp, y0 + 1.2 * Rpp)
+			plt.savefig(
+				'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/B_mask/B_stack_%d_%s_band.png' % (tot_N, band[qq]), dpi = 300)
+			plt.close()
+
+			plt.figure()
+			ax = plt.subplot(111)
+			ax.set_title('[B]stack_%d_%s_band_SB.png' % (tot_N, band[qq]) )
+			ax.errorbar(Rt, SBt, yerr = errt, xerr = None, color = 'r', marker = 'o', ls = '', linewidth = 1, markersize = 5, 
+				ecolor = 'r', elinewidth = 1, alpha = 0.5)
+			ax.set_xlabel('$R[kpc]$')
+			ax.set_ylabel('$SB[mag / arcsec^2]$')
+			ax.set_xscale('log')
+			ax.invert_yaxis()
+			ax.tick_params(axis = 'both', which = 'both', direction = 'in')
+			plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/B_mask/B_stack_%d_%s_band_SB.png' % (tot_N, band[qq]), dpi = 300)
+			plt.close()
+
+			print('Now %s band finished!' % band[qq])
+
 if __name__ == "__main__":
 	main()
