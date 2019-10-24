@@ -72,9 +72,9 @@ def resamp_Bpl(band_id, sub_z, sub_ra, sub_dec):
 		z_g = sub_z[k]
 		Da_g = Test_model.angular_diameter_distance(z_g).value
 
-		# use star catalog dr7 (only g, r, i band)
+		# use star catalog dr12
 		data_B = fits.getdata(load + 
-			'mask_data/B_plane/Zibetti/B_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
+			'mask_data/B_plane/1.5sigma/B_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
 		img_B = data_B[0]
 
 		head_mean = data_B[1]
@@ -121,9 +121,53 @@ def resamp_Bpl(band_id, sub_z, sub_ra, sub_dec):
 		fil = fits.Header(ff)
 
 		fits.writeto(load + 
-			'resample/Zibetti/B_mask/frameB-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam, header = fil, overwrite=True)
+			'resample/resam_B/frameB-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam, header = fil, overwrite=True)
+
+		plt.figure()
+		ax = plt.imshow(resam, cmap = 'Greys', origin = 'lower', vmin = 1e-3, norm = mpl.colors.LogNorm())
+		plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
+
+		hsc.circles(xn, yn, s = Rpp, fc = '', ec = 'b', )
+		hsc.circles(xn, yn, s = 1.1 * Rpp, fc = '', ec = 'b', ls = '--')
+		plt.scatter(xn, yn, s = 10, marker = 'X', facecolors = '', edgecolors = 'r', linewidth = 0.5, alpha = 0.5)
+		plt.title('resample B mask ra%.3f dec%.3f z%.3f in %s band' % (ra_g, dec_g, z_g, band[ii]))
+		plt.xlim(0, resam.shape[1])
+		plt.ylim(0, resam.shape[0])
+		plt.savefig(
+			'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/resamp_B/resampB_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[ii], ra_g, dec_g, z_g), dpi = 300)
+		plt.close()
 
 	print('Now band %s have finished!!' % band[ii])
+	return
+
+def fig_out():
+
+	for ii in range(len(band)):
+		print('Now band is %s' % band[ii])
+		for k in range(len(z)):
+			ra_g = ra[k]
+			dec_g = dec[k]
+			z_g = z[k]			
+			data = fits.getdata(load + 
+				'resample/resam_B/frameB-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+			img = data[0]
+			xn = data[1]['CENTER_X']
+			yn = data[1]['CENTER_Y']
+
+			plt.figure()
+			ax = plt.imshow(img, cmap = 'Greys', origin = 'lower', vmin = 1e-3, norm = mpl.colors.LogNorm())
+			plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
+
+			hsc.circles(xn, yn, s = Rpp, fc = '', ec = 'b', )
+			hsc.circles(xn, yn, s = 1.1 * Rpp, fc = '', ec = 'b', ls = '--')
+			plt.scatter(xn, yn, s = 10, marker = 'X', facecolors = '', edgecolors = 'r', linewidth = 0.5, alpha = 0.5)
+			plt.title('resample B mask ra%.3f dec%.3f z%.3f in %s band' % (ra_g, dec_g, z_g, band[ii]))
+			plt.xlim(0, img.shape[1])
+			plt.ylim(0, img.shape[0])
+			plt.savefig(
+				'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/resamp_B/resampB_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[ii], ra_g, dec_g, z_g), dpi = 300)
+			plt.close()
+
 	return
 
 def main():
@@ -131,7 +175,7 @@ def main():
 	tot_N = len(z)
 
 	#commd.Barrier()
-	for tt in range(3):
+	for tt in range(len(band)):
 		m, n = divmod(tot_N, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
 		if rank == cpus - 1:
@@ -140,6 +184,7 @@ def main():
 	commd.Barrier()
 	t1 = time.time() - t0
 	print('total time = ', t1)
+	#fig_out()
 
 if __name__ == "__main__":
 	main()

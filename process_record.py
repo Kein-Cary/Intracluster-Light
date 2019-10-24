@@ -22,9 +22,9 @@ from scipy.optimize import curve_fit, minimize
 from scipy.interpolate import interp1d as interp
 from scipy.interpolate import interp2d as interp2
 
-from resamp import gen
 from light_measure import sigmamc
 from extinction_redden import A_wave
+from resamp import gen
 from resample_modelu import sum_samp, down_samp
 from light_measure import light_measure, flux_recal
 
@@ -226,7 +226,7 @@ def mask_A():
 	red_dec = dec[Lambd > 100]
 
 	for i in range(1):
-		for q in range(20):
+		for q in range(10):
 			ra_g = red_ra[q]
 			dec_g = red_dec[q]
 			z_g = red_z[q]
@@ -276,8 +276,8 @@ def mask_A():
 			fig = plt.figure()
 			fig.suptitle('SB variation before masking')
 			ax = plt.subplot(111)
-			ax.plot(R_0, SB_0, 'r-', label = '$original \; image$', alpha = 0.5)
-			ax.plot(R3, SB3, 'm-', label = '$extinction \; calibration$', alpha = 0.5)
+			ax.plot(R_0, SB_0, 'r--', label = '$original \; image$', alpha = 0.5)
+			ax.plot(R3, SB3, 'g-', label = '$extinction \; calibration$', alpha = 0.5)
 			ax.set_xscale('log')
 			ax.set_xlim(np.nanmin(R_0) + 1, np.nanmax(R_0) + 50)
 			ax.set_xlabel('$Radius[kpc]$')
@@ -286,13 +286,12 @@ def mask_A():
 			ax.invert_yaxis()
 
 			bx1 = ax.twiny()
-			xtik = ax.get_xticks(minor = True)
+			xtik = ax.get_xticks()
 			xtik = np.array(xtik)
 			xR = xtik * 10**(-3) * rad2asec / Da_g
-			xR = xtik * 10**(-3) * rad2asec / Da_g
-			id_tt = xtik >= 9e1 
-			bx1.set_xticks(xtik[id_tt])
-			bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR[id_tt]])
+			bx1.set_xscale('log')
+			bx1.set_xticks(xtik)
+			bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
 			bx1.set_xlim(ax.get_xlim())
 			bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
 
@@ -331,15 +330,14 @@ def mask_A():
 			a = Kron * A
 			b = Kron * B
 			# photometric catalogue
-
-			cat = pds.read_csv('/home/xkchen/mywork/ICL/data/star_dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' % (z_g, ra_g, dec_g) ) # dr8
+			mask = '/home/xkchen/mywork/ICL/data/star_dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' % (z_g, ra_g, dec_g) # dr8
 			cat = pds.read_csv(mask, skiprows = 1)
 			set_ra = np.array(cat['ra'])
 			set_dec = np.array(cat['dec'])
 			set_mag = np.array(cat['r'])
 			OBJ = np.array(cat['type'])
 			xt = cat['Column1']
-			tau = 6 # the mask size set as 6 * FWHM from dr12
+			tau = 8 # the mask size set as 6 * FWHM from dr12
 
 			set_A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
 			set_B = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
@@ -435,9 +433,11 @@ def mask_A():
 			ax1 = plt.subplot(111)
 			tf = ax1.imshow(mirro_A, cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mpl.colors.LogNorm())
 			plt.colorbar(tf, ax = ax1, fraction = 0.035, pad = 0.01, label = '$flux[nmaggy]$')
+			'''
 			for kk in range(Numb):
 				clco = Ellipse(xy = (cx[kk], cy[kk]), width = a[kk], height = b[kk], angle = theta[kk], fill = False, ec = 'r', alpha = 0.5)
 				ax1.add_patch(clco)
+			'''
 			ax1.add_patch(cluster1)
 			ax1.set_title('A masked image')
 			ax1.set_xlim(0, cc_img.shape[1])
@@ -448,7 +448,7 @@ def mask_A():
 			fig = plt.figure()
 			fig.suptitle('SB variation during A mask ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[i]) )
 			ax = plt.subplot(111)
-			ax.plot(R4, SB4, 'g-', label = '$allpying \; A \; mask$', alpha = 0.5)
+			ax.plot(R4, SB4, 'g--', label = '$allpying \; A \; mask$', alpha = 0.5)
 			ax.plot(R3, SB3, 'r-', label = '$extinction \; calibration$', alpha = 0.5)
 			ax.set_xscale('log')
 			ax.set_xlim(np.nanmin(R3) + 1, np.nanmax(R3) + 50)
@@ -456,16 +456,17 @@ def mask_A():
 			ax.set_ylabel('$SB[mag/arcsec^2]$')
 			ax.legend(loc = 1)
 			ax.invert_yaxis()
+
 			bx1 = ax.twiny()
-			xtik = ax.get_xticks(minor = True)
+			xtik = ax.get_xticks()
 			xtik = np.array(xtik)
 			xR = xtik * 10**(-3) * rad2asec / Da_g
-			xR = xtik * 10**(-3) * rad2asec / Da_g
-			id_tt = xtik >= 9e1 
-			bx1.set_xticks(xtik[id_tt])
-			bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR[id_tt]])
+			bx1.set_xscale('log')
+			bx1.set_xticks(xtik)
+			bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
 			bx1.set_xlim(ax.get_xlim())
 			bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
+
 			plt.savefig('SB_with_mask_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[i]), dpi = 300)
 			plt.close()
 
@@ -490,7 +491,7 @@ def mask_B():
 	red_ra = ra[Lambd > 100]
 	red_dec = dec[Lambd > 100]
 
-	for pp in range(20):
+	for pp in range(10):
 		ra_g = red_ra[pp]
 		dec_g = red_dec[pp]
 		z_g = red_z[pp]
@@ -509,14 +510,14 @@ def mask_B():
 			R_ph = rad2asec / Da_g
 			R_p = R_ph / pixel
 
-			cat = pds.read_csv('/home/xkchen/mywork/ICL/data/star_dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' % (z_g, ra_g, dec_g) ) # dr8
+			mask = '/home/xkchen/mywork/ICL/data/star_dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' % (z_g, ra_g, dec_g) # dr8
 			cat = pds.read_csv(mask, skiprows = 1)
 			set_ra = np.array(cat['ra'])
 			set_dec = np.array(cat['dec'])
 			set_mag = np.array(cat['r'])
 			OBJ = np.array(cat['type'])
 			xt = cat['Column1']
-			tau = 6 # the mask size set as 6 * FWHM from dr12
+			tau = 8 # the mask size set as 6 * FWHM from dr12
 
 			set_A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
 			set_B = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
@@ -606,10 +607,12 @@ def mask_B():
 			cluster1 = Circle(xy = (cenx, ceny), radius = R_p, fill = False, ec = 'b', alpha = 0.5, label = 'cluster region[1Mpc]')
 			ax1 = plt.subplot(111)
 			ax1.imshow(mirro_B, cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mpl.colors.LogNorm())
+			'''
 			for kk in range(Numb):
 				clco = Ellipse(xy = (comx[kk], comy[kk]), width = Lr[kk], height = Sr[kk], angle = phi[kk], 
 					fill = False, ec = 'r', linewidth = 0.5, alpha = 0.5)
 				ax1.add_patch(clco)
+			'''
 			ax1.add_patch(cluster1)
 			ax1.set_title('B Mask image')
 			ax1.set_xlim(0, img.shape[1])
@@ -618,11 +621,11 @@ def mask_B():
 			plt.savefig('B_mask_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[q]), dpi = 600)
 			plt.close()
 
-			fig = plt.figure(figsize = (16, 8))
+			fig = plt.figure()
 			fig.suptitle('SB during B mask ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[q]) )
 			ax = plt.subplot(111)
 			ax.plot(R_0, SB_0, 'r-', label = '$Extinction \; correct \; image$', alpha = 0.5)
-			ax.plot(R_1, SB_1, 'g-', label = '$B \; mask \; image$', alpha = 0.5)	
+			ax.plot(R_1, SB_1, 'g--', label = '$B \; mask \; image$', alpha = 0.5)	
 			ax.set_xscale('log')
 			ax.set_xlim(np.nanmin(R_0) + 1, np.nanmax(R_0) + 50)
 			ax.set_xlabel('$Radius[kpc]$')
@@ -631,12 +634,12 @@ def mask_B():
 			ax.invert_yaxis()
 
 			bx1 = ax.twiny()
-			xtik = ax.get_xticks(minor = True)
+			xtik = ax.get_xticks()
+			xtik = np.array(xtik)
 			xR = xtik * 10**(-3) * rad2asec / Da_g
-			xR = xtik * 10**(-3) * rad2asec / Da_g
-			id_tt = xtik >= 9e1 
-			bx1.set_xticks(xtik[id_tt])
-			bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR[id_tt]])
+			bx1.set_xscale('log')
+			bx1.set_xticks(xtik)
+			bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
 			bx1.set_xlim(ax.get_xlim())
 			bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
 
@@ -656,7 +659,7 @@ def resamp_B():
 	red_dec = dec[Lambd > 100]
 	bins = 65
 	for ii in range(1):
-		for jj in range(20):
+		for jj in range(10):
 			ra_g = red_ra[jj]
 			dec_g = red_dec[jj]
 			z_g = red_z[jj]
@@ -681,17 +684,15 @@ def resamp_B():
 			mu = 1 / b
 
 			f_goal = flux_recal(img, z_g, z_ref)
-			xn, yn, resam = gen(f_goal, 1, b, cx, cy)
+			if b > 1:
+				resam, xn, yn = sum_samp(b, b, f_goal, cx, cy)
+			else:
+				resam, xn, yn = down_samp(b, b, f_goal, cx, cy)
 			xn = np.int(xn)
 			yn = np.int(yn)
 			ix0 = np.int(cx0 * mu)
 			iy0 = np.int(cy0 * mu)
-			if b > 1:
-				resam = resam[1:, 1:]
-			elif b == 1:
-				resam = resam[1:-1, 1:-1]
-			else:
-				resam = resam
+
 			x0 = resam.shape[1]
 			y0 = resam.shape[0]
 
@@ -702,7 +703,13 @@ def resamp_B():
 			fil = fits.Header(ff)
 			fits.writeto(load + 
 				'resamp/resamp_B-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam, header = fil, overwrite=True)
-
+			'''
+			plt.figure()
+			ax = plt.subplot(111)
+			ax.imshow(resam, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
+			plt.savefig('resamp_B_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
+			plt.close()
+			'''
 			SB1, R1, Anr1, err1 = light_measure(img, bins, 1, Rp, cx, cy, pixel, z_g)[:4]
 			SB_ref = SB1 + 10*np.log10((1 + z_ref) / (1 + z_g))
 			Ar_ref = Anr1 * mu
@@ -712,12 +719,12 @@ def resamp_B():
 			SB2, R2, Anr2, err2 = light_measure(f_goal, bins, 1, Rp, cx, cy, pixel * mu, z_ref)[:4]
 			SB3, R3, Anr3, err3 = light_measure(resam, bins, 1, Rpp, xn, yn, pixel, z_ref)[:4]
 
-			fig = plt.figure(figsize = (16, 8))
+			fig = plt.figure()
 			gs = gridspec.GridSpec(2,1, height_ratios = [4,1])
-			fig.suptitle('SB variation during resampling ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[ii]) )
+			fig.suptitle('B mask resampling ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[ii]) )
 			ax = plt.subplot(gs[0])
-			cx = plt.subplot(gs[1], sharex = ax)
-			ax.plot(R1, SB1, 'r-', label = '$ B \; Mask$', alpha = 0.5)
+			cx = plt.subplot(gs[1])
+			#ax.plot(R1, SB1, 'r-', label = '$ B \; Mask$', alpha = 0.5)
 			ax.plot(R2, SB2, 'g-', label = '$ scaled \; image$', alpha = 0.5)
 			ax.plot(R1, SB_ref, 'r--', label = '$reference \; profile$', alpha = 0.5)
 			ax.plot(R3, SB3, 'b-', label = '$scaled + resample \; image$', alpha = 0.5)
@@ -730,26 +737,36 @@ def resamp_B():
 			ax.invert_yaxis()
 
 			bx1 = ax.twiny()
-			xtik = ax.get_xticks(minor = True)
+			xtik = ax.get_xticks()
+			xtik = np.array(xtik)
 			xR = xtik * 10**(-3) * rad2asec / Da_g
-			xR = xtik * 10**(-3) * rad2asec / Da_g
-			id_tt = xtik >= 9e1 
-			bx1.set_xticks(xtik[id_tt])
-			bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR[id_tt]])
+			bx1.set_xscale('log')
+			bx1.set_xticks(xtik)
+			bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
 			bx1.set_xlim(ax.get_xlim())
 			bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
+			ax.set_xticks([])
 
 			id_nan = np.isnan(SB3)
 			iux = id_nan == False
 			ddbr = R3[iux][ (R3[iux] > np.min(R1[ivx])) & (R3[iux] < np.max(R1[ivx])) ]
 			ddb = SB3[iux][ (R3[iux] > np.min(R1[ivx])) & (R3[iux] < np.max(R1[ivx])) ] - f_SB(ddbr)
-			cx.plot(ddbr, ddb, 'g*')
-			cx.axhline(y = 0, linestyle = '--', color = 'b')
+			std = np.nanstd(ddb) / np.sqrt( len(SB3[iux]) )
+			aver = np.nanmean(ddb)
+
+			cx.plot(ddbr, ddb, 'b-')
+			cx.axhline(y = aver, linestyle = '--', color = 'b', alpha = 0.5)
+			cx.axhline(y = aver + std, linestyle = '--', color = 'k', alpha = 0.5)
+			cx.axhline(y = aver - std, linestyle = '--', color = 'k', alpha = 0.5)
+			cx.axhline(y = 0, linestyle = '--', color = 'r', alpha = 0.5)
+
 			cx.set_xscale('log')
 			cx.set_xlabel('$Radius[kpc]$')
 			cx.set_ylabel('$SB_{after \; resample} - SB_{ref}$')
-			plt.subplots_adjust(hspace = 0)
+			cx.set_ylim(-0.25, 0.25)
+			cx.set_xlim(ax.get_xlim())
 
+			plt.subplots_adjust(hspace = 0)
 			plt.savefig('B_mask_resamp_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
 			plt.close()
 	raise
@@ -775,7 +792,7 @@ def stack_B():
 		tot_count = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
 		p_count_total = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
-		for jj in range(20):
+		for jj in range(10):
 			ra_g = red_ra[jj]
 			dec_g = red_dec[jj]
 			z_g = red_z[jj]
@@ -839,12 +856,12 @@ def stack_B():
 		ax1.invert_yaxis()
 
 		bx1 = ax1.twiny()
-		xtik = ax1.get_xticks(minor = True)
+		xtik = ax1.get_xticks()
+		xtik = np.array(xtik)
 		xR = xtik * 10**(-3) * rad2asec / Da_g
-		xR = xtik * 10**(-3) * rad2asec / Da_g
-		id_tt = xtik >= 9e1 
-		bx1.set_xticks(xtik[id_tt])
-		bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR[id_tt]])
+		bx1.set_xscale('log')
+		bx1.set_xticks(xtik)
+		bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
 		bx1.set_xlim(ax1.get_xlim())
 		bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
 
@@ -862,7 +879,7 @@ def resamp_A():
 	red_dec = dec[Lambd > 100]
 	bins = 65
 	for ii in range(1):
-		for jj in range(20):
+		for jj in range(10):
 			ra_g = red_ra[jj]
 			dec_g = red_dec[jj]
 			z_g = red_z[jj]
@@ -888,17 +905,14 @@ def resamp_A():
 			miu = 1 / eta
 
 			f_D = flux_recal(img, z_g, z_ref)
-			xnd, ynd, resam_dd = gen(f_D, 1, eta, cx_BCG, cy_BCG)
+			if eta > 1:
+				resam_d, xnd, ynd = sum_samp(eta, eta, f_D, cx_BCG, cy_BCG)
+			else:
+				resam_d, xnd, ynd = down_samp(eta, eta, f_D, cx_BCG, cy_BCG)
 			xnd = np.int(xnd)
 			ynd = np.int(ynd)
 			ix0 = np.int(cx0 * miu)
 			iy0 = np.int(cy0 * miu)
-			if eta > 1:
-				resam_d = resam_dd[1:, 1:]
-			elif eta == 1:
-				resam_d = resam_dd[1:-1, 1:-1]
-			else:
-				resam_d = resam_dd
 
 			x0 = resam_d.shape[1]
 			y0 = resam_d.shape[0]
@@ -910,7 +924,13 @@ def resamp_A():
 			fil = fits.Header(ff)
 			fits.writeto(load + 
 				'resamp_A-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam_d, header = fil, overwrite=True)
-
+			'''
+			plt.figure()
+			ax = plt.subplot(111)
+			ax.imshow(resam_d, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
+			plt.savefig('resamp_A_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
+			plt.close()
+			'''
 			SB1, R1, Anr1, err1 = light_measure(img, bins, 1, Rp, cx_BCG, cy_BCG, pixel, z_g)[:4]
 			SB_ref = SB1 + 10*np.log10((1 + z_ref) / (1 + z_g))
 			Ar_ref = Anr1 * miu
@@ -920,12 +940,12 @@ def resamp_A():
 			SB2, R2, Anr2, err2 = light_measure(f_D, bins, 1, Rp, cx_BCG, cy_BCG, pixel * miu, z_ref)[:4]
 			SB3, R3, Anr3, err3 = light_measure(resam_d, bins, 1, Rpp, xnd, ynd, pixel, z_ref)[:4]
 
-			fig = plt.figure(figsize = (16, 8))
+			fig = plt.figure()
 			gs = gridspec.GridSpec(2,1, height_ratios = [4,1])
 			fig.suptitle('A mask resampling ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[ii]) )
 			ax = plt.subplot(gs[0])
-			cx = plt.subplot(gs[1], sharex = ax)
-			ax.plot(R1, SB1, 'r-', label = '$ A \; Mask$', alpha = 0.5)
+			cx = plt.subplot(gs[1])
+			#ax.plot(R1, SB1, 'r-', label = '$ A \; Mask$', alpha = 0.5)
 			ax.plot(R2, SB2, 'g-', label = '$ scaled \; image$', alpha = 0.5)
 			ax.plot(R1, SB_ref, 'r--', label = '$reference \; profile$', alpha = 0.5)
 			ax.plot(R3, SB3, 'b-', label = '$scaled + resample \; image$', alpha = 0.5)
@@ -938,25 +958,36 @@ def resamp_A():
 			ax.invert_yaxis()
 
 			bx1 = ax.twiny()
-			xtik = ax.get_xticks(minor = True)
+			xtik = ax.get_xticks()
+			xtik = np.array(xtik)
 			xR = xtik * 10**(-3) * rad2asec / Da_g
-			xR = xtik * 10**(-3) * rad2asec / Da_g
-			id_tt = xtik >= 9e1 
-			bx1.set_xticks(xtik[id_tt])
-			bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR[id_tt]])
+			bx1.set_xscale('log')
+			bx1.set_xticks(xtik)
+			bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
 			bx1.set_xlim(ax.get_xlim())
 			bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
+			ax.set_xticks([])
 
 			id_nan = np.isnan(SB3)
 			iux = id_nan == False
 			ddbr = R3[iux][ (R3[iux] > np.min(R1[ivx])) & (R3[iux] < np.max(R1[ivx])) ]
 			ddb = SB3[iux][ (R3[iux] > np.min(R1[ivx])) & (R3[iux] < np.max(R1[ivx])) ] - f_SB(ddbr)
-			cx.plot(ddbr, ddb, 'g*')
-			cx.axhline(y = 0, linestyle = '--', color = 'b')
+			std = np.nanstd(ddb) / np.sqrt( len(SB3[iux]) )
+			aver = np.nanmean(ddb)
+
+			cx.plot(ddbr, ddb, 'b-')
+			cx.axhline(y = aver, linestyle = '--', color = 'b', alpha = 0.5)
+			cx.axhline(y = aver + std, linestyle = '--', color = 'k', alpha = 0.5)
+			cx.axhline(y = aver - std, linestyle = '--', color = 'k', alpha = 0.5)
+			cx.axhline(y = 0, linestyle = '--', color = 'r', alpha = 0.5)
+
 			cx.set_xscale('log')
 			cx.set_xlabel('$Radius[kpc]$')
 			cx.set_ylabel('$SB_{after \; resample} - SB_{ref}$')
-			plt.subplots_adjust(hspace = 0)
+			cx.set_ylim(-0.25, 0.25)
+			cx.set_xlim(ax.get_xlim())
+
+			plt.subplots_adjust(hspace = 0.01)
 			plt.savefig('A_mask_resamp_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
 			plt.close()
 
@@ -1048,11 +1079,12 @@ def stack_A():
 		ax1.invert_yaxis()
 
 		bx1 = ax1.twiny()
-		xtik = ax1.get_xticks(minor = True)
+		xtik = ax1.get_xticks()
+		xtik = np.array(xtik)
 		xR = xtik * 10**(-3) * rad2asec / Da_g
-		id_tt = xtik >= 9e1 
-		bx1.set_xticks(xtik[id_tt])
-		bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR[id_tt]])
+		bx1.set_xscale('log')
+		bx1.set_xticks(xtik)
+		bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
 		bx1.set_xlim(ax1.get_xlim())
 		bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
 
@@ -1153,14 +1185,15 @@ def SB_ICL():
 		ax.tick_params(axis = 'both', which = 'both', direction = 'in')
 		ax.invert_yaxis()
 		ax.set_xlim(np.nanmin(R_diff + 1), np.nanmax(R_diff + 20))
+
 		ax1 = ax.twiny()
-		xtik = ax.get_xticks(minor = True)
-		xR = xtik * 10**(-3) * rad2asec / Da_ref
-		id_tt = xtik >= 9e1
-		ax1.set_xticks(xtik[id_tt])
-		ax1.set_xticklabels(["%.2f" % uu for uu in xR[id_tt]])
+		xtik = ax.get_xticks()
+		xtik = np.array(xtik)
+		xR = xtik * 10**(-3) * rad2asec / Da_g
+		ax1.set_xscale('log')
+		ax1.set_xticks(xtik)
+		ax1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
 		ax1.set_xlim(ax.get_xlim())
-		ax1.set_xlabel('$R[arcsec]$')
 		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
 
 		plt.savefig('/home/xkchen/mywork/ICL/code/stack_profile_%sband.png' % band[ii], dpi = 300)
@@ -1181,6 +1214,7 @@ def SB_ICL():
 		bx.tick_params(axis = 'both', which = 'both', direction = 'in')
 		bx.invert_yaxis()
 		bx.set_xlim(1e2, 9e2)
+
 		bx1 = bx.twiny()
 		xtik = bx.get_xticks(minor = True)
 		xR = xtik * 10**(-3) * rad2asec / Da_ref
@@ -1189,7 +1223,7 @@ def SB_ICL():
 		bx1.set_xlim(bx.get_xlim())
 		bx1.set_xlabel('$R[arcsec]$')
 		bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
-		
+
 		cx.text(0, 0, s = 'BL = %.2f' % M0 + '\n' + '$Mc = %.2fM_\odot $' % Mc + '\n' + 
 			'C = %.2f' % Cc + '\n' + 'M2L = %.2f' % M2L, fontsize = 15)
 		cx.axis('off')

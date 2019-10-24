@@ -15,11 +15,12 @@ Omega_k = 1.- (Omega_lambda + Omega_m)
 DH = vc/H0
 G = C.G.value # gravitation constant
 Ms = C.M_sun.value # solar mass
-c = 5. # the concentration
-c0 = U.kpc.to(U.m)
-c1 = U.M_sun.to(U.kg)
-def sigma_m(Mc,z,N):
-    Qc = c0/c1 # recrect parameter for rho_c
+#c = 5. # the concentration
+kpc2m = U.kpc.to(U.m)
+Msun2kg = U.M_sun.to(U.kg)
+
+def sigma_m(Mc, z, N, c):
+    Qc = kpc2m / Msun2kg # recrect parameter for rho_c
     Z = z
     M = 10**Mc
     Ez = np.sqrt(Omega_m*(1+Z)**3+Omega_k*(1+Z)**2+Omega_lambda)
@@ -27,9 +28,9 @@ def sigma_m(Mc,z,N):
     rhoc = Qc*(3*Hz**2)/(8*np.pi*G) # in unit Msun/kpc^3
     Deltac = (200/3)*(c**3/(np.log(1+c)-c/(c+1))) 
     r200 = (3*M/(4*np.pi*rhoc*200))**(1/3) # in unit kpc
-    R = np.logspace(-3,np.log10(r200),N)
+    R = np.logspace(-3, np.log10(r200), N)
     Nbins = len(R)
-    rs = r200/c
+    rs = r200 / c
     f0 = 2*Deltac*rhoc*rs
     sigma = np.zeros(Nbins,dtype = np.float)
     for k in range(Nbins):
@@ -48,13 +49,13 @@ def sigma_m(Mc,z,N):
             sigma[k] = f0*(1-2*np.arctan(f2)/f1)/f3
     return r200, sigma, R
 
-def sigma_m_c(Mc,N):
+def sigma_m_c(Mc, N, c):
     M = 10**Mc
-    rho_0 = (c0/c1)*(3*H0**2)/(8*np.pi*G)
+    rho_0 = (kpc2m / Msun2kg) * (3 * H0**2 ) / (8 * np.pi * G)
     r200_c = (3*M/(4*np.pi*rho_0*200))**(1/3) 
     R = np.logspace(-3,np.log10(r200_c),N)
     Nbins = len(R)
-    rs = r200_c/c
+    rs = r200_c / c
     R_c = R*1
     # next similar variables are for comoving coordinate, with simble "_c"
     rho0_c = M/((np.log(1+c)-c/(1+c))*4*np.pi*rs**3)
@@ -77,8 +78,8 @@ def sigma_m_c(Mc,N):
             sigma_c[k] = f0_c*(1-2*np.arctan(f2)/f1)/f3
     return  r200_c, sigma_c, R_c
 
-def sigma_m_unlog(Mc,z,N):
-    Qc = c0/c1 # recrect parameter for rho_c
+def sigma_m_unlog(Mc, z, N, c):
+    Qc = kpc2m / Msun2kg # recrect parameter for rho_c
     Z = z
     M = 10**Mc
     Ez = np.sqrt(Omega_m*(1+Z)**3+Omega_k*(1+Z)**2+Omega_lambda)
@@ -108,9 +109,9 @@ def sigma_m_unlog(Mc,z,N):
     sigma[0] = sigma[1]
     return r200, sigma, R
 
-def sigma_m_c_unlog(Mc,N):
+def sigma_m_c_unlog(Mc, N, c):
     M = 10**Mc
-    rho_0 = (c0/c1)*(3*H0**2)/(8*np.pi*G)
+    rho_0 = (kpc2m / Msun2kg)*(3*H0**2)/(8*np.pi*G)
     r200_c = (3*M/(4*np.pi*rho_0*200))**(1/3) 
     R = np.linspace(1e-3, r200_c, N)
     Nbins = len(R)
@@ -140,13 +141,13 @@ def sigma_m_c_unlog(Mc,N):
 
 if __name__ == "__main__":
     
-    r200, sigma, R = sigma_m(15, 0, 101)
-    r200_c, sigma_c, R_c = sigma_m_c(15, 101)
+    r200, sigma, R = sigma_m(15, 0, 101, 5)
+    r200_c, sigma_c, R_c = sigma_m_c(15, 101, 5)
     plt.plot(R,sigma,'r--',label = 'with z',alpha = 0.5)
     plt.plot(R_c,sigma_c,'b-',label = 'comoving',alpha = 0.5)
     
-    r200, sigma, R = sigma_m_unlog(15, 0, 101)
-    r200_c, sigma_c, R_c = sigma_m_c_unlog(15, 101)
+    r200, sigma, R = sigma_m_unlog(15, 0, 101, 5)
+    r200_c, sigma_c, R_c = sigma_m_c_unlog(15, 101, 5)
     plt.plot(R,sigma,'r--',label = 'with z',alpha = 0.5)
     plt.plot(R_c,sigma_c,'b-',label = 'comoving',alpha = 0.5)
 

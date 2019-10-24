@@ -101,7 +101,7 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 
 	for k in range(len(rbin) - 1):
 		cdr = rbin[k + 1] - rbin[k]
-		d_phi = (cdr / rbin[k]) * 180/np.pi
+		d_phi = (cdr / (0.5 * (rbin[k] + rbin[k + 1]) ) ) * 180 / np.pi
 		phi = np.arange(0, 360, d_phi)
 		phi = phi - 180
 
@@ -109,21 +109,20 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 		io = np.where(ir == True)
 		num = len(io[0])
 
-		r_iner = (2 * rbin[k]+1) / 2
-		r_out = (2 * rbin[k + 1] +1) / 2
+		r_iner = (2 * rbin[k] + 1) / 2 ## using radius in unit of pixel
+		r_out = (2 * rbin[k + 1] + 1) / 2
 
 		if num == 0:
 			light[k] = np.nan
 			SB_error[k] = np.nan
+			intens[k] = np.nan
+			intens_err[k] = np.nan
+
+			## in unit of pixel
 			R[k] = 0.5 * (r_iner + r_out) * pixel * Da0*10**3 / rad2arcsec
 			Angur[k] = 0.5 * (r_iner + r_out) * pixel
 			#R[k] = np.sqrt(r_iner * r_out) * pixel * Da0 * 10**3 / rad2arcsec
 			#Angur[k] = np.sqrt(r_iner * r_out) * pixel
-
-			intens_r[k] = 0.5 * (r_iner + r_out) * pixel
-			#intens_r[k] = np.sqrt(r_iner * r_out) * pixel
-			intens[k] = np.nan
-			intens_err[k] = np.nan
 
 		else:
 			iy = io[0]
@@ -133,14 +132,13 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 			tot_flux = np.nanmean(sampf)
 			tot_area = pixel**2
 			light[k] = 22.5 - 2.5*np.log10(tot_flux) + 2.5*np.log10(tot_area)
-			R[k] = 0.5 * (r_iner + r_out) * pixel * Da0*10**3/rad2arcsec
+			intens[k] = tot_flux
+
+			## in unit of pixel
+			R[k] = 0.5 * (r_iner + r_out) * pixel * Da0*10**3 / rad2arcsec
 			Angur[k] = 0.5 * (r_iner + r_out) * pixel
 			#R[k] = np.sqrt(r_iner * r_out) * pixel * Da0 * 10**3 / rad2arcsec
 			#Angur[k] = np.sqrt(r_iner * r_out) * pixel
-
-			intens_r[k] = 0.5 * (r_iner + r_out) * pixel
-			#intens_r[k] = np.sqrt(r_iner * r_out) * pixel
-			intens[k] = tot_flux
 
 			terr = []
 			tmpf = []
@@ -191,13 +189,10 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 	intens[intens == 0] = np.nan
 	Intns = intens * 1
 
-	intens_r[intens_r == 0] = np.nan
-	Intns_r = intens_r * 1
-	
 	intens_err[intens_err == 0] = np.nan
 	Intns_err = intens_err * 1
 
-	return ll, RR, AA, EE, Intns, Intns_r, Intns_err
+	return ll, RR, AA, EE, Intns, Intns_err
 
 @vectorize
 def sigmamc(r, Mc, c):
@@ -229,7 +224,7 @@ def sigmamc(r, Mc, c):
 	return sigma_c
 
 def sigmam(r, Mc, z, c):
-	Qc = kpc2m/Msun2kg # recrect parameter for rho_c
+	Qc = kpc2m / Msun2kg # recrect parameter for rho_c
 	Z = z
 	M = 10**Mc
 	R = r

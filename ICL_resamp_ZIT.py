@@ -15,6 +15,7 @@ import astropy.io.ascii as asc
 import astropy.io.fits as fits
 
 from resamp import gen
+from resample_modelu import sum_samp, down_samp
 from light_measure import flux_recal
 from mpi4py import MPI
 commd = MPI.COMM_WORLD
@@ -92,18 +93,24 @@ def resamp_ZIT(band_id, sub_z, sub_ra, sub_dec):
 		Rref = (R0*rad2asec/Da_ref)/pixel
 
 		f_goal = flux_recal(img_A, z_g, z_ref)
+		ix0 = np.int(cx0 / b)
+		iy0 = np.int(cy0 / b)
+
+		if b > 1:
+			resam, xn, yn = sum_samp(b, b, f_goal, cx, cy)
+		else:
+			resam, xn, yn = down_samp(b, b, f_goal, cx, cy)
+		'''
 		xn, yn, resam = gen(f_goal, 1, b, cx, cy)
-		xn = np.int(xn)
-		yn = np.int(yn)
-		ix0 = np.int(cx0/b)
-		iy0 = np.int(cy0/b)
 		if b > 1:
 			resam = resam[1:, 1:]
 		elif b == 1:
 			resam = resam[1:-1, 1:-1]
 		else:
 			resam = resam
-
+		'''
+		xn = np.int(xn)
+		yn = np.int(yn)
 		x0 = resam.shape[1]
 		y0 = resam.shape[0]
 
@@ -117,36 +124,6 @@ def resamp_ZIT(band_id, sub_z, sub_ra, sub_dec):
 			'resample/Zibetti/A_mask/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam, header = fil, overwrite=True)
 
 	print('Now band %s have finished!!' % band[ii])
-	return
-
-def fig_out():
-
-	for ii in range(len(band)):
-		print('Now band is %s' % band[ii])
-		for k in range(len(z)):
-			ra_g = ra[k]
-			dec_g = dec[k]
-			z_g = z[k]			
-			data = fits.getdata(load + 
-				'resample/resam_B/frameB-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
-			img = data[0]
-			xn = data[1]['CENTER_X']
-			yn = data[1]['CENTER_Y']
-
-			plt.figure()
-			ax = plt.imshow(img, cmap = 'Greys', origin = 'lower', vmin = 1e-3, norm = mpl.colors.LogNorm())
-			plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
-
-			hsc.circles(xn, yn, s = Rpp, fc = '', ec = 'b', )
-			hsc.circles(xn, yn, s = 1.1 * Rpp, fc = '', ec = 'b', ls = '--')
-			plt.scatter(xn, yn, s = 10, marker = 'X', facecolors = '', edgecolors = 'r', linewidth = 0.5, alpha = 0.5)
-			plt.title('resample B mask ra%.3f dec%.3f z%.3f in %s band' % (ra_g, dec_g, z_g, band[ii]))
-			plt.xlim(0, img.shape[1])
-			plt.ylim(0, img.shape[0])
-			plt.savefig(
-				'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/resamp_A/resampA_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[ii], ra_g, dec_g, z_g), dpi = 300)
-			plt.close()
-
 	return
 
 def main():
@@ -163,7 +140,6 @@ def main():
 	commd.Barrier()
 	t1 = time.time() - t0
 	print('total time = ', t1)
-	#fig_out()
 
 if __name__ == "__main__":
 	main()

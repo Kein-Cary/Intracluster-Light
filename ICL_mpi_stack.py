@@ -126,7 +126,7 @@ def stack_process(band_number, subz, subra, subdec):
 
 	sum_array_B = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 	count_array_B = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
-	p_count_B = np.zeros((len(Ny), len(Nx)), dtype = np.float)	
+	p_count_B = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
 	for jj in range(stack_N):
 
@@ -134,6 +134,7 @@ def stack_process(band_number, subz, subra, subdec):
 		dec_g = sub_dec[jj]
 		z_g = sub_z[jj]
 
+		## rule out bad image (once a cluster image is bad in a band, all the five band image will be ruled out!)
 		identi = (( ('%.3f'%ra_g in except_ra_r) & ('%.3f'%dec_g in except_dec_r) & ('%.3f'%z_g in except_z_r) ) | 
 					( ('%.3f'%ra_g in except_ra_g) & ('%.3f'%dec_g in except_dec_g) & ('%.3f'%z_g in except_z_g) ) | 
 					( ('%.3f'%ra_g in except_ra_i) & ('%.3f'%dec_g in except_dec_i) & ('%.3f'%z_g in except_z_i) ) | 
@@ -144,6 +145,7 @@ def stack_process(band_number, subz, subra, subdec):
 			continue
 		else:
 			Da_g = Test_model.angular_diameter_distance(z_g).value
+			## stack A mask
 
 			# 1.5sigma
 			data_A = fits.getdata(load + 
@@ -153,7 +155,6 @@ def stack_process(band_number, subz, subra, subdec):
 			data_A = fits.getdata(load + 
 				'resample/Zibetti/A_mask/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
 			'''
-
 			img_A = data_A[0]
 			xn = data_A[1]['CENTER_X']
 			yn = data_A[1]['CENTER_Y']
@@ -165,12 +166,18 @@ def stack_process(band_number, subz, subra, subdec):
 
 			idx = np.isnan(img_A)
 			idv = np.where(idx == False)
-			sum_array_A[la0:la1, lb0:lb1][idv] = sum_array_A[la0:la1, lb0:lb1][idv] + img_A[idv]
+
+			img_std0 = np.nanstd(img_A[idv])
+			wit_A = 1. / img_std0**2
+
+			sum_array_A[la0:la1, lb0:lb1][idv] = sum_array_A[la0:la1, lb0:lb1][idv] + img_A[idv] * wit_A
 			count_array_A[la0: la1, lb0: lb1][idv] = img_A[idv]
 			id_nan = np.isnan(count_array_A)
 			id_fals = np.where(id_nan == False)
-			p_count_A[id_fals] = p_count_A[id_fals] + 1
+			p_count_A[id_fals] = p_count_A[id_fals] + 1 * wit_A
 			count_array_A[la0: la1, lb0: lb1][idv] = np.nan
+
+			## stack B mask
 
 			# 1.5sigma
 			data_B = fits.getdata(load + 
@@ -191,11 +198,15 @@ def stack_process(band_number, subz, subra, subdec):
 
 			idx = np.isnan(img_B)
 			idv = np.where(idx == False)
-			sum_array_B[la0:la1, lb0:lb1][idv] = sum_array_B[la0:la1, lb0:lb1][idv] + img_B[idv]
+
+			img_std1 = np.nanstd(img_B[idv])
+			wit_B = 1. / img_std1**2
+
+			sum_array_B[la0:la1, lb0:lb1][idv] = sum_array_B[la0:la1, lb0:lb1][idv] + img_B[idv] * wit_B
 			count_array_B[la0: la1, lb0: lb1][idv] = img_B[idv]
 			id_nan = np.isnan(count_array_B)
 			id_fals = np.where(id_nan == False)
-			p_count_B[id_fals] = p_count_B[id_fals] + 1
+			p_count_B[id_fals] = p_count_B[id_fals] + 1 * wit_B
 			count_array_B[la0: la1, lb0: lb1][idv] = np.nan
 
 	with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/test_h5/stack_Amask_sum_%d_in_%s_band.h5' % (rank, band[ii]), 'w') as f:
@@ -230,7 +241,7 @@ def main():
 	Nx = np.linspace(0, 4854, 4855)
 	Ny = np.linspace(0, 3530, 3531)
 	sum_grid = np.array(np.meshgrid(Nx, Ny))
-	'''
+
 	#commd.Barrier()
 	#for tt in range(len(band)):
 	for tt in range(3):
@@ -240,7 +251,6 @@ def main():
 			N_sub1 += n
 		stack_process(tt, zN[N_sub0 :N_sub1], raN[N_sub0 :N_sub1], decN[N_sub0 :N_sub1])
 	commd.Barrier()
-	'''
 
 	### stack all of the sub-stack image
 	# stack sub-stack img of A mask

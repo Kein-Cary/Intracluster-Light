@@ -39,7 +39,7 @@ z_ref = 0.250
 Da_ref = Test_model.angular_diameter_distance(z_ref).value
 
 Jy = 10**(-23) # (erg/s)/cm^2
-f0 = 3631 * 10**(-23) # zero point in unit (erg/s)/cm^-2
+f0 = 3631 * Jy # zero point in unit (erg/s)/cm^-2
 
 with h5py.File('/home/xkchen/mywork/ICL/code/sample_catalog.h5') as f:
 	catalogue = np.array(f['a'])
@@ -53,6 +53,7 @@ ra_z1 = ra[ z < 0.25]
 dec_z0 = dec[ z > 0.25]
 dec_z1 = dec[ z < 0.25]
 load = '/home/xkchen/mywork/ICL/data/mock_frame/'
+
 def SB_lightpro():
 	"""
 	sigma_m_c: calculate the 2D density profile of cluster, rho_2d
@@ -60,28 +61,28 @@ def SB_lightpro():
 	"""
 	Mh = 14.3 # make the radius close to 1 Mpc
 	N = 151
-	R, rho_2d, rbin = sigma_m_c(Mh, N)
+	Concen = 5.
+	R, rho_2d, rbin = sigma_m_c(Mh, N, Concen)
 
 	Lc = rho_2d / 100 # in unit L_sun/kpc^2, Lc = Lc(r)
 	# creat series cluster intrinsic SB profile
 	set_z = np.r_[ set_z0[:10], set_z1[:10] ]
+
+	'''
 	a = 1 / (1 + set_z)
 	Lz = np.tile(a**4, (N,1)).T * np.tile(Lc, (len(set_z), 1)) / (4 * np.pi * rad2asec**2) # L at z in unit: (Lsun/kpc^2)/arcsec^2
 	Lob = Lz * Lsun / kpc2cm**2
 	Iner_SB = 22.5 - 2.5*np.log10(Lob / (10**(-9) * f0))
-
-	with h5py.File(load + 'mock_flux_data.h5', 'w') as f:
-		f['a'] = Lob
-
-	with h5py.File(load + 'mock_mag_data.h5', 'w') as f:
-		f['a'] = Iner_SB
-
-	c_s = np.array([Lc, rbin])
-	with h5py.File(load + 'mock_intric_SB.h5', 'w') as f:
-		f['a'] = c_s
-	with h5py.File(load + 'mock_intric_SB.h5') as f:
-		for t in range(len(c_s)):
-			f['a'][t,:] = c_s[t,:]
+	'''
+	Da = Test_model.angular_diameter_distance(set_z).value
+	Dl = Da * (1 + set_z)**2
+	AS = (rad2asec * 10**(-3) / Da)**2
+	F = np.zeros((len(set_z), N), dtype = np.float)
+	Iner_SB = np.zeros((len(set_z), N), dtype = np.float)
+	for kk in range(len(set_z)):
+		ttf = (Lc * Lsun / (4 * np.pi * Dl[kk]**2)) * Mpc2cm**(-2)
+		F[kk, :] = ttf / (10**(-9) * f0)
+		Iner_SB[kk, :] = 22.5 - 2.5 * np.log10(ttf / (10**(-9) * f0) ) + 2.5 * np.log10(AS[kk])
 
 	plt.figure(figsize = (16, 8))
 	ax0 = plt.subplot(121)
@@ -112,7 +113,21 @@ def SB_lightpro():
 	plt.savefig('mock_SB_profile.png', dpi = 300)
 	plt.show()
 	raise
-	return Lob, Iner_SB, z, rbin, R
+
+	with h5py.File(load + 'mock_flux_data.h5', 'w') as f:
+		f['a'] = Lob
+
+	with h5py.File(load + 'mock_mag_data.h5', 'w') as f:
+		f['a'] = Iner_SB
+
+	c_s = np.array([Lc, rbin])
+	with h5py.File(load + 'mock_intric_SB.h5', 'w') as f:
+		f['a'] = c_s
+	with h5py.File(load + 'mock_intric_SB.h5') as f:
+		for t in range(len(c_s)):
+			f['a'][t,:] = c_s[t,:]
+
+	return
 
 def mock_ccd():
 	with h5py.File(load +'mock_flux_data.h5') as f:
@@ -157,19 +172,7 @@ def mock_ccd():
 		iy = np.abs(y0 - yc)
 		ix0 = np.where(ix == np.min(ix))[0][0]
 		iy0 = np.where(iy == np.min(iy))[0][0]
-		'''
-		## set ccd flux radius by radius
-		if ix0 + 1 + np.int(R_pixel) >= 2047:
-			test_dr = dr_sc[iy0, ix0 - np.int(R_pixel) - 1: ix0 - 1]
-		else:
-			test_dr = dr_sc[iy0, ix0 + 1: ix0 + np.int(R_pixel) + 1]
 
-		for k in range(len(test_dr) - 1):
-			ia = (dr_sc >= test_dr[k]) & (dr_sc <= test_dr[k + 1])
-			ib = np.where(ia == True)
-			#frame[ib[0], ib[1]] = flux_func( np.sqrt(test_dr[k] * test_dr[k + 1]) ) * pixel**2 /(f0 * 10**(-9) ) # set r = sqrt(r1 * r2)
-			frame[ib[0], ib[1]] = flux_func( (test_dr[k] + test_dr[k + 1]) / 2 ) * pixel**2 /(f0 * 10**(-9) ) # set r = (r1 + r2) / 2
-		'''
 		## set ccd flux pixel by pixel
 		for kk in range(dr_sc.shape[0]):
 			for jj in range(dr_sc.shape[1]):
@@ -177,14 +180,66 @@ def mock_ccd():
 					continue
 				else:
 					frame[kk, jj] = flux_func( dr_sc[kk, jj] ) * pixel**2 /(f0 * 10**(-9) )
-
 		x = frame.shape[1]
 		y = frame.shape[0]
 
 		# add noise
 		xfree = np.random.normal(0, 0.15, (1489, 2048))
-		Noise = (xfree / np.max( np.abs(xfree) )) * np.min(cc_Lob * pixel**2 /(f0 * 10**(-9) )) / 100
-		frame1 = frame + Noise
+		#Noise = (xfree / np.max( np.abs(xfree) )) * np.min(cc_Lob * pixel**2 /(f0 * 10**(-9) )) / 100.
+		#frame1 = frame + Noise
+		Dev = 10.
+		frame1 = frame * (1 + xfree / Dev)
+
+		#from light_measure_tmp import light_measure
+		SBt, Rt, Art, errt = light_measure(frame1, 65, 1, R_pixel, xc, yc, pixel, zc)[:4]
+		cc_SB = Iner_SB[kd, :]
+		f_SB = interp.interp1d(rbin, cc_SB, kind = 'cubic')
+		id_nan = np.isnan(SBt)
+		ivx = id_nan == False
+		ss_R = Rt[ivx]
+		ss_SB = SBt[ivx]
+		ddsb = ss_SB[ (ss_R > np.min(rbin)) & (ss_R < np.max(rbin)) ] - f_SB( ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))] )
+		ddsr = ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))]
+
+		plt.figure()
+		gs0 = gridspec.GridSpec(5, 1)
+		ax0 = plt.subplot(gs0[:4])
+		ax1 = plt.subplot(gs0[-1])
+		##
+		ax0.set_title('$ \Delta noise %.2f $' % (1 / Dev) )
+		ax0.plot(rbin, cc_SB, 'r-', label = '$ Intrinsic $', alpha = 0.5)
+		ax0.plot(ss_R, ss_SB, 'g--', label = '$ Measurement $', alpha = 0.5)
+		ax0.set_xscale('log')
+		ax0.set_ylabel('$SB[mag/arcsec^2]$')
+		ax0.invert_yaxis()
+		ax0.legend(loc = 1)
+		ax0.set_xlim(1e1, 1e3)
+		ax0.tick_params(axis = 'both', which = 'both', direction = 'in')
+
+		bx1 = ax0.twiny()
+		xtik = ax0.get_xticks()
+		xtik = np.array(xtik)
+		xR = xtik * 10**(-3) * rad2asec / Da0
+		bx1.set_xscale('log')
+		bx1.set_xticks(xtik)
+		bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
+		bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
+		bx1.set_xlim(ax0.get_xlim())
+		ax0.set_xticks([])
+		##
+		ax1.plot(ddsr, ddsb, 'g-', alpha = 0.5)
+		ax1.axhline(y = 0, linestyle = '--', color = 'r', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
+		ax1.set_xscale('log')
+		ax1.set_xlim( ax0.get_xlim() )
+		ax1.set_xlabel('$R[kpc]$')
+		ax1.set_ylabel('$ SB_{M} - SB_{I} $')
+		ax1.set_ylim(-1e-2, 1e-2)
+		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
+
+		plt.tight_layout()
+		plt.savefig('test_Dev%.2f.png' % (1 / Dev), dpi = 300)
+		plt.close()
+		raise
 
 		keys = ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2','CRPIX1','CRPIX2',
 				'CENTER_X','CENTER_Y','CRVAL1','CRVAL2','CENTER_RA','CENTER_DEC','ORIGN_Z', 'P_SCALE']
@@ -304,7 +359,7 @@ def mock_image():
 	plt.savefig('add_mask_sample_view.png', dpi = 300)
 	plt.close()
 
-	#raise
+	raise
 	return
 
 def light_test():
@@ -559,9 +614,9 @@ def resample_test():
 		ceny = data[1]['CENTER_Y']
 		Len_ref = Da_ref * pixel / rad2asec
 		Len_z0 = Dag * pixel / rad2asec
-		eta = Len_ref/Len_z0
+		eta = Len_ref / Len_z0
 		mu = 1 / eta
-		scale_img = flux_recal(img, set_z[k], z_ref)
+		scale_img = flux_recal(img, set_z[k], z_ref) # scale the flux to the reference redshift
 		if eta > 1:
 			resamt, xn, yn = sum_samp(eta, eta, scale_img, cenx, ceny)
 		else:
@@ -846,7 +901,7 @@ def resample_test():
 	plt.savefig('mask_resample_SB.pdf', dpi = 300)
 	plt.close()
 
-	#raise
+	raise
 	return
 
 def random_test():
@@ -1042,8 +1097,8 @@ def test():
 	mock_ccd()
 	#mock_image()
 	#light_test()
-	#resample_test()
-	#random_test()
+	resample_test()
+	random_test()
 
 def main():
 	test()
