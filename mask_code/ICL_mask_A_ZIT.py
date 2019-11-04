@@ -72,6 +72,7 @@ csv_BAD = pds.read_csv(load + 'Bad_match_dr7_cat.csv')
 Bad_ra = ['%.3f' % ll for ll in csv_BAD['ra'] ]
 Bad_dec = ['%.3f' % ll for ll in csv_BAD['dec'] ]
 Bad_z = ['%.3f' % ll for ll in csv_BAD['z'] ]
+
 def mask_A(band_id, z_set, ra_set, dec_set):
 	kk = np.int(band_id)
 	Nz = len(z_set)
@@ -109,14 +110,13 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 		Al = A_wave(l_wave[kk], Rv) * Av
 		img = img * 10 ** (Al / 2.5)
 
-		#file_source = d_file + 'Revis-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk])	# add sky information
-
 		hdu = fits.PrimaryHDU()
 		hdu.data = img
 		hdu.header = head_inf
 		hdu.writeto('/mnt/ddnfs/data_users/cxkttwl/PC/source_data_%d.fits' % rank, overwrite = True)
-		file_source = '/mnt/ddnfs/data_users/cxkttwl/PC/source_data_%d.fits' % rank
 
+		#file_source = d_file + 'Revis-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk])	# add sky information
+		file_source = '/mnt/ddnfs/data_users/cxkttwl/PC/source_data_%d.fits' % rank
 		dete_thresh = sb_lim[kk] + 10*np.log10((1 + z_g)/(1 + z_ref))
 		dete_thresh = '%.3f' % dete_thresh + ',%.2f' % zopt[kk]
 		dete_min = '10'
@@ -189,7 +189,7 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 		sub_chi0 = set_chi[ic]
 
 		# saturated source(may not stars)
-		xa = ['SATURATED' in qq for qq in xt]			
+		xa = ['SATURATED' in qq for qq in xt]
 		xv = np.array(xa)
 		idx = xv == True
 		ipx = (idx & ia & ib)
@@ -275,14 +275,14 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 def main():
 	t0 = time.time()
 	Ntot = len(z)
-	commd.Barrier()
+	#commd.Barrier()
 	for tt in range(3):
 		m, n = divmod(Ntot, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
 		if rank == cpus - 1:
 			N_sub1 += n
 		mask_A(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
-		commd.Barrier()	
+	commd.Barrier()	
 	t1 = time.time() - t0
 	print('t = ', t1)
 
