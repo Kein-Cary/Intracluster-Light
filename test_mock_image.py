@@ -152,17 +152,9 @@ def mock_ccd():
 		pxl = np.meshgrid(x0, y0)
 
 		flux_func = interp.interp1d(r_sc, cc_Lob, kind = 'cubic')
-
-		test_f = interp.interp1d(rbin, cc_Lob, kind = 'cubic')
-		mean_r = 0.5 * (rbin[:-1] + rbin[1:])
-		sqrt_r = np.sqrt(rbin[:-1] * rbin[1:])
-		m_L = test_f(mean_r)
-		s_L = test_f(sqrt_r)
-
 		Da0 = Test_model.angular_diameter_distance(zc).value
 		Angu_r = (10**(-3) * R / Da0) * rad2asec
 		R_pixel = Angu_r / pixel
-		r_in = (rbin * 10**(-3) / Da0) * rad2asec
 
 		dr = np.sqrt( ( (2 * pxl[0] + 1) / 2 - (2 * xc + 1) / 2)**2 + 
 			( ( 2 * pxl[1] + 1)/2 - (2 * yc + 1) / 2)**2 )
@@ -389,6 +381,9 @@ def light_test():
 	err_t = np.zeros((Nz, bins), dtype = np.float)
 	for k in range(Nz):
 		data = fits.getdata(load + 'mock/mock_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
+		#data = fits.getdata(load + 'noise/noise_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
+		#data = fits.getdata(load + 'noise_mask/add_mask_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
+
 		img = data[0]
 		Dag = Test_model.angular_diameter_distance(set_z[k]).value
 		Rp = (rad2asec / Dag) / pixel
@@ -416,7 +411,10 @@ def light_test():
 		ax1 = plt.subplot(gs0[-1])
 		##
 		ax0.plot(rbin, cc_SB, 'r-', label = '$ Intrinsic $', alpha = 0.5)
-		ax0.plot(ss_R, ss_SB, 'g--', label = '$ Measurement $', alpha = 0.5)
+		ax0.plot(ss_R, ss_SB, 'g--', label = '$ Smooth $', alpha = 0.5)
+		#ax0.plot(ss_R, ss_SB, 'g--', label = '$ Noise $', alpha = 0.5)
+		#ax0.plot(ss_R, ss_SB, 'g--', label = '$ Add \; mask $', alpha = 0.5)
+
 		ax0.set_xscale('log')
 		ax0.set_ylabel('$SB[mag/arcsec^2]$')
 		ax0.invert_yaxis()
@@ -443,136 +441,13 @@ def light_test():
 		ax1.set_ylabel('$ SB_{M} - SB_{I} $')
 		ax1.set_ylim(-1e-2, 1e-2)
 		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
+
 	plt.tight_layout()
 	plt.savefig('mock_light_measure_test.pdf', dpi = 300)
+	#plt.savefig('noise_light_measure_test.pdf', dpi = 300)
+	#plt.savefig('add_mask_light_measure_test.pdf', dpi = 300)
+
 	plt.close()
-	raise
-	R_m = np.zeros((Nz, bins), dtype = np.float)
-	SB_m = np.zeros((Nz, bins), dtype = np.float)
-	err_m = np.zeros((Nz, bins), dtype = np.float)
-	for k in range(Nz):
-		data = fits.getdata(load + 'noise/noise_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
-		img = data[0]
-		Dag = Test_model.angular_diameter_distance(set_z[k]).value
-		Rp = (rad2asec * 10**(-3) * R / Dag) / pixel
-		cenx = data[1]['CENTER_X']
-		ceny = data[1]['CENTER_Y']
-		SBt, Rt, Art, errt = light_measure(img, bins, 1, Rp, cenx, ceny, pixel, set_z[k])[:4]
-		SB_m[k, :] = SBt
-		R_m[k,:] = Rt
-		err_m[k,:] = errt
-
-	plt.figure(figsize = (20, 24))
-	gs = gridspec.GridSpec(5, 4)
-	for k in range(Nz):
-		Dag = Test_model.angular_diameter_distance(set_z[k]).value
-		cc_SB = Iner_SB[k,:]
-		f_SB = interp.interp1d(rbin, cc_SB, kind = 'cubic')
-		id_nan = np.isnan(SB_m[k,:])
-		ivx = id_nan == False
-		ss_R = R_m[k, ivx]
-		ss_SB = SB_m[k, ivx]
-		ddsb = ss_SB[ (ss_R > np.min(rbin)) & (ss_R < np.max(rbin)) ] - f_SB( ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))] )
-		ddsr = ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))]
-		gs0 = gridspec.GridSpecFromSubplotSpec(5, 1, subplot_spec = gs[ k // 4, k % 4])
-		ax0 = plt.subplot(gs0[:4])
-		ax1 = plt.subplot(gs0[-1])
-
-		ax0.plot(rbin, cc_SB, 'r-', label = '$ Intrinsic $', alpha = 0.5)
-		ax0.plot(ss_R, ss_SB, 'g--', label = '$ Measurement $', alpha = 0.5)
-		ax0.set_xscale('log')
-		ax0.set_ylabel('$SB[mag/arcsec^2]$')
-		ax0.invert_yaxis()
-		ax0.legend(loc = 1)
-		ax0.set_xlim(1e1, 1e3)
-		ax0.tick_params(axis = 'both', which = 'both', direction = 'in')
-
-		bx1 = ax0.twiny()
-		xtik = ax0.get_xticks()
-		xtik = np.array(xtik)
-		xR = xtik * 10**(-3) * rad2asec / Dag
-		bx1.set_xscale('log')
-		bx1.set_xticks(xtik)
-		bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
-		bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
-		bx1.set_xlim(ax0.get_xlim())
-		ax0.set_xticks([])
-
-		ax1.plot(ddsr, ddsb, 'g-', alpha = 0.5)
-		ax1.axhline(y = 0, linestyle = '--', color = 'r', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
-		ax1.set_xscale('log')
-		ax1.set_xlim(1e1, 1e3)
-		ax1.set_xlabel('$R[kpc]$')
-		ax1.set_ylabel('$ SB_{M} - SB_{I} $')
-		ax1.set_ylim(-1e-2, 1e-2)
-		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
-	plt.tight_layout()
-	plt.savefig('noise_light_measure_test.pdf', dpi = 300)
-	plt.close()
-
-	R_n = np.zeros((Nz, bins), dtype = np.float)
-	SB_n = np.zeros((Nz, bins), dtype = np.float)
-	err_n = np.zeros((Nz, bins), dtype = np.float)
-	for k in range(Nz):
-		data = fits.getdata(load + 'noise_mask/add_mask_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
-		img = data[0]
-		Dag = Test_model.angular_diameter_distance(set_z[k]).value
-		Rp = (rad2asec * 10**(-3) * R / Dag) / pixel
-		cenx = data[1]['CENTER_X']
-		ceny = data[1]['CENTER_Y']
-		SBt, Rt, Art, errt = light_measure(img, bins, 1, Rp, cenx, ceny, pixel, set_z[k])[:4]
-		SB_n[k, :] = SBt
-		R_n[k,:] = Rt
-		err_n[k,:] = errt
-
-	plt.figure(figsize = (20, 24))
-	gs = gridspec.GridSpec(5, 4)
-	for k in range(Nz):
-		Dag = Test_model.angular_diameter_distance(set_z[k]).value
-		cc_SB = Iner_SB[k,:]
-		f_SB = interp.interp1d(rbin, cc_SB, kind = 'cubic')
-		id_nan = np.isnan(SB_m[k,:])
-		ivx = id_nan == False
-		ss_R = R_m[k, ivx]
-		ss_SB = SB_m[k, ivx]
-		ddsb = ss_SB[ (ss_R > np.min(rbin)) & (ss_R < np.max(rbin)) ] - f_SB( ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))] )
-		ddsr = ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))]
-		gs0 = gridspec.GridSpecFromSubplotSpec(5, 1, subplot_spec = gs[ k // 4, k % 4])
-		ax0 = plt.subplot(gs0[:4])
-		ax1 = plt.subplot(gs0[-1])
-
-		ax0.plot(rbin, cc_SB, 'r-', label = '$ Intrinsic $', alpha = 0.5)
-		ax0.plot(ss_R, ss_SB, 'g--', label = '$ Measurement $', alpha = 0.5)
-		ax0.set_xscale('log')
-		ax0.set_ylabel('$SB[mag/arcsec^2]$')
-		ax0.invert_yaxis()
-		ax0.legend(loc = 1)
-		ax0.set_xlim(1e1, 1e3)
-		ax0.tick_params(axis = 'both', which = 'both', direction = 'in')
-
-		bx1 = ax0.twiny()
-		xtik = ax0.get_xticks()
-		xtik = np.array(xtik)
-		xR = xtik * 10**(-3) * rad2asec / Dag
-		bx1.set_xscale('log')
-		bx1.set_xticks(xtik)
-		bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
-		bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
-		bx1.set_xlim(ax0.get_xlim())
-		ax0.set_xticks([])
-
-		ax1.plot(ddsr, ddsb, 'g-', alpha = 0.5)
-		ax1.axhline(y = 0, linestyle = '--', color = 'r', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
-		ax1.set_xscale('log')
-		ax1.set_xlim(1e1, 1e3)
-		ax1.set_xlabel('$R[kpc]$')
-		ax1.set_ylabel('$ SB_{M} - SB_{I} $')
-		ax1.set_ylim(-1e-2, 1e-2)
-		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
-	plt.tight_layout()
-	plt.savefig('add_mask_light_measure_test.pdf', dpi = 300)
-	plt.close()
-
 	raise
 	return
 
@@ -607,6 +482,9 @@ def resample_test():
 	err_01 = np.zeros((Nz, bins), dtype = np.float)
 	for k in range(Nz):
 		data = fits.getdata(load + 'mock/mock_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
+		#data = fits.getdata(load + 'noise/noise_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
+		#data = fits.getdata(load + 'noise_mask/add_mask_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
+
 		img = data[0]
 		Dag = Test_model.angular_diameter_distance(set_z[k]).value
 		Rp = (rad2asec * 10**(-3) * R0 / Dag) / pixel
@@ -632,6 +510,8 @@ def resample_test():
 		ff = dict(zip(keys,value))
 		fil = fits.Header(ff)
 		fits.writeto(load + 'resamp-mock-ra%.3f-dec%.3f-redshift%.3f.fits' % (set_ra[k], set_dec[k], set_z[k]), resamt, header = fil, overwrite=True)
+		#fits.writeto(load + 'resamp-noise-ra%.3f-dec%.3f-redshift%.3f.fits' % (set_ra[k], set_dec[k], set_z[k]), resamt, header = fil, overwrite=True)
+		#fits.writeto(load + 'resamp-mask-ra%.3f-dec%.3f-redshift%.3f.fits' % (set_ra[k], set_dec[k], set_z[k]), resamt, header = fil, overwrite=True)
 
 		SBt, Rt, Art, errt = light_measure(resamt, bins, 1, Rpp, xn, yn, pixel, z_ref)[:4]
 		SB_t[k, :] = SBt
@@ -666,8 +546,15 @@ def resample_test():
 		ax1 = plt.subplot(gs0[-1])
 
 		ax0.plot(rbin, SB_ref, 'r-', label = '$ Intrinsic $', alpha = 0.5)
-		ax0.plot(ss_R, ss_SB, 'g--', label = '$ After \; resampling $', alpha = 0.5)
-		ax0.plot(st_R, st_SB, 'b-.', label = '$ Before \; resampling $')
+		ax0.plot(ss_R, ss_SB, 'g--', label = '$ Smooth $', alpha = 0.5)
+		ax0.plot(st_R, st_SB, 'b-.', label = '$ Smooth + resampling $', alpha = 0.5)
+
+		#ax0.plot(ss_R, ss_SB, 'g--', label = '$ Noise $', alpha = 0.5)
+		#ax0.plot(st_R, st_SB, 'b-.', label = '$ Noise + resampling $', alpha = 0.5)
+
+		#ax0.plot(ss_R, ss_SB, 'g--', label = '$ Add \; mask $', alpha = 0.5)
+		#ax0.plot(st_R, st_SB, 'b-.', label = '$ Mask + resampling $', alpha = 0.5)		
+
 		ax0.set_xscale('log')
 		ax0.set_xlim(1e1, 1e3)
 		ax0.set_ylabel('$SB[mag/arcsec^2]$')
@@ -695,212 +582,12 @@ def resample_test():
 		ax1.set_ylabel('$ SB_{M} - SB_{I} $')
 		ax1.set_ylim(-1e-2, 1e-2)
 		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
+
 	plt.tight_layout()
 	plt.savefig('mock_resample_SB.pdf', dpi = 300)
+	#plt.savefig('noise_resample_SB.pdf', dpi = 300)
+	#plt.savefig('mask_resample_SB.pdf', dpi = 300)
 	plt.close()
-
-	R_m = np.zeros((Nz, bins), dtype = np.float)
-	SB_m = np.zeros((Nz, bins), dtype = np.float)
-	err_m = np.zeros((Nz, bins), dtype = np.float)
-	R_02 = np.zeros((Nz, bins), dtype = np.float)
-	SB_02 = np.zeros((Nz, bins), dtype = np.float)
-	err_02 = np.zeros((Nz, bins), dtype = np.float)	
-	for k in range(Nz):
-		data = fits.getdata(load + 'noise/noise_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
-		img = data[0]
-		Dag = Test_model.angular_diameter_distance(set_z[k]).value
-		Rp = (rad2asec * 10**(-3) * R0 / Dag) / pixel
-		cenx = data[1]['CENTER_X']
-		ceny = data[1]['CENTER_Y']
-		Len_ref = Da_ref * pixel / rad2asec
-		Len_z0 = Dag * pixel / rad2asec
-		eta = Len_ref/Len_z0
-		mu = 1 / eta
-
-		scale_img = flux_recal(img, set_z[k], z_ref)
-		if eta > 1:
-			resamt, xn, yn = sum_samp(eta, eta, scale_img, cenx, ceny)
-		else:
-			resamt, xn, yn = down_samp(eta, eta, scale_img, cenx, ceny)
-
-		xn = np.int(xn)
-		yn = np.int(yn)
-		Nx = resamt.shape[1]
-		Ny = resamt.shape[0]
-
-		keys = ['SIMPLE', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2', 'CENTER_X', 'CENTER_Y', 'ORIGN_Z', 'P_SCALE']
-		value = ['T', 32, 2, Nx, Ny, xn, yn, set_z[k], pixel]
-		ff = dict(zip(keys,value))
-		fil = fits.Header(ff)
-		fits.writeto(load + 'resamp-noise-ra%.3f-dec%.3f-redshift%.3f.fits' % (set_ra[k], set_dec[k], set_z[k]), resamt, header = fil, overwrite=True)
-
-		SBt, Rt, Art, errt = light_measure(resamt, bins, 1, Rpp, xn, yn, pixel, z_ref)[:4]
-		SB_m[k, :] = SBt
-		R_m[k, :] = Rt
-		err_m[k, :] = errt
-
-		SB, R, Anr, err = light_measure(scale_img, bins, 1, Rp, cenx, ceny, pixel * mu, z_ref)[:4]
-		SB_02[k, :] = SB
-		R_02[k, :] = R
-		err_02[k, :] = err
-
-	plt.figure(figsize = (20, 24))
-	gs = gridspec.GridSpec(5, 4)
-	for k in range(Nz):
-		Dag = Test_model.angular_diameter_distance(set_z[k]).value
-		id_nan = np.isnan(SB_m[k,:])
-		ivx = id_nan == False
-		ss_R = R_m[k, ivx]
-		ss_SB = SB_m[k, ivx]
-		ddsb = ss_SB[ (ss_R > np.min(rbin)) & (ss_R < np.max(rbin)) ] - f_SB( ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))] )
-		ddsr = ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))]
-
-		id_nan = np.isnan(SB_02[k,:])
-		ivx = id_nan == False
-		st_R = R_02[k, ivx]
-		st_SB = SB_02[k, ivx]
-		ddtb = st_SB[ (st_R > np.min(rbin)) & (st_R < np.max(rbin)) ] - f_SB( st_R[(st_R > np.min(rbin)) & (st_R < np.max(rbin))] )
-		ddtr = st_R[ (st_R > np.min(rbin)) & (st_R < np.max(rbin))]
-
-		gs0 = gridspec.GridSpecFromSubplotSpec(5, 1, subplot_spec = gs[ k // 4, k % 4])
-		ax0 = plt.subplot(gs0[:4])
-		ax1 = plt.subplot(gs0[-1])
-
-		ax0.plot(rbin, SB_ref, 'r-', label = '$ Intrinsic $', alpha = 0.5)
-		ax0.plot(ss_R, ss_SB, 'g--', label = '$ After \; resampling $', alpha = 0.5)
-		ax0.plot(st_R, st_SB, 'b-.', label = '$ Before \; resampling $')
-		ax0.set_xscale('log')
-		ax0.set_xlim(1e1, 1e3)
-		ax0.set_ylabel('$SB[mag/arcsec^2]$')
-		ax0.invert_yaxis()
-		ax0.legend(loc = 1)
-		ax0.tick_params(axis = 'both', which = 'both', direction = 'in')
-
-		bx1 = ax0.twiny()
-		xtik = ax0.get_xticks()
-		xtik = np.array(xtik)
-		xR = xtik * 10**(-3) * rad2asec / Dag
-		bx1.set_xscale('log')
-		bx1.set_xticks(xtik)
-		bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
-		bx1.set_xlim(ax0.get_xlim())
-		bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
-		ax0.set_xticks([])
-
-		ax1.plot(ddsr, ddsb, 'g-', alpha = 0.5)
-		ax1.plot(ddtr, ddtb, 'b-.', alpha = 0.5)
-		ax1.axhline(y = 0, linestyle = '--', color = 'k', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
-		ax1.set_xscale('log')
-		ax1.set_xlim(1e1, 1e3)
-		ax1.set_xlabel('$R[kpc]$')
-		ax1.set_ylabel('$ SB_{M} - SB_{I} $')
-		ax1.set_ylim(-1e-2, 1e-2)
-		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
-	plt.tight_layout()
-	plt.savefig('noise_resample_SB.pdf', dpi = 300)
-	plt.close()
-
-	R_n = np.zeros((Nz, bins), dtype = np.float)
-	SB_n = np.zeros((Nz, bins), dtype = np.float)
-	err_n = np.zeros((Nz, bins), dtype = np.float)
-	R_03 = np.zeros((Nz, bins), dtype = np.float)
-	SB_03 = np.zeros((Nz, bins), dtype = np.float)
-	err_03 = np.zeros((Nz, bins), dtype = np.float)
-	for k in range(Nz):
-		data = fits.getdata(load + 'noise_mask/add_mask_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
-		img = data[0]
-		Dag = Test_model.angular_diameter_distance(set_z[k]).value
-		Rp = (rad2asec * 10**(-3) * R0 / Dag) / pixel
-		cenx = data[1]['CENTER_X']
-		ceny = data[1]['CENTER_Y']
-		Len_ref = Da_ref * pixel / rad2asec
-		Len_z0 = Dag * pixel / rad2asec
-		eta = Len_ref/Len_z0
-		mu = 1 / eta
-
-		scale_img = flux_recal(img, set_z[k], z_ref)
-		if eta > 1:
-			resamt, xn, yn = sum_samp(eta, eta, scale_img, cenx, ceny)
-		else:
-			resamt, xn, yn = down_samp(eta, eta, scale_img, cenx, ceny)
-
-		xn = np.int(xn)
-		yn = np.int(yn)
-		Nx = resamt.shape[1]
-		Ny = resamt.shape[0]
-
-		keys = ['SIMPLE', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2', 'CENTER_X', 'CENTER_Y', 'ORIGN_Z', 'P_SCALE']
-		value = ['T', 32, 2, Nx, Ny, xn, yn, set_z[k], pixel]
-		ff = dict(zip(keys,value))
-		fil = fits.Header(ff)
-		fits.writeto(load + 'resamp-mask-ra%.3f-dec%.3f-redshift%.3f.fits' % (set_ra[k], set_dec[k], set_z[k]), resamt, header = fil, overwrite=True)
-
-		SBt, Rt, Art, errt = light_measure(resamt, bins, 1, Rpp, xn, yn, pixel, z_ref)[:4]
-		SB_n[k, :] = SBt
-		R_n[k, :] = Rt
-		err_n[k, :] = errt
-
-		SB, R, Anr, err = light_measure(scale_img, bins, 1, Rp, cenx, ceny, pixel * mu, z_ref)[:4]
-		SB_03[k, :] = SB
-		R_03[k, :] = R
-		err_03[k, :] = err
-
-	plt.figure(figsize = (20, 24))
-	gs = gridspec.GridSpec(5, 4)
-	for k in range(Nz):
-		Dag = Test_model.angular_diameter_distance(set_z[k]).value
-		id_nan = np.isnan(SB_n[k,:])
-		ivx = id_nan == False
-		ss_R = R_n[k, ivx]
-		ss_SB = SB_n[k, ivx]
-		ddsb = ss_SB[ (ss_R > np.min(rbin)) & (ss_R < np.max(rbin)) ] - f_SB( ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))] )
-		ddsr = ss_R[(ss_R > np.min(rbin)) & (ss_R < np.max(rbin))]
-
-		id_nan = np.isnan(SB_03[k,:])
-		ivx = id_nan == False
-		st_R = R_03[k, ivx]
-		st_SB = SB_03[k, ivx]
-		ddtb = st_SB[ (st_R > np.min(rbin)) & (st_R < np.max(rbin)) ] - f_SB( st_R[(st_R > np.min(rbin)) & (st_R < np.max(rbin))] )
-		ddtr = st_R[ (st_R > np.min(rbin)) & (st_R < np.max(rbin))]
-
-		gs0 = gridspec.GridSpecFromSubplotSpec(5, 1, subplot_spec = gs[ k // 4, k % 4])
-		ax0 = plt.subplot(gs0[:4])
-		ax1 = plt.subplot(gs0[-1])
-
-		ax0.plot(rbin, SB_ref, 'r-', label = '$ Intrinsic $', alpha = 0.5)
-		ax0.plot(ss_R, ss_SB, 'g--', label = '$ After \; resampling $', alpha = 0.5)
-		ax0.plot(st_R, st_SB, 'b-.', label = '$ Before \; resampling $')
-		ax0.set_xscale('log')
-		ax0.set_xlim(1e1, 1e3)
-		ax0.set_ylabel('$SB[mag/arcsec^2]$')
-		ax0.invert_yaxis()
-		ax0.legend(loc = 1)
-		ax0.tick_params(axis = 'both', which = 'both', direction = 'in')
-
-		bx1 = ax0.twiny()
-		xtik = ax0.get_xticks()
-		xtik = np.array(xtik)
-		xR = xtik * 10**(-3) * rad2asec / Dag
-		bx1.set_xscale('log')
-		bx1.set_xticks(xtik)
-		bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
-		bx1.set_xlim(ax0.get_xlim())
-		bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
-		ax0.set_xticks([])
-
-		ax1.plot(ddsr, ddsb, 'g-', alpha = 0.5)
-		ax1.plot(ddtr, ddtb, 'b-.', alpha = 0.5)
-		ax1.axhline(y = 0, linestyle = '--', color = 'k', alpha = 0.5, label = '$ \Delta{SB} = 0 $')
-		ax1.set_xscale('log')
-		ax1.set_xlim(1e1, 1e3)
-		ax1.set_xlabel('$R[kpc]$')
-		ax1.set_ylabel('$ SB_{M} - SB_{I} $')
-		ax1.set_ylim(-1e-2, 1e-2)
-		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
-	plt.tight_layout()
-	plt.savefig('mask_resample_SB.pdf', dpi = 300)
-	plt.close()
-
 	raise
 	return
 

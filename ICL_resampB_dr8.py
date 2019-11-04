@@ -124,7 +124,7 @@ def resamp_Bpl(band_id, sub_z, sub_ra, sub_dec):
 			'resample/resam_B/frameB-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam, header = fil, overwrite=True)
 
 		plt.figure()
-		ax = plt.imshow(resam, cmap = 'Greys', origin = 'lower', vmin = 1e-3, norm = mpl.colors.LogNorm())
+		ax = plt.imshow(resam, cmap = 'Greys', origin = 'lower', vmin = 1e-3, vmax = 1e2, norm = mpl.colors.LogNorm())
 		plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
 
 		hsc.circles(xn, yn, s = Rpp, fc = '', ec = 'b', )

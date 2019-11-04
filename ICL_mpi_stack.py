@@ -17,7 +17,8 @@ import astropy.wcs as awc
 import subprocess as subpro
 import astropy.io.ascii as asc
 import astropy.io.fits as fits
-from light_measure import light_measure
+#from light_measure import light_measure
+from light_measure_tmp import light_measure
 from scipy.interpolate import interp1d as interp
 
 from mpi4py import MPI
@@ -79,32 +80,6 @@ load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 band = ['r', 'g', 'i', 'u', 'z']
 mag_add = np.array([0, 0, 0, -0.04, 0.02])
 
-# bad image list
-csv_r = pds.read_csv(load + 'Except_r_sample.csv')
-except_ra_r = ['%.3f' % ll for ll in csv_r['ra'] ]
-except_dec_r = ['%.3f' % ll for ll in csv_r['dec'] ]
-except_z_r = ['%.3f' % ll for ll in csv_r['z'] ]
-
-csv_g = pds.read_csv(load + 'Except_g_sample.csv')
-except_ra_g = ['%.3f' % ll for ll in csv_g['ra'] ]
-except_dec_g = ['%.3f' % ll for ll in csv_g['dec'] ]
-except_z_g = ['%.3f' % ll for ll in csv_g['z'] ]
-
-csv_i = pds.read_csv(load + 'Except_i_sample.csv')
-except_ra_i = ['%.3f' % ll for ll in csv_i['ra'] ]
-except_dec_i = ['%.3f' % ll for ll in csv_i['dec'] ]
-except_z_i = ['%.3f' % ll for ll in csv_i['z'] ]
-
-csv_z = pds.read_csv(load + 'Except_z_sample.csv')
-except_ra_z = ['%.3f' % ll for ll in csv_z['ra'] ]
-except_dec_z = ['%.3f' % ll for ll in csv_z['dec'] ]
-except_z_z = ['%.3f' % ll for ll in csv_z['z'] ]
-
-csv_u = pds.read_csv(load + 'Except_u_sample.csv')
-except_ra_u = ['%.3f' % ll for ll in csv_u['ra'] ]
-except_dec_u = ['%.3f' % ll for ll in csv_u['dec'] ]
-except_z_u = ['%.3f' % ll for ll in csv_u['z'] ]
-
 def stack_process(band_number, subz, subra, subdec):
 
 	stack_N = len(subz)
@@ -118,7 +93,6 @@ def stack_process(band_number, subz, subra, subdec):
 	bins = 65
 	Nx = np.linspace(0, 4854, 4855)
 	Ny = np.linspace(0, 3530, 3531)
-	sum_grid = np.array(np.meshgrid(Nx, Ny))
 
 	sum_array_A = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 	count_array_A = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
@@ -134,17 +108,16 @@ def stack_process(band_number, subz, subra, subdec):
 		dec_g = sub_dec[jj]
 		z_g = sub_z[jj]
 
+		except_cat = pds.read_csv(load + 'Except_%s_sample.csv' % band[ii])
+		except_ra = ['%.3f' % ll for ll in except_cat['ra'] ]
+		except_dec = ['%.3f' % ll for ll in except_cat['dec'] ]
+		except_z = ['%.3f' % ll for ll in except_cat['z'] ]
 		## rule out bad image (once a cluster image is bad in a band, all the five band image will be ruled out!)
-		identi = (( ('%.3f'%ra_g in except_ra_r) & ('%.3f'%dec_g in except_dec_r) & ('%.3f'%z_g in except_z_r) ) | 
-					( ('%.3f'%ra_g in except_ra_g) & ('%.3f'%dec_g in except_dec_g) & ('%.3f'%z_g in except_z_g) ) | 
-					( ('%.3f'%ra_g in except_ra_i) & ('%.3f'%dec_g in except_dec_i) & ('%.3f'%z_g in except_z_i) ) | 
-					( ('%.3f'%ra_g in except_ra_u) & ('%.3f'%dec_g in except_dec_u) & ('%.3f'%z_g in except_z_u) ) | 
-					( ('%.3f'%ra_g in except_ra_z) & ('%.3f'%dec_g in except_dec_z) & ('%.3f'%z_g in except_z_z) ) )
+		identi = ('%.3f'%ra_g in except_ra) & ('%.3f'%dec_g in except_dec) & ('%.3f'%z_g in except_z)
 
 		if  identi == True: 
 			continue
 		else:
-			Da_g = Test_model.angular_diameter_distance(z_g).value
 			## stack A mask
 
 			# 1.5sigma
@@ -168,7 +141,8 @@ def stack_process(band_number, subz, subra, subdec):
 			idv = np.where(idx == False)
 
 			img_std0 = np.nanstd(img_A[idv])
-			wit_A = 1. / img_std0**2
+			#wit_A = 1. / img_std0**2
+			wit_A = 1.
 
 			sum_array_A[la0:la1, lb0:lb1][idv] = sum_array_A[la0:la1, lb0:lb1][idv] + img_A[idv] * wit_A
 			count_array_A[la0: la1, lb0: lb1][idv] = img_A[idv]
@@ -200,7 +174,8 @@ def stack_process(band_number, subz, subra, subdec):
 			idv = np.where(idx == False)
 
 			img_std1 = np.nanstd(img_B[idv])
-			wit_B = 1. / img_std1**2
+			#wit_B = 1. / img_std1**2
+			wit_B = 1.
 
 			sum_array_B[la0:la1, lb0:lb1][idv] = sum_array_B[la0:la1, lb0:lb1][idv] + img_B[idv] * wit_B
 			count_array_B[la0: la1, lb0: lb1][idv] = img_B[idv]
@@ -233,14 +208,10 @@ def main():
 	decN = red_dec * 1
 	stackn = len(zN)
 
-	GR_minus = []
-	Mag_minus = []
-	R_record = []
 	x0 = 2427
 	y0 = 1765
 	Nx = np.linspace(0, 4854, 4855)
 	Ny = np.linspace(0, 3530, 3531)
-	sum_grid = np.array(np.meshgrid(Nx, Ny))
 
 	#commd.Barrier()
 	#for tt in range(len(band)):
@@ -282,7 +253,7 @@ def main():
 				sub_mean = sum_img / p_count
 				
 				plt.figure()
-				plt.title('[A]stack_%d_%s_band_%d_cpus.png' % (np.int(sub_Num), band[qq], pp) )
+				plt.title('[A]stack_%d_%s_band_%d_cpus' % (np.int(sub_Num), band[qq], pp) )
 				ax = plt.imshow(sub_mean, cmap = 'Greys', vmin = 1e-7, vmax = 5e1, origin = 'lower', norm = mpl.colors.LogNorm())
 				plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
 				hsc.circles(x0, y0, s = Rpp, fc = '', ec = 'r', linestyle = '-', alpha = 0.5)
@@ -300,17 +271,26 @@ def main():
 
 			t1 = time.time()
 			stack_img = mean_img / p_add_count
-			SBt, Rt, Art, errt = light_measure(stack_img, bins, 1, Rpp, x0, y0, pixel, z_ref)[:4]
-			SBt = SBt + mag_add[0]
+			R_cut = 900
+			ss_img = stack_img[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
+			Intns, Intns_r, Intns_err, Npix = light_measure(ss_img, bins, 10, Rpp, R_cut, R_cut, pixel, z_ref)
+			flux0 = Intns + Intns_err
+			flux1 = Intns - Intns_err
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[qq]
+			SB0 = 22.5 - 2.5 * np.log10(flux0) + 2.5 * np.log10(pixel**2) + mag_add[qq]
+			SB1 = 22.5 - 2.5 * np.log10(flux1) + 2.5 * np.log10(pixel**2) + mag_add[qq]
+			err0 = SB - SB0
+			err1 = SB1 - SB
+			id_nan = np.isnan(SB)
+			SBt, SB0, SB1 = SB[id_nan == False], SB0[id_nan == False], SB1[id_nan == False] 
+			Rt, err0, err1 = Intns_r[id_nan == False], err0[id_nan == False], err1[id_nan == False]
+			id_nan = np.isnan(SB1)
+			err1[id_nan] = 100.
 			t2 = time.time() - t1
 			t3 = time.time() - t0
 
-			print('*' * 20)
-			print('t = ', t2)
-			print('t_tot = ', t3)
-
 			plt.figure()
-			plt.title('[A]stack_%d_%s_band.png' % (tot_N, band[qq]) )
+			plt.title('[A]stack_%d_%s_band' % (tot_N, band[qq]) )
 			ax = plt.imshow(stack_img, cmap = 'Greys', vmin = 1e-7, vmax = 5e1, origin = 'lower', norm = mpl.colors.LogNorm())
 			plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
 			hsc.circles(x0, y0, s = Rpp, fc = '', ec = 'r', linestyle = '-', alpha = 0.5)
@@ -323,8 +303,8 @@ def main():
 
 			plt.figure()
 			ax = plt.subplot(111)
-			ax.set_title('[A]stack_%d_%s_band_SB.png' % (tot_N, band[qq]) )
-			ax.errorbar(Rt, SBt, yerr = errt, xerr = None, color = 'r', marker = 'o', ls = '', linewidth = 1, markersize = 5, 
+			ax.set_title('[A]stack_%d_%s_band_SB' % (tot_N, band[qq]) )
+			ax.errorbar(Rt, SBt, yerr = [err0, err1], xerr = None, color = 'r', marker = 'o', ls = '', linewidth = 1, markersize = 5, 
 				ecolor = 'r', elinewidth = 1, alpha = 0.5)
 			ax.set_xlabel('$R[kpc]$')
 			ax.set_ylabel('$SB[mag / arcsec^2]$')
@@ -335,6 +315,7 @@ def main():
 			plt.close()
 
 			print('Now %s band finished!' % band[qq])
+	commd.Barrier()
 
 	# stack sub-stack img of B mask
 	mean_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
@@ -365,7 +346,7 @@ def main():
 				sub_mean = sum_img / p_count
 				
 				plt.figure()
-				plt.title('[B]stack_%d_%s_band_%d_cpus.png' % (np.int(sub_Num), band[qq], pp) )
+				plt.title('[B]stack_%d_%s_band_%d_cpus' % (np.int(sub_Num), band[qq], pp) )
 				ax = plt.imshow(sub_mean, cmap = 'Greys', vmin = 1e-7, vmax = 5e1, origin = 'lower', norm = mpl.colors.LogNorm())
 				plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
 				hsc.circles(x0, y0, s = Rpp, fc = '', ec = 'r', linestyle = '-', alpha = 0.5)
@@ -383,17 +364,26 @@ def main():
 
 			t1 = time.time()
 			stack_img = mean_img / p_add_count
-			SBt, Rt, Art, errt = light_measure(stack_img, bins, 1, Rpp, x0, y0, pixel, z_ref)[:4]
-			SBt = SBt + mag_add[0]
+			R_cut = 900
+			ss_img = stack_img[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
+			Intns, Intns_r, Intns_err, Npix = light_measure(ss_img, bins, 10, Rpp, R_cut, R_cut, pixel, z_ref)
+			flux0 = Intns + Intns_err
+			flux1 = Intns - Intns_err
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[qq]
+			SB0 = 22.5 - 2.5 * np.log10(flux0) + 2.5 * np.log10(pixel**2) + mag_add[qq]
+			SB1 = 22.5 - 2.5 * np.log10(flux1) + 2.5 * np.log10(pixel**2) + mag_add[qq]
+			err0 = SB - SB0
+			err1 = SB1 - SB
+			id_nan = np.isnan(SB)
+			SBt, SB0, SB1 = SB[id_nan == False], SB0[id_nan == False], SB1[id_nan == False] 
+			Rt, err0, err1 = Intns_r[id_nan == False], err0[id_nan == False], err1[id_nan == False]
+			id_nan = np.isnan(SB1)
+			err1[id_nan] = 100.
 			t2 = time.time() - t1
 			t3 = time.time() - t0
 
-			print('*' * 20)
-			print('t = ', t2)
-			print('t_tot = ', t3)
-
 			plt.figure()
-			plt.title('[B]stack_%d_%s_band.png' % (tot_N, band[qq]) )
+			plt.title('[B]stack_%d_%s_band' % (tot_N, band[qq]) )
 			ax = plt.imshow(stack_img, cmap = 'Greys', vmin = 1e-7, vmax = 5e1, origin = 'lower', norm = mpl.colors.LogNorm())
 			plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
 			hsc.circles(x0, y0, s = Rpp, fc = '', ec = 'r', linestyle = '-', alpha = 0.5)
@@ -406,8 +396,8 @@ def main():
 
 			plt.figure()
 			ax = plt.subplot(111)
-			ax.set_title('[B]stack_%d_%s_band_SB.png' % (tot_N, band[qq]) )
-			ax.errorbar(Rt, SBt, yerr = errt, xerr = None, color = 'r', marker = 'o', ls = '', linewidth = 1, markersize = 5, 
+			ax.set_title('[B]stack_%d_%s_band_SB' % (tot_N, band[qq]) )
+			ax.errorbar(Rt, SBt, yerr = [err0, err1], xerr = None, color = 'r', marker = 'o', ls = '', linewidth = 1, markersize = 5, 
 				ecolor = 'r', elinewidth = 1, alpha = 0.5)
 			ax.set_xlabel('$R[kpc]$')
 			ax.set_ylabel('$SB[mag / arcsec^2]$')
@@ -418,6 +408,7 @@ def main():
 			plt.close()
 
 			print('Now %s band finished!' % band[qq])
+	commd.Barrier()
 
 if __name__ == "__main__":
 	main()

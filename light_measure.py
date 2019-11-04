@@ -65,7 +65,6 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 	cy = cy
 	Nbins = Nbin
 	f_data = data
-	cen_close = small
 	pixel = psize * 1
 	z0 = z
 	Da0 = Test_model.angular_diameter_distance(z0).value
@@ -78,69 +77,58 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 	theta = np.arctan2((pix_id[1,:]-cy), (pix_id[0,:]-cx))
 	where_are_nan = np.isnan(theta)
 	theta[where_are_nan] = 0
-	chi = theta * 180/np.pi
+	chi = theta * 180 / np.pi
 
-	r = np.logspace(0, np.log10(Rp), Nbins) # in unit "pixel"
-	ia = r <= cen_close
-	ib = np.array(np.where(ia == True))
-	ic = ib.shape[1]
-	rbin = r[ic-1:]
-	rbin[0] = np.mean(r[ia])
+	divi_r = np.logspace(np.log10(small), 3.01, Nbins)
+	r = (divi_r * 1e-3 * rad2arcsec / Da0) / pixel
+	ia = r <= 1. # smaller than 1 pixel
+	ib = r[ia]
+	ic = len(ib)
+	rbin = r[ic:]
+	set_r = divi_r[ic:]
 
-	intens = np.zeros(len(r) - ic + 1, dtype = np.float)
-	intens_r = np.zeros(len(r) - ic + 1, dtype = np.float)
-	intens_err = np.zeros(len(r) - ic + 1, dtype = np.float)
-
-	light = np.zeros(len(r) - ic + 1, dtype = np.float)
-	R = np.zeros(len(r) - ic + 1, dtype = np.float)
-	Angur = np.zeros(len(r) - ic + 1, dtype = np.float)
-	SB_error = np.zeros(len(r) - ic + 1, dtype = np.float)
+	intens = np.zeros(len(r) - ic, dtype = np.float)
+	intens_r = np.zeros(len(r) - ic, dtype = np.float)
+	intens_err = np.zeros(len(r) - ic, dtype = np.float)
+	N_pix = np.zeros(len(r) - ic, dtype = np.float)
 
 	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
 		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
 
 	for k in range(len(rbin) - 1):
 		cdr = rbin[k + 1] - rbin[k]
-		d_phi = (cdr / (0.5 * (rbin[k] + rbin[k + 1]) ) ) * 180 / np.pi
-		phi = np.arange(0, 360, d_phi)
+		d_phi = (cdr / ( 0.5 * (rbin[k] + rbin[k + 1]) ) ) * 180 / np.pi
+		N_phi = np.int(360 / d_phi) + 1
+		phi = np.linspace(0, 360, N_phi)
 		phi = phi - 180
 
-		ir = (dr >= (2 * rbin[k] +1) / 2) & (dr < (2 * rbin[k + 1] +1) / 2)
+		ir = (dr >= rbin[k]) & (dr < rbin[k + 1])
 		io = np.where(ir == True)
 		num = len(io[0])
 
-		r_iner = (2 * rbin[k] + 1) / 2 ## using radius in unit of pixel
-		r_out = (2 * rbin[k + 1] + 1) / 2
+		r_iner = set_r[k] ## useing radius in unit of kpc
+		r_out = set_r[k + 1]
 
 		if num == 0:
-			light[k] = np.nan
-			SB_error[k] = np.nan
 			intens[k] = np.nan
 			intens_err[k] = np.nan
+			N_pix[k] = np.nan
 
-			## in unit of pixel
-			R[k] = 0.5 * (r_iner + r_out) * pixel * Da0*10**3 / rad2arcsec
-			Angur[k] = 0.5 * (r_iner + r_out) * pixel
-			#R[k] = np.sqrt(r_iner * r_out) * pixel * Da0 * 10**3 / rad2arcsec
-			#Angur[k] = np.sqrt(r_iner * r_out) * pixel
+			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
+			#intens_r[k] = np.sqrt(r_iner * r_out)
 
 		else:
 			iy = io[0]
 			ix = io[1]
 			sampf = f_data[iy, ix]
-
 			tot_flux = np.nanmean(sampf)
 			tot_area = pixel**2
-			light[k] = 22.5 - 2.5*np.log10(tot_flux) + 2.5*np.log10(tot_area)
 			intens[k] = tot_flux
+			N_pix[k] = len(sampf)
 
-			## in unit of pixel
-			R[k] = 0.5 * (r_iner + r_out) * pixel * Da0*10**3 / rad2arcsec
-			Angur[k] = 0.5 * (r_iner + r_out) * pixel
-			#R[k] = np.sqrt(r_iner * r_out) * pixel * Da0 * 10**3 / rad2arcsec
-			#Angur[k] = np.sqrt(r_iner * r_out) * pixel
+			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
+			#intens_r[k] = np.sqrt(r_iner * r_out)
 
-			terr = []
 			tmpf = []
 			for tt in range(len(phi) - 1):
 				iv = (chi >= phi[tt]) & (chi <= phi[tt+1])
@@ -148,20 +136,7 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 				set_samp = f_data[iu]
 
 				ttf = np.nanmean(set_samp)
-				SB_in = 22.5 - 2.5*np.log10(ttf) + 2.5*np.log10(tot_area)
-				terr.append(SB_in)
 				tmpf.append(ttf)
-			# rms of SB
-			terr = np.array(terr)
-			where_are_inf = np.isinf(terr)
-			terr[where_are_inf] = np.nan
-			id_zero = terr == 0
-			terr[id_zero] = np.nan
-			Trms = np.nanstd(terr)
-			id_nan = np.isnan(terr)
-			id_fals = id_nan == False
-			Terr = terr[id_fals]
-			SB_error[k] = Trms / np.sqrt(len(Terr) - 1)
 
 			# rms of flux
 			tmpf = np.array(tmpf)
@@ -174,25 +149,19 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z):
 			Tmpf = tmpf[id_fals]
 			intens_err[k] = np.nanstd(tmpf) / np.sqrt(len(Tmpf) - 1)
 
-	light[light == 0] = np.nan
-	ll = light * 1
-
-	R[R == 0] = np.nan
-	RR = R * 1
-
-	Angur[Angur == 0] = np.nan
-	AA = Angur * 1
-
-	SB_error[SB_error == 0] = np.nan
-	EE = SB_error * 1
-
 	intens[intens == 0] = np.nan
 	Intns = intens * 1
 
+	intens_r[intens_r == 0] = np.nan
+	Intns_r = intens_r * 1
+	
 	intens_err[intens_err == 0] = np.nan
 	Intns_err = intens_err * 1
 
-	return ll, RR, AA, EE, Intns, Intns_err
+	N_pix[ N_pix == 0] = np.nan
+	Npix = N_pix * 1
+
+	return Intns, Intns_r, Intns_err, Npix
 
 @vectorize
 def sigmamc(r, Mc, c):

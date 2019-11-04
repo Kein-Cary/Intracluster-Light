@@ -297,7 +297,7 @@ def mask_A():
 
 			plt.savefig('SB_befo_mask_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[i]), dpi = 300)
 			plt.close()
-
+			raise
 			hdu = fits.PrimaryHDU()
 			hdu.data = cc_img
 			hdu.header = head_inf
@@ -1240,7 +1240,7 @@ def SB_ICL():
 def main():
 	#sky_03()
 
-	#mask_A()
+	mask_A()
 	#mask_B()
 
 	#resamp_B()
