@@ -18,8 +18,8 @@ from astropy import cosmology as apcy
 from scipy import interpolate as interp
 from scipy.optimize import curve_fit, minimize
 from ICL_surface_mass_density import sigma_m_c
-from light_measure_tmp import light_measure, flux_recal
 from resample_modelu import down_samp, sum_samp
+from light_measure import light_measure, flux_recal, sigmamc
 
 from mpi4py import MPI
 commd = MPI.COMM_WORLD
@@ -299,7 +299,8 @@ def mock_stack(band_id, sub_z, sub_ra, sub_dec):
 		count_array[la0: la1, lb0: lb1][idv] = img[idv]
 		id_nan = np.isnan(count_array)
 		id_fals = np.where(id_nan == False)
-		p_count[id_fals] = p_count[id_fals] + 1.
+		p_count[id_fals] += 1.
+		p_count[0, 0] += 1. # test for the number of stack image
 		count_array[la0: la1, lb0: lb1][idv] = np.nan
 
 	with h5py.File(load + 'test_h5/mock_sum_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
@@ -402,6 +403,13 @@ def main():
 				id_nan = np.isnan(SB1)
 				err1[id_nan] = 100. # set a large value for show the break out errorbar
 
+				## save the stack err
+				keys = ['r_kpc', 'err_nmaggy']
+				values = [Intns_r, Intns_err]
+				fill = dict(zip(keys, values))
+				data = pds.DataFrame(fill)
+				data.to_csv(load + 'mock_ccd/stack_err_%d_sample.csv' % tot_N)
+
 				iux = ( pR > np.min(r) ) & ( pR < np.max(r) )
 				ddsb = SB[iux] - f_SB( pR[iux] )
 				ddsr = pR[iux]
@@ -410,11 +418,11 @@ def main():
 
 				plt.figure()
 				ax = plt.subplot(111)
-				ax.set_title('stack mock [%d img %s band]' % (tot_N, band[qq]) )		
+				ax.set_title('stack mock [%d img %s band]' % (tot_N, band[qq]) )
 				tf = ax.imshow(stack_img, origin = 'lower', vmin = 1e-2, vmax = 1e1, norm = mpl.colors.LogNorm())
 				plt.colorbar(tf, ax = ax, fraction = 0.035, pad =  0.01, label = '$ flux[nmaggy] $')
 				hsc.circles(x0, y0, s = Rpp, fc = '', ec = 'r', linestyle = '-',)
-				hsc.circles(x0, y0, s = 0.2 * Rpp, fc = '', ec = 'g', linestyle = '--',)	
+				hsc.circles(x0, y0, s = 0.2 * Rpp, fc = '', ec = 'g', linestyle = '--',)
 				plt.xlim(x0 - 1.2 * Rpp, x0 + 1.2 * Rpp)
 				plt.ylim(y0 - 1.2 * Rpp, y0 + 1.2 * Rpp)
 				plt.savefig(load + 'mock_ccd/mock_stack_%d_%s_band.png' % (tot_N, band[qq]), dpi = 300)
@@ -427,7 +435,7 @@ def main():
 				bx = plt.subplot(gs[1])
 
 				#ax.set_title('stack img SB [%d img %s band]' % (tot_N, band[qq]))
-				ax.errorbar(pR, SB, yerr = [err0, err1], xerr = None, ls = '', fmt = 'ro', label = 'Mock [noise + mask]', alpha = 0.5)					
+				ax.errorbar(pR, SB, yerr = [err0, err1], xerr = None, ls = '', fmt = 'r.', label = 'Mock [noise + mask]', alpha = 0.5)					
 				ax.plot(r, INS_SB, 'b-', label = ' intrinsic SB ', alpha = 0.5)
 				ax.set_xscale('log')
 				ax.set_xlabel('R [kpc]')
@@ -467,6 +475,33 @@ def main():
 				plt.close()
 
 		commd.Barrier()
+
+	#test the err(r) -- N_sample relation
+	Err, e_R = [], []
+	for aa in range( len(N_tt) ):
+		err_data = pds.read_csv(load + 'mock_ccd/stack_err_%d_sample.csv' % N_tt[aa])
+		R, err = err_data['r_kpc'], err_data['err_nmaggy']
+		Err.append(err)
+		e_R.append(R)
+	e_R = np.array(e_R)
+	Err = np.array(Err)
+	e_R = np.nanmean(e_R, axis = 0)
+
+	F_ntt = 1 / np.sqrt(N_tt)
+	F_Ntt = F_ntt / F_ntt[-1] 
+	plt.figure()
+	ax = plt.subplot(111)
+	ax.set_title('err-stack image number relation')
+	for aa in range( len(e_R) ):
+		if (aa % 4 == 0) & (e_R[aa] >= 100.):
+			ax.plot(N_tt, Err[:, aa], linestyle = '-', color = mpl.cm.plasma(aa / len(e_R)), label = '%.2f[kpc]' % e_R[aa], alpha = 0.5)
+			ax.plot(N_tt, Err[:, aa][-1] * F_Ntt, linestyle = '--', color = mpl.cm.plasma(aa / len(e_R)), alpha = 0.5)
+	ax.set_xlabel('Image Number(N)')
+	ax.set_ylabel('err(N) / err(3000)')
+	ax.set_yscale('log')
+	ax.legend(loc = 1)
+	plt.savefig(load + 'mock_ccd/mock_err_N.png', dpi = 300)
+	plt.close()
 
 	raise
 

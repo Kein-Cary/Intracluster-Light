@@ -14,11 +14,12 @@ import astropy.units as U
 import astropy.constants as C
 
 from astropy import cosmology as apcy
-from light_measure_tmp import light_measure
 from scipy.ndimage import map_coordinates as mapcd
 from resample_modelu import sum_samp, down_samp
 from astropy.coordinates import SkyCoord
 from matplotlib.patches import Circle, Ellipse
+#from light_measure import light_measure
+from light_measure_tmp import light_measure, light_measure_Z0
 
 from mpi4py import MPI
 commd = MPI.COMM_WORLD
@@ -201,17 +202,17 @@ def sky_stack(band_id, sub_z, sub_ra, sub_dec):
 		if  identi == True: 
 			continue
 		else:
-			data = fits.open( load + 'sky/sky_resamp/resample_sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) ) ## scaled
+			'''
+			## scaled
+			data = fits.open( load + 'sky/sky_resamp/resample_sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
 			img = data[0].data
 			cx, cy = data[0].header['CENTER_X'], data[0].header['CENTER_Y']
 			'''
-			data = fits.open( load + 'sky/sky_arr/sky-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk]) ) ## without scale
+			## unscale image
+			data = fits.open( load + 'sky/sky_arr/sky-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk]) ) 
+			wcs = awc.WCS(data[0].header)
 			img = data[0].data
-			head_inf = data[0].header
-			wcs = awc.WCS(head_inf)
-			cenx, ceny = wcs.all_world2pix(ra_g * U.deg, dec_g * U.deg, 1)
-			cx, cy = np.int(cenx), np.int(ceny)
-			'''
+			cx, cy = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
 
 			la0 = np.int(y0 - cy)
 			la1 = np.int(y0 - cy + img.shape[0])
@@ -267,7 +268,7 @@ def main():
 		set_ra = ra[tt0]
 		set_dec = dec[tt0]
 
-		for tt in range(3):
+		for tt in range( len(band) ):
 			m, n = divmod(N_tot[aa], cpus)
 			N_sub0, N_sub1 = m * rank, (rank + 1) * m
 			if rank == cpus - 1:
@@ -279,7 +280,7 @@ def main():
 		p_add_count = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
 		if rank == 0:
-			for qq in range(3):
+			for qq in range( len(band) ):
 				tot_N = 0
 				for pp in range(cpus):
 
@@ -303,7 +304,9 @@ def main():
 
 				R_cut = 800
 				ss_img = stack_img[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
-				Intns, Intns_r, Intns_err, Npix = light_measure(ss_img, bins, 10, Rpp, R_cut, R_cut, pixel, z_ref)
+				#Intns, Intns_r, Intns_err, Npix = light_measure(ss_img, bins, 10, Rpp, R_cut, R_cut, pixel, z_ref) # scaled image
+				Intns, Intns_r, Intns_err = light_measure_Z0(ss_img, pixel, 1, 800, R_cut, R_cut, bins) # unscaled image
+
 				flux0 = Intns + Intns_err
 				flux1 = Intns - Intns_err
 				SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2)
@@ -336,17 +339,20 @@ def main():
 				bx.errorbar(pR, SB, yerr = [err0, err1], xerr = None, ls = '', fmt = 'go', label = 'stack sky image', alpha = 0.5)
 				bx.axhline(y = np.nanmean(SB), linestyle = '--', color = 'r', label = 'mean value', alpha = 0.5)
 				bx.set_xscale('log')
-				bx.set_xlabel('R[kpc]')
-				bx.set_xlim(9, 1010)
+				#bx.set_xlabel('R[kpc]')
+				#bx.set_xlim(9, 1010)
+				bx.set_xlabel('R[arcsec]')
 				bx.set_ylabel('$ sky \; SB \; [mag/arcsec^2] $')
 				bx.set_ylim(np.nanmean(SB) - 0.5, np.nanmean(SB) + 0.5)
 				bx.legend(loc = 1)
 				bx.invert_yaxis()
+				bx.set_xticks([])
 
 				ax.plot(pR, SB - SB[0], 'g--', label = 'deviation to central SB', alpha = 0.5)
 				ax.axhline(y = 0, linestyle = '-.', color = 'r', label = '$ \Delta = 0 $', alpha = 0.5)
 				ax.set_xscale('log')
-				ax.set_xlabel('R [kpc]')
+				#ax.set_xlabel('R [kpc]')
+				ax.set_xlabel('R[arcsec]')
 				ax.set_ylabel('SB(R) - SB(0)')
 				ax.legend(loc = 1)
 

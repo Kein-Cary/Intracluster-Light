@@ -59,6 +59,7 @@ z_ref = 0.25
 Da_ref = Test_model.angular_diameter_distance(z_ref).value
 Jy = 10**(-23) # (erg/s)/cm^2
 f0 = 3631 * Jy # zero point in unit (erg/s)/cm^-2
+M_dot = 4.83 # the absolute magnitude of SUN
 
 R0 = 1 # in unit Mpc
 Angu_ref = (R0 / Da_ref) * rad2asec
@@ -270,8 +271,15 @@ def mask_A():
 			cc_img = sub_img * 10**(Al / 2.5)
 
 			# SB record
-			SB_0, R_0, Ar_0, err_0 = light_measure(img, bins, 1, R_p, cx_BCG, cy_BCG, pixel, z_g)[:4]
-			SB3, R3, Ar3, err3 = light_measure(cc_img, bins, 1, R_p, cx_BCG, cy_BCG, pixel, z_g)[:4]
+			Intns, Intns_r, Intns_err, Npix = light_measure(img, bins, 10, R_p, cx_BCG, cy_BCG, pixel, z_g)
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[i]
+			id_nan = np.isnan(SB)
+			SB_0, R_0 = SB[id_nan == False], Intns_r[id_nan == False]
+
+			Intns, Intns_r, Intns_err, Npix = light_measure(cc_img, bins, 10, R_p, cx_BCG, cy_BCG, pixel, z_g)
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[i]
+			id_nan = np.isnan(SB)
+			SB3, R3 = SB[id_nan == False], Intns_r[id_nan == False]
 
 			fig = plt.figure()
 			fig.suptitle('SB variation before masking')
@@ -297,7 +305,7 @@ def mask_A():
 
 			plt.savefig('SB_befo_mask_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[i]), dpi = 300)
 			plt.close()
-			raise
+
 			hdu = fits.PrimaryHDU()
 			hdu.data = cc_img
 			hdu.header = head_inf
@@ -423,9 +431,17 @@ def mask_A():
 					iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float)
 					iv[iu] = np.nan
 					mask_A[lb0: lb1, la0: la1] = mask_A[lb0: lb1, la0: la1] * iv
-
 			mirro_A = mask_A * cc_img
-			SB4, R4, Ar4, err4 = light_measure(mirro_A, bins, 1, R_p, cx_BCG, cy_BCG, pixel, z_g)[:4]
+
+			Intns, Intns_r, Intns_err, Npix = light_measure(mirro_A, bins, 10, R_p, cx_BCG, cy_BCG, pixel, z_g)
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[i]
+			id_nan = np.isnan(SB)
+			SB4, R4 = SB[id_nan == False], Intns_r[id_nan == False]
+
+			hdu = fits.PrimaryHDU()
+			hdu.data = mirro_A
+			hdu.header = head_inf
+			hdu.writeto('/home/xkchen/mywork/ICL/data/test_data/mask/A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[i], ra_g, dec_g, z_g),overwrite = True)
 
 			fig = plt.figure()
 			fig.suptitle('A mask ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[i]) )
@@ -469,13 +485,6 @@ def mask_A():
 
 			plt.savefig('SB_with_mask_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[i]), dpi = 300)
 			plt.close()
-
-			t1 = time.time() - t0
-			print('t = ', t1)
-			hdu = fits.PrimaryHDU()
-			hdu.data = mirro_A
-			hdu.header = head_inf
-			hdu.writeto('/home/xkchen/mywork/ICL/data/test_data/mask/A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[i], ra_g, dec_g, z_g),overwrite = True)
 
 	raise
 	return
@@ -599,8 +608,15 @@ def mask_B():
 			hdu.writeto(
 				'/home/xkchen/mywork/ICL/data/test_data/mask/B_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[q], ra_g, dec_g, z_g),overwrite = True)
 
-			SB_0, R_0, Ar_0, err_0 = light_measure(img, bins, 1, R_p, cenx, ceny, pixel, z_g)[:4]
-			SB_1, R_1, Ar_1, err_1 = light_measure(mirro_B, bins, 1, R_p, cenx, ceny, pixel, z_g)[:4]
+			Intns, Intns_r, Intns_err, Npix = light_measure(img, bins, 10, R_p, cenx, ceny, pixel, z_g)
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[q]
+			id_nan = np.isnan(SB)
+			SB_0, R_0 = SB[id_nan == False], Intns_r[id_nan == False]
+
+			Intns, Intns_r, Intns_err, Npix = light_measure(mirro_B, bins, 10, R_p, cenx, ceny, pixel, z_g)
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[q]
+			id_nan = np.isnan(SB)
+			SB_1, R_1 = SB[id_nan == False], Intns_r[id_nan == False]
 
 			fig = plt.figure()
 			fig.suptitle('B mask ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[q]) )
@@ -710,14 +726,22 @@ def resamp_B():
 			plt.savefig('resamp_B_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
 			plt.close()
 			'''
-			SB1, R1, Anr1, err1 = light_measure(img, bins, 1, Rp, cx, cy, pixel, z_g)[:4]
+			Intns, Intns_r, Intns_err, Npix = light_measure(img, bins, 10, Rp, cx, cy, pixel, z_g)
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[ii]
+			id_nan = np.isnan(SB)
+			SB1, R1 = SB[id_nan == False], Intns_r[id_nan == False]
 			SB_ref = SB1 + 10*np.log10((1 + z_ref) / (1 + z_g))
-			Ar_ref = Anr1 * mu
-			id_nan = np.isnan(SB_ref)
-			ivx = id_nan == False
-			f_SB = interp(R1[ivx], SB_ref[ivx], kind = 'cubic')
-			SB2, R2, Anr2, err2 = light_measure(f_goal, bins, 1, Rp, cx, cy, pixel * mu, z_ref)[:4]
-			SB3, R3, Anr3, err3 = light_measure(resam, bins, 1, Rpp, xn, yn, pixel, z_ref)[:4]
+			#f_SB = interp(R1, SB_ref, kind = 'cubic')
+
+			Intns, Intns_r, Intns_err, Npix = light_measure(f_goal, bins, 10, Rp, cx, cy, pixel * mu, z_ref)
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[ii]
+			id_nan = np.isnan(SB)
+			SB2, R2 = SB[id_nan == False], Intns_r[id_nan == False]
+
+			Intns, Intns_r, Intns_err, Npix = light_measure(resam, bins, 10, Rpp, xn, yn, pixel, z_ref)
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[ii]
+			id_nan = np.isnan(SB)
+			SB3, R3 = SB[id_nan == False], Intns_r[id_nan == False]
 
 			fig = plt.figure()
 			gs = gridspec.GridSpec(2,1, height_ratios = [4,1])
@@ -747,11 +771,9 @@ def resamp_B():
 			bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
 			ax.set_xticks([])
 
-			id_nan = np.isnan(SB3)
-			iux = id_nan == False
-			ddbr = R3[iux][ (R3[iux] > np.min(R1[ivx])) & (R3[iux] < np.max(R1[ivx])) ]
-			ddb = SB3[iux][ (R3[iux] > np.min(R1[ivx])) & (R3[iux] < np.max(R1[ivx])) ] - f_SB(ddbr)
-			std = np.nanstd(ddb) / np.sqrt( len(SB3[iux]) )
+			ddbr = R3
+			ddb = SB3 - SB_ref
+			std = np.nanstd(ddb)
 			aver = np.nanmean(ddb)
 
 			cx.plot(ddbr, ddb, 'b-')
@@ -763,7 +785,7 @@ def resamp_B():
 			cx.set_xscale('log')
 			cx.set_xlabel('$Radius[kpc]$')
 			cx.set_ylabel('$SB_{after \; resample} - SB_{ref}$')
-			cx.set_ylim(-0.25, 0.25)
+			cx.set_ylim(aver - 1.1 * std, aver + 1.1 * std)
 			cx.set_xlim(ax.get_xlim())
 
 			plt.subplots_adjust(hspace = 0)
@@ -825,10 +847,21 @@ def stack_B():
 		id_zeros = np.where(p_count_total == 0)
 		mean_total[id_zeros] = np.nan
 
-		SB_tot, R_tot, Ar_tot, err_tot = light_measure(mean_total, bins, 1, Rpp, x0, y0, pixel, z_ref)[:4]
-		SB_tot = SB_tot + mag_add[ii]
+		Intns, Intns_r, Intns_err, Npix = light_measure(mean_total, bins, 10, Rpp, x0, y0, pixel, z_ref)
+		flux0 = Intns + Intns_err
+		flux1 = Intns - Intns_err
+		SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[ii]
+		SB0 = 22.5 - 2.5 * np.log10(flux0) + 2.5 * np.log10(pixel**2) + mag_add[ii]
+		SB1 = 22.5 - 2.5 * np.log10(flux1) + 2.5 * np.log10(pixel**2) + mag_add[ii]
+		err0 = SB - SB0
+		err1 = SB1 - SB
+		id_nan = np.isnan(SB)
+		SB_tot, SB0, SB1 = SB[id_nan == False], SB0[id_nan == False], SB1[id_nan == False] 
+		R_tot, err0, err1 = Intns_r[id_nan == False], err0[id_nan == False], err1[id_nan == False]
+		id_nan = np.isnan(SB1)
+		err1[id_nan] = 100. # set a large value for show the break out errorbar
 
-		stack_B = np.array([SB_tot, R_tot, Ar_tot, err_tot])
+		stack_B = np.array([Intns, Intns_r, Intns_err]) # just save the flux (in unit of nmaggy)
 		with h5py.File('/home/xkchen/mywork/ICL/data/test_data/SB_stack_Bmask_%s_band.h5' % band[ii], 'w') as f:
 			f['a'] = np.array(stack_B)
 		with h5py.File('/home/xkchen/mywork/ICL/data/test_data/SB_stack_Bmask_%s_band.h5' % band[ii]) as f:
@@ -848,11 +881,12 @@ def stack_B():
 		ax0.set_xlim(x0 - 1.2 * Rpp, x0 + 1.2 * Rpp)
 		ax0.set_ylim(y0 - 1.2 * Rpp, y0 + 1.2 * Rpp)
 
-		ax1.errorbar(R_tot, SB_tot, yerr = err_tot, xerr = None, ls = '', fmt = 'ro')
+		ax1.errorbar(R_tot, SB_tot, yerr = [err0, err1], xerr = None, ls = '', fmt = 'ro')
 		ax1.set_xscale('log')
 		ax1.set_xlabel('$Radius[kpc]$')
 		ax1.set_ylabel('$SB[mag/arcsec^2]$')
-		ax1.set_xlim(np.nanmin(R_tot) + 1, np.nanmax(R_tot) + 50)
+		ax1.set_xlim(np.nanmin(R_tot) - 1, np.nanmax(R_tot) + 50)
+		ax1.set_ylim(SB_tot[0] - 1, SB_tot[-1] + 1)
 		ax1.invert_yaxis()
 
 		bx1 = ax1.twiny()
@@ -931,14 +965,22 @@ def resamp_A():
 			plt.savefig('resamp_A_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
 			plt.close()
 			'''
-			SB1, R1, Anr1, err1 = light_measure(img, bins, 1, Rp, cx_BCG, cy_BCG, pixel, z_g)[:4]
+			Intns, Intns_r, Intns_err, Npix = light_measure(img, bins, 10, Rp, cx_BCG, cy_BCG, pixel, z_g)
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[ii]
+			id_nan = np.isnan(SB)
+			SB1, R1 = SB[id_nan == False], Intns_r[id_nan == False]
 			SB_ref = SB1 + 10*np.log10((1 + z_ref) / (1 + z_g))
-			Ar_ref = Anr1 * miu
-			id_nan = np.isnan(SB_ref)
-			ivx = id_nan == False
-			f_SB = interp(R1[ivx], SB_ref[ivx], kind = 'cubic')
-			SB2, R2, Anr2, err2 = light_measure(f_D, bins, 1, Rp, cx_BCG, cy_BCG, pixel * miu, z_ref)[:4]
-			SB3, R3, Anr3, err3 = light_measure(resam_d, bins, 1, Rpp, xnd, ynd, pixel, z_ref)[:4]
+			#f_SB = interp(R1, SB_ref, kind = 'cubic')
+
+			Intns, Intns_r, Intns_err, Npix = light_measure(f_D, bins, 10, Rp, cx_BCG, cy_BCG, pixel * miu, z_ref)
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[ii]
+			id_nan = np.isnan(SB)
+			SB2, R2 = SB[id_nan == False], Intns_r[id_nan == False]
+
+			Intns, Intns_r, Intns_err, Npix = light_measure(resam_d, bins, 10, Rpp, xnd, ynd, pixel, z_ref)
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[ii]
+			id_nan = np.isnan(SB)
+			SB3, R3 = SB[id_nan == False], Intns_r[id_nan == False]
 
 			fig = plt.figure()
 			gs = gridspec.GridSpec(2,1, height_ratios = [4,1])
@@ -953,7 +995,7 @@ def resamp_A():
 			ax.set_xscale('log')
 			ax.set_xlabel('$Radius[kpc]$')
 			ax.set_ylabel('$SB[mag/arcsec^2]$')
-			ax.set_xlim(np.nanmin(R3) + 1, np.nanmax(R3) + 50)
+			ax.set_xlim(np.nanmin(R3) - 1, np.nanmax(R3) + 50)
 			ax.legend(loc = 1)
 			ax.invert_yaxis()
 
@@ -968,11 +1010,9 @@ def resamp_A():
 			bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
 			ax.set_xticks([])
 
-			id_nan = np.isnan(SB3)
-			iux = id_nan == False
-			ddbr = R3[iux][ (R3[iux] > np.min(R1[ivx])) & (R3[iux] < np.max(R1[ivx])) ]
-			ddb = SB3[iux][ (R3[iux] > np.min(R1[ivx])) & (R3[iux] < np.max(R1[ivx])) ] - f_SB(ddbr)
-			std = np.nanstd(ddb) / np.sqrt( len(SB3[iux]) )
+			ddbr = R3
+			ddb = SB3 - SB_ref
+			std = np.nanstd(ddb)
 			aver = np.nanmean(ddb)
 
 			cx.plot(ddbr, ddb, 'b-')
@@ -984,7 +1024,7 @@ def resamp_A():
 			cx.set_xscale('log')
 			cx.set_xlabel('$Radius[kpc]$')
 			cx.set_ylabel('$SB_{after \; resample} - SB_{ref}$')
-			cx.set_ylim(-0.25, 0.25)
+			cx.set_ylim(aver - 1.1 * std, aver + 1.1 * std)
 			cx.set_xlim(ax.get_xlim())
 
 			plt.subplots_adjust(hspace = 0.01)
@@ -1045,12 +1085,22 @@ def stack_A():
 		id_zeros = np.where(p_count_D == 0)
 		mean_array_D[id_zeros] = np.nan
 
-		SB, R, Ar, err, mm_flux = light_measure(mean_array_D, bins, 1, Rpp, x0, y0, pixel, z_ref)[:5]
-		SB1 = SB + mag_add[ii]
-		Ar1 = (Ar / Angu_ref) * Angu_ref
-		R1 = R * 1
-		err1 = err * 1
-		stackA = np.array([SB1, R1, Ar1, err1])
+		Intns, Intns_r, Intns_err, Npix = light_measure(mean_array_D, bins, 10, Rpp, x0, y0, pixel, z_ref)
+		flux0 = Intns + Intns_err
+		flux1 = Intns - Intns_err
+
+		SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[ii]
+		SB0 = 22.5 - 2.5 * np.log10(flux0) + 2.5 * np.log10(pixel**2) + mag_add[ii]
+		SB1 = 22.5 - 2.5 * np.log10(flux1) + 2.5 * np.log10(pixel**2) + mag_add[ii]
+		err0 = SB - SB0
+		err1 = SB1 - SB
+		id_nan = np.isnan(SB)
+		SB_tot, SB0, SB1 = SB[id_nan == False], SB0[id_nan == False], SB1[id_nan == False] 
+		R_tot, err0, err1 = Intns_r[id_nan == False], err0[id_nan == False], err1[id_nan == False]
+		id_nan = np.isnan(SB1)
+		err1[id_nan] = 100. # set a large value for show the break out errorbar
+
+		stackA = np.array([Intns, Intns_r, Intns_err]) # just save the flux (in unit of nmaggy)
 		with h5py.File(
 			'/home/xkchen/mywork/ICL/data/test_data/SB_stack_Amask_%s_band.h5' % band[ii], 'w') as f:
 			f['a'] = stackA
@@ -1071,11 +1121,12 @@ def stack_A():
 		ax0.set_xlim(x0 - 1.2 * Rpp, x0 + 1.2 * Rpp)
 		ax0.set_ylim(y0 - 1.2 * Rpp, y0 + 1.2 * Rpp)
 
-		ax1.errorbar(R1, SB1, yerr = err1, xerr = None, ls = '', fmt = 'ro')
+		ax1.errorbar(R_tot, SB_tot, yerr = [err0, err1], xerr = None, ls = '', fmt = 'ro')
 		ax1.set_xscale('log')
 		ax1.set_xlabel('$Radius[kpc]$')
 		ax1.set_ylabel('$SB[mag/arcsec^2]$')
-		ax1.set_xlim(np.nanmin(R1) + 1, np.nanmax(R1) + 50)
+		ax1.set_xlim(np.nanmin(R_tot) - 1, np.nanmax(R_tot) + 50)
+		ax1.set_ylim(SB_tot[0] - 1, SB_tot[-1] + 1)
 		ax1.invert_yaxis()
 
 		bx1 = ax1.twiny()
@@ -1096,17 +1147,16 @@ def stack_A():
 
 def SB_fit(r, m0, mc, c, m2l):
 	bl = m0
+	f_bl = 10**(0.4 * ( 22.5 - bl + 2.5 * np.log10(pixel**2) ) )
+
 	surf_mass = sigmamc(r, mc, c)
 	surf_lit = surf_mass / m2l
+	SB_mod = M_dot - 2.5 * np.log10(surf_lit * 1e-6) + 10 * np.log10(1 + z_ref) + 21.572
+	f_mod = 10**(0.4 * ( 22.5 - SB_mod + 2.5 * np.log10(pixel**2) ) )
 
-	Lz = surf_lit / ((1 + z_ref)**4 * np.pi * 4 * rad2asec**2)
-	Lob = Lz * Lsun / kpc2cm**2
-	fob = Lob / (10**(-9)*f0)
-	mock_SB = 22.5 - 2.5 * np.log10(fob)
+	f_ref = f_mod + f_bl
 
-	mock_L = mock_SB + bl
-
-	return mock_L
+	return f_ref
 
 def chi2(X, *args):
 	m0 = X[0]
@@ -1119,7 +1169,7 @@ def chi2(X, *args):
 	m2l = m2l
 	c = c
 	mock_L = SB_fit(r, m0, mc, c, m2l)
-	chi = np.sum(((mock_L - data) / yerr)**2)
+	chi = np.sum( ( (mock_L - data) / yerr)**2 )
 	return chi
 
 def crit_r(Mc, c):
@@ -1136,100 +1186,64 @@ def SB_ICL():
 
 		with h5py.File('/home/xkchen/mywork/ICL/data/test_data/SB_stack_Amask_%s_band.h5' % band[ii]) as f:
 			A_stack = np.array(f['a'])
-		SB_diff = A_stack[0,:]
-		R_diff = A_stack[1,:]
-		Ar_diff = A_stack[2,:]
-		err_diff = A_stack[3,:]
-
-		ix = R_diff >= 100
-		iy = R_diff <= 900
+		Intns, Intns_r, Intns_err = A_stack[0,:], A_stack[1,:], A_stack[2,:]
+		ix = Intns_r >= 100
+		iy = Intns_r <= 900
 		iz = ix & iy
-		r_fit = R_diff[iz]
-		sb_fit = SB_diff[iz]
-		err_fit = err_diff[iz]
+		r_fit, f_obs, err_fit = Intns_r[iz], Intns[iz], Intns_err[iz]
+		SB_obs = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2)
+		SB0 = 22.5 - 2.5 * np.log10(Intns + Intns_err) + 2.5 *np.log10(pixel**2)
+		SB1 = 22.5 - 2.5 * np.log10(Intns - Intns_err) + 2.5 *np.log10(pixel**2)
+		err0 = SB_obs - SB0
+		err1 = SB1 - SB_obs
+		id_nan = np.isnan(SB1)
+		err1[id_nan] = 100.
 
-		m0 = np.arange(30.5, 35.5, 0.25)
-		mc = np.arange(13.5, 15, 0.25)
-		cc = np.arange(1, 5, 0.25)
-		m2l = np.arange(200, 274, 2)
+		m0 = np.arange(26.5, 28.5, 0.25) # residual sky
+		mc = np.arange(13.5, 15, 0.25)   # the total gravity mass of cluster
+		cc = np.arange(0.75, 7.5, 0.25)       # concentration
+		m2l = np.arange(35, 65, 2)     # mass to light ratio (Mo . book)
 
-		po = np.array( [m0[0], mc[0], cc[0], m2l[0]] )
-		popt, pcov = curve_fit(SB_fit, r_fit, sb_fit, p0 = po, bounds = ([30, 13.5, 1, 200], [37, 15, 6, 270]), method = 'trf')
-		M0 = popt[0]
-		Mc = popt[1]
-		Cc = popt[2]
-		M2L = popt[3]
-		'''
-		popt = minimize(chi2, x0 = np.array([m0[0], mc[0], cc[0], m2l[10]]), args = (r_fit, sb_fit, err_fit), method = 'Powell', tol = 1e-5)
-		M0 = popt.x[0]
-		Mc = popt.x[1]
-		Cc = popt.x[2]
-		M2L = popt.x[3]
-		'''
+		popt = minimize(chi2, x0 = np.array([m0[0], mc[0], cc[0], m2l[10]]), args = (r_fit, f_obs, err_fit), method = 'Powell', tol = 1e-5)
+		M0, Mc, Cc, M2L = popt.x[0], popt.x[1], popt.x[2], popt.x[3]
+
+		R_sky = 10**(0.4 * (22.5 - M0 + 2.5 * np.log10(pixel**2) ) )
+		SB_rem = 22.5 - 2.5 * np.log10(Intns - R_sky) + 2.5 * np.log10(pixel**2)
+		SB_m0 = 22.5 - 2.5 * np.log10(Intns - R_sky + Intns_err) + 2.5 * np.log10(pixel**2)
+		SB_m1 = 22.5 - 2.5 * np.log10(Intns - R_sky - Intns_err) + 2.5 * np.log10(pixel**2)
+		err_m0 = SB_rem - SB_m0
+		err_m1 = SB_m1 - SB_rem
+		id_nan = np.isnan(SB_m1)
+		err_m1[id_nan] = 100.
+
 		print('*'*10)
 		print('m0 = ', M0)
 		print('Mc = ', Mc)
 		print('C = ', Cc)
 		print('M2L = ', M2L)
 
-		fit_line = SB_fit(r_fit, M0, Mc, Cc, M2L)
+		fit_line = SB_fit( Intns_r, M0, Mc, Cc, M2L)
+		SB_mod = 22.5 - 2.5 * np.log10(fit_line) + 2.5 * np.log10(pixel**2)
 		rs, r200 = crit_r(Mc, Cc)
 
-		fig = plt.figure(figsize = (16, 9))
-		plt.suptitle('stack profile in %s band' % band[ii])
-		ax = plt.subplot(111)
-		ax.errorbar(R_diff, SB_diff, yerr = err_diff, xerr = None, ls = '', fmt = 'ro')
-		ax.set_xlabel('$R[kpc]$')
-		ax.set_xscale('log')
-		ax.set_ylabel('$SB[mag/arcsec^2]$')
-		ax.tick_params(axis = 'both', which = 'both', direction = 'in')
-		ax.invert_yaxis()
-		ax.set_xlim(np.nanmin(R_diff + 1), np.nanmax(R_diff + 20))
-
-		ax1 = ax.twiny()
-		xtik = ax.get_xticks()
-		xtik = np.array(xtik)
-		xR = xtik * 10**(-3) * rad2asec / Da_g
-		ax1.set_xscale('log')
-		ax1.set_xticks(xtik)
-		ax1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
-		ax1.set_xlim(ax.get_xlim())
-		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
-
-		plt.savefig('/home/xkchen/mywork/ICL/code/stack_profile_%sband.png' % band[ii], dpi = 300)
-		plt.show()
-
-		fig = plt.figure(figsize = (16, 9))
+		fig = plt.figure( figsize = (12, 6) )
 		plt.suptitle('$fit \; for \; background \; estimate \; in \; %s \; band$' % band[ii])
 		bx = plt.subplot(111)
-		cx = fig.add_axes([0.15, 0.25, 0.175, 0.175])
 
-		bx.errorbar(R_diff[iz], SB_diff[iz], yerr = err_diff[iz], xerr = None, ls = '', fmt = 'ro', label = '$observation$')
-		bx.plot(r_fit, fit_line, 'b-', label = '$NFW+C$')
+		bx.errorbar(Intns_r, SB_obs, yerr = [err0, err1], xerr = None, ls = '', fmt = 'r.', label = '$observation$')
+		bx.plot(Intns_r, SB_mod, 'b-', label = '$NFW+C$')
+		bx.errorbar(Intns_r, SB_rem, yerr = [err_m0, err_m1], xerr = None, ls = '', fmt = 'g.', label = '$observation$')
 		bx.axvline(x = rs, linestyle = '--', linewidth = 1, color = 'b', label = '$r_s$')
 
 		bx.set_xlabel('$R[kpc]$')
 		bx.set_xscale('log')
 		bx.set_ylabel('$SB[mag/arcsec^2]$')
 		bx.tick_params(axis = 'both', which = 'both', direction = 'in')
+		bx.set_ylim( np.nanmin(SB_obs) - 1, np.nanmax(SB_rem) + 1 )
+		#bx.set_xlim(1e2, 9e2)
 		bx.invert_yaxis()
-		bx.set_xlim(1e2, 9e2)
-
-		bx1 = bx.twiny()
-		xtik = bx.get_xticks(minor = True)
-		xR = xtik * 10**(-3) * rad2asec / Da_ref
-		bx1.set_xticks(xtik)
-		bx1.set_xticklabels(["%.2f" % uu for uu in xR])
-		bx1.set_xlim(bx.get_xlim())
-		bx1.set_xlabel('$R[arcsec]$')
-		bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
-
-		cx.text(0, 0, s = 'BL = %.2f' % M0 + '\n' + '$Mc = %.2fM_\odot $' % Mc + '\n' + 
-			'C = %.2f' % Cc + '\n' + 'M2L = %.2f' % M2L, fontsize = 15)
-		cx.axis('off')
-		cx.set_xticks([])
-		cx.set_yticks([])
-
+		bx.text(600, 26, s = '$ \; M_{c} = %.3f M_{\odot} $' % Mc + '\n' + '$ \; C = %.3f $' % Cc + '\n' + 
+			'$ \; R_{sky} = %.3f $' % M0 + '\n' + '$ \; M2L = %.3f $' % M2L)
 		bx.legend(loc = 3, fontsize = 15)
 		plt.savefig('/home/xkchen/mywork/ICL/code/fit_for_BG_%s_band.png' % band[ii], dpi = 600)
 		plt.show()
@@ -1240,16 +1254,16 @@ def SB_ICL():
 def main():
 	#sky_03()
 
-	mask_A()
+	#mask_A()
 	#mask_B()
 
 	#resamp_B()
 	#stack_B()
 
 	#resamp_A()
-	stack_A()
+	#stack_A()
 
-	#SB_ICL()
+	SB_ICL()
 
 if __name__ == "__main__":
 	main()
