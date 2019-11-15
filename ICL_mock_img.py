@@ -53,7 +53,7 @@ Jy = 10**(-23) # (erg/s)/cm^2
 f0 = 3631*Jy # zero point in unit (erg/s)/cm^-2
 Lstar = 2e10 # in unit L_sun ("copy from Galaxies in the Universe", use for Luminosity function calculation)
 
-with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/sample_catalog.h5', 'r') as f:
+with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/mpi_h5/sample_catalog.h5', 'r') as f:
 	catalogue = np.array(f['a'])
 z = catalogue[0]
 ra = catalogue[1]
@@ -69,63 +69,57 @@ gain = np.array([ [4.71, 4.6, 4.72, 4.76, 4.725, 4.895],
 				[1.62, 1.71, 1.59, 1.6, 1.47, 2.17], 
 				[4.745, 5.155, 4.885, 4.775, 3.48, 4.69] ])
 
-def SB_fit(r, mu_e0, mu_e1, mu_e2, r_e0, r_e1, r_e2, ndex0, ndex1, ndex2):
+def SB_fit(r, mu_e0, mu_e1, r_e0, r_e1, ndex0, ndex1):
 	"""
 	SB profile : Mo. galaxy evolution and evolution, Chapter 2, eq. 2.23
 	"""
 	mock_SB0 = mu_e0 + 1.086 * (2 * ndex0 - 0.324) * ( (r / r_e0)**(1 / ndex0) - 1) # in unit mag/arcsec^2
 	mock_SB1 = mu_e1 + 1.086 * (2 * ndex1 - 0.324) * ( (r / r_e1)**(1 / ndex1) - 1)
-	mock_SB2 = mu_e2 + 1.086 * (2 * ndex2 - 0.324) * ( (r / r_e2)**(1 / ndex2) - 1)
 	f_SB0 = 10**( (22.5 - mock_SB0 + 2.5 * np.log10(pixel**2)) / 2.5 ) # in unit nmaggy
 	f_SB1 = 10**( (22.5 - mock_SB1 + 2.5 * np.log10(pixel**2)) / 2.5 )
-	f_SB2 = 10**( (22.5 - mock_SB2 + 2.5 * np.log10(pixel**2)) / 2.5 )
-	mock_SB = 22.5 - 2.5 * np.log10(f_SB0 + f_SB1 + f_SB2) + 2.5 * np.log10(pixel**2)
+	mock_SB = 22.5 - 2.5 * np.log10(f_SB0 + f_SB1) + 2.5 * np.log10(pixel**2)
 	return mock_SB
 
-def SB_dit(r, mu_e0, mu_e1, mu_e2, r_e0, r_e1, r_e2, ndex0, ndex1, ndex2):
+def SB_dit(r, mu_e0, mu_e1, r_e0, r_e1, ndex0, ndex1):
 	"""
 	SB profile : Mo. galaxy evolution and evolution, Chapter 2, eq. 2.23
 	"""
 	mock_SB0 = mu_e0 + 1.086 * (2 * ndex0 - 0.324) * ( (r / r_e0)**(1 / ndex0) - 1) # in unit mag/arcsec^2
 	mock_SB1 = mu_e1 + 1.086 * (2 * ndex1 - 0.324) * ( (r / r_e1)**(1 / ndex1) - 1)
-	mock_SB2 = mu_e2 + 1.086 * (2 * ndex2 - 0.324) * ( (r / r_e2)**(1 / ndex2) - 1)
 	f_SB0 = 10**( (22.5 - mock_SB0 + 2.5 * np.log10(pixel**2)) / 2.5 ) # in unit nmaggy
 	f_SB1 = 10**( (22.5 - mock_SB1 + 2.5 * np.log10(pixel**2)) / 2.5 )
-	f_SB2 = 10**( (22.5 - mock_SB2 + 2.5 * np.log10(pixel**2)) / 2.5 )
-	mock_SB = 22.5 - 2.5 * np.log10(f_SB0 + f_SB1 + f_SB2) + 2.5 * np.log10(pixel**2)
-	return mock_SB0, mock_SB1, mock_SB2, mock_SB
+	mock_SB = 22.5 - 2.5 * np.log10(f_SB0 + f_SB1) + 2.5 * np.log10(pixel**2)
+	return mock_SB0, mock_SB1, mock_SB
 
 def SB_pro():
 	for kk in range(1):
-		## read the profile
-		SB0 = pds.read_csv(load + 'Zibetti_SB/%s_band_1.csv' % band[kk], skiprows = 1)
-		R_r = SB0['Mpc']
-		SB_r0 = SB0['mag/arcsec^2']
-		SB1 = pds.read_csv(load + 'Zibetti_SB/%s_band_2.csv' % band[kk], skiprows = 1)
-		SB_r1 = SB1['mag/arcsec^2']
-		SB2 = pds.read_csv(load + 'Zibetti_SB/%s_band_3.csv' % band[kk], skiprows = 1)
-		SB_r2 = SB2['mag/arcsec^2']
-		## fit the profile
-		mu_e0, mu_e1, mu_e2 = 23.87, 30, 20 # mag/arcsec^2
-		Re_0, Re_1, Re_2 = 19.29, 120, 10 # kpc
-		ndex0, ndex1, ndex2 = 4., 4., 4.
 
-		r_fit = R_r * 10**3
-		po = np.array([mu_e0, mu_e1, mu_e2, Re_0, Re_1, Re_2, ndex0, ndex1, ndex2])
-		popt, pcov = curve_fit(SB_fit, r_fit, SB_r0, p0 = po, 
-				bounds = ([21, 27, 18, 18, 100, 9, 1., 1., 1.], [24, 32, 21, 22, 500, 18, 6., 12., 4.]), method = 'trf')
-		mu_fit0, mu_fit1, mu_fit2, re_fit0, re_fit1, re_fit2, ndex_fit0, ndex_fit1, ndex_fit2 = popt
+		SB0 = pds.read_csv(load + 'Zibetti_SB/%s_band_BCG_ICL.csv' % band[kk])
+		R_r0, SB_r0 = SB0['(1000R)^(1/4)'], SB0['mag/arcsec^2']
+		## fit the profile
+		mu_e0, mu_e1 = 23.87, 30 # mag/arcsec^2
+		Re_0, Re_1 = 19.29, 120 # kpc
+		ndex0, ndex1 = 4., 4.
+
+		r_fit = (R_r0**4 / 1000) * 1e3
+		po = np.array([mu_e0, mu_e1, Re_0, Re_1, ndex0, ndex1])
+		popt, pcov = curve_fit(SB_fit, r_fit, SB_r0, p0 = po, bounds = ([21, 27, 18, 100, 1., 1.], [24, 32, 22, 500, 6., 6.]), method = 'trf') # r_band
+		#popt, pcov = curve_fit(SB_fit, r_fit, SB_r0, p0 = po, bounds = ([23, 28, 17, 100, 1., 1.], [25, 32, 20, 450, 6., 6.]), method = 'trf') # g_band
+		#popt, pcov = curve_fit(SB_fit, r_fit, SB_r0, p0 = po, bounds = ([23, 28, 17, 100, 1., 1.], [25, 32, 20, 450, 6., 6.]), method = 'trf') # i_band
+		mu_fit0, mu_fit1, re_fit0, re_fit1, ndex_fit0, ndex_fit1 = popt
+
 		r = np.logspace(0, 3.08, 1000)
 		r_sc = r / 10**3
 		r_max = np.max(r_sc)
 		r_min = np.min(r_sc)
-		SB_r = SB_fit(r, mu_fit0, mu_fit1, mu_fit2, re_fit0, re_fit1, re_fit2, ndex_fit0, ndex_fit1, ndex_fit2) # profile at z = 0.25
+		SB_r = SB_fit(r, mu_fit0, mu_fit1, re_fit0, re_fit1, ndex_fit0, ndex_fit1) # SB at z = 0.25
 
 		key0 = ['%.3f' % z_ref, 'r']
 		value0 = [SB_r, r]
 		fill0 = dict(zip(key0, value0))
 		data = pds.DataFrame(fill0)
-		data.to_csv(load + 'mock_ccd/mock_intrinsic_SB_%s_band.csv' % band[kk])
+		data.to_csv(load + 'mock_intrinsic_SB_%s_band.csv' % band[kk])
+	return
 
 def mock_ccd(band_id, z_set, ra_set, dec_set):
 	exp_time = 54 # exposure time, in unit second
@@ -226,8 +220,7 @@ def mock_ccd(band_id, z_set, ra_set, dec_set):
 def mock_resamp(band_id, sub_z, sub_ra, sub_dec):
 	kk = np.int(band_id)
 	zn = len(sub_z)
-	#for ii in range(len(band)):
-	print('Now band is %s' % band[kk])
+
 	for k in range(zn):
 		ra_g = sub_ra[k]
 		dec_g = sub_dec[k]
@@ -309,6 +302,12 @@ def mock_stack(band_id, sub_z, sub_ra, sub_dec):
 	with h5py.File(load + 'test_h5/mock_pcount_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
 		f['a'] = np.array(p_count)
 
+def sers_pro(r, mu_e, r_e, n):
+	belta_n = 2*n - 0.324
+	fn = 1.086 * belta_n * ( (r/r_e)**(1/n) - 1)
+	mu_r = mu_e + fn
+	return mu_r
+
 def main():
 	Nz = len(z)
 	#SB_pro()
@@ -346,7 +345,7 @@ def main():
 		set_z = z[tt0]
 		set_ra = ra[tt0]
 		set_dec = dec[tt0]
-
+		'''
 		## stack mock frame
 		for tt in range(1):
 			m, n = divmod(N_tt[aa], cpus)
@@ -355,7 +354,7 @@ def main():
 				N_sub1 += n
 			mock_stack(tt, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
 		commd.Barrier()
-
+		'''
 		# stack eht sub-sum array
 		mean_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 		p_add_count = np.zeros((len(Ny), len(Nx)), dtype = np.float)
@@ -366,7 +365,9 @@ def main():
 				r, INS_SB = ins_SB['r'], ins_SB['0.250']
 				f_SB = interp.interp1d(r, INS_SB, kind = 'cubic')
 
-				tot_N = 0
+				#tot_N = 0
+				tot_N = N_tt[aa]
+				'''
 				for pp in range(cpus):
 
 					with h5py.File(load + 'test_h5/mock_sum_%d_in_%s_band.h5' % (pp, band[qq]), 'r')as f:
@@ -385,11 +386,18 @@ def main():
 				mean_img[id_zero] = np.nan
 				p_add_count[id_zero] = np.nan
 				tot_N = np.int(tot_N)
-
 				stack_img = mean_img / p_add_count
-				R_cut = 800
+				## save the stack image
+				with h5py.File(load + 'mock_ccd/stack_%d_img.h5' % tot_N, 'w') as f:
+					f['a'] = np.array(stack_img)
+				'''
+				with h5py.File(load + 'mock_ccd/stack_%d_img.h5' % tot_N, 'r') as f:
+					stack_img = np.array(f['a'])
+
+				R_cut = 1000
+				R_smal, R_max = 10, 10**3.02
 				ss_img = stack_img[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
-				Intns, Intns_r, Intns_err, Npix = light_measure(ss_img, bins, 10, Rpp, R_cut, R_cut, pixel, z_ref)
+				Intns, Intns_r, Intns_err, Npix = light_measure(ss_img, bins, R_smal, R_max, R_cut, R_cut, pixel, z_ref)
 				flux0 = Intns + Intns_err
 				flux1 = Intns - Intns_err
 				SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2)
@@ -415,6 +423,9 @@ def main():
 				ddsr = pR[iux]
 				std = np.nanstd(ddsb)
 				aver = np.nanmean(ddsb)
+				## Zibetti 05 fitting
+				mu_e, r_e, n_e = 23.87, 19.29, 4.
+				SB_fit = sers_pro(pR, mu_e, r_e, n_e)
 
 				plt.figure()
 				ax = plt.subplot(111)
@@ -434,8 +445,8 @@ def main():
 				ax = plt.subplot(gs[0])
 				bx = plt.subplot(gs[1])
 
-				#ax.set_title('stack img SB [%d img %s band]' % (tot_N, band[qq]))
-				ax.errorbar(pR, SB, yerr = [err0, err1], xerr = None, ls = '', fmt = 'r.', label = 'Mock [noise + mask]', alpha = 0.5)					
+				ax.errorbar(pR, SB, yerr = [err0, err1], xerr = None, ls = '', fmt = 'r.', label = 'Mock [noise + mask]', alpha = 0.5)
+				ax.plot(pR, SB_fit, linestyle = '--', color = 'k', label = 'Z05 Sersic fit', alpha = 0.5)				
 				ax.plot(r, INS_SB, 'b-', label = ' intrinsic SB ', alpha = 0.5)
 				ax.set_xscale('log')
 				ax.set_xlabel('R [kpc]')

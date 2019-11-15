@@ -211,284 +211,6 @@ def sky_03(band_id, ra_g, dec_g, z_g):
 	'''
 	return BL
 
-def mask_A():
-	bins = 65
-	t0 = time.time()
-
-	load = '/home/xkchen/mywork/ICL/data/total_data/'
-	tmp_load = '/home/xkchen/mywork/ICL/data/test_data/'
-	param_A = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A.sex'
-	out_cat = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A.param'
-	out_load_A = '/home/xkchen/mywork/ICL/data/SEX/result/mask_A_test.cat'
-
-	red_rich = Lambd[Lambd > 100]
-	red_z = z[Lambd > 100]
-	red_ra = ra[Lambd > 100]
-	red_dec = dec[Lambd > 100]
-
-	for i in range(1):
-		for q in range(10):
-			ra_g = red_ra[q]
-			dec_g = red_dec[q]
-			z_g = red_z[q]
-
-			file = 'frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (band[i], ra_g, dec_g, z_g)
-			data_f = fits.open(load+file)
-			img = data_f[0].data
-			head_inf = data_f[0].header
-			wcs = awc.WCS(head_inf)
-			cx_BCG, cy_BCG = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
-			Da_g = Test_model.angular_diameter_distance(z_g).value
-			R_ph = rad2asec / Da_g
-			R_p = R_ph / pixel
-
-			x_side = data_f[0].data.shape[1]
-			y_side = data_f[0].data.shape[0]
-			'''
-			sky0 = data_f[2].data['ALLSKY'][0]
-			sky_x = data_f[2].data['XINTERP'][0]
-			sky_y = data_f[2].data['YINTERP'][0]
-			fact = img.size / sky0.size
-			x0 = np.linspace(0, sky0.shape[1] - 1, sky0.shape[1])
-			y0 = np.linspace(0, sky0.shape[0] - 1, sky0.shape[0])
-			f_sky = interp2(x0, y0, sky0)
-			sky_bl = f_sky(sky_x, sky_y) * data_f[0].header['NMGY'] / fact
-			Back_lel = sky_03(np.int(i), ra_g, dec_g, z_g)
-			cimg = img + sky_bl
-			sub_img = cimg - Back_lel
-			'''
-			cimg = img + 0.
-			sub_img = cimg - 0.
-
-			x0 = np.linspace(0, img.shape[1] - 1, img.shape[1])
-			y0 = np.linspace(0, img.shape[0] - 1, img.shape[0])
-			img_grid = np.array(np.meshgrid(x0, y0))
-			ra_img, dec_img = wcs.all_pix2world(img_grid[0,:], img_grid[1,:], 1)
-			pos = SkyCoord(ra_img, dec_img, frame = 'fk5', unit = 'deg')
-			BEV = sfd(pos)
-			Av = Rv * BEV
-			Al = A_wave(l_wave[i], Rv) * Av
-			cc_img = sub_img * 10**(Al / 2.5)
-
-			# SB record
-			Intns, Intns_r, Intns_err, Npix = light_measure(img, bins, 10, R_p, cx_BCG, cy_BCG, pixel, z_g)
-			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[i]
-			id_nan = np.isnan(SB)
-			SB_0, R_0 = SB[id_nan == False], Intns_r[id_nan == False]
-
-			Intns, Intns_r, Intns_err, Npix = light_measure(cc_img, bins, 10, R_p, cx_BCG, cy_BCG, pixel, z_g)
-			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[i]
-			id_nan = np.isnan(SB)
-			SB3, R3 = SB[id_nan == False], Intns_r[id_nan == False]
-
-			fig = plt.figure()
-			fig.suptitle('SB variation before masking')
-			ax = plt.subplot(111)
-			ax.plot(R_0, SB_0, 'r--', label = '$original \; image$', alpha = 0.5)
-			ax.plot(R3, SB3, 'g-', label = '$extinction \; calibration$', alpha = 0.5)
-			ax.set_xscale('log')
-			ax.set_xlim(np.nanmin(R_0) + 1, np.nanmax(R_0) + 50)
-			ax.set_xlabel('$Radius[kpc]$')
-			ax.set_ylabel('$SB[mag/arcsec^2]$')
-			ax.legend(loc = 1)
-			ax.invert_yaxis()
-
-			bx1 = ax.twiny()
-			xtik = ax.get_xticks()
-			xtik = np.array(xtik)
-			xR = xtik * 10**(-3) * rad2asec / Da_g
-			bx1.set_xscale('log')
-			bx1.set_xticks(xtik)
-			bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
-			bx1.set_xlim(ax.get_xlim())
-			bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
-
-			plt.savefig('SB_befo_mask_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[i]), dpi = 300)
-			plt.close()
-
-			hdu = fits.PrimaryHDU()
-			hdu.data = cc_img
-			hdu.header = head_inf
-			hdu.writeto(tmp_load + 'source/source_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[i], ra_g, dec_g, z_g), overwrite = True)
-
-			file_source = tmp_load + 'source/source_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[i], ra_g, dec_g, z_g)
-			'''
-			cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s'%(param_A, out_load_A, out_cat) # 1.5sigma
-			'''
-			dete_thresh = sb_lim[i] + 10*np.log10((1 + z_g)/(1 + z_ref))
-			dete_thresh = '%.3f' % dete_thresh + ',%.2f' % zpot[i]
-			dete_min = '10'
-			ana_thresh = dete_thresh *1
-			cmd = (
-				'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s -DETECT_MINAREA %s -DETECT_THRESH %s -ANALYSIS_THRESH %s'
-				%(param_A, out_load_A, out_cat, dete_min, dete_thresh, ana_thresh))
-			print(cmd)
-			tpp = subpro.Popen(cmd, shell = True)
-			tpp.wait()
-
-			source = asc.read(out_load_A)
-			Numb = np.array(source['NUMBER'][-1])
-			A = np.array(source['A_IMAGE'])
-			B = np.array(source['B_IMAGE'])
-			theta = np.array(source['THETA_IMAGE'])
-			cx = np.array(source['X_IMAGE']) - 1
-			cy = np.array(source['Y_IMAGE']) - 1
-			p_type = np.array(source['CLASS_STAR'])
-			Kron = 6
-			a = Kron * A
-			b = Kron * B
-			# photometric catalogue
-			mask = '/home/xkchen/mywork/ICL/data/star_dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' % (z_g, ra_g, dec_g) # dr8
-			cat = pds.read_csv(mask, skiprows = 1)
-			set_ra = np.array(cat['ra'])
-			set_dec = np.array(cat['dec'])
-			set_mag = np.array(cat['r'])
-			OBJ = np.array(cat['type'])
-			xt = cat['Column1']
-			tau = 8 # the mask size set as 6 * FWHM from dr12
-
-			set_A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
-			set_B = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
-			set_chi = np.zeros(set_A.shape[1], dtype = np.float)
-
-			lln = np.array([len(set_A[:,ll][set_A[:,ll] > 0 ]) for ll in range(set_A.shape[1]) ])
-			lr_iso = np.array([np.max(set_A[:,ll]) for ll in range(set_A.shape[1]) ])
-			sr_iso = np.array([np.max(set_B[:,ll]) for ll in range(set_B.shape[1]) ])
-
-			# bright stars
-			x, y = wcs.all_world2pix(set_ra * U.deg, set_dec * U.deg, 1)
-			ia = (x >= 0) & (x <= img.shape[1])
-			ib = (y >= 0) & (y <= img.shape[0])
-			ie = (set_mag <= 20)
-			iq = lln >= 2
-			ig = OBJ == 6
-			ic = (ia & ib & ie & ig & iq)
-			sub_x0 = x[ic]
-			sub_y0 = y[ic]
-			sub_A0 = lr_iso[ic]
-			sub_B0 = sr_iso[ic]
-			sub_chi0 = set_chi[ic]
-			# saturated source(may not stars)
-			xa = ['SATURATED' in pp for pp in xt]
-			xv = np.array(xa)
-			idx = xv == True
-			ipx = (idx & ia & ib)
-
-			sub_x2 = x[ipx]
-			sub_y2 = y[ipx]
-			sub_A2 = 3 * lr_iso[ipx]
-			sub_B2 = 3 * sr_iso[ipx]
-			sub_chi2 = set_chi[ipx]
-
-			comx = np.r_[sub_x0[sub_A0 > 0], sub_x2[sub_A2 > 0]]
-			comy = np.r_[sub_y0[sub_A0 > 0], sub_y2[sub_A2 > 0]]
-			Lr = np.r_[sub_A0[sub_A0 > 0], sub_A2[sub_A2 > 0]]
-			Sr = np.r_[sub_B0[sub_A0 > 0], sub_B2[sub_A2 > 0]]
-			phi = np.r_[sub_chi0[sub_A0 > 0], sub_chi2[sub_A2 > 0]]
-
-			cx = np.r_[cx, comx]
-			cy = np.r_[cy, comy]
-			a = np.r_[a, Lr]
-			b = np.r_[b, Sr]
-			theta = np.r_[theta, phi]
-
-			Numb = Numb + len(comx)
-			mask_A = np.ones((cimg.shape[0], cimg.shape[1]), dtype = np.float)
-			ox = np.linspace(0, cimg.shape[1] - 1, cimg.shape[1])
-			oy = np.linspace(0, cimg.shape[0] - 1, cimg.shape[0])
-			basic_coord = np.array(np.meshgrid(ox,oy))
-			major = a / 2
-			minor = b / 2
-			senior = np.sqrt(major**2 - minor**2)
-
-			tdr = np.sqrt((cx - cx_BCG)**2 + (cy - cy_BCG)**2)
-			dr00 = np.where(tdr == np.min(tdr))[0]
-			for k in range(Numb):
-				xc = cx[k]
-				yc = cy[k]
-				lr = major[k]
-				sr = minor[k]
-				cr = senior[k]
-				chi = theta[k]*np.pi/180
-
-				set_r = np.int(np.ceil(1.2 * lr))
-				la0 = np.max( [np.int(xc - set_r), 0])
-				la1 = np.min( [np.int(xc + set_r +1), img.shape[1] - 1] )
-				lb0 = np.max( [np.int(yc - set_r), 0] ) 
-				lb1 = np.min( [np.int(yc + set_r +1), img.shape[0] - 1] )
-
-				if k == dr00[0] :
-					continue
-				else:
-					df1 = lr**2 - cr**2*np.cos(chi)**2
-					df2 = lr**2 - cr**2*np.sin(chi)**2
-					fr = ((basic_coord[0,:][lb0: lb1, la0: la1] - xc)**2*df1 + (basic_coord[1,:][lb0: lb1, la0: la1] - yc)**2*df2
-						- cr**2*np.sin(2*chi)*(basic_coord[0,:][lb0: lb1, la0: la1] - xc)*(basic_coord[1,:][lb0: lb1, la0: la1] - yc))
-					idr = fr/(lr**2*sr**2)
-					jx = idr <= 1
-
-					iu = np.where(jx == True)
-					iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float)
-					iv[iu] = np.nan
-					mask_A[lb0: lb1, la0: la1] = mask_A[lb0: lb1, la0: la1] * iv
-			mirro_A = mask_A * cc_img
-
-			Intns, Intns_r, Intns_err, Npix = light_measure(mirro_A, bins, 10, R_p, cx_BCG, cy_BCG, pixel, z_g)
-			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[i]
-			id_nan = np.isnan(SB)
-			SB4, R4 = SB[id_nan == False], Intns_r[id_nan == False]
-
-			hdu = fits.PrimaryHDU()
-			hdu.data = mirro_A
-			hdu.header = head_inf
-			hdu.writeto('/home/xkchen/mywork/ICL/data/test_data/mask/A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[i], ra_g, dec_g, z_g),overwrite = True)
-
-			fig = plt.figure()
-			fig.suptitle('A mask ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[i]) )
-			cluster1 = Circle(xy = (cx_BCG, cy_BCG), radius = R_p, fill = False, ec = 'b', alpha = 0.5, label = 'cluster region[1Mpc]')
-			ax1 = plt.subplot(111)
-			tf = ax1.imshow(mirro_A, cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mpl.colors.LogNorm())
-			plt.colorbar(tf, ax = ax1, fraction = 0.035, pad = 0.01, label = '$flux[nmaggy]$')
-			'''
-			for kk in range(Numb):
-				clco = Ellipse(xy = (cx[kk], cy[kk]), width = a[kk], height = b[kk], angle = theta[kk], fill = False, ec = 'r', alpha = 0.5)
-				ax1.add_patch(clco)
-			'''
-			ax1.add_patch(cluster1)
-			ax1.set_title('A masked image')
-			ax1.set_xlim(0, cc_img.shape[1])
-			ax1.set_ylim(0, cc_img.shape[0])
-			plt.savefig('A_mask_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[i]), dpi = 300)
-			plt.close()
-
-			fig = plt.figure()
-			fig.suptitle('SB variation during A mask ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[i]) )
-			ax = plt.subplot(111)
-			ax.plot(R4, SB4, 'g--', label = '$allpying \; A \; mask$', alpha = 0.5)
-			ax.plot(R3, SB3, 'r-', label = '$extinction \; calibration$', alpha = 0.5)
-			ax.set_xscale('log')
-			ax.set_xlim(np.nanmin(R3) + 1, np.nanmax(R3) + 50)
-			ax.set_xlabel('$Radius[kpc]$')
-			ax.set_ylabel('$SB[mag/arcsec^2]$')
-			ax.legend(loc = 1)
-			ax.invert_yaxis()
-
-			bx1 = ax.twiny()
-			xtik = ax.get_xticks()
-			xtik = np.array(xtik)
-			xR = xtik * 10**(-3) * rad2asec / Da_g
-			bx1.set_xscale('log')
-			bx1.set_xticks(xtik)
-			bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
-			bx1.set_xlim(ax.get_xlim())
-			bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
-
-			plt.savefig('SB_with_mask_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[i]), dpi = 300)
-			plt.close()
-
-	raise
-	return
-
 def mask_B():
 	bins = 65
 	tmp_load = '/home/xkchen/mywork/ICL/data/test_data/'
@@ -905,15 +627,290 @@ def stack_B():
 	raise
 	return
 
+def mask_A():
+	bins = 65
+	t0 = time.time()
+
+	load = '/home/xkchen/mywork/ICL/data/total_data/'
+	tmp_load = '/home/xkchen/mywork/ICL/data/test_data/'
+	param_A = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A.sex'
+	out_cat = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A.param'
+	out_load_A = '/home/xkchen/mywork/ICL/data/SEX/result/mask_A_test.cat'
+
+	red_rich = Lambd[Lambd < 30]
+	red_z = z[Lambd < 30]
+	red_ra = ra[Lambd < 30]
+	red_dec = dec[Lambd < 30]
+	# set lambda bins: <30, 30 < lambda < 40, >40 [stack image --> low, media, high]
+	for i in range(1):
+		for q in range(20):
+			ra_g = red_ra[q]
+			dec_g = red_dec[q]
+			z_g = red_z[q]
+
+			file = 'frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (band[i], ra_g, dec_g, z_g)
+			data_f = fits.open(load+file)
+			img = data_f[0].data
+			head_inf = data_f[0].header
+			wcs = awc.WCS(head_inf)
+			cx_BCG, cy_BCG = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
+			Da_g = Test_model.angular_diameter_distance(z_g).value
+			R_ph = rad2asec / Da_g
+			R_p = R_ph / pixel
+
+			x_side = data_f[0].data.shape[1]
+			y_side = data_f[0].data.shape[0]
+			'''
+			sky0 = data_f[2].data['ALLSKY'][0]
+			sky_x = data_f[2].data['XINTERP'][0]
+			sky_y = data_f[2].data['YINTERP'][0]
+			fact = img.size / sky0.size
+			x0 = np.linspace(0, sky0.shape[1] - 1, sky0.shape[1])
+			y0 = np.linspace(0, sky0.shape[0] - 1, sky0.shape[0])
+			f_sky = interp2(x0, y0, sky0)
+			sky_bl = f_sky(sky_x, sky_y) * data_f[0].header['NMGY'] / fact
+			Back_lel = sky_03(np.int(i), ra_g, dec_g, z_g)
+			cimg = img + sky_bl
+			sub_img = cimg - Back_lel
+			'''
+			cimg = img + 0.
+			sub_img = cimg - 0.
+
+			x0 = np.linspace(0, img.shape[1] - 1, img.shape[1])
+			y0 = np.linspace(0, img.shape[0] - 1, img.shape[0])
+			img_grid = np.array(np.meshgrid(x0, y0))
+			ra_img, dec_img = wcs.all_pix2world(img_grid[0,:], img_grid[1,:], 1)
+			pos = SkyCoord(ra_img, dec_img, frame = 'fk5', unit = 'deg')
+			BEV = sfd(pos)
+			Av = Rv * BEV
+			Al = A_wave(l_wave[i], Rv) * Av
+			cc_img = sub_img * 10**(Al / 2.5)
+			'''
+			# SB record
+			Intns, Intns_r, Intns_err, Npix = light_measure(img, bins, 10, R_p, cx_BCG, cy_BCG, pixel, z_g)
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[i]
+			id_nan = np.isnan(SB)
+			SB_0, R_0 = SB[id_nan == False], Intns_r[id_nan == False]
+
+			Intns, Intns_r, Intns_err, Npix = light_measure(cc_img, bins, 10, R_p, cx_BCG, cy_BCG, pixel, z_g)
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[i]
+			id_nan = np.isnan(SB)
+			SB3, R3 = SB[id_nan == False], Intns_r[id_nan == False]
+
+			fig = plt.figure()
+			fig.suptitle('SB variation before masking')
+			ax = plt.subplot(111)
+			ax.plot(R_0, SB_0, 'r--', label = '$original \; image$', alpha = 0.5)
+			ax.plot(R3, SB3, 'g-', label = '$extinction \; calibration$', alpha = 0.5)
+			ax.set_xscale('log')
+			ax.set_xlim(np.nanmin(R_0) + 1, np.nanmax(R_0) + 50)
+			ax.set_xlabel('$Radius[kpc]$')
+			ax.set_ylabel('$SB[mag/arcsec^2]$')
+			ax.legend(loc = 1)
+			ax.invert_yaxis()
+
+			bx1 = ax.twiny()
+			xtik = ax.get_xticks()
+			xtik = np.array(xtik)
+			xR = xtik * 10**(-3) * rad2asec / Da_g
+			bx1.set_xscale('log')
+			bx1.set_xticks(xtik)
+			bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
+			bx1.set_xlim(ax.get_xlim())
+			bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
+
+			plt.savefig('SB_befo_mask_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[i]), dpi = 300)
+			plt.close()
+			'''
+			hdu = fits.PrimaryHDU()
+			hdu.data = cc_img
+			hdu.header = head_inf
+			hdu.writeto(tmp_load + 'source/source_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[i], ra_g, dec_g, z_g), overwrite = True)
+
+			file_source = tmp_load + 'source/source_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[i], ra_g, dec_g, z_g)
+			'''
+			cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s'%(param_A, out_load_A, out_cat) # 1.5sigma
+			'''
+			dete_thresh = sb_lim[i] + 10*np.log10((1 + z_g)/(1 + z_ref))
+			dete_thresh = '%.3f' % dete_thresh + ',%.2f' % zpot[i]
+			dete_min = '10'
+			ana_thresh = dete_thresh *1
+			cmd = (
+				'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s -DETECT_MINAREA %s -DETECT_THRESH %s -ANALYSIS_THRESH %s'
+				%(param_A, out_load_A, out_cat, dete_min, dete_thresh, ana_thresh))
+			print(cmd)
+			tpp = subpro.Popen(cmd, shell = True)
+			tpp.wait()
+
+			source = asc.read(out_load_A)
+			Numb = np.array(source['NUMBER'][-1])
+			A = np.array(source['A_IMAGE'])
+			B = np.array(source['B_IMAGE'])
+			theta = np.array(source['THETA_IMAGE'])
+			cx = np.array(source['X_IMAGE']) - 1
+			cy = np.array(source['Y_IMAGE']) - 1
+			p_type = np.array(source['CLASS_STAR'])
+			Kron = 6
+			a = Kron * A
+			b = Kron * B
+			# photometric catalogue
+			mask = '/home/xkchen/mywork/ICL/data/star_dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' % (z_g, ra_g, dec_g) # dr8
+			cat = pds.read_csv(mask, skiprows = 1)
+			set_ra = np.array(cat['ra'])
+			set_dec = np.array(cat['dec'])
+			set_mag = np.array(cat['r'])
+			OBJ = np.array(cat['type'])
+			xt = cat['Column1']
+			tau = 8 # the mask size set as 6 * FWHM from dr12
+
+			set_A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
+			set_B = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
+			set_chi = np.zeros(set_A.shape[1], dtype = np.float)
+
+			lln = np.array([len(set_A[:,ll][set_A[:,ll] > 0 ]) for ll in range(set_A.shape[1]) ])
+			lr_iso = np.array([np.max(set_A[:,ll]) for ll in range(set_A.shape[1]) ])
+			sr_iso = np.array([np.max(set_B[:,ll]) for ll in range(set_B.shape[1]) ])
+
+			# bright stars
+			x, y = wcs.all_world2pix(set_ra * U.deg, set_dec * U.deg, 1)
+			ia = (x >= 0) & (x <= img.shape[1])
+			ib = (y >= 0) & (y <= img.shape[0])
+			ie = (set_mag <= 20)
+			iq = lln >= 2
+			ig = OBJ == 6
+			ic = (ia & ib & ie & ig & iq)
+			sub_x0 = x[ic]
+			sub_y0 = y[ic]
+			sub_A0 = lr_iso[ic]
+			sub_B0 = sr_iso[ic]
+			sub_chi0 = set_chi[ic]
+			# saturated source(may not stars)
+			xa = ['SATURATED' in pp for pp in xt]
+			xv = np.array(xa)
+			idx = xv == True
+			ipx = (idx & ia & ib)
+
+			sub_x2 = x[ipx]
+			sub_y2 = y[ipx]
+			sub_A2 = 3 * lr_iso[ipx]
+			sub_B2 = 3 * sr_iso[ipx]
+			sub_chi2 = set_chi[ipx]
+
+			comx = np.r_[sub_x0[sub_A0 > 0], sub_x2[sub_A2 > 0]]
+			comy = np.r_[sub_y0[sub_A0 > 0], sub_y2[sub_A2 > 0]]
+			Lr = np.r_[sub_A0[sub_A0 > 0], sub_A2[sub_A2 > 0]]
+			Sr = np.r_[sub_B0[sub_A0 > 0], sub_B2[sub_A2 > 0]]
+			phi = np.r_[sub_chi0[sub_A0 > 0], sub_chi2[sub_A2 > 0]]
+
+			cx = np.r_[cx, comx]
+			cy = np.r_[cy, comy]
+			a = np.r_[a, Lr]
+			b = np.r_[b, Sr]
+			theta = np.r_[theta, phi]
+
+			Numb = Numb + len(comx)
+			mask_A = np.ones((cimg.shape[0], cimg.shape[1]), dtype = np.float)
+			ox = np.linspace(0, cimg.shape[1] - 1, cimg.shape[1])
+			oy = np.linspace(0, cimg.shape[0] - 1, cimg.shape[0])
+			basic_coord = np.array(np.meshgrid(ox,oy))
+			major = a / 2
+			minor = b / 2
+			senior = np.sqrt(major**2 - minor**2)
+
+			tdr = np.sqrt((cx - cx_BCG)**2 + (cy - cy_BCG)**2)
+			dr00 = np.where(tdr == np.min(tdr))[0]
+			for k in range(Numb):
+				xc = cx[k]
+				yc = cy[k]
+				lr = major[k]
+				sr = minor[k]
+				cr = senior[k]
+				chi = theta[k]*np.pi/180
+
+				set_r = np.int(np.ceil(1.2 * lr))
+				la0 = np.max( [np.int(xc - set_r), 0])
+				la1 = np.min( [np.int(xc + set_r +1), img.shape[1] - 1] )
+				lb0 = np.max( [np.int(yc - set_r), 0] ) 
+				lb1 = np.min( [np.int(yc + set_r +1), img.shape[0] - 1] )
+
+				if k == dr00[0] :
+					continue
+				else:
+					df1 = lr**2 - cr**2*np.cos(chi)**2
+					df2 = lr**2 - cr**2*np.sin(chi)**2
+					fr = ((basic_coord[0,:][lb0: lb1, la0: la1] - xc)**2*df1 + (basic_coord[1,:][lb0: lb1, la0: la1] - yc)**2*df2
+						- cr**2*np.sin(2*chi)*(basic_coord[0,:][lb0: lb1, la0: la1] - xc)*(basic_coord[1,:][lb0: lb1, la0: la1] - yc))
+					idr = fr/(lr**2*sr**2)
+					jx = idr <= 1
+
+					iu = np.where(jx == True)
+					iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float)
+					iv[iu] = np.nan
+					mask_A[lb0: lb1, la0: la1] = mask_A[lb0: lb1, la0: la1] * iv
+			mirro_A = mask_A * cc_img
+
+			hdu = fits.PrimaryHDU()
+			hdu.data = mirro_A
+			hdu.header = head_inf
+			hdu.writeto('/home/xkchen/mywork/ICL/data/test_data/mask/A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[i], ra_g, dec_g, z_g),overwrite = True)
+			'''
+			Intns, Intns_r, Intns_err, Npix = light_measure(mirro_A, bins, 10, R_p, cx_BCG, cy_BCG, pixel, z_g)
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[i]
+			id_nan = np.isnan(SB)
+			SB4, R4 = SB[id_nan == False], Intns_r[id_nan == False]
+
+			fig = plt.figure()
+			fig.suptitle('A mask ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[i]) )
+			cluster1 = Circle(xy = (cx_BCG, cy_BCG), radius = R_p, fill = False, ec = 'b', alpha = 0.5, label = 'cluster region[1Mpc]')
+			ax1 = plt.subplot(111)
+			tf = ax1.imshow(mirro_A, cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mpl.colors.LogNorm())
+			plt.colorbar(tf, ax = ax1, fraction = 0.035, pad = 0.01, label = '$flux[nmaggy]$')
+
+			ax1.add_patch(cluster1)
+			ax1.set_title('A masked image')
+			ax1.set_xlim(0, cc_img.shape[1])
+			ax1.set_ylim(0, cc_img.shape[0])
+			plt.savefig('A_mask_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[i]), dpi = 300)
+			plt.close()
+
+			fig = plt.figure()
+			fig.suptitle('SB variation during A mask ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[i]) )
+			ax = plt.subplot(111)
+			ax.plot(R4, SB4, 'g--', label = '$allpying \; A \; mask$', alpha = 0.5)
+			ax.plot(R3, SB3, 'r-', label = '$extinction \; calibration$', alpha = 0.5)
+			ax.set_xscale('log')
+			ax.set_xlim(np.nanmin(R3) + 1, np.nanmax(R3) + 50)
+			ax.set_xlabel('$Radius[kpc]$')
+			ax.set_ylabel('$SB[mag/arcsec^2]$')
+			ax.legend(loc = 1)
+			ax.invert_yaxis()
+
+			bx1 = ax.twiny()
+			xtik = ax.get_xticks()
+			xtik = np.array(xtik)
+			xR = xtik * 10**(-3) * rad2asec / Da_g
+			bx1.set_xscale('log')
+			bx1.set_xticks(xtik)
+			bx1.set_xticklabels(['$%.2f^{ \prime \prime }$' % uu for uu in xR])
+			bx1.set_xlim(ax.get_xlim())
+			bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
+
+			plt.savefig('SB_with_mask_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[i]), dpi = 300)
+			plt.close()
+			'''
+	#raise
+	return
+
 def resamp_A():
 	load = '/home/xkchen/mywork/ICL/data/test_data/resamp/'
-	red_rich = Lambd[Lambd > 100]
-	red_z = z[Lambd > 100]
-	red_ra = ra[Lambd > 100]
-	red_dec = dec[Lambd > 100]
+
+	red_rich = Lambd[Lambd < 30]
+	red_z = z[Lambd < 30]
+	red_ra = ra[Lambd < 30]
+	red_dec = dec[Lambd < 30]
 	bins = 65
 	for ii in range(1):
-		for jj in range(10):
+		for jj in range(20):
 			ra_g = red_ra[jj]
 			dec_g = red_dec[jj]
 			z_g = red_z[jj]
@@ -964,7 +961,7 @@ def resamp_A():
 			ax.imshow(resam_d, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
 			plt.savefig('resamp_A_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
 			plt.close()
-			'''
+
 			Intns, Intns_r, Intns_err, Npix = light_measure(img, bins, 10, Rp, cx_BCG, cy_BCG, pixel, z_g)
 			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[ii]
 			id_nan = np.isnan(SB)
@@ -1030,8 +1027,8 @@ def resamp_A():
 			plt.subplots_adjust(hspace = 0.01)
 			plt.savefig('A_mask_resamp_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
 			plt.close()
-
-	raise
+			'''
+	#raise
 	return
 
 def stack_A():
@@ -1044,17 +1041,18 @@ def stack_A():
 	Ny = np.linspace(0, 3530, 3531)
 	sum_grid = np.array(np.meshgrid(Nx, Ny))
 
-	red_rich = Lambd[Lambd > 100]
-	red_z = z[Lambd > 100]
-	red_ra = ra[Lambd > 100]
-	red_dec = dec[Lambd > 100]
+	red_rich = Lambd[Lambd < 30]
+	red_z = z[Lambd < 30]
+	red_ra = ra[Lambd < 30]
+	red_dec = dec[Lambd < 30]
+
 	for ii in range(1):
 
 		sum_array_D = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 		count_array_D = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
 		p_count_D = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
-		for jj in range(10):
+		for jj in range(20):
 			ra_g = red_ra[jj]
 			dec_g = red_dec[jj]
 			z_g = red_z[jj]
@@ -1086,9 +1084,17 @@ def stack_A():
 		mean_array_D[id_zeros] = np.nan
 
 		Intns, Intns_r, Intns_err, Npix = light_measure(mean_array_D, bins, 10, Rpp, x0, y0, pixel, z_ref)
+
+		stackA = np.array([Intns, Intns_r, Intns_err]) # just save the flux (in unit of nmaggy)
+		with h5py.File(
+			'/home/xkchen/mywork/ICL/data/test_data/low_rich_Amask_%s_band.h5' % band[ii], 'w') as f:
+			f['a'] = stackA
+		with h5py.File('/home/xkchen/mywork/ICL/data/test_data/low_rich_Amask_%s_band.h5' % band[ii]) as f:
+			for tt in range(len(stackA)):
+				f['a'][tt,:] = stackA[tt,:]
+		'''
 		flux0 = Intns + Intns_err
 		flux1 = Intns - Intns_err
-
 		SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[ii]
 		SB0 = 22.5 - 2.5 * np.log10(flux0) + 2.5 * np.log10(pixel**2) + mag_add[ii]
 		SB1 = 22.5 - 2.5 * np.log10(flux1) + 2.5 * np.log10(pixel**2) + mag_add[ii]
@@ -1099,14 +1105,6 @@ def stack_A():
 		R_tot, err0, err1 = Intns_r[id_nan == False], err0[id_nan == False], err1[id_nan == False]
 		id_nan = np.isnan(SB1)
 		err1[id_nan] = 100. # set a large value for show the break out errorbar
-
-		stackA = np.array([Intns, Intns_r, Intns_err]) # just save the flux (in unit of nmaggy)
-		with h5py.File(
-			'/home/xkchen/mywork/ICL/data/test_data/SB_stack_Amask_%s_band.h5' % band[ii], 'w') as f:
-			f['a'] = stackA
-		with h5py.File('/home/xkchen/mywork/ICL/data/test_data/SB_stack_Amask_%s_band.h5' % band[ii]) as f:
-			for tt in range(len(stackA)):
-				f['a'][tt,:] = stackA[tt,:]
 
 		plt.figure(figsize = (16, 8))
 		ax0 = plt.subplot(121)
@@ -1142,8 +1140,15 @@ def stack_A():
 		plt.tight_layout()
 		plt.savefig('stack_mask_A.png', dpi = 300)
 		plt.close()
+		'''
 		raise
 	return
+
+def sers_pro(r, mu_e, r_e, n):
+	belta_n = 2*n - 0.324
+	fn = 1.086 * belta_n * ( (r/r_e)**(1/n) - 1)
+	mu_r = mu_e + fn
+	return mu_r
 
 def SB_fit(r, m0, mc, c, m2l):
 	bl = m0
@@ -1161,13 +1166,12 @@ def SB_fit(r, m0, mc, c, m2l):
 def chi2(X, *args):
 	m0 = X[0]
 	mc = X[1]
-	c = X[2]
-	m2l = X[3]
+	m2l = X[2]
+	c = X[3]
 	r, data, yerr = args
 	m0 = m0
 	mc = mc
 	m2l = m2l
-	c = c
 	mock_L = SB_fit(r, m0, mc, c, m2l)
 	chi = np.sum( ( (mock_L - data) / yerr)**2 )
 	return chi
@@ -1199,13 +1203,38 @@ def SB_ICL():
 		id_nan = np.isnan(SB1)
 		err1[id_nan] = 100.
 
+		# Zibetti 05 fit and measured result
+		mu_e, r_e, n_e = 23.87, 19.29, 4. # mag/arcsec^2 # kpc
+		SB_fit1 = sers_pro(Intns_r, mu_e, r_e, n_e)
+		SB_ref = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/r_band_BCG_ICL.csv')
+		R_tt, SB_tt = SB_ref['(1000R)^(1/4)'], SB_ref['mag/arcsec^2']
+		R_tt = R_tt**4
+
+		plt.figure()
+		ax = plt.subplot(111)
+		ax.errorbar(Intns_r, SB_obs, yerr = [err0, err1], xerr = None, ls = '', fmt = 'r.', label = 'stack image')
+		ax.plot(Intns_r, SB_fit1, 'k-.', label = 'Sersic Z05', alpha = 0.5)
+		ax.plot(R_tt, SB_tt, 'b>', label = 'Z05', alpha = 0.5)
+		ax.text(15, 27, s = '$\mu_{e} = 23.87$' + '\n' + '$R_{e} = 19.29$' + '\n' + '$n = 4$', color = 'k')
+		ax.set_xlabel('$R[kpc]$')
+		ax.set_xscale('log')
+		ax.set_ylabel('$SB[mag/arcsec^2]$')
+		ax.tick_params(axis = 'both', which = 'both', direction = 'in')
+		ax.set_ylim( 21, 33)
+		ax.set_xlim(1e1, 1e3)
+		ax.invert_yaxis()
+		ax.legend(loc = 3, fontsize = 7.5)
+		plt.savefig('/home/xkchen/mywork/ICL/code/BCG_ICL_%s_band.png' % band[ii], dpi = 600)
+		plt.close()
+
+		raise
+		## fit with NFW + C
 		m0 = np.arange(26.5, 28.5, 0.25) # residual sky
 		mc = np.arange(13.5, 15, 0.25)   # the total gravity mass of cluster
-		cc = np.arange(0.75, 7.5, 0.25)       # concentration
 		m2l = np.arange(35, 65, 2)     # mass to light ratio (Mo . book)
-
-		popt = minimize(chi2, x0 = np.array([m0[0], mc[0], cc[0], m2l[10]]), args = (r_fit, f_obs, err_fit), method = 'Powell', tol = 1e-5)
-		M0, Mc, Cc, M2L = popt.x[0], popt.x[1], popt.x[2], popt.x[3]
+		cc = np.arange(0.75, 7.5, 0.25)       # concentration
+		popt = minimize(chi2, x0 = np.array([m0[0], mc[0], m2l[10], cc[0]]), args = (r_fit, f_obs, err_fit), method = 'Powell', tol = 1e-5)
+		M0, Mc, M2L, Cc = popt.x[0], popt.x[1], popt.x[2], popt.x[3]
 
 		R_sky = 10**(0.4 * (22.5 - M0 + 2.5 * np.log10(pixel**2) ) )
 		SB_rem = 22.5 - 2.5 * np.log10(Intns - R_sky) + 2.5 * np.log10(pixel**2)
@@ -1216,37 +1245,48 @@ def SB_ICL():
 		id_nan = np.isnan(SB_m1)
 		err_m1[id_nan] = 100.
 
-		print('*'*10)
-		print('m0 = ', M0)
-		print('Mc = ', Mc)
-		print('C = ', Cc)
-		print('M2L = ', M2L)
-
 		fit_line = SB_fit( Intns_r, M0, Mc, Cc, M2L)
 		SB_mod = 22.5 - 2.5 * np.log10(fit_line) + 2.5 * np.log10(pixel**2)
 		rs, r200 = crit_r(Mc, Cc)
 
-		fig = plt.figure( figsize = (12, 6) )
+		## fit with sersic pro for the inner 100 kpc
+		mu_e, r_e, n_e = 23.87, 19.29, 4. # mag/arcsec^2 # kpc
+		idx = Intns_r < 70
+		fit_r, fit_sb = Intns_r[idx], SB_obs[idx]
+		popt, pcov = curve_fit(sers_pro, fit_r, fit_sb, p0 = np.array([mu_e, r_e, n_e]), 
+			sigma = err0[idx], bounds = ([20, 18, 1.2], [26, 25, 5.5]) )
+		Mu_e0, R_e0, N_e0 = popt[0], popt[1], popt[2]
+		SB_fit0 = sers_pro(Intns_r, Mu_e0, R_e0, N_e0)
+
+		fig = plt.figure()
 		plt.suptitle('$fit \; for \; background \; estimate \; in \; %s \; band$' % band[ii])
 		bx = plt.subplot(111)
+		bx.errorbar(Intns_r, SB_obs, yerr = [err0, err1], xerr = None, ls = '', fmt = 'r.', label = 'stack image')
+		bx.plot(R_tt, SB_tt, 'b>', label = 'Z05', alpha = 0.5)
+		bx.plot(Intns_r, SB_fit1, 'k-.', label = 'Sersic Z05', alpha = 0.5)
+		bx.text(15, 27, s = '$\mu_{e} = 23.87$' + '\n' + '$R_{e} = 19.29$' + '\n' + '$n = 4$', color = 'k')
 
-		bx.errorbar(Intns_r, SB_obs, yerr = [err0, err1], xerr = None, ls = '', fmt = 'r.', label = '$observation$')
+		## NFW + C part		
 		bx.plot(Intns_r, SB_mod, 'b-', label = '$NFW+C$')
-		bx.errorbar(Intns_r, SB_rem, yerr = [err_m0, err_m1], xerr = None, ls = '', fmt = 'g.', label = '$observation$')
+		bx.errorbar(Intns_r, SB_rem, yerr = [err_m0, err_m1], xerr = None, ls = '', fmt = 'g.', label = 'stack iamge - residual sky')
 		bx.axvline(x = rs, linestyle = '--', linewidth = 1, color = 'b', label = '$r_s$')
+		bx.text(300, 26, s = '$ \; M_{c} = %.3f M_{\odot} $' % Mc + '\n' + 'C = %.3f' % Cc + '\n' +
+			'$ \; R_{sky} = %.3f $' % M0 + '\n' + '$ \; M2L = %.3f $' % M2L)
+
+		## sersic part
+		bx.plot(Intns_r, SB_fit0, 'r--', label = 'sersic fit', alpha = 0.5)
+		bx.text(40, 23.5, s = '$\mu_{e} = %.2f$' % Mu_e0 + '\n' + '$R_{e} = %.2f$' % R_e0 + '\n' + '$n = %.2f$' % N_e0, color = 'r')
 
 		bx.set_xlabel('$R[kpc]$')
 		bx.set_xscale('log')
 		bx.set_ylabel('$SB[mag/arcsec^2]$')
 		bx.tick_params(axis = 'both', which = 'both', direction = 'in')
-		bx.set_ylim( np.nanmin(SB_obs) - 1, np.nanmax(SB_rem) + 1 )
-		#bx.set_xlim(1e2, 9e2)
+		bx.set_ylim( 21, 33)
+		bx.set_xlim(1e1, 1e3)
 		bx.invert_yaxis()
-		bx.text(600, 26, s = '$ \; M_{c} = %.3f M_{\odot} $' % Mc + '\n' + '$ \; C = %.3f $' % Cc + '\n' + 
-			'$ \; R_{sky} = %.3f $' % M0 + '\n' + '$ \; M2L = %.3f $' % M2L)
-		bx.legend(loc = 3, fontsize = 15)
+		bx.legend(loc = 3, fontsize = 7.5)
 		plt.savefig('/home/xkchen/mywork/ICL/code/fit_for_BG_%s_band.png' % band[ii], dpi = 600)
-		plt.show()
+		plt.close()
 
 		raise
 	return
@@ -1254,14 +1294,13 @@ def SB_ICL():
 def main():
 	#sky_03()
 
-	#mask_A()
 	#mask_B()
-
 	#resamp_B()
 	#stack_B()
 
-	#resamp_A()
-	#stack_A()
+	mask_A()
+	resamp_A()
+	stack_A()
 
 	SB_ICL()
 

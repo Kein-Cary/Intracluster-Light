@@ -45,7 +45,7 @@ Jy = 10**(-23) # (erg/s)/cm^2
 f0 = 3631*10**(-23) # zero point in unit (erg/s)/cm^-2
 
 # sample catalog
-with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/sample_catalog.h5', 'r') as f:
+with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/mpi_h5/sample_catalog.h5', 'r') as f:
     catalogue = np.array(f['a'])
 z = catalogue[0]
 ra = catalogue[1]

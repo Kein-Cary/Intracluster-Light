@@ -53,7 +53,7 @@ def pro_err():
 	sky = 21. # mag/arcsec^2 (from SDSS dr14: the image quality)
 	N_sky = 10**( (22.5 - sky + 2.5*np.log10(pixel**2)) / 2.5 ) / NMGY
 
-	ins_SB = pds.read_csv(load + 'mock_intrinsic_SB.csv')
+	ins_SB = pds.read_csv(load + 'mock_intrinsic_SB_r_band.csv')
 	r, SB_r = ins_SB['r'], ins_SB['0.250']
 	r_sc = r / 10**3
 	r_max = np.max(r_sc)
@@ -93,36 +93,37 @@ def pro_err():
 	Noise = N_mock - N_sub
 
 	## change N_sub to flux in unit 'nmaggy'
+	R_smal, R_max = 10, 10**3.02
 	N_mooth = N_mock * NMGY
 	N_flux = N_sub * NMGY
-	Intns, Intns_r, Intns_err, Npix = light_measure(N_flux, 65, 10, Rpp, xc, yc, pixel, z_ref, 1.)
+	Intns, Intns_r, Intns_err, Npix = light_measure(N_flux, 65, R_smal, R_max, xc, yc, pixel, z_ref, 1.)
 	ref_err0 = Intns_err * 1.
-	Intns, Intns_r, Intns_err, Npix = light_measure(N_mooth, 65, 10, Rpp, xc, yc, pixel, z_ref, 1.)
+	Intns, Intns_r, Intns_err, Npix = light_measure(N_mooth, 65, R_smal, R_max, xc, yc, pixel, z_ref, 1.)
 	ref_err1 = np.sqrt( (Intns / NMGY) / (Npix * gain) + N_sky / (gain * Npix) ) * NMGY
 	ref_eta = ref_err0 / ref_err1
 
 	## test the err measurement
-	bins = np.arange(35, 75, 5)
-	pn = 1.
+	#bins = np.arange(35, 75, 5)
+	#pn = 1.
 
-	#bins = 65
-	#pn = np.arange(1, 10, 1)
+	bins = 65
+	pn = np.arange(1, 10, 1)
 	#pn = np.arange(0.2, 1.2, 0.2)
 
 	plt.figure()
 	gs = gridspec.GridSpec(2,1, height_ratios = [2,1])
 	ax = plt.subplot(gs[0])
 	bx = plt.subplot(gs[1])
-	ax.set_title('err ratio -- bins relation')
-	#ax.set_title('err ratio -- pn relation')
-	for aa in range( len(bins) ):
+	#ax.set_title('err ratio -- bins relation')
+	ax.set_title('err ratio -- pn relation')
+	for aa in range( len(pn) ):
 
-		Intns, Intns_r, Intns_err, Npix = light_measure(N_flux, bins[aa], 10, Rpp, xc, yc, pixel, z_ref, pn)
-		#Intns, Intns_r, Intns_err, Npix = light_measure(N_flux, bins, 10, Rpp, xc, yc, pixel, z_ref, pn[aa])
+		#Intns, Intns_r, Intns_err, Npix = light_measure(N_flux, bins[aa], R_smal, R_max, xc, yc, pixel, z_ref, pn)
+		Intns, Intns_r, Intns_err, Npix = light_measure(N_flux, bins, R_smal, R_max, xc, yc, pixel, z_ref, pn[aa])
 		cc_err0 = Intns_err * 1.
 
-		Intns, Intns_r, Intns_err, Npix = light_measure(N_mooth, bins[aa], 10, Rpp, xc, yc, pixel, z_ref, pn)
-		#Intns, Intns_r, Intns_err, Npix = light_measure(N_mooth, bins, 10, Rpp, xc, yc, pixel, z_ref, pn[aa])
+		#Intns, Intns_r, Intns_err, Npix = light_measure(N_mooth, bins[aa], R_smal, R_max, xc, yc, pixel, z_ref, pn)
+		Intns, Intns_r, Intns_err, Npix = light_measure(N_mooth, bins, R_smal, R_max, xc, yc, pixel, z_ref, pn[aa])
 
 		## for smooth image, the err should be the Poisson Noise
 		f_err = np.sqrt( (Intns / NMGY) / (Npix * gain) + N_sky / (gain * Npix) ) * NMGY # in single pix term
@@ -131,9 +132,9 @@ def pro_err():
 
 		eta = cc_err0 / cc_err1
 
-		ax.plot(Intns_r, eta, linestyle = '-', color = mpl.cm.rainbow(aa / len(bins) ), label = 'bins %d' % bins[aa], alpha = 0.5)
-		#ax.plot(Intns_r, eta, linestyle = '-', color = mpl.cm.rainbow(aa / len(pn) ), label = 'pn = %.1f' % pn[aa], alpha = 0.5)
-		#bx.plot(Intns_r, eta - ref_eta, linestyle = '--', color = mpl.cm.rainbow(aa / len(pn) ), alpha = 0.5)
+		#ax.plot(Intns_r, eta, linestyle = '-', color = mpl.cm.rainbow(aa / len(bins) ), label = 'bins %d' % bins[aa], alpha = 0.5)
+		ax.plot(Intns_r, eta, linestyle = '-', color = mpl.cm.rainbow(aa / len(pn) ), label = 'pn = %.1f' % pn[aa], alpha = 0.5)
+		bx.plot(Intns_r, eta - ref_eta, linestyle = '--', color = mpl.cm.rainbow(aa / len(pn) ), alpha = 0.5)
 
 	ax.set_xscale('log')
 	#ax.set_xlabel('R[kpc]')
@@ -148,8 +149,8 @@ def pro_err():
 	bx.set_ylabel('err ratio deviation')
 
 	plt.subplots_adjust(hspace = 0)
-	plt.savefig('err_test_bins.png', dpi = 300)
-	#plt.savefig('err_test_pn.png', dpi = 300)
+	#plt.savefig('err_test_bins.png', dpi = 300)
+	plt.savefig('err_test_pn.png', dpi = 300)
 	plt.close()
 
 	raise

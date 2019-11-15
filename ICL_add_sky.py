@@ -18,8 +18,7 @@ from scipy.ndimage import map_coordinates as mapcd
 from resample_modelu import sum_samp, down_samp
 from astropy.coordinates import SkyCoord
 from matplotlib.patches import Circle, Ellipse
-#from light_measure import light_measure
-from light_measure_tmp import light_measure, light_measure_Z0
+from light_measure import light_measure, light_measure_Z0
 
 from mpi4py import MPI
 commd = MPI.COMM_WORLD
@@ -48,7 +47,7 @@ Rpp = (rad2asec / Da_ref) / pixel
 Jy = 10**(-23) # (erg/s)/cm^2
 f0 = 3631*10**(-23) # zero point in unit (erg/s)/cm^-2
 
-with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/sample_catalog.h5', 'r') as f:
+with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/mpi_h5/sample_catalog.h5', 'r') as f:
 	catalogue = np.array(f['a'])
 z = catalogue[0]
 ra = catalogue[1]
@@ -193,10 +192,12 @@ def sky_stack(band_id, sub_z, sub_ra, sub_dec):
 		z_g = sub_z[jj]
 
 		## rule out bad image (once a cluster image is bad in a band, all the five band image will be ruled out!)
-		except_cat = pds.read_csv(load + 'Except_%s_sample.csv' % band[kk])
-		except_ra = ['%.3f' % ll for ll in except_cat['ra'] ]
-		except_dec = ['%.3f' % ll for ll in except_cat['dec'] ]
-		except_z = ['%.3f' % ll for ll in except_cat['z'] ]
+		with h5py.File(load + 'mpi_h5/Except_%s_sample.h5' % band[ii], 'r') as f:
+			except_cat = np.array(f['a'])
+		except_ra = ['%.3f' % ll for ll in except_cat[0,:] ]
+		except_dec = ['%.3f' % ll for ll in except_cat[1,:] ]
+		except_z = ['%.3f' % ll for ll in except_cat[2,:] ]
+
 		identi = ('%.3f'%ra_g in except_ra) & ('%.3f'%dec_g in except_dec) & ('%.3f'%z_g in except_z)
 
 		if  identi == True: 

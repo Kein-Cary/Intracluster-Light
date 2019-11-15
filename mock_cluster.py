@@ -68,73 +68,67 @@ set_z = np.r_[ set_z0[:10], set_z1[:10] ]
 set_ra = np.r_[ ra_z0[:10], ra_z1[:10] ]
 set_dec = np.r_[ dec_z0[:10], dec_z1[:10] ]
 
-def SB_fit(r, mu_e0, mu_e1, mu_e2, r_e0, r_e1, r_e2, ndex0, ndex1, ndex2):
+def SB_fit(r, mu_e0, mu_e1, r_e0, r_e1, ndex0, ndex1):
 	"""
 	SB profile : Mo. galaxy evolution and evolution, Chapter 2, eq. 2.23
 	"""
 	mock_SB0 = mu_e0 + 1.086 * (2 * ndex0 - 0.324) * ( (r / r_e0)**(1 / ndex0) - 1) # in unit mag/arcsec^2
 	mock_SB1 = mu_e1 + 1.086 * (2 * ndex1 - 0.324) * ( (r / r_e1)**(1 / ndex1) - 1)
-	mock_SB2 = mu_e2 + 1.086 * (2 * ndex2 - 0.324) * ( (r / r_e2)**(1 / ndex2) - 1)
 	f_SB0 = 10**( (22.5 - mock_SB0 + 2.5 * np.log10(pixel**2)) / 2.5 ) # in unit nmaggy
 	f_SB1 = 10**( (22.5 - mock_SB1 + 2.5 * np.log10(pixel**2)) / 2.5 )
-	f_SB2 = 10**( (22.5 - mock_SB2 + 2.5 * np.log10(pixel**2)) / 2.5 )
-	mock_SB = 22.5 - 2.5 * np.log10(f_SB0 + f_SB1 + f_SB2) + 2.5 * np.log10(pixel**2)
+	mock_SB = 22.5 - 2.5 * np.log10(f_SB0 + f_SB1) + 2.5 * np.log10(pixel**2)
 	return mock_SB
 
-def SB_dit(r, mu_e0, mu_e1, mu_e2, r_e0, r_e1, r_e2, ndex0, ndex1, ndex2):
+def SB_dit(r, mu_e0, mu_e1, r_e0, r_e1, ndex0, ndex1):
 	"""
 	SB profile : Mo. galaxy evolution and evolution, Chapter 2, eq. 2.23
 	"""
 	mock_SB0 = mu_e0 + 1.086 * (2 * ndex0 - 0.324) * ( (r / r_e0)**(1 / ndex0) - 1) # in unit mag/arcsec^2
 	mock_SB1 = mu_e1 + 1.086 * (2 * ndex1 - 0.324) * ( (r / r_e1)**(1 / ndex1) - 1)
-	mock_SB2 = mu_e2 + 1.086 * (2 * ndex2 - 0.324) * ( (r / r_e2)**(1 / ndex2) - 1)
 	f_SB0 = 10**( (22.5 - mock_SB0 + 2.5 * np.log10(pixel**2)) / 2.5 ) # in unit nmaggy
 	f_SB1 = 10**( (22.5 - mock_SB1 + 2.5 * np.log10(pixel**2)) / 2.5 )
-	f_SB2 = 10**( (22.5 - mock_SB2 + 2.5 * np.log10(pixel**2)) / 2.5 )
-	mock_SB = 22.5 - 2.5 * np.log10(f_SB0 + f_SB1 + f_SB2) + 2.5 * np.log10(pixel**2)
-	return mock_SB0, mock_SB1, mock_SB2, mock_SB
+	mock_SB = 22.5 - 2.5 * np.log10(f_SB0 + f_SB1) + 2.5 * np.log10(pixel**2)
+	return mock_SB0, mock_SB1, mock_SB
 
 def SB_pro():
-	SB0 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/r_band_1.csv', skiprows = 1)
-	#SB0 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/g_band_1.csv', skiprows = 1)
-	#SB0 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/i_band_1.csv', skiprows = 1)
 
-	R_r, SB_r0 = SB0['Mpc'], SB0['mag/arcsec^2'] # Intrinsic SB
+	SB0 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/r_band_BCG_ICL.csv')
+	#SB0 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/g_band_BCG_ICL.csv')
+	#SB0 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/i_band_BCG_ICL.csv')
+	R_r0, SB_r0 = SB0['(1000R)^(1/4)'], SB0['mag/arcsec^2']
 
-	SB1 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/r_band_2.csv', skiprows = 1)
-	#SB1 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/g_band_2.csv', skiprows = 1)
-	#SB1 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/i_band_2.csv', skiprows = 1)
+	#SB1 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/r_band_tot.csv')
+	#SB1 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/g_band_tot.csv')
+	#SB1 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/i_band_tot.csv')
+	#R_r1, SB_r1 = SB1['(1000R)^(1/4)'], SB1['mag/arcsec^2']
 
-	SB_r1 = SB1['mag/arcsec^2'] # Intrinsic SB + residual sky
-
-	SB2 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/r_band_3.csv', skiprows = 1)
-	#SB2 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/g_band_3.csv', skiprows = 1)
-	#SB2 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/i_band_3.csv', skiprows = 1)
-
-	SB_r2 = SB2['mag/arcsec^2'] # total component [BCG + ICL]
+	#SB2 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/r_band_sub_unmask.csv')
+	#SB2 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/g_band_sub_unmask.csv')
+	#SB2 = pds.read_csv('/home/xkchen/mywork/ICL/Zibetti_SB/i_band_sub_unmask.csv')
+	#R_r2, SB_r2 = SB2['(1000R)^(1/4)'], SB2['mag/arcsec^2']
 
 	## fit the profile
-	mu_e0, mu_e1, mu_e2 = 23.87, 30, 20 # mag/arcsec^2
-	Re_0, Re_1, Re_2 = 19.29, 120, 10 # kpc
-	ndex0, ndex1, ndex2 = 4., 4., 4.
+	mu_e0, mu_e1 = 23.87, 30 # mag/arcsec^2
+	Re_0, Re_1 = 19.29, 120 # kpc
+	ndex0, ndex1 = 4., 4.
 
-	r_fit = R_r * 10**3
-	po = np.array([mu_e0, mu_e1, mu_e2, Re_0, Re_1, Re_2, ndex0, ndex1, ndex2])
-	popt, pcov = curve_fit(SB_fit, r_fit, SB_r0, p0 = po, 
-			bounds = ([21, 27, 18, 18, 100, 9, 1., 1., 1.], [24, 32, 21, 22, 500, 18, 6., 12., 4.]), method = 'trf')
-	mu_fit0, mu_fit1, mu_fit2, re_fit0, re_fit1, re_fit2, ndex_fit0, ndex_fit1, ndex_fit2 = popt
-	mock_SB0, mock_SB1, mock_SB2, mock_SB = SB_dit(r_fit, mu_fit0, mu_fit1, mu_fit2, re_fit0, re_fit1, re_fit2, ndex_fit0, ndex_fit1, ndex_fit2)
+	r_fit = (R_r0**4 / 1000) * 1e3
+	po = np.array([mu_e0, mu_e1, Re_0, Re_1, ndex0, ndex1])
+	popt, pcov = curve_fit(SB_fit, r_fit, SB_r0, p0 = po, bounds = ([21, 27, 18, 100, 1., 1.], [24, 32, 22, 500, 6., 6.]), method = 'trf') # r_band
+	#popt, pcov = curve_fit(SB_fit, r_fit, SB_r0, p0 = po, bounds = ([23, 28, 17, 100, 1., 1.], [25, 32, 20, 450, 6., 6.]), method = 'trf') # g_band
+	#popt, pcov = curve_fit(SB_fit, r_fit, SB_r0, p0 = po, bounds = ([23, 28, 17, 100, 1., 1.], [25, 32, 20, 450, 6., 6.]), method = 'trf') # i_band
 
+	mu_fit0, mu_fit1, re_fit0, re_fit1, ndex_fit0, ndex_fit1 = popt
+	mock_SB0, mock_SB1, mock_SB = SB_dit(r_fit, mu_fit0, mu_fit1, re_fit0, re_fit1, ndex_fit0, ndex_fit1)
 	'''
 	fig = plt.figure()
 	ax = plt.subplot(111)
-	ax.set_title('Mock SB r band')
+	#ax.set_title('Mock SB r band')
 	#ax.set_title('Mock SB g band')
-	#ax.set_title('Mock SB i band')
+	ax.set_title('Mock SB i band')
 
 	ax.plot(r_fit, mock_SB0, 'r--', alpha = 0.5)
 	ax.plot(r_fit, mock_SB1, 'g--', alpha = 0.5)
-	ax.plot(r_fit, mock_SB2, 'm--', alpha = 0.5)
 	ax.plot(r_fit, mock_SB, 'b-', label = 'Mock', alpha = 0.5)
 	ax.plot(r_fit, SB_r0, 'r^', label = 'Z 2005', alpha = 0.5)
 	ax.legend(loc = 1)
@@ -143,16 +137,15 @@ def SB_pro():
 	ax.invert_yaxis()
 	ax.tick_params(axis = 'both', which = 'both', direction = 'in')
 
-	ax.text(500, 24, s = '$ \mu_{e} = %.2f$' % mu_fit0 + '\n' + '$R_{e} = %.2f$' % re_fit0 + '\n' + '$n = %.2f$' % ndex_fit0, color = 'r')
-	ax.text(500, 26, s = '$ \mu_{e} = %.2f$' % mu_fit1 + '\n' + '$R_{e} = %.2f$' % re_fit1 + '\n' + '$n = %.2f$' % ndex_fit1, color = 'g')
-	ax.text(500, 28, s = '$ \mu_{e} = %.2f$' % mu_fit2 + '\n' + '$R_{e} = %.2f$' % re_fit2 + '\n' + '$n = %.2f$' % ndex_fit2, color = 'm')
+	ax.text(400, 24, s = '$ \mu_{e} = %.2f$' % mu_fit0 + '\n' + '$R_{e} = %.2f$' % re_fit0 + '\n' + '$n = %.2f$' % ndex_fit0, color = 'r')
+	ax.text(400, 26, s = '$ \mu_{e} = %.2f$' % mu_fit1 + '\n' + '$R_{e} = %.2f$' % re_fit1 + '\n' + '$n = %.2f$' % ndex_fit1, color = 'g')
 
 	ax.set_xlabel('$ R[kpc] $')
 	ax.set_ylabel('$ SB[mag/arcsec^2] $')
 
-	plt.savefig('mock_SB_r.png', dpi = 300)
+	#plt.savefig('mock_SB_r.png', dpi = 300)
 	#plt.savefig('mock_SB_g.png', dpi = 300)
-	#plt.savefig('mock_SB_i.png', dpi = 300)
+	plt.savefig('mock_SB_i.png', dpi = 300)
 	plt.show()
 	'''
 	r = np.logspace(0, 3.08, 1000)
@@ -160,8 +153,8 @@ def SB_pro():
 	r_max = np.max(r_sc)
 	r_min = np.min(r_sc)
 
-	SB_r = SB_fit(r, mu_fit0, mu_fit1, mu_fit2, re_fit0, re_fit1, re_fit2, ndex_fit0, ndex_fit1, ndex_fit2) # profile at z = 0.25
-	#SB_r = SB_fit(r_fit, mu_fit0, mu_fit1, mu_fit2, re_fit0, re_fit1, re_fit2, ndex_fit0, ndex_fit1, ndex_fit2)
+	SB_r = SB_fit(r, mu_fit0, mu_fit1, re_fit0, re_fit1, ndex_fit0, ndex_fit1) # profile at z = 0.25
+	#SB_r = SB_fit(r_fit, mu_fit0, mu_fit1, re_fit0, re_fit1, ndex_fit0, ndex_fit1)
 
 	## change the SB_r into counts / s
 	NMGY = 5e-3 # mean value of the data sample
@@ -171,7 +164,6 @@ def SB_pro():
 	DN = 10**( (22.5 - SB_r + 2.5*np.log10(pixel**2)) / 2.5 ) / NMGY
 	## error
 	err_N = np.sqrt( DN / gain )
-
 	'''
 	## save the SB_ref, and mock SB for different redshift
 	sub_SB = np.zeros( (len(set_z), len(r)), dtype = np.float)
@@ -188,7 +180,9 @@ def SB_pro():
 	values.append(r)
 	fill = dict( zip(keys, values) )
 	data = pds.DataFrame(fill)
-	data.to_csv(load + 'mock_flux_data.csv')
+	data.to_csv(load + 'mock_flux_data_r_band.csv')
+	#data.to_csv(load + 'mock_flux_data_g_band.csv')
+	#data.to_csv(load + 'mock_flux_data_i_band.csv')
 
 	keys = ['%.3f' % ll for ll in set_z]
 	keys.append('r')
@@ -197,13 +191,17 @@ def SB_pro():
 	values.append(r)
 	fill = dict(zip(keys, values))
 	data = pds.DataFrame(fill)
-	data.to_csv(load + 'mock_SB_data.csv')
+	data.to_csv(load + 'mock_SB_data_r_band.csv')
+	#data.to_csv(load + 'mock_SB_data_g_band.csv')
+	#data.to_csv(load + 'mock_SB_data_i_band.csv')
 
 	key0 = ['%.3f' % z_ref, 'r']
 	value0 = [SB_r, r]
 	fill0 = dict(zip(key0, value0))
 	data = pds.DataFrame(fill0)
-	data.to_csv(load + 'mock_intrinsic_SB.csv')
+	data.to_csv(load + 'mock_intrinsic_SB_r_band.csv')
+	#data.to_csv(load + 'mock_intrinsic_SB_g_band.csv')
+	#data.to_csv(load + 'mock_intrinsic_SB_i_band.csv')
 	'''
 	## add sky
 	sky = 21. # mag/arcsec^2 (from SDSS dr14: the image quality)
@@ -212,7 +210,6 @@ def SB_pro():
 	N_tot =  DN + N_sky
 	err_tot = np.sqrt( N_tot / gain + err_sky**2 )
 	mock_SBt = 22.5 - 2.5 * np.log10(N_tot * NMGY) + 2.5 * np.log10(pixel**2)
-
 	'''
 	fig = plt.figure()
 	ax = plt.subplot(111)
@@ -236,7 +233,7 @@ def SB_pro():
 	ax.set_title('counts profile')
 	ax.plot(r_fit, DN, 'r--', label = 'BCG + ICL', alpha = 0.5)
 	ax.plot(r_fit, N_tot, 'b-', label = 'BCG + ICL + sky', alpha = 0.5)
-	#ax.set_yscale('log')
+	ax.set_yscale('log')
 	ax.set_xscale('log')
 	ax.set_ylabel('DN')
 	ax.set_xlabel('R[kpc]')
@@ -250,7 +247,7 @@ def SB_pro():
 	ax.set_title('counts error profile')
 	ax.plot(r_fit, err_N, 'r--', label = 'BCG + ICL', alpha = 0.5)
 	ax.plot(r_fit, err_tot, 'b-', label = 'BCG + ICL + sky', alpha = 0.5)
-	#ax.set_yscale('log')
+	ax.set_yscale('log')
 	ax.set_xscale('log')
 	ax.set_ylabel('DN')
 	ax.set_xlabel('R[kpc]')
@@ -294,8 +291,9 @@ def SB_pro():
 	Noise = N_mock - N_sub
 	# change N_sub to flux in unit 'nmaggy'
 	bins = 65
+	R_smal, R_max = 10, 10**3.02
 	N_flux = N_sub * NMGY
-	Intns, Intns_r, Intns_err, Npix = light_measure(N_flux, bins, 10, Rpp, xc, yc, pixel, z_ref)
+	Intns, Intns_r, Intns_err, Npix = light_measure(N_flux, bins, R_smal, R_max, xc, yc, pixel, z_ref)
 	flux0 = Intns + Intns_err
 	flux1 = Intns - Intns_err
 	SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2)
@@ -310,7 +308,7 @@ def SB_pro():
 	err1[id_nan] = 100. # set a large value for show the break out errorbar
 
 	N_mooth = N_mock * NMGY
-	Intns, Intns_r, Intns_err, Npix = light_measure(N_mooth, bins, 10, Rpp, xc, yc, pixel, z_ref)
+	Intns, Intns_r, Intns_err, Npix = light_measure(N_mooth, bins, R_smal, R_max, xc, yc, pixel, z_ref)
 	## for smooth image, the err should be the Poisson Noise
 	f_err = np.sqrt( (Intns / NMGY) / (Npix * gain) + N_sky / (gain * Npix) ) * NMGY # in single pix term
 	#f_err = np.sqrt( (Intns * Npix / NMGY) / gain + N_sky * Npix / gain ) * NMGY / Npixc # calculate the total flux and then convert to err
@@ -326,7 +324,6 @@ def SB_pro():
 	pR_mooth, err0_mooth, err1_mooth = Intns_r[id_nan == False], err0_mooth[id_nan == False], err1_mooth[id_nan == False]
 	id_nan = np.isnan(SB1_mooth)
 	err1_mooth[id_nan] = 100.
-
 	'''
 	plt.figure( figsize = (16, 9) )
 	ax0 = plt.subplot(221)
@@ -354,8 +351,7 @@ def SB_pro():
 	plt.savefig('mock_image.png', dpi = 300)
 	plt.close()
 	'''
-
-	plt.figure( )
+	plt.figure()
 	bx = plt.subplot(111)
 
 	bx.errorbar(pR, SB, yerr = [err0, err1], xerr = None, ls = '', fmt = 'r.', label = ' noise image [sky subtracted] ', alpha = 0.5)
@@ -393,9 +389,9 @@ def mock_ccd():
 	sky = 21. # mag/arcsec^2 (from SDSS dr14: the image quality)
 	N_sky = 10**( (22.5 - sky + 2.5*np.log10(pixel**2)) / 2.5 ) / NMGY
 
-	mock_flux = pds.read_csv(load + 'mock_flux_data.csv')
-	mock_SB = pds.read_csv(load + 'mock_SB_data.csv')
-	ins_SB = pds.read_csv(load + 'mock_intrinsic_SB.csv')
+	mock_flux = pds.read_csv(load + 'mock_flux_data_r_band.csv')
+	mock_SB = pds.read_csv(load + 'mock_SB_data_r_band.csv')
+	ins_SB = pds.read_csv(load + 'mock_intrinsic_SB_r_band.csv')
 	r = ins_SB['r']
 	r_sc = r / 10**3
 	r_max = np.max(r_sc)
@@ -560,9 +556,9 @@ def light_test():
 	V_dark =  1.2 # for r band (mean value)
 	exp_time = 54 # exposure time, in unit second
 	bins, Nz = 65, len(set_z)
-	mock_flux = pds.read_csv(load + 'mock_flux_data.csv')
-	mock_SB = pds.read_csv(load + 'mock_SB_data.csv')
-	ins_SB = pds.read_csv(load + 'mock_intrinsic_SB.csv')
+	mock_flux = pds.read_csv(load + 'mock_flux_data_r_band.csv')
+	mock_SB = pds.read_csv(load + 'mock_SB_data_r_band.csv')
+	ins_SB = pds.read_csv(load + 'mock_intrinsic_SB_r_band.csv')
 	r = ins_SB['r']
 	r_sc = r / 10**3
 
@@ -570,9 +566,10 @@ def light_test():
 	SB_t = np.zeros((Nz, bins), dtype = np.float)
 	err_up = np.zeros((Nz, bins), dtype = np.float)
 	err_botm = np.zeros((Nz, bins), dtype = np.float)
+	R_smal, R_max = 10, 10**3.02
 	for k in range(Nz):
-		data = fits.getdata(load + 'noise/noise_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
-		#data = fits.getdata(load + 'noise_mask/add_mask_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
+		#data = fits.getdata(load + 'noise/noise_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
+		data = fits.getdata(load + 'noise_mask/add_mask_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
 
 		img = data[0]
 		Dag = Test_model.angular_diameter_distance(set_z[k]).value
@@ -581,7 +578,7 @@ def light_test():
 		ceny = data[1]['CENTER_Y']
 
 		N_flux = img * NMGY
-		Intns, Intns_r, Intns_err, Npix = light_measure(N_flux, bins, 2, Rp, cenx, ceny, pixel, set_z[k])
+		Intns, Intns_r, Intns_err, Npix = light_measure(N_flux, bins, R_smal, R_max, cenx, ceny, pixel, set_z[k])
 		flux0 = Intns + Intns_err
 		flux1 = Intns - Intns_err
 		SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2)
@@ -616,8 +613,8 @@ def light_test():
 		ax1 = plt.subplot(gs0[-1])
 
 		ax0.plot(r, cc_SB, 'r-', label = '$ Intrinsic $', alpha = 0.5)
-		ax0.errorbar(ss_R, ss_SB, yerr = [err0, err1], xerr = None, ls = '', fmt = 'bo', label = ' noise image [sky subtracted] ', alpha = 0.5)
-		#ax0.errorbar(ss_R, ss_SB, yerr = [err0, err1], xerr = None, ls = '', fmt = 'bo', label = ' noise + mask image [sky subtracted] ', alpha = 0.5)
+		#ax0.errorbar(ss_R, ss_SB, yerr = [err0, err1], xerr = None, ls = '', fmt = 'bo', label = ' noise image [sky subtracted] ', alpha = 0.5)
+		ax0.errorbar(ss_R, ss_SB, yerr = [err0, err1], xerr = None, ls = '', fmt = 'bo', label = ' noise + mask image [sky subtracted] ', alpha = 0.5)
 		ax0.set_xscale('log')
 		ax0.set_ylabel('$SB[mag/arcsec^2]$')
 
@@ -653,8 +650,8 @@ def light_test():
 		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
 
 	plt.tight_layout()
-	plt.savefig('noise_light_measure_test.pdf', dpi = 300)
-	#plt.savefig('add_mask_light_measure_test.pdf', dpi = 300)
+	#plt.savefig('noise_light_measure_test.pdf', dpi = 300)
+	plt.savefig('add_mask_light_measure_test.pdf', dpi = 300)
 	plt.close()
 
 	raise
@@ -666,9 +663,10 @@ def resamp_test():
 	V_dark =  1.2 # for r band (mean value)
 	exp_time = 54 # exposure time, in unit second
 	bins, Nz = 65, len(set_z)
-	mock_flux = pds.read_csv(load + 'mock_flux_data.csv')
-	mock_SB = pds.read_csv(load + 'mock_SB_data.csv')
-	ins_SB = pds.read_csv(load + 'mock_intrinsic_SB.csv')
+
+	mock_flux = pds.read_csv(load + 'mock_flux_data_r_band.csv')
+	mock_SB = pds.read_csv(load + 'mock_SB_data_r_band.csv')
+	ins_SB = pds.read_csv(load + 'mock_intrinsic_SB_r_band.csv')
 	r = ins_SB['r']
 	INS_SB = ins_SB['0.250']
 	f_SB = interp.interp1d(r, INS_SB, kind = 'cubic')
@@ -682,10 +680,10 @@ def resamp_test():
 	SB_s = np.zeros((Nz, bins), dtype = np.float)
 	err_s_up = np.zeros((Nz, bins), dtype = np.float)
 	err_s_botm = np.zeros((Nz, bins), dtype = np.float)
-
+	R_smal, R_max = 10, 10**3.02
 	for k in range(Nz):
-		data = fits.getdata(load + 'noise/noise_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
-		#data = fits.getdata(load + 'noise_mask/add_mask_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
+		#data = fits.getdata(load + 'noise/noise_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
+		data = fits.getdata(load + 'noise_mask/add_mask_frame_z%.3f_ra%.3f_dec%.3f.fits' % (set_z[k], set_ra[k], set_dec[k]), header = True)
 
 		img = data[0]
 		Dag = Test_model.angular_diameter_distance(set_z[k]).value
@@ -713,10 +711,10 @@ def resamp_test():
 		value = ['T', 32, 2, Nx, Ny, xn, yn, set_z[k], pixel]
 		ff = dict(zip(keys,value))
 		fil = fits.Header(ff)
-		fits.writeto(load + 'resamp/resamp-noise-ra%.3f-dec%.3f-redshift%.3f.fits' % (set_ra[k], set_dec[k], set_z[k]), resamt, header = fil, overwrite=True)
-		#fits.writeto(load + 'resamp/resamp-mask-ra%.3f-dec%.3f-redshift%.3f.fits' % (set_ra[k], set_dec[k], set_z[k]), resamt, header = fil, overwrite=True)
+		#fits.writeto(load + 'resamp/resamp-noise-ra%.3f-dec%.3f-redshift%.3f.fits' % (set_ra[k], set_dec[k], set_z[k]), resamt, header = fil, overwrite=True)
+		fits.writeto(load + 'resamp/resamp-mask-ra%.3f-dec%.3f-redshift%.3f.fits' % (set_ra[k], set_dec[k], set_z[k]), resamt, header = fil, overwrite=True)
 
-		Intns, Intns_r, Intns_err, Npix = light_measure(N_flux, bins, 2, Rp, cenx, ceny, pixel, set_z[k])
+		Intns, Intns_r, Intns_err, Npix = light_measure(N_flux, bins, R_smal, R_max, cenx, ceny, pixel, set_z[k])
 		flux0 = Intns + Intns_err
 		flux1 = Intns - Intns_err
 		SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2)
@@ -727,7 +725,7 @@ def resamp_test():
 		err1 = SB1 - SB
 		R_t[k, :], SB_t[k, :], err_up[k, :], err_botm[k, :] = Intns_r, SB, err0, err1
 
-		Intns, Intns_r, Intns_err, Npix = light_measure(resamt, bins, 2, Rpp, xn, yn, pixel, z_ref)
+		Intns, Intns_r, Intns_err, Npix = light_measure(resamt, bins, R_smal, R_max, xn, yn, pixel, z_ref)
 		flux0 = Intns + Intns_err
 		flux1 = Intns - Intns_err
 		SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2)
@@ -820,8 +818,8 @@ def resamp_test():
 		ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
 
 	plt.tight_layout()
-	plt.savefig('noise_resample_SB.pdf', dpi = 300)
-	#plt.savefig('mask_resample_SB.pdf', dpi = 300)
+	#plt.savefig('noise_resample_SB.pdf', dpi = 300)
+	plt.savefig('mask_resample_SB.pdf', dpi = 300)
 	plt.close()
 
 	raise
@@ -837,12 +835,14 @@ def stack_test():
 	V_dark =  1.2 # for r band (mean value)
 	exp_time = 54 # exposure time, in unit second
 	bins, Nz = 65, len(set_z)
-	mock_flux = pds.read_csv(load + 'mock_flux_data.csv')
-	mock_SB = pds.read_csv(load + 'mock_SB_data.csv')
-	ins_SB = pds.read_csv(load + 'mock_intrinsic_SB.csv')
+	mock_flux = pds.read_csv(load + 'mock_flux_data_r_band.csv')
+	mock_SB = pds.read_csv(load + 'mock_SB_data_r_band.csv')
+	ins_SB = pds.read_csv(load + 'mock_intrinsic_SB_r_band.csv')
 	r = ins_SB['r']
 	INS_SB = ins_SB['0.250']
 	f_SB = interp.interp1d(r, INS_SB, kind = 'cubic')
+
+	R_smal, R_max = 10, 10**3.02
 	## Noise sample
 	sum_array_D = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 	count_array_D = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
@@ -873,7 +873,7 @@ def stack_test():
 	id_zeros = np.where(p_count_D == 0)
 	mean_array_D[id_zeros] = np.nan
 
-	Intns, Intns_r, Intns_err, Npix = light_measure(mean_array_D, bins, 2, Rpp, x0, y0, pixel, z_ref)
+	Intns, Intns_r, Intns_err, Npix = light_measure(mean_array_D, bins, R_smal, R_max, x0, y0, pixel, z_ref)
 	flux0 = Intns + Intns_err
 	flux1 = Intns - Intns_err
 	SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2)
@@ -926,7 +926,7 @@ def stack_test():
 	id_zeros = np.where(p_count_D == 0)
 	mean_array_D[id_zeros] = np.nan
 
-	Intns, Intns_r, Intns_err, Npix = light_measure(mean_array_D, bins, 2, Rpp, x0, y0, pixel, z_ref)
+	Intns, Intns_r, Intns_err, Npix = light_measure(mean_array_D, bins, R_smal, R_max, x0, y0, pixel, z_ref)
 	flux0 = Intns + Intns_err
 	flux1 = Intns - Intns_err
 	SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2)
@@ -1005,12 +1005,12 @@ def stack_test():
 	raise
 
 def main():
-	SB_pro()
+	#SB_pro()
 
 	#mock_ccd()
 	#light_test()
 	#resamp_test()
-	#stack_test()
+	stack_test()
 
 if __name__ == "__main__":
 	main()

@@ -36,7 +36,7 @@ def flux_recal(data, z0, zref):
 	flux = obs * (1 + z0)**4 * Da0**2 / ((1 + z1)**4 * Da1**2)
 	return flux
 
-def light_measure(data, Nbin, small, Rp, cx, cy, psize, z0):
+def light_measure(data, Nbin, R_small, R_max, cx, cy, psize, z0):
 	"""
 	data: data used to measure
 	Nbin: number of bins will devide
@@ -57,7 +57,7 @@ def light_measure(data, Nbin, small, Rp, cx, cy, psize, z0):
 	theta[where_are_nan] = 0
 	chi = theta * 180 / np.pi
 
-	divi_r = np.logspace(np.log10(small), 3.01, Nbin)
+	divi_r = np.logspace(np.log10(R_small), np.log10(R_max), Nbin)
 	r = (divi_r * 1e-3 * rad2arcsec / Da0) / psize
 	ia = r <= 1. # smaller than 1 pixel
 	ib = r[ia]

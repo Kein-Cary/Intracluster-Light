@@ -101,7 +101,7 @@ def main():
 	if rank == cpus - 1:
 		N_sub1 += n
 	sdss_sql(z[N_sub0 :N_sub1], Ra[N_sub0 :N_sub1], Dec[N_sub0 :N_sub1])
-	commd.Barrier()	
+	commd.Barrier()
 	t1 = time.time() - t0
 	print('t = ', t1)
 
