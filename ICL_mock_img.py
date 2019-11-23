@@ -356,8 +356,6 @@ def main():
 		commd.Barrier()
 		'''
 		# stack eht sub-sum array
-		mean_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-		p_add_count = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 		if rank == 0:
 			for qq in range(1):
 				## SB_ref
@@ -367,6 +365,8 @@ def main():
 
 				#tot_N = 0
 				tot_N = N_tt[aa]
+				mean_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+				p_add_count = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 				'''
 				for pp in range(cpus):
 
@@ -426,7 +426,7 @@ def main():
 				## Zibetti 05 fitting
 				mu_e, r_e, n_e = 23.87, 19.29, 4.
 				SB_fit = sers_pro(pR, mu_e, r_e, n_e)
-
+				'''
 				plt.figure()
 				ax = plt.subplot(111)
 				ax.set_title('stack mock [%d img %s band]' % (tot_N, band[qq]) )
@@ -484,16 +484,18 @@ def main():
 				plt.subplots_adjust(hspace = 0)
 				plt.savefig(load + 'mock_ccd/mock_stack_SB_%d_%s_band.png' % (tot_N, band[qq]), dpi = 300)
 				plt.close()
-
+				'''
 		commd.Barrier()
 
 	#test the err(r) -- N_sample relation
 	Err, e_R = [], []
 	for aa in range( len(N_tt) ):
+
 		err_data = pds.read_csv(load + 'mock_ccd/stack_err_%d_sample.csv' % N_tt[aa])
 		R, err = err_data['r_kpc'], err_data['err_nmaggy']
 		Err.append(err)
 		e_R.append(R)
+
 	e_R = np.array(e_R)
 	Err = np.array(Err)
 	e_R = np.nanmean(e_R, axis = 0)

@@ -10,7 +10,7 @@ import astropy.io.fits as aft
 import scipy.stats as sts
 import h5py
 import handy.scatter as hsc
-import handy 
+import handy
 ##### section 1: read the redmapper data and the member data
 goal_data = aft.getdata(
         '/home/xkchen/mywork/ICL/data/redmapper/redmapper_dr8_public_v6.3_catalog.fits')
