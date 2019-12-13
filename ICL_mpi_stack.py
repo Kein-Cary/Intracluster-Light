@@ -211,9 +211,6 @@ def main():
 	R_cut = 900
 	R_smal, R_max = 1, 10**3.02 # kpc
 
-	### check for the relation between "stack sample size" and "SB profile amplitude"
-	#N_tt = np.array([50, 100, 150, 200, 250, 500, 1000, 1500, 2000, 2500, 3000])
-
 	for tt in range(3):
 		with h5py.File(load + 'mpi_h5/%s_band_sample_catalog.h5' % band[tt], 'r') as f:
 			sub_array = np.array(f['a'])
@@ -269,8 +266,8 @@ def main():
 					plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
 					hsc.circles(x0, y0, s = Rpp, fc = '', ec = 'r', linestyle = '-', alpha = 0.5)
 					hsc.circles(x0, y0, s = 0.2 * Rpp, fc = '', ec = 'g', linestyle = '--', alpha = 0.5)
-					plt.xlim(x0 - 1.2 * Rpp, x0 + 1.2 * Rpp)
-					plt.ylim(y0 - 1.2 * Rpp, y0 + 1.2 * Rpp)
+					plt.xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
+					plt.ylim(y0 - 2 * Rpp, y0 + 2 * Rpp)
 					plt.savefig(
 					'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/A_mask/A_stack_%d_%s_band_%d_cpus.png' % 
 					(np.int(sub_Num), band[tt], pp), dpi = 300)
@@ -318,8 +315,8 @@ def main():
 				plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
 				hsc.circles(x0, y0, s = Rpp, fc = '', ec = 'r', linestyle = '-', alpha = 0.5)
 				hsc.circles(x0, y0, s = 0.2 * Rpp, fc = '', ec = 'g', linestyle = '--', alpha = 0.5)	
-				plt.xlim(x0 - 1.2 * Rpp, x0 + 1.2 * Rpp)
-				plt.ylim(y0 - 1.2 * Rpp, y0 + 1.2 * Rpp)
+				plt.xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
+				plt.ylim(y0 - 2 * Rpp, y0 + 2 * Rpp)
 				plt.savefig(
 				'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/A_mask/A_stack_%d_%s_band.png' % (tot_N, band[tt]), dpi = 300)
 				plt.close()
@@ -384,8 +381,8 @@ def main():
 					plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
 					hsc.circles(x0, y0, s = Rpp, fc = '', ec = 'r', linestyle = '-', alpha = 0.5)
 					hsc.circles(x0, y0, s = 0.2 * Rpp, fc = '', ec = 'g', linestyle = '--', alpha = 0.5)
-					plt.xlim(x0 - 1.2 * Rpp, x0 + 1.2 * Rpp)
-					plt.ylim(y0 - 1.2 * Rpp, y0 + 1.2 * Rpp)
+					plt.xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
+					plt.ylim(y0 - 2 * Rpp, y0 + 2 * Rpp)
 					plt.savefig(
 					'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/B_mask/B_stack_%d_%s_band_%d_cpus.png' % 
 					(np.int(sub_Num), band[tt], pp), dpi = 300)
@@ -433,8 +430,8 @@ def main():
 				plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
 				hsc.circles(x0, y0, s = Rpp, fc = '', ec = 'r', linestyle = '-', alpha = 0.5)
 				hsc.circles(x0, y0, s = 0.2 * Rpp, fc = '', ec = 'g', linestyle = '--', alpha = 0.5)	
-				plt.xlim(x0 - 1.2 * Rpp, x0 + 1.2 * Rpp)
-				plt.ylim(y0 - 1.2 * Rpp, y0 + 1.2 * Rpp)
+				plt.xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
+				plt.ylim(y0 - 2 * Rpp, y0 + 2 * Rpp)
 				plt.savefig(
 				'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/B_mask/B_stack_%d_%s_band.png' % (tot_N, band[tt]), dpi = 300)
 				plt.close()

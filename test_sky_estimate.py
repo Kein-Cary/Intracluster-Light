@@ -343,8 +343,10 @@ def mask_test():
 	return
 
 def add_sky():
-	load = '/home/xkchen/mywork/ICL/query/'
-	file = 'frame-r-ra203.834-dec41.001-z0.228.fits'
+
+	load = '/home/xkchen/mywork/ICL/data/total_data/'
+	file = 'frame-r-ra203.834-dec41.001-redshift0.228.fits.bz2'
+	tmp = '/home/xkchen/mywork/ICL/data/test_data/tmp/'
 	data = fits.open(load + file)
 	img = data[0].data
 	## add sky 
@@ -358,14 +360,14 @@ def add_sky():
 	New_sky = f_sky(sky_x, sky_y)
 	sky_bl = New_sky * data[0].header['NMGY'] / eta
 	cimg = img + sky_bl
+
+	inds = np.array(np.meshgrid(sky_x, sky_y))
+	t_sky = mapcd(sky0, [inds[1,:], inds[0,:]], order = 1, mode = 'nearest')
 	raise
 	hdu = fits.PrimaryHDU()
 	hdu.data = cimg
 	hdu.header = data[0].header
-	hdu.writeto(load + 'cimg-r-ra203.834-dec41.001-z0.228.fits', overwrite = True)
-
-	inds = np.array(np.meshgrid(sky_x, sky_y))
-	t_sky = mapcd(sky0, [inds[1,:], inds[0,:]], order = 1, mode = 'nearest')
+	hdu.writeto(tmp + 'cimg-r-ra203.834-dec41.001-z0.228.fits', overwrite = True)
 
 	plt.figure(figsize = (16, 8))
 	ax0 = plt.subplot(221)

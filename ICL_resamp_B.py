@@ -95,15 +95,7 @@ def resamp_Bpl(band_id, sub_z, sub_ra, sub_dec):
 		f_goal = flux_recal(img_B, z_g, z_ref)
 		ix0 = np.int(cx0/b)
 		iy0 = np.int(cy0/b)
-		'''
-		xn, yn, resam = gen(f_goal, 1, b, cx, cy)
-		if b > 1:
-			resam = resam[1:, 1:]
-		elif b == 1:
-			resam = resam[1:-1, 1:-1]
-		else:
-			resam = resam
-		'''
+
 		if b > 1:
 			resam, xn, yn = sum_samp(b, b, f_goal, cx, cy)
 		else:

@@ -94,7 +94,7 @@ def spec_mask_B(band_id, z_set, ra_set, dec_set):
 		set_mag = np.array(cat['r'])
 		OBJ = np.array(cat['type'])
 		xt = cat['Column1']
-		tau = 12.5 # the mask size set as tau * FWHM from dr12
+		tau = 10 * 3 # the mask size set as tau * FWHM from dr12
 
 		set_A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
 		set_B = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
@@ -125,8 +125,8 @@ def spec_mask_B(band_id, z_set, ra_set, dec_set):
 
 		sub_x2 = x[ipx]
 		sub_y2 = y[ipx]
-		sub_A2 = 4 * lr_iso[ipx]
-		sub_B2 = 4 * sr_iso[ipx]
+		sub_A2 = 3 * lr_iso[ipx]
+		sub_B2 = 3 * sr_iso[ipx]
 		sub_chi2 = set_chi[ipx]
 
 		comx = np.r_[sub_x0[sub_A0 > 0], sub_x2[sub_A2 > 0]]
@@ -185,7 +185,7 @@ def spec_mask_B(band_id, z_set, ra_set, dec_set):
 		plt.xlim(0, mirro_B.shape[1])
 		plt.ylim(0, mirro_B.shape[0])
 		plt.savefig(
-			'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/B_mask_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[kk], ra_g, dec_g, z_g), dpi = 300)
+		'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/spec_mask/B_mask_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[kk], ra_g, dec_g, z_g), dpi = 300)
 		plt.close()
 
 	return
@@ -292,7 +292,7 @@ def spec_mask_A(band_id, z_set, ra_set, dec_set):
 		cy = np.array(source['Y_IMAGE']) - 1
 		p_type = np.array(source['CLASS_STAR'])
 
-		Kron = 7 # iso_radius set as 3 times rms
+		Kron = 6 * 3 # iso_radius set as 3 times rms
 		a = Kron*A
 		b = Kron*B
 
@@ -303,7 +303,7 @@ def spec_mask_A(band_id, z_set, ra_set, dec_set):
 		set_mag = np.array(cat['r'])
 		OBJ = np.array(cat['type'])
 		xt = cat['Column1']
-		tau = 12.5 # the mask size set as tau * FWHM from dr12
+		tau = 10 * 3 # the mask size set as tau * FWHM from dr12
 
 		set_A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
 		set_B = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
@@ -334,8 +334,8 @@ def spec_mask_A(band_id, z_set, ra_set, dec_set):
 
 		sub_x2 = x[ipx]
 		sub_y2 = y[ipx]
-		sub_A2 = 4 * lr_iso[ipx]
-		sub_B2 = 4 * sr_iso[ipx]
+		sub_A2 = 3 * lr_iso[ipx]
+		sub_B2 = 3 * sr_iso[ipx]
 		sub_chi2 = set_chi[ipx]
 
 		comx = np.r_[sub_x0[sub_A0 > 0], sub_x2[sub_A2 > 0]]
@@ -408,7 +408,7 @@ def spec_mask_A(band_id, z_set, ra_set, dec_set):
 		plt.xlim(0, mirro_A.shape[1])
 		plt.ylim(0, mirro_A.shape[0])
 		plt.savefig(
-			'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/A_mask_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[kk], ra_g, dec_g, z_g), dpi = 300)
+		'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/spec_mask/A_mask_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[kk], ra_g, dec_g, z_g), dpi = 300)
 		plt.close()
 
 	return
@@ -483,8 +483,7 @@ def main():
 		## test for A mask
 		spec_mask_A(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
 		spec_resamp_A(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
-
-	commd.Barrier()
+		commd.Barrier()
 
 if __name__ == "__main__":
 	main()

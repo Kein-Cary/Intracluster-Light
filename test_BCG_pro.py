@@ -167,27 +167,27 @@ def Z05_compare():
 	R2, SB2 = cat2['(1000R)^(1/4)'], cat2['mag/arcsec^2']
 	R2 = R2**4
 
-	devi_g = SB_g_pro + 2.5 * np.log10(2.40)
-	devi_i = SB_i_pro - 2.5 * np.log10(1.60)
-	devi_r = SB_r_pro + 2.5 * np.log10(1.11)
-	'''
+	#devi_g = SB_g_pro + 2.5 * np.log10(2.40)
+	#devi_i = SB_i_pro - 2.5 * np.log10(1.60)
+	#devi_r = SB_r_pro + 2.5 * np.log10(1.11)
+
 	plt.figure(figsize = (16, 9))
 	ax = plt.subplot(111)
 	ax.set_title('SB profile comparison')
 	ax.plot(R0, SB0, 'r-', label = 'r band [Z05]', alpha = 0.5)
 	ax.errorbar(rpro_R, SB_r_pro, yerr = [rpro_err0, rpro_err1], xerr = None, color = 'r', marker = '.', ls = '', linewidth = 1, markersize = 5, 
 				ecolor = 'r', label = 'r band [stacking]', elinewidth = 1, alpha = 0.5)
-	ax.plot(rpro_R, devi_r, 'r:', label = 'shift r band [stacking]', alpha = 0.5)
+	#ax.plot(rpro_R, devi_r, 'r:', label = 'shift r band [stacking]', alpha = 0.5)
 
 	ax.plot(R1, SB1, 'g-', label = 'g band [Z05]', alpha = 0.5)
 	ax.errorbar(gpro_R, SB_g_pro, yerr = [gpro_err0, gpro_err1], xerr = None, color = 'g', marker = '.', ls = '', linewidth = 1, markersize = 5, 
 				ecolor = 'g', label = 'g band [stacking]', elinewidth = 1, alpha = 0.5)
-	ax.plot(gpro_R, devi_g, 'g:', label = 'shift g band [stacking]', alpha = 0.5)
+	#ax.plot(gpro_R, devi_g, 'g:', label = 'shift g band [stacking]', alpha = 0.5)
 
 	ax.plot(R2, SB2, 'b-', label = 'i band [Z05]', alpha = 0.5)
 	ax.errorbar(ipro_R, SB_i_pro, yerr = [ipro_err0, ipro_err1], xerr = None, color = 'b', marker = '.', ls = '', linewidth = 1, markersize = 5, 
 				ecolor = 'b', label = 'i band [stacking]', elinewidth = 1, alpha = 0.5)
-	ax.plot(ipro_R, devi_i, 'b:', label = 'shift i band [stacking]', alpha = 0.5)
+	#ax.plot(ipro_R, devi_i, 'b:', label = 'shift i band [stacking]', alpha = 0.5)
 
 	ax.legend(loc = 1)
 	ax.grid(which = 'both', axis = 'both')
@@ -200,7 +200,7 @@ def Z05_compare():
 	#plt.savefig('Zibetti_pro.png', dpi = 300)
 	plt.savefig('pro_compare.png', dpi = 300)
 	plt.show()
-	'''
+	raise
 	return rpro_R, SB_r_pro, gpro_R, SB_g_pro, ipro_R, SB_i_pro
 
 def sngl_pro():
@@ -844,9 +844,9 @@ def extin_pro():
 	raise
 
 def main():
-	#Z05_compare()
+	Z05_compare()
 	#sngl_pro()
-	pro_compare()
+	#pro_compare()
 	#extin_pro()
 
 if __name__ == "__main__":

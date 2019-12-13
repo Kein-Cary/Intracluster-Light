@@ -55,8 +55,6 @@ Angu_ref = (R0/Da_ref)*rad2asec
 Rpp = Angu_ref/pixel
 
 load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
-#band = ['u', 'g', 'r', 'i', 'z']
-#mag_add = np.array([-0.04, 0, 0, 0, 0.02])
 
 band = ['r', 'g', 'i', 'z', 'u']
 mag_add = np.array([ 0, 0, 0, 0.02, -0.04])
@@ -65,7 +63,6 @@ def resamp_ZIT(band_id, sub_z, sub_ra, sub_dec):
 	ii = np.int(band_id)
 	zn = len(sub_z)
 
-	print('Now band is %s' % band[ii])
 	for k in range(zn):
 		ra_g = sub_ra[k]
 		dec_g = sub_dec[k]
@@ -85,12 +82,12 @@ def resamp_ZIT(band_id, sub_z, sub_ra, sub_dec):
 		wcs = awc.WCS(data_A[1])
 		cx, cy = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
 
-		Angur = (R0 * rad2asec/Da_g)
-		Rp = Angur/pixel
+		Angur = (R0 * rad2asec / Da_g)
+		Rp = Angur / pixel
 		L_ref = Da_ref * pixel / rad2asec
-		L_z0 = Da_g*pixel/rad2asec
-		b = L_ref/L_z0
-		Rref = (R0*rad2asec/Da_ref)/pixel
+		L_z0 = Da_g * pixel / rad2asec
+		b = L_ref / L_z0
+		Rref = (R0 * rad2asec / Da_ref)/pixel
 
 		f_goal = flux_recal(img_A, z_g, z_ref)
 		ix0 = np.int(cx0 / b)
@@ -100,15 +97,7 @@ def resamp_ZIT(band_id, sub_z, sub_ra, sub_dec):
 			resam, xn, yn = sum_samp(b, b, f_goal, cx, cy)
 		else:
 			resam, xn, yn = down_samp(b, b, f_goal, cx, cy)
-		'''
-		xn, yn, resam = gen(f_goal, 1, b, cx, cy)
-		if b > 1:
-			resam = resam[1:, 1:]
-		elif b == 1:
-			resam = resam[1:-1, 1:-1]
-		else:
-			resam = resam
-		'''
+
 		xn = np.int(xn)
 		yn = np.int(yn)
 		x0 = resam.shape[1]
@@ -123,11 +112,10 @@ def resamp_ZIT(band_id, sub_z, sub_ra, sub_dec):
 		fits.writeto(load + 
 			'resample/Zibetti/A_mask/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam, header = fil, overwrite=True)
 
-	print('Now band %s have finished!!' % band[ii])
 	return
 
 def main():
-	t0 = time.time()
+
 	tot_N = len(z)
 
 	#commd.Barrier()
@@ -138,8 +126,6 @@ def main():
 			N_sub1 += n
 		resamp_ZIT(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
 	commd.Barrier()
-	t1 = time.time() - t0
-	print('total time = ', t1)
 
 if __name__ == "__main__":
 	main()
