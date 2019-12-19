@@ -66,7 +66,7 @@ def resamp_15sigma(band_id, sub_z, sub_ra, sub_dec):
 	ii = np.int(band_id)
 	zn = len(sub_z)
 	#for ii in range(len(band)):
-	print('Now band is %s' % band[ii])
+	#print('Now band is %s' % band[ii])
 	for k in range(zn):
 		ra_g = sub_ra[k]
 		dec_g = sub_dec[k]
@@ -94,15 +94,7 @@ def resamp_15sigma(band_id, sub_z, sub_ra, sub_dec):
 		f_goal = flux_recal(img, z_g, z_ref)
 		ix0 = np.int(cx0/b)
 		iy0 = np.int(cy0/b)
-		'''
-		xn, yn, resam = gen(f_goal, 1, b, cx, cy)
-		if b > 1:
-			resam = resam[1:, 1:]
-		elif b == 1:
-			resam = resam[1:-1, 1:-1]
-		else:
-			resam = resam
-		'''
+
 		if b > 1:
 			resam, xn, yn = sum_samp(b, b, f_goal, cx, cy)
 		else:
@@ -135,13 +127,13 @@ def resamp_15sigma(band_id, sub_z, sub_ra, sub_dec):
 			'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/resamp_A/resampA_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[ii], ra_g, dec_g, z_g), dpi = 300)
 		plt.close()
 
-	print('Now band %s have finished!!' % band[ii])
+	#print('Now band %s have finished!!' % band[ii])
 	return
 
 def fig_out():
 
 	for ii in range(len(band)):
-		print('Now band is %s' % band[ii])
+		#print('Now band is %s' % band[ii])
 		for k in range(len(z)):
 			ra_g = ra[k]
 			dec_g = dec[k]
@@ -181,7 +173,7 @@ def main():
 		resamp_15sigma(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
 	commd.Barrier()
 	t1 = time.time() - t0
-	print('total time = ', t1)
+	#print('total time = ', t1)
 
 	#fig_out()
 

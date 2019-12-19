@@ -53,8 +53,9 @@ R0 = 1 # Mpc
 Angu_ref = (R0/Da_ref)*rad2asec
 Rpp = Angu_ref/pixel
 M_dot = 4.83 # the absolute magnitude of SUN
-load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 
+load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
+tmp = '/mnt/ddnfs/data_users/cxkttwl/PC/'
 band = ['r', 'g', 'i', 'u', 'z']
 bnd_indx = [2, 1, 3, 0, 4]
 mag_add = np.array([0, 0, 0, -0.04, 0.02])
@@ -185,16 +186,16 @@ def stack_process(band_number, subz, subra, subdec):
 		p_count_B[0, 0] += 1.
 		count_array_B[la0: la1, lb0: lb1][idv] = np.nan
 
-	with h5py.File(load + 'test_h5/stack_Amask_sum_%d_in_%s_band.h5' % (rank, band[ii]), 'w') as f:
+	with h5py.File(tmp + 'stack_Amask_sum_%d_in_%s_band.h5' % (rank, band[ii]), 'w') as f:
 		f['a'] = np.array(sum_array_A)
 
-	with h5py.File(load + 'test_h5/stack_Amask_pcount_%d_in_%s_band.h5' % (rank, band[ii]), 'w') as f:
+	with h5py.File(tmp + 'stack_Amask_pcount_%d_in_%s_band.h5' % (rank, band[ii]), 'w') as f:
 		f['a'] = np.array(p_count_A)
 
-	with h5py.File(load + 'test_h5/stack_Bmask_sum_%d_in_%s_band.h5' % (rank, band[ii]), 'w') as f:
+	with h5py.File(tmp + 'stack_Bmask_sum_%d_in_%s_band.h5' % (rank, band[ii]), 'w') as f:
 		f['a'] = np.array(sum_array_B)
 
-	with h5py.File(load + 'test_h5/stack_Bmask_pcount_%d_in_%s_band.h5' % (rank, band[ii]), 'w') as f:
+	with h5py.File(tmp + 'stack_Bmask_pcount_%d_in_%s_band.h5' % (rank, band[ii]), 'w') as f:
 		f['a'] = np.array(p_count_B)
 
 	return
@@ -239,11 +240,12 @@ def main():
 				tot_N = 0
 				mean_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 				p_add_count = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+
 				for pp in range(cpus):
 
-					with h5py.File(load + 'test_h5/stack_Amask_pcount_%d_in_%s_band.h5' % (pp, band[tt]), 'r')as f:
+					with h5py.File(tmp + 'stack_Amask_pcount_%d_in_%s_band.h5' % (pp, band[tt]), 'r')as f:
 						p_count = np.array(f['a'])
-					with h5py.File(load + 'test_h5/stack_Amask_sum_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
+					with h5py.File(tmp + 'stack_Amask_sum_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
 						sum_img = np.array(f['a'])
 
 					sub_Num = np.nanmax(p_count)
@@ -252,26 +254,6 @@ def main():
 					ivx = id_zero == False
 					mean_img[ivx] = mean_img[ivx] + sum_img[ivx]
 					p_add_count[ivx] = p_add_count[ivx] + p_count[ivx]
-
-					# check sub-results
-					p_count[id_zero] = np.nan
-					sum_img[id_zero] = np.nan
-					sub_mean = sum_img / p_count
-					where_are_inf = np.isinf(sub_mean)
-					sub_mean[where_are_inf] = np.nan
-
-					plt.figure()
-					plt.title('[A]stack_%d_%s_band_%d_cpus' % (np.int(sub_Num), band[tt], pp) )
-					ax = plt.imshow(sub_mean, cmap = 'Greys', vmin = 1e-7, vmax = 5e1, origin = 'lower', norm = mpl.colors.LogNorm())
-					plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
-					hsc.circles(x0, y0, s = Rpp, fc = '', ec = 'r', linestyle = '-', alpha = 0.5)
-					hsc.circles(x0, y0, s = 0.2 * Rpp, fc = '', ec = 'g', linestyle = '--', alpha = 0.5)
-					plt.xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
-					plt.ylim(y0 - 2 * Rpp, y0 + 2 * Rpp)
-					plt.savefig(
-					'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_img/A_mask/A_stack_%d_%s_band_%d_cpus.png' % 
-					(np.int(sub_Num), band[tt], pp), dpi = 300)
-					plt.close()
 
 				## save the stack image
 				id_zero = p_add_count == 0

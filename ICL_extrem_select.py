@@ -325,11 +325,40 @@ def spec_cat():
 
 	return	
 
+def sky_rule_out():
+	lod = '/home/xkchen/mywork/ICL/data/redmapper/'
+
+	cat_ra = [  '172.584', '155.825', '192.342', '149.544', '227.637', '144.349', 
+				'331.843', '357.192', '180.927', '16.543',  '134.612', '189.716', 
+				'130.438', '149.878', '131.473', '155.763', '141.359', '188.471', 
+				'29.487',  '324.562', '121.334', '329.959', '199.559', '142.417']
+
+	cat_dec = [ '10.462', '11.059', '49.795', '55.255',  '6.838',  '38.844', 
+				'23.245', '-2.401', '1.032',  '0.856',   '56.870', '55.646', 
+				'56.356', '54.220', '56.191', '55.701',  '60.528', '54.049', 
+				'9.404',  '9.908', '48.945',  '22.984',  '1.713',  '8.052' ]
+
+	cat_z = [   '0.206', '0.236', '0.286', '0.212', '0.223', '0.250', 
+				'0.223', '0.239', '0.255', '0.263', '0.245', '0.278', 
+				'0.229', '0.248', '0.261', '0.256', '0.259', '0.221', 
+				'0.210', '0.221', '0.208', '0.200', '0.225', '0.214']
+
+	t_ra = [np.float(ll) for ll in cat_ra]
+	t_dec = [np.float(ll) for ll in cat_dec]
+	t_z = [np.float(ll) for ll in cat_z]
+
+	sky_cat = np.array([t_ra, t_dec, t_z])
+	with h5py.File(lod + 'sky_rule_out_cat.h5', 'w') as f:
+		f['a'] = np.array(sky_cat)
+	with h5py.File(lod + 'sky_rule_out_cat.h5') as f:
+		for tt in range( len(sky_cat) ):
+			f['a'][tt,:] = np.array( sky_cat[tt,:] )
+	print('saved!')
+
 def main():
-	data_select()
-	print(1)
-	spec_cat()
-	print(2)
+	#data_select()
+	#spec_cat()
+	sky_rule_out()
 
 if __name__ == "__main__":
 	main()
