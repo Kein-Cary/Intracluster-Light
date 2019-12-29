@@ -60,7 +60,7 @@ mag_add = np.array([0, 0, 0, -0.04, 0.02])
 Rv = 3.1
 sfd = SFDQuery()
 
-def selection(band_id, sub_z, sub_ra, sub_dec):
+def selection(band_id, sub_z, sub_ra, sub_dec,  sub_rmag):
 
 	ii = np.int(band_id)
 	zn = len(sub_z)
@@ -68,6 +68,7 @@ def selection(band_id, sub_z, sub_ra, sub_dec):
 	ra_fit = np.zeros(zn, dtype = np.float)
 	dec_fit = np.zeros(zn, dtype = np.float)
 	z_fit = np.zeros(zn, dtype = np.float)
+	rmag_fit = np.zeros(zn, dtype = np.float)
 
 	for k in range(zn):
 		ra_g = sub_ra[k]
@@ -82,20 +83,30 @@ def selection(band_id, sub_z, sub_ra, sub_dec):
 		cx = np.int(img_A.shape[1] / 2)
 		cy = np.int(img_A.shape[0] / 2)
 		## select clusters (BCG is located in the center region)
-		x_side = np.array([cx - Rpp, cx + Rpp])
-		y_side = np.array([cy - Rpp, cy + Rpp])
+		#x_side = np.array([cx - Rpp, cx + Rpp])
+		#y_side = np.array([cy - Rpp, cy + Rpp])
+
+		x_side = np.array([cx - 0.8 * Rpp, cx + 0.8 * Rpp]) ## more closer to center
+		y_side = np.array([cy - 0.8 * Rpp, cy + 0.8 * Rpp])
+
 		idx = (x_side[0] < xn) & (xn < x_side[1])
 		idy = (y_side[0] < yn) & (yn < y_side[1])
 		idz = idx & idy
 
 		if idz == True:
 			ra_fit[k], dec_fit[k], z_fit[k] = ra_g, dec_g, z_g
+			rmag_fit[k] = sub_rmag[k]
 		else:
 			continue
-	ra_fit = ra_fit[ra_fit != 0]
-	dec_fit = dec_fit[dec_fit != 0]
-	z_fit = z_fit[z_fit != 0]
-	sel_arr = np.array([ra_fit, dec_fit, z_fit])
+	id_zeros = ra_fit == 0
+	id_false = id_zeros == False
+
+	dec_fit = dec_fit[id_false]
+	z_fit = z_fit[id_false]
+	rmag_fit = rmag_fit[id_false]
+	ra_fit = ra_fit[id_false]
+
+	sel_arr = np.array([ra_fit, dec_fit, z_fit, rmag_fit])
 
 	with h5py.File(tmp + 'sky_select_%d_%s_band.h5' % (rank, band[ii]), 'w') as f:
 		f['a'] = np.array(sel_arr)
@@ -138,19 +149,56 @@ def imgs_cut(band_id, sub_z, sub_ra, sub_dec):
 
 	return
 
+def sky_set(band_id, sub_z, sub_ra, sub_dec):
+
+	ii = np.int(band_id)
+	zn = len(sub_z)
+	for k in range(zn):
+		ra_g = sub_ra[k]
+		dec_g = sub_dec[k]
+		z_g = sub_z[k]
+
+		data = fits.getdata(load + 'sky/sky_resamp/resample_sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+		img = data[0]
+		BCGx, BCGy = data[1]['CENTER_X'], data[1]['CENTER_Y']
+		RA0, DEC0 = data[1]['CRVAL1'], data[1]['CRVAL2']
+
+		xc, yc = np.int(img.shape[1] / 2), np.int(img.shape[0] / 2)
+		re_img = img[yc - np.int(Rpp): yc + np.int(Rpp), xc - np.int(1.3 * Rpp): xc + np.int(1.3 * Rpp)]
+
+		New_bcgx = BCGx - (xc - np.int(1.3 * Rpp))
+		New_bcgy = BCGy - (yc - np.int(Rpp))
+
+		Lx = re_img.shape[1]
+		Ly = re_img.shape[0]
+		Crx = np.int(1.3 * Rpp)
+		Cry = np.int(Rpp)
+
+		keys = ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2','CRPIX1','CRPIX2','CENTER_X','CENTER_Y',
+				'CRVAL1','CRVAL2','CENTER_RA','CENTER_DEC','ORIGN_Z', 'P_SCALE']
+		value = ['T', 32, 2, Lx, Ly, Crx, Cry, New_bcgx, New_bcgy, RA0, DEC0, ra_g, dec_g, z_g, pixel]
+		ff = dict(zip(keys,value))
+		fil = fits.Header(ff)
+		fits.writeto(load + 
+		'sky_select_img/sky_set/Cut_edge_sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), re_img, header = fil, overwrite=True)
+
+	return
+
 def main():
-	'''
+
 	###3 build the catalogue
 	for tt in range( len(band) ):
-		with h5py.File(load + 'mpi_h5/%s_band_sample_catalog.h5' % band[tt], 'r') as f:
+		with h5py.File(load + 'mpi_h5/%s_band_sky_catalog.h5' % band[tt], 'r') as f:
 			sub_array = np.array(f['a'])
 		ra, dec, z, rich, r_mag = sub_array[0,:], sub_array[1,:], sub_array[2,:], sub_array[3,:], sub_array[4,:]
 		zN = len(z)
 
 		m, n = divmod(zN, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
+		if rank == cpus - 1:
+			N_sub1 += n
 
-		selection(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
+		selection(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1], r_mag[N_sub0 :N_sub1])
 		commd.Barrier()
 
 	if rank == 0:
@@ -159,27 +207,35 @@ def main():
 			set_ra = np.array([0.])
 			set_dec = np.array([0.])
 			set_z = np.array([0.])
-
+			set_mag = np.array([0.])
 			for pp in range(cpus):
 				with h5py.File(tmp + 'sky_select_%d_%s_band.h5' % (pp, band[tt]), 'r') as f:
 					sel_arr = np.array(f['a'])
 				set_ra = np.r_[ set_ra, sel_arr[0,:] ]
 				set_dec = np.r_[ set_dec, sel_arr[1,:] ]
 				set_z = np.r_[ set_z, sel_arr[2,:] ]
+				set_mag = np.r_[ set_mag, sel_arr[3,:] ]
 
 			set_ra = set_ra[1:]
 			set_dec = set_dec[1:]
 			set_z = set_z[1:]
+			set_mag = set_mag[1:]
+
 			n_sum = len(set_z)
-			set_array = np.array([set_ra, set_dec, set_z])
-			with h5py.File(load + 'sky_select_img/%s_band_%d_imgs_sky_select.h5' % (band[tt], n_sum), 'w') as f:
+			set_array = np.array([set_ra, set_dec, set_z, set_mag])
+			#with h5py.File(load + 'sky_select_img/%s_band_%d_imgs_sky_select.h5' % (band[tt], n_sum), 'w') as f:
+			with h5py.File(load + 'sky_select_img/test_set/%s_band_sky_%.1fMpc_select.h5' % (band[tt], 0.8), 'w') as f: ## more close to center
 				f['a'] = np.array(set_array)
-			with h5py.File(load + 'sky_select_img/%s_band_%d_imgs_sky_select.h5' % (band[tt], n_sum) ) as f:
+			#with h5py.File(load + 'sky_select_img/%s_band_%d_imgs_sky_select.h5' % (band[tt], n_sum) ) as f:
+			with h5py.File(load + 'sky_select_img/test_set/%s_band_sky_%.1fMpc_select.h5' % (band[tt], 0.8) ) as f: ## more close to center
 				for ll in range( len(set_array) ):
 					f['a'][ll,:] = set_array[ll,:]
+
+			print( len(set_z) )
 	commd.Barrier()
-	'''
-	N_sum = np.array([2055, 2048, 2049, 2050, 2050])
+	"""
+	N_sum = np.array([2013, 2008, 2002, 2008, 2009])
+	### cut imgs edge
 	for kk in range(3):
 
 		with h5py.File(load + 'sky_select_img/%s_band_%d_imgs_sky_select.h5' % (band[kk], N_sum[kk]), 'r') as f:
@@ -189,9 +245,27 @@ def main():
 		zN = len(set_z)
 		m, n = divmod(zN, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
+		if rank == cpus - 1:
+			N_sub1 += n
 
 		imgs_cut(kk, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
 		commd.Barrier()
 
+	### sky_set
+	for kk in range(3):
+
+		with h5py.File(load + 'sky_select_img/%s_band_%d_imgs_sky_select.h5' % (band[kk], N_sum[kk]), 'r') as f:
+			set_array = np.array(f['a'])
+		set_ra, set_dec, set_z = set_array[0,:], set_array[1,:], set_array[2,:]
+
+		zN = len(set_z)
+		m, n = divmod(zN, cpus)
+		N_sub0, N_sub1 = m * rank, (rank + 1) * m
+		if rank == cpus - 1:
+			N_sub1 += n
+
+		sky_set(kk, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
+		commd.Barrier()
+	"""
 if __name__ == "__main__":
 	main()

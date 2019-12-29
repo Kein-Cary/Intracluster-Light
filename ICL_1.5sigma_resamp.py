@@ -112,7 +112,7 @@ def resamp_15sigma(band_id, sub_z, sub_ra, sub_dec):
 		fil = fits.Header(ff)
 		fits.writeto(load + 
 			'resample/1_5sigma/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam, header = fil, overwrite=True)
-
+		'''
 		plt.figure()
 		ax = plt.imshow(resam, cmap = 'Greys', origin = 'lower', vmin = 1e-3, vmax = 1e2, norm = mpl.colors.LogNorm())
 		plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
@@ -126,7 +126,7 @@ def resamp_15sigma(band_id, sub_z, sub_ra, sub_dec):
 		plt.savefig(
 			'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/resamp_A/resampA_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[ii], ra_g, dec_g, z_g), dpi = 300)
 		plt.close()
-
+		'''
 	#print('Now band %s have finished!!' % band[ii])
 	return
 

@@ -46,7 +46,7 @@ Jy = 10**(-23) # (erg/s)/cm^2
 f0 = 3631*10**(-23) # zero point in unit (erg/s)/cm^-2
 
 # sample catalog
-with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/sample_catalog.h5', 'r') as f:
+with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/mpi_h5/sample_catalog.h5', 'r') as f:
 	catalogue = np.array(f['a'])
 z = catalogue[0]
 ra = catalogue[1]
@@ -70,7 +70,8 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 	param_A = 'default_mask_A.sex'
 	out_cat = 'default_mask_A.param'
 	out_load_A = '/mnt/ddnfs/data_users/cxkttwl/PC/A_mask_%d_cpus.cat' % rank
-
+	## size test
+	r_res = 1. # 2.8 for larger R setting
 	for q in range(Nz):
 		z_g = z_set[q]
 		ra_g = ra_set[q]
@@ -105,7 +106,6 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 
 		file_source = '/mnt/ddnfs/data_users/cxkttwl/PC/source_data_%d.fits' % rank
 		cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s'%(param_A, out_load_A, out_cat)
-		#print(cmd)
 		a = subpro.Popen(cmd, shell = True)
 		a.wait()
 
@@ -118,7 +118,7 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 		cy = np.array(source['Y_IMAGE']) - 1
 		p_type = np.array(source['CLASS_STAR'])
 
-		Kron = 6 # iso_radius set as 3 times rms
+		Kron = 6 * r_res # iso_radius set as 3 times rms (2.8 from size test)
 		a = Kron*A
 		b = Kron*B
 
@@ -129,7 +129,7 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 		set_mag = np.array(cat['r'])
 		OBJ = np.array(cat['type'])
 		xt = cat['Column1']
-		tau = 10 # the mask size set as 10 * FWHM from dr12
+		tau = 10 * r_res # the mask size set as 10 * FWHM from dr12
 
 		set_A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
 		set_B = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
@@ -222,7 +222,7 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 		hdu.data = mirro_A
 		hdu.header = head_inf
 		hdu.writeto(load + 'mask_data/A_plane/1.5sigma/A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[kk], ra_g, dec_g, z_g),overwrite = True)
-
+		'''
 		plt.figure()
 		ax = plt.imshow(mirro_A, cmap = 'Greys', origin = 'lower', vmin = 1e-3, norm = mpl.colors.LogNorm())
 		plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
@@ -236,7 +236,7 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 		plt.savefig(
 			'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_class/A_mask/A_mask_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[kk], ra_g, dec_g, z_g), dpi = 300)
 		plt.close()
-
+		'''
 	return
 
 def main():
@@ -249,7 +249,7 @@ def main():
 		if rank == cpus - 1:
 			N_sub1 += n
 		mask_A(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
-	commd.Barrier()	
+	commd.Barrier()
 	t1 = time.time() - t0
 	print('t = ', t1)
 

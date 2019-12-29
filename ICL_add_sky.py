@@ -49,8 +49,8 @@ f0 = 3631 * Jy # zero point in unit (erg/s)/cm^-2
 d_file = '/mnt/ddnfs/data_users/cxkttwl/ICL/wget_data/'
 tmp = '/mnt/ddnfs/data_users/cxkttwl/PC/'
 load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
-band = ['r', 'i', 'g', 'u', 'z']
-sky_SB = [21.04, 20.36, 22.01, 22.30, 19.18] # ref_value from SDSS
+band = ['r', 'g', 'i', 'u', 'z']
+sky_SB = [21.04, 22.01, 20.36, 22.30, 19.18] # ref_value from SDSS
 mag_add = np.array([0, 0, 0, -0.04, 0.02])
 
 ## rule out sample
@@ -194,17 +194,19 @@ def sky_stack(band_id, sub_z, sub_ra, sub_dec, cen_dx):
 	## f^2 image and save the random position for each image
 	f2_sum = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
+	## subtracted array
+	bcg_mean = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+	bcg_media = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+
+	cen_mean = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+	cen_media = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+
 	id_n = 0
 
 	for jj in range(stack_N):
 		ra_g = sub_ra[jj]
 		dec_g = sub_dec[jj]
 		z_g = sub_z[jj]
-		'''
-		identy = ('%.3f'%ra_g in except_ra) & ('%.3f'%dec_g in except_dec) & ('%.3f'%z_g in except_z)
-		if identy == True:
-			continue
-		else:
 		'''
 		## scaled
 		data = fits.open( load + 'sky/sky_resamp/resample_sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
@@ -215,13 +217,18 @@ def sky_stack(band_id, sub_z, sub_ra, sub_dec, cen_dx):
 		img[-1,:] = np.nan
 		img[:,0] = np.nan
 		img[:,-1] = np.nan
-		'''
+
 		## unscale image
 		data = fits.open( load + 'sky/sky_arr/sky-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk]) ) 
 		wcs = awc.WCS(data[0].header)
 		img = data[0].data
 		cx, cy = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
 		'''
+		## sky-select sample
+		data = fits.open( load + 'sky_select_img/sky_set/Cut_edge_sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
+		img = data[0].data
+		cx, cy = data[0].header['CENTER_X'], data[0].header['CENTER_Y']
+
 		la0 = np.int(y0 - cy)
 		la1 = np.int(y0 - cy + img.shape[0])
 		lb0 = np.int(x0 - cx)
@@ -230,18 +237,20 @@ def sky_stack(band_id, sub_z, sub_ra, sub_dec, cen_dx):
 		idx = np.isnan(img)
 		idv = np.where(idx == False)
 
-		img_add = img - 0.
-		img_add = img - np.nanmean(img)
-		#img_add = img - np.nanmedian(img)
+		img_add_0 = img - np.nanmean(img)
+		img_add_1 = img - np.nanmedian(img)
 
-		sum_array[la0: la1, lb0: lb1][idv] = sum_array[la0:la1, lb0:lb1][idv] + img_add[idv]
-		f2_sum[la0: la1, lb0: lb1][idv] = f2_sum[la0: la1, lb0: lb1][idv] + img_add[idv]**2
-		count_array[la0: la1, lb0: lb1][idv] = img_add[idv]
+		sum_array[la0: la1, lb0: lb1][idv] = sum_array[la0:la1, lb0:lb1][idv] + img[idv]
+		f2_sum[la0: la1, lb0: lb1][idv] = f2_sum[la0: la1, lb0: lb1][idv] + img[idv]**2
+		count_array[la0: la1, lb0: lb1][idv] = img[idv]
 		id_nan = np.isnan(count_array)
 		id_fals = np.where(id_nan == False)
 		p_count[id_fals] = p_count[id_fals] + 1
 		count_array[la0: la1, lb0: lb1][idv] = np.nan
 		id_n += 1.
+
+		bcg_mean[la0: la1, lb0: lb1][idv] = bcg_mean[la0: la1, lb0: lb1][idv] + img_add_0[idv]
+		bcg_media[la0: la1, lb0: lb1][idv] = bcg_media[la0: la1, lb0: lb1][idv] + img_add_1[idv]
 
 		if open_id == 1:
 			rnx, rny = img.shape[1] / 2, img.shape[0] / 2
@@ -250,27 +259,40 @@ def sky_stack(band_id, sub_z, sub_ra, sub_dec, cen_dx):
 			lb0 = np.int(x0 - rnx)
 			lb1 = np.int(x0 - rnx + img.shape[1])
 
-			sum_cen[la0: la1, lb0: lb1][idv] = sum_cen[la0:la1, lb0:lb1][idv] + img_add[idv]
-			count_cen[la0: la1, lb0: lb1][idv] = img_add[idv]
+			sum_cen[la0: la1, lb0: lb1][idv] = sum_cen[la0:la1, lb0:lb1][idv] + img[idv]
+			count_cen[la0: la1, lb0: lb1][idv] = img[idv]
 			id_nan = np.isnan(count_cen)
 			id_fals = np.where(id_nan == False)
 			p_count_cen[id_fals] = p_count_cen[id_fals] + 1
 			count_cen[la0: la1, lb0: lb1][idv] = np.nan
+
+			cen_mean[la0: la1, lb0: lb1][idv] = cen_mean[la0: la1, lb0: lb1][idv] + img_add_0[idv]
+			cen_media[la0: la1, lb0: lb1][idv] = cen_media[la0: la1, lb0: lb1][idv] + img_add_1[idv]
 
 	p_count[-1, -1] = id_n
 	with h5py.File(tmp + 'sky_sum_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
 		f['a'] = np.array(sum_array)
 	with h5py.File(tmp + 'sky_sum_pcount_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
 		f['a'] = np.array(p_count)
-	## save the flux square img and the random position
+
 	with h5py.File(tmp + 'sky_f2_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
 		f['a'] = np.array(f2_sum)
+
+	with h5py.File(tmp + 'sky_mean_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
+		f['a'] = np.array(bcg_mean)
+	with h5py.File(tmp + 'sky_media_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
+		f['a'] = np.array(bcg_media)
 
 	if open_id == 1:
 		with h5py.File(tmp + 'sky_fig-cen_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
 			f['a'] = np.array(sum_cen)
 		with h5py.File(tmp + 'sky_fig-cen_count_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
 			f['a'] = np.array(p_count_cen)
+
+		with h5py.File(tmp + 'sky_fig-cen_mean_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
+			f['a'] = np.array(cen_mean)
+		with h5py.File(tmp + 'sky_fig-cen_media_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
+			f['a'] = np.array(cen_media)
 
 def main():
 	R_cut, bins = 1260, 80  # in unit of pixel (with 2Mpc inside)
@@ -279,7 +301,17 @@ def main():
 	de_cen = np.array([0.1, 0.1, 0.07, 0.09, 0.16]) # scaled
 	#de_cen = np.array([0.095, 0.095, 0.065, 0.085, 0.155]) #unscaled
 
+	## color lim
+	color_lim = np.array([  [0.55, 0.22, 1.025, 0.170, 3.2], 
+							[0.65, 0.26, 1.225, 0.205, 3.9] ])
 	'''
+	## use all the image data
+	with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/mpi_h5/sample_catalog.h5', 'r') as f:
+		catalogue = np.array(f['a'])
+	z = catalogue[0]
+	ra = catalogue[1]
+	dec = catalogue[2]
+
 	## re-applied the sky to image (also save the sky img)
 	for tt in range(len(band)):
 		m, n = divmod(Ntot, cpus)
@@ -305,12 +337,26 @@ def main():
 	open_dx = 0 # 0 / 1 , if stack with the frame center
 
 	N_sum = []
+	N_dd = np.array([2013, 2008, 2002, 2008, 2009])
+
 	for tt in range(3):
-		with h5py.File(load + 'mpi_h5/%s_band_sample_catalog.h5' % band[tt], 'r') as f:
+		'''
+		## image data select sample
+		with h5py.File(load + 'mpi_h5/%s_band_sky_catalog.h5' % band[tt], 'r') as f:
 			sub_array = np.array(f['a'])
 		ra, dec, z, rich, r_mag = sub_array[0,:], sub_array[1,:], sub_array[2,:], sub_array[3,:], sub_array[4,:]
-		zN = len(z)
 
+		## sky-select sample
+		with h5py.File(load + 'sky_select_img/%s_band_%d_imgs_sky_select.h5' % (band[tt], N_dd[tt]), 'r') as f:
+			sub_array = np.array(f['a'])
+		ra, dec, z, r_mag = sub_array[0,:], sub_array[1,:], sub_array[2,:], sub_array[3,:]
+		'''
+		## test for center closed BCG select
+		with h5py.File(load + 'sky_select_img/test_set/%s_band_sky_0.8Mpc_select.h5' % ( band[tt] ), 'r') as f:
+			sub_array = np.array(f['a'])
+		ra, dec, z, r_mag = sub_array[0,:], sub_array[1,:], sub_array[2,:], sub_array[3,:]
+
+		zN = len(z)
 		N_tot = np.array([zN])
 		for aa in range( len(N_tot) ):
 			'''
@@ -336,12 +382,16 @@ def main():
 			if rank == 0:
 
 				tt_N = 0
-				mean_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-				p_add_count = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+				bcg_stack = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+				bcg_count = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 				sqr_f = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+				bcg_mean = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+				bcg_media = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
 				fig_cen = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 				fig_cen_cnt = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+				fig_cen_mean = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+				fig_cen_media = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
 				for pp in range(cpus):
 
@@ -353,54 +403,122 @@ def main():
 					with h5py.File(tmp + 'sky_f2_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
 						f2_sum = np.array(f['a'])
 
+					with h5py.File(tmp + 'sky_mean_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
+						sub_mean = np.array(f['a'])
+					with h5py.File(tmp + 'sky_media_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
+						sub_media = np.array(f['a'])
+
 					tt_N += p_count[-1, -1]
 					id_zero = p_count == 0
 					ivx = id_zero == False
-					mean_img[ivx] = mean_img[ivx] + sum_img[ivx]
+					bcg_stack[ivx] = bcg_stack[ivx] + sum_img[ivx]
 					sqr_f[ivx] = sqr_f[ivx] + f2_sum[ivx]
-					p_add_count[ivx] = p_add_count[ivx] + p_count[ivx]
+					bcg_count[ivx] = bcg_count[ivx] + p_count[ivx]
 
+					bcg_mean[ivx] = bcg_mean[ivx] + sub_mean[ivx]
+					bcg_media[ivx] = bcg_media[ivx] + sub_media[ivx]
+					'''
+					pp_mean = sum_img / p_count
+					pp_Var = f2_sum / p_count
+					id_inf = np.isinf(pp_mean)
+					pp_mean[id_inf] = np.nan
+
+					id_inf = np.isinf(pp_Var)
+					pp_Var[id_inf] = np.nan
+
+					plt.figure(figsize = (12, 6))
+					ax = plt.subplot(121)
+					bx = plt.subplot(122)
+					ax.set_title('%s band %d spus' % (band[tt], pp) )
+					clust = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5, label = 'cluster region[1Mpc]')
+					tf = ax.imshow(pp_mean, origin = 'lower', vmin = color_lim[0][tt], vmax = color_lim[1][tt], )
+					ax.add_patch(clust)
+					ax.set_xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
+					ax.set_ylim(y0 - 2 * Rpp, y0 + 2 * Rpp)
+					plt.colorbar(tf, ax = ax, fraction = 0.040, pad = 0.01, label = '$ flux \, [nmaggies]$')
+
+					clust = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5, label = 'cluster region[1Mpc]')
+					tf = bx.imshow(pp_Var, origin = 'lower', )
+					bx.add_patch(clust)
+					bx.set_xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
+					bx.set_ylim(y0 - 2 * Rpp, y0 + 2 * Rpp)
+					plt.colorbar(tf, ax = bx, fraction = 0.040, pad = 0.01, label = '$ flux^2 $')
+
+					plt.tight_layout()
+					plt.savefig(load + 'sky/sub_img_%s_band_%d_cpus.png' % (band[tt], pp), dpi = 300)
+					plt.close()
+					'''
 					if open_dx == 1:
-						with h5py.File(tmp + 'sky_fig-cen_%d_in_%s_band.h5' % (pp, band[tt]), 'w') as f:
+						with h5py.File(tmp + 'sky_fig-cen_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
 							sub_cen = np.array(f['a'])
-						with h5py.File(tmp + 'sky_fig-cen_count_%d_in_%s_band.h5' % (pp, band[tt]), 'w') as f:
+						with h5py.File(tmp + 'sky_fig-cen_count_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
 							sub_cen_cnt = np.array(f['a'])
+
+						with h5py.File(tmp + 'sky_fig-cen_mean_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
+							cen_mean = np.array(f['a'])
+						with h5py.File(tmp + 'sky_fig-cen_media_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
+							cen_media = np.array(f['a'])
+
 						id_zero = sub_cen_cnt == 0
 						ivx = id_zero == False
-						fig_cen[ivx] = fig_cen[ivx] + sub_cen[ivx]				
+						fig_cen[ivx] = fig_cen[ivx] + sub_cen[ivx]
 						fig_cen_cnt[ivx] = fig_cen_cnt[ivx] + sub_cen_cnt[ivx]
 
+						fig_cen_mean[ivx] = fig_cen_mean[ivx] + cen_mean[ivx]
+						fig_cen_media[ivx] = fig_cen_media[ivx] + cen_media[ivx]
 
 				## sample sky SB
 				tt_N = np.int(tt_N)
 				N_sum.append(tt_N)
 
 				## centered on BCG
-				id_zero = p_add_count == 0
-				mean_img[id_zero] = np.nan
-				p_add_count[id_zero] = np.nan
-				stack_img = mean_img / p_add_count
+				id_zero = bcg_count == 0
+				bcg_stack[id_zero] = np.nan
+				bcg_count[id_zero] = np.nan
+				stack_img = bcg_stack / bcg_count
 				id_inf = np.isinf(stack_img)
 				stack_img[id_inf] = np.nan
 
-				#with h5py.File(load + 'sky/sky_stack_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
-				#with h5py.File(load + 'sky/sky_minus_media_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
-				with h5py.File(load + 'sky/sky_minus_mean_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				bcg_mean[id_zero] = np.nan
+				stack_m_mean = bcg_mean / bcg_count
+				id_inf = np.isinf(stack_m_mean)
+				stack_m_mean[id_inf] = np.nan
+
+				bcg_media[id_zero] = np.nan
+				stack_m_media = bcg_media / bcg_count
+				id_inf = np.isinf(stack_m_media)
+				stack_m_media[id_inf] = np.nan
+
+				#with h5py.File(load + 'sky/center_set/sky_stack_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky_select_img/result/sky_stack_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				with h5py.File(load + 'sky_select_img/test_set/sky_stack_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
 					f['a'] = np.array(stack_img)
+
+				#with h5py.File(load + 'sky/center_set/sky_minus_media_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky_select_img/result/sky_minus_media_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				with h5py.File(load + 'sky_select_img/test_set/sky_minus_media_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+					f['a'] = np.array(stack_m_media)
+
+				#with h5py.File(load + 'sky/center_set/sky_minus_mean_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky_select_img/result/sky_minus_mean_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				with h5py.File(load + 'sky_select_img/test_set/sky_minus_mean_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+					f['a'] = np.array(stack_m_mean)
 
 				## save the square flux and sky SB
 				sqr_f[id_zero] = np.nan
-				E_f2 = sqr_f / p_add_count
+				E_f2 = sqr_f / bcg_count
 				id_inf = np.isinf(E_f2)
 				E_f2[id_inf] = np.nan
 				Var_f = E_f2 - stack_img**2
 
-				#with h5py.File(load + 'sky/sky_Var_%d_in_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
-				#with h5py.File(load + 'sky/sky_Var_minus_media_%d_in_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
-				with h5py.File(load + 'sky/sky_Var_minus_mean_%d_in_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky/center_set/sky_Var_%d_in_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky_select_img/result/sky_Var_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				with h5py.File(load + 'sky_select_img/test_set/sky_Var_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
 					f['a'] = np.array(Var_f)
 
+				## centered on fig center
 				if open_dx == 1:
+
 					id_zero = fig_cen_cnt == 0
 					fig_cen[id_zero] = np.nan
 					fig_cen_cnt[id_zero] = np.nan
@@ -408,32 +526,39 @@ def main():
 					id_inf = np.isinf(fig_cen_stack)
 					fig_cen_stack[id_inf] = np.nan
 
-					#with h5py.File(load + 'sky/sky_fig-center_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
-					#with h5py.File(load + 'sky/sky_fig-center_media_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+					fig_cen_mean[id_zero] = np.nan
+					dd_cen_mean = fig_cen_mean / fig_cen_cnt
+					id_inf = np.isinf(dd_cen_mean)
+					dd_cen_mean[id_inf] = np.nan
+
+					fig_cen_media[id_zero] = np.nan
+					dd_cen_media = fig_cen_media / fig_cen_cnt
+					id_inf = np.isinf(dd_cen_media)
+					dd_cen_media[id_inf] = np.nan
+
+					with h5py.File(load + 'sky/sky_fig-center_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+						f['a'] = np.array(fig_cen_stack)
+					with h5py.File(load + 'sky/sky_fig-center_media_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+						f['a'] = np.array(dd_cen_media)
 					with h5py.File(load + 'sky/sky_fig-center_mean_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
-						f['a'] = np.array(fig_cen_stack)			
+						f['a'] = np.array(dd_cen_mean)
 
 			commd.Barrier()
-
-	## origin case
-	color_lim = np.array([  [0.55, 1.025, 0.22, 0.170, 3.2], 
-							[0.65, 1.225, 0.26, 0.205, 3.9] ])
-
 	N_sum = np.array(N_sum)
-	#N_sum = np.array([3378, 3363, 3377, 3378, 3372]) ## before select
-	#N_sum = np.array([3355, 3340, 3354, 3355, 3349]) ## after select
+
+	#N_sum = np.array([2013, 2008, 2002, 2008, 2009])  ## sky-selected sample
 	if rank == 0:
 		for qq in range(3):
 			## results
-			#with h5py.File(load + 'sky/sky_stack_%d_imgs_%s_band.h5' % (N_sum[qq], band[qq]), 'r') as f:
-			#with h5py.File(load + 'sky/sky_minus_media_%d_imgs_%s_band.h5' % (N_sum[qq], band[qq]), 'r') as f:
-			with h5py.File(load + 'sky/sky_minus_mean_%d_imgs_%s_band.h5' % (N_sum[qq], band[qq]), 'r') as f:
+			#with h5py.File(load + 'sky/center_set/sky_stack_%d_imgs_%s_band.h5' % (N_sum[qq], band[qq]), 'r') as f:
+			#with h5py.File(load + 'sky_select_img/result/sky_stack_%d_imgs_%s_band.h5' % (N_sum[qq], band[qq]), 'r') as f:
+			with h5py.File(load + 'sky_select_img/test_set/sky_stack_%d_imgs_%s_band.h5' % (N_sum[qq], band[qq]), 'r') as f:
 				stack_img = np.array(f['a'])
 
 			## Var_img
-			#with h5py.File(load + 'sky/sky_Var_%d_in_%s_band.h5' % (N_sum[qq], band[qq]), 'r') as f:
-			#with h5py.File(load + 'sky/sky_Std_minus_media_%d_in_%s_band.h5' % (N_sum[qq], band[qq]), 'r') as f:
-			with h5py.File(load + 'sky/sky_Std_minus_mean_%d_in_%s_band.h5' % (N_sum[qq], band[qq]), 'r') as f:
+			#with h5py.File(load + 'sky/center_set/sky_Var_%d_in_%s_band.h5' % (N_sum[qq], band[qq]), 'r') as f:
+			#with h5py.File(load + 'sky_select_img/result/sky_Var_%d_imgs_%s_band.h5' % (N_sum[qq], band[qq]), 'r') as f:
+			with h5py.File(load + 'sky_select_img/test_set/sky_Var_%d_imgs_%s_band.h5' % (N_sum[qq], band[qq]), 'r') as f:
 				Var_img = np.array(f['a'])
 
 			plt.figure(figsize = (12, 6))
@@ -443,8 +568,9 @@ def main():
 			bx.set_title('Variance plot %d imgs  %s band [centered on BCG]' % (N_sum[qq], band[qq]) )
 
 			clust = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5, label = 'cluster region[1Mpc]')
-			#tf = ax.imshow(stack_img, origin = 'lower', vmin = color_lim[0][qq], vmax = color_lim[1][qq], )
-			tf = ax.imshow(stack_img, origin = 'lower', vmin = -5e-4, vmax = 5e-4, )
+			tf = ax.imshow(stack_img, origin = 'lower', 
+				vmin = np.nanmean(stack_img) - np.nanstd(stack_img), vmax = np.nanmean(stack_img) + np.nanstd(stack_img), )
+			#tf = ax.imshow(stack_img, origin = 'lower', vmin = -5e-4, vmax = 5e-4, )
 			ax.add_patch(clust)
 			ax.set_xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
 			ax.set_ylim(y0 - 2 * Rpp, y0 + 2 * Rpp)
@@ -455,12 +581,12 @@ def main():
 			bx.add_patch(clust)
 			bx.set_xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
 			bx.set_ylim(y0 - 2 * Rpp, y0 + 2 * Rpp)
-			plt.colorbar(tf, ax = bx, fraction = 0.040, pad = 0.01, label = '$ flux^2 $')				
+			plt.colorbar(tf, ax = bx, fraction = 0.040, pad = 0.01, label = '$ flux^2 $')
 
 			plt.tight_layout()
-			#plt.savefig(load + 'sky/sky_BCG_Var_%d_imgs_%s_band.png' % (N_sum[qq], band[qq]), dpi = 300)
-			#plt.savefig(load + 'sky/sky_BCG_Var_minus_media_%d_imgs_%s_band.png' % (N_sum[qq], band[qq]), dpi = 300)
-			plt.savefig(load + 'sky/sky_BCG_Var_minus_mean_%d_imgs_%s_band.png' % (N_sum[qq], band[qq]), dpi = 300)
+			#plt.savefig(load + 'sky/center_set/sky_BCG_Var_%d_imgs_%s_band.png' % (N_sum[qq], band[qq]), dpi = 300)
+			#plt.savefig(load + 'sky_select_img/result/sky_BCG_Var_%d_imgs_%s_band.png' % (N_sum[qq], band[qq]), dpi = 300)
+			plt.savefig(load + 'sky_select_img/test_set/sky_BCG_Var_%d_imgs_%s_band.png' % (N_sum[qq], band[qq]), dpi = 300)
 			plt.close()
 
 	commd.Barrier()

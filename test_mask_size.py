@@ -490,7 +490,7 @@ def main():
 			plt.savefig(
 			'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/SB_%d_img_%s_band_BL_sub.png' % (N_tt, band[kk]), dpi = 300)
 			plt.close()
-	commd.Barrier()	
+	commd.Barrier()
 	'''
 	ext_r_star = np.array([1.6, 1.8, 2., 2.2, 2.4, 2.6, 2.8])
 	ext_r_galx = np.array([1.6, 1.8, 2., 2.2, 2.4, 2.6, 2.8])

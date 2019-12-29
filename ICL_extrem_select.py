@@ -322,7 +322,7 @@ def spec_cat():
 	with h5py.File(lod + 'special_mask_cat.h5') as f:
 		for tt in range(len(t_data)):
 			f['a'][tt,:] = np.array(t_data[tt,:])
-
+	print('Special!')
 	return	
 
 def sky_rule_out():
@@ -343,6 +343,12 @@ def sky_rule_out():
 				'0.229', '0.248', '0.261', '0.256', '0.259', '0.221', 
 				'0.210', '0.221', '0.208', '0.200', '0.225', '0.214']
 
+	keys = ['ra', 'dec', 'z']
+	values = [cat_ra, cat_dec, cat_z]
+	fill = dict(zip(keys, values))
+	data = pds.DataFrame(fill)
+	data.to_csv(lod + 'sky_rule_out_cat.csv')
+	## save data for mpirun
 	t_ra = [np.float(ll) for ll in cat_ra]
 	t_dec = [np.float(ll) for ll in cat_dec]
 	t_z = [np.float(ll) for ll in cat_z]
@@ -357,7 +363,7 @@ def sky_rule_out():
 
 def main():
 	#data_select()
-	#spec_cat()
+	spec_cat()
 	sky_rule_out()
 
 if __name__ == "__main__":
