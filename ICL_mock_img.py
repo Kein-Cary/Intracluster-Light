@@ -53,20 +53,22 @@ Jy = 10**(-23) # (erg/s)/cm^2
 f0 = 3631*Jy # zero point in unit (erg/s)/cm^-2
 Lstar = 2e10 # in unit L_sun ("copy from Galaxies in the Universe", use for Luminosity function calculation)
 
-with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/mpi_h5/sample_catalog.h5', 'r') as f:
+d_file = '/mnt/ddnfs/data_users/cxkttwl/ICL/wget_data/'
+load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
+tmp = '/mnt/ddnfs/data_users/cxkttwl/PC/'
+
+with h5py.File(load + 'mpi_h5/sample_catalog.h5', 'r') as f:
 	catalogue = np.array(f['a'])
 z = catalogue[0]
 ra = catalogue[1]
 dec = catalogue[2]
-d_file = '/mnt/ddnfs/data_users/cxkttwl/ICL/wget_data/'
-load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 
 band = ['r', 'g', 'i', 'u', 'z']
 sky_SB = [21.04, 22.01, 20.36, 22.30, 19.18]
 gain = np.array([ [4.71, 4.6, 4.72, 4.76, 4.725, 4.895], 
-				[3.32, 3.855, 3.845, 3.995, 4.05, 4.035], 
-				[5.165, 6.565, 4.86, 4.885, 4.64, 4.76], 
-				[1.62, 1.71, 1.59, 1.6, 1.47, 2.17], 
+				[3.32,  3.855, 3.845, 3.995, 4.05, 4.035], 
+				[5.165, 6.565, 4.86,  4.885, 4.64, 4.76], 
+				[1.62,  1.71,  1.59,  1.6,   1.47, 2.17], 
 				[4.745, 5.155, 4.885, 4.775, 3.48, 4.69] ])
 
 def SB_fit(r, mu_e0, mu_e1, r_e0, r_e1, ndex0, ndex1):
@@ -92,7 +94,7 @@ def SB_dit(r, mu_e0, mu_e1, r_e0, r_e1, ndex0, ndex1):
 	return mock_SB0, mock_SB1, mock_SB
 
 def SB_pro():
-	for kk in range(1):
+	for kk in range(3):
 
 		SB0 = pds.read_csv(load + 'Zibetti_SB/%s_band_BCG_ICL.csv' % band[kk])
 		R_r0, SB_r0 = SB0['(1000R)^(1/4)'], SB0['mag/arcsec^2']
@@ -103,9 +105,14 @@ def SB_pro():
 
 		r_fit = (R_r0**4 / 1000) * 1e3
 		po = np.array([mu_e0, mu_e1, Re_0, Re_1, ndex0, ndex1])
-		popt, pcov = curve_fit(SB_fit, r_fit, SB_r0, p0 = po, bounds = ([21, 27, 18, 100, 1., 1.], [24, 32, 22, 500, 6., 6.]), method = 'trf') # r_band
-		#popt, pcov = curve_fit(SB_fit, r_fit, SB_r0, p0 = po, bounds = ([23, 28, 17, 100, 1., 1.], [25, 32, 20, 450, 6., 6.]), method = 'trf') # g_band
-		#popt, pcov = curve_fit(SB_fit, r_fit, SB_r0, p0 = po, bounds = ([23, 28, 17, 100, 1., 1.], [25, 32, 20, 450, 6., 6.]), method = 'trf') # i_band
+
+		if kk == 0:
+			popt, pcov = curve_fit(SB_fit, r_fit, SB_r0, p0 = po, bounds = ([21, 27, 18, 100, 1., 1.], [24, 32, 22, 500, 6., 6.]), method = 'trf') # r_band
+		if kk == 1:
+			popt, pcov = curve_fit(SB_fit, r_fit, SB_r0, p0 = po, bounds = ([23, 28, 17, 100, 1., 1.], [25, 32, 20, 450, 6., 6.]), method = 'trf') # g_band
+		if kk == 2:
+			popt, pcov = curve_fit(SB_fit, r_fit, SB_r0, p0 = po, bounds = ([23, 28, 17, 100, 1., 1.], [25, 32, 20, 450, 6., 6.]), method = 'trf') # i_band
+		
 		mu_fit0, mu_fit1, re_fit0, re_fit1, ndex_fit0, ndex_fit1 = popt
 
 		r = np.logspace(0, 3.08, 1000)
@@ -118,7 +125,22 @@ def SB_pro():
 		value0 = [SB_r, r]
 		fill0 = dict(zip(key0, value0))
 		data = pds.DataFrame(fill0)
-		data.to_csv(load + 'mock_intrinsic_SB_%s_band.csv' % band[kk])
+		data.to_csv(load + 'mock_ccd/mock_intrinsic_SB_%s_band.csv' % band[kk])
+
+		plt.figure()
+		ax = plt.subplot(111)
+		ax.set_title('%s band SB fitting' % band[kk])
+		ax.plot(r_fit, SB_r0, 'r--', label = 'Input SB', alpha = 0.5)
+		ax.plot(r, SB_r, 'g-', label = 'fitting SB', alpha = 0.5)
+		ax.set_xscale('log')
+		ax.set_ylabel('$ SB[mag/arcsec^2] $')
+		ax.set_xlabel('R[kpc]')
+		ax.legend(loc = 1)
+		ax.invert_yaxis()
+		ax.tick_params(axis = 'both', which = 'both', direction = 'in')
+		plt.savefig(load + 'mock_ccd/%s_band_SB_fit.png' % band[kk], dpi = 300)
+		plt.close()
+
 	return
 
 def mock_ccd(band_id, z_set, ra_set, dec_set):
@@ -210,8 +232,8 @@ def mock_ccd(band_id, z_set, ra_set, dec_set):
 
 		## save the mock img
 		keys = ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2','CRPIX1','CRPIX2','CENTER_X','CENTER_Y',
-				'CRVAL1','CRVAL2','CENTER_RA','CENTER_DEC','ORIGN_Z', 'P_SCALE']
-		value = ['T', 32, 2, Nx0, Ny0, cx0, cy0, xc, yc, RA0, DEC0, ra_g, dec_g, z_g, pixel]
+				'CRVAL1','CRVAL2','CENTER_RA','CENTER_DEC','ORIGN_Z', 'P_SCALE', 'CAMCOL', 'NMGY']
+		value = ['T', 32, 2, Nx0, Ny0, cx0, cy0, xc, yc, RA0, DEC0, ra_g, dec_g, z_g, pixel, CAMCOL, NMGY]
 		ff = dict( zip(keys, value) )
 		fil = fits.Header(ff)
 		fits.writeto(load + 
@@ -272,6 +294,7 @@ def mock_stack(band_id, sub_z, sub_ra, sub_dec):
 	count_array = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
 	p_count = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
+	id_nx = 0.
 	for jj in range(stack_N):
 		ra_g = sub_ra[jj]
 		dec_g = sub_dec[jj]
@@ -293,13 +316,14 @@ def mock_stack(band_id, sub_z, sub_ra, sub_dec):
 		id_nan = np.isnan(count_array)
 		id_fals = np.where(id_nan == False)
 		p_count[id_fals] += 1.
-		p_count[0, 0] += 1. # test for the number of stack image
 		count_array[la0: la1, lb0: lb1][idv] = np.nan
 
-	with h5py.File(load + 'test_h5/mock_sum_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
+		id_nx += 1.
+	p_count[0, 0] = id_nx # record the number of stack image
+	with h5py.File(tmp + 'mock_sum_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
 		f['a'] = np.array(sum_array)
 
-	with h5py.File(load + 'test_h5/mock_pcount_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
+	with h5py.File(tmp + 'mock_pcount_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
 		f['a'] = np.array(p_count)
 
 def sers_pro(r, mu_e, r_e, n):
@@ -313,7 +337,7 @@ def main():
 	#SB_pro()
 	'''
 	## mock ccd
-	for tt in range(1):
+	for tt in range(3):
 		m, n = divmod(Nz, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
 		if rank == cpus - 1:
@@ -323,7 +347,7 @@ def main():
 	print('finished !!!')
 
 	## resample mock frame
-	for tt in range(1):
+	for tt in range(3):
 		m, n = divmod(Nz, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
 		if rank == cpus - 1:
@@ -339,13 +363,15 @@ def main():
 	popu = np.linspace(0, len(z) - 1, len(z))
 	popu = popu.astype( int )
 	popu = set(popu)
-
+	'''
 	for aa in range( len(N_tt) ):
-		tt0 = random.sample(popu, N_tt[aa])
+
+		np.random.seed(2)
+		tt0 = np.random.choice(Nz, size = N_tt[aa], replace = False)
 		set_z = z[tt0]
 		set_ra = ra[tt0]
 		set_dec = dec[tt0]
-		'''
+
 		## stack mock frame
 		for tt in range(1):
 			m, n = divmod(N_tt[aa], cpus)
@@ -354,7 +380,7 @@ def main():
 				N_sub1 += n
 			mock_stack(tt, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
 		commd.Barrier()
-		'''
+
 		# stack eht sub-sum array
 		if rank == 0:
 			for qq in range(1):
@@ -363,19 +389,19 @@ def main():
 				r, INS_SB = ins_SB['r'], ins_SB['0.250']
 				f_SB = interp.interp1d(r, INS_SB, kind = 'cubic')
 
-				#tot_N = 0
-				tot_N = N_tt[aa]
+				tot_N = 0
+				#tot_N = N_tt[aa]
 				mean_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 				p_add_count = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-				'''
+
 				for pp in range(cpus):
 
-					with h5py.File(load + 'test_h5/mock_sum_%d_in_%s_band.h5' % (pp, band[qq]), 'r')as f:
+					with h5py.File(tmp + 'mock_sum_%d_in_%s_band.h5' % (pp, band[qq]), 'r')as f:
 						sum_img = np.array(f['a'])
-					with h5py.File(load + 'test_h5/mock_pcount_%d_in_%s_band.h5' % (pp, band[qq]), 'r') as f:
+					with h5py.File(tmp + 'mock_pcount_%d_in_%s_band.h5' % (pp, band[qq]), 'r') as f:
 						p_count = np.array(f['a'])
 
-					sub_Num = np.nanmax(p_count)
+					sub_Num = p_count[0, 0]
 					tot_N += sub_Num
 					id_zero = p_count == 0
 					ivx = id_zero == False
@@ -390,7 +416,7 @@ def main():
 				## save the stack image
 				with h5py.File(load + 'mock_ccd/stack_%d_img.h5' % tot_N, 'w') as f:
 					f['a'] = np.array(stack_img)
-				'''
+
 				with h5py.File(load + 'mock_ccd/stack_%d_img.h5' % tot_N, 'r') as f:
 					stack_img = np.array(f['a'])
 
@@ -412,11 +438,11 @@ def main():
 				err1[id_nan] = 100. # set a large value for show the break out errorbar
 
 				## save the stack err
-				keys = ['r_kpc', 'err_nmaggy']
-				values = [Intns_r, Intns_err]
+				keys = ['r_kpc', 'flux', 'Npix', 'flux_err']
+				values = [Intns_r, Intns, Npix, Intns_err]
 				fill = dict(zip(keys, values))
 				data = pds.DataFrame(fill)
-				data.to_csv(load + 'mock_ccd/stack_err_%d_sample.csv' % tot_N)
+				data.to_csv(load + 'mock_ccd/%s_band_stack_err_%d_sample.csv' % (band[qq], tot_N) )
 
 				iux = ( pR > np.min(r) ) & ( pR < np.max(r) )
 				ddsb = SB[iux] - f_SB( pR[iux] )
@@ -426,7 +452,7 @@ def main():
 				## Zibetti 05 fitting
 				mu_e, r_e, n_e = 23.87, 19.29, 4.
 				SB_fit = sers_pro(pR, mu_e, r_e, n_e)
-				'''
+
 				plt.figure()
 				ax = plt.subplot(111)
 				ax.set_title('stack mock [%d img %s band]' % (tot_N, band[qq]) )
@@ -476,7 +502,8 @@ def main():
 
 				bx.set_xscale('log')
 				bx.set_xlim(9, 1010)
-				bx.set_ylim(aver - 1.2 * std, aver + 1.2 * std)
+				#bx.set_ylim(aver - 1.2 * std, aver + 1.2 * std)
+				bx.set_ylim(-0.05, 0.05)
 				bx.set_xlabel('$R[kpc]$')
 				bx.set_ylabel('$ SB_{stacking} - SB_{reference} $')
 				bx.tick_params(axis = 'both', which = 'both', direction = 'in')
@@ -484,37 +511,38 @@ def main():
 				plt.subplots_adjust(hspace = 0)
 				plt.savefig(load + 'mock_ccd/mock_stack_SB_%d_%s_band.png' % (tot_N, band[qq]), dpi = 300)
 				plt.close()
-				'''
+
 		commd.Barrier()
+	'''
+	if rank == 0:
+		Err, e_R = [], []
+		for aa in range( len(N_tt) ):
 
-	#test the err(r) -- N_sample relation
-	Err, e_R = [], []
-	for aa in range( len(N_tt) ):
+			err_data = pds.read_csv(load + 'mock_ccd/r_band_stack_err_%d_sample.csv' % N_tt[aa])
+			R, sb_flux, N_pix, err_f = err_data['r_kpc'], err_data['flux'], err_data['Npix'], err_data['flux_err']
+			Err.append(err_f[:-1])
+			e_R.append(R[:-1])
 
-		err_data = pds.read_csv(load + 'mock_ccd/stack_err_%d_sample.csv' % N_tt[aa])
-		R, err = err_data['r_kpc'], err_data['err_nmaggy']
-		Err.append(err)
-		e_R.append(R)
+		e_R = np.array(e_R)
+		Err = np.array(Err)
+		e_R = np.nanmean(e_R, axis = 0)
 
-	e_R = np.array(e_R)
-	Err = np.array(Err)
-	e_R = np.nanmean(e_R, axis = 0)
-
-	F_ntt = 1 / np.sqrt(N_tt)
-	F_Ntt = F_ntt / F_ntt[-1] 
-	plt.figure()
-	ax = plt.subplot(111)
-	ax.set_title('err-stack image number relation')
-	for aa in range( len(e_R) ):
-		if (aa % 4 == 0) & (e_R[aa] >= 100.):
-			ax.plot(N_tt, Err[:, aa], linestyle = '-', color = mpl.cm.plasma(aa / len(e_R)), label = '%.2f[kpc]' % e_R[aa], alpha = 0.5)
-			ax.plot(N_tt, Err[:, aa][-1] * F_Ntt, linestyle = '--', color = mpl.cm.plasma(aa / len(e_R)), alpha = 0.5)
-	ax.set_xlabel('Image Number(N)')
-	ax.set_ylabel('err(N) / err(3000)')
-	ax.set_yscale('log')
-	ax.legend(loc = 1)
-	plt.savefig(load + 'mock_ccd/mock_err_N.png', dpi = 300)
-	plt.close()
+		F_ntt = 1 / np.sqrt(N_tt)
+		F_Ntt = F_ntt / F_ntt[-1]
+		plt.figure()
+		ax = plt.subplot(111)
+		ax.set_title('err-stack image number relation')
+		for aa in range( len(e_R) ):
+			if (aa % 5 == 0) & (e_R[aa] >= 200.):
+				ax.plot(N_tt, Err[:, aa], linestyle = '-', color = mpl.cm.plasma(aa / len(e_R)), label = '%.2f[kpc]' % e_R[aa], alpha = 0.5)
+				ax.plot(N_tt, F_Ntt * Err[:, aa][-1], linestyle = '--', color = mpl.cm.plasma(aa / len(e_R)), alpha = 0.5)
+		ax.set_xlabel('Image Number(N)')
+		ax.set_ylabel('err(N)[nmaggy]')
+		ax.set_yscale('log')
+		ax.legend(loc = 1)
+		plt.savefig(load + 'mock_ccd/r_band_mock_err_N.png', dpi = 300)
+		plt.close()
+	commd.Barrier()
 
 	raise
 

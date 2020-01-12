@@ -287,12 +287,18 @@ def sigmam(r, Mc, z, c):
 		sigma = f0*(1-2*np.arctan(f2)/f1)/f3
 	return sigma
 
-def flux_scale(data, z0, zref):
-	obs = data
-	z0 = z0
-	z1 = zref
-	flux = obs * (1 + z0)**4 / (1 + z1)**4
-	return flux
+def flux_scale(data, z0, zref, pix_z0):
+	obs = data / pix_z0**2
+	scaled_sb = obs *( (1 + z0)**4 / (1 + zref)**4 )
+
+	Da0 = Test_model.angular_diameter_distance(z0).value
+	Da1 = Test_model.angular_diameter_distance(zref).value
+	s0 = pix_z0**2
+	s1 = pix_z0**2 * ( Da0**2 / Da1**2 )
+
+	pix_zf = np.sqrt(s1)
+	sb_ref = scaled_sb * s1
+	return sb_ref, pix_zf
 
 def angu_area(s0, z0, zref):
 	s0 = s0

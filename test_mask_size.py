@@ -53,6 +53,8 @@ Rpp = Angu_ref / pixel
 
 d_file = '/mnt/ddnfs/data_users/cxkttwl/ICL/wget_data/'
 load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
+home = '/mnt/ddnfs/data_users/cxkttwl/ICL/'
+tmp = '/mnt/ddnfs/data_users/cxkttwl/PC/'
 band = ['r', 'g', 'i', 'u', 'z']
 l_wave = np.array([6166, 4686, 7480, 3551, 8932])
 mag_add = np.array([0, 0, 0, -0.04, 0.02])
@@ -287,7 +289,9 @@ def A_stack(band_number, subz, subra, subdec, r_star, r_galx):
 	sum_array_A = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 	count_array_A = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
 	p_count_A = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+	f2_sum = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
+	id_nm = 0.
 	for jj in range(stack_N):
 
 		ra_g = subra[jj]
@@ -296,7 +300,7 @@ def A_stack(band_number, subz, subra, subdec, r_star, r_galx):
 		Da_g = Test_model.angular_diameter_distance(z_g).value
 
 		data_A = fits.getdata(load + 
-			'resample/1_5sigma/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+			'resample/1_5sigma_larger_R/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
 		img_A = data_A[0]
 		xn = data_A[1]['CENTER_X']
 		yn = data_A[1]['CENTER_Y']
@@ -321,19 +325,21 @@ def A_stack(band_number, subz, subra, subdec, r_star, r_galx):
 		sub_BL_img = img_A - BL
 
 		sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + sub_BL_img[idv]
+		f2_sum[la0: la1, lb0: lb1][idv] = f2_sum[la0: la1, lb0: lb1][idv] + sub_BL_img[idv]**2
 		count_array_A[la0: la1, lb0: lb1][idv] = sub_BL_img[idv]
 		id_nan = np.isnan(count_array_A)
 		id_fals = np.where(id_nan == False)
 		p_count_A[id_fals] = p_count_A[id_fals] + 1.
-		p_count_A[0, 0] = p_count_A[0, 0] + 1.
 		count_array_A[la0: la1, lb0: lb1][idv] = np.nan
 
-	with h5py.File(load + 
-		'test_h5/stack_Amask_sum_%d_in_%s_band_%.2frstar_%.2frgalx.h5' % (rank, band[ii], r_star, r_galx), 'w') as f:
+		id_nm += 1.
+	p_count_A[0, 0] = id_nm
+	with h5py.File(tmp + 'stack_Amask_sum_%d_in_%s_band_%.2frstar_%.2frgalx.h5' % (rank, band[ii], r_star, r_galx), 'w') as f:
 		f['a'] = np.array(sum_array_A)
-	with h5py.File(load + 
-		'test_h5/stack_Amask_pcount_%d_in_%s_band_%.2frstar_%.2frgalx.h5' % (rank, band[ii], r_star, r_galx), 'w') as f:
+	with h5py.File(tmp + 'stack_Amask_pcount_%d_in_%s_band_%.2frstar_%.2frgalx.h5' % (rank, band[ii], r_star, r_galx), 'w') as f:
 		f['a'] = np.array(p_count_A)
+	with h5py.File(tmp + 'stack_Amask_Var_%d_in_%s_band_%.2frstar_%.2frgalx.h5' % (rank, band[ii], r_star, r_galx), 'w') as f:
+		f['a'] = np.array(f2_sum)
 
 	return
 
@@ -350,18 +356,21 @@ def main():
 	R_smal, R_max = 1, 1.7e3 # kpc
 
 	### set the mask parameter
-	ext_r_star = np.array([2., 2.2, 2.4, 2.6, 2.8])
-	ext_r_galx = np.array([2., 2.2, 2.4, 2.6, 2.8])
 	N_tt = 500
+	#ext_r_star = np.array([2., 2.2, 2.4, 2.6, 2.8])
+	#ext_r_galx = np.array([2., 2.2, 2.4, 2.6, 2.8])
+	ext_r_star = np.array([2.8])
+	ext_r_galx = np.array([2.8])
 	'''
+	N_tt = 200 ## size adjust for the 200 sample
 	ext_r_star = np.array([1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4])
 	ext_r_galx = np.array([1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4])
-	N_tt = 200
 	'''
 	N_set = len(ext_r_star)
 	'''
+	### stacking process
 	for tt in range(3):
-		with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/%s_band_%d_sample.h5' % (band[tt], N_tt), 'r') as f:
+		with h5py.File(home + 'fig_15sigma/size_adjust/%s_band_%d_sample.h5' % (band[tt], N_tt), 'r') as f:
 			set_info = np.array(f['a'])
 		set_z, set_ra, set_dec = set_info[0,:], set_info[1,:], set_info[2,:]
 		zN = len(set_z)
@@ -371,8 +380,8 @@ def main():
 		if rank == cpus - 1:
 			N_sub1 += n
 		for kk in range(N_set):
-			A_mask(tt, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1], ext_r_star[kk], ext_r_galx[kk])
-			A_resamp(tt, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
+			#A_mask(tt, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1], ext_r_star[kk], ext_r_galx[kk])
+			#A_resamp(tt, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
 			A_stack(tt, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1], ext_r_star[kk], ext_r_galx[kk])
 		commd.Barrier()
 
@@ -382,21 +391,23 @@ def main():
 				tot_N = 0
 				mean_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 				p_add_count = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+				sqare_f = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 				for pp in range(cpus):
 
-					with h5py.File(load + 
-						'test_h5/stack_Amask_pcount_%d_in_%s_band_%.2frstar_%.2frgalx.h5' % (pp, band[tt], ext_r_star[kk], ext_r_galx[kk]), 'r')as f:
+					with h5py.File(tmp + 'stack_Amask_pcount_%d_in_%s_band_%.2frstar_%.2frgalx.h5' % (pp, band[tt], ext_r_star[kk], ext_r_galx[kk]), 'r')as f:
 						p_count = np.array(f['a'])
-					with h5py.File(load + 
-						'test_h5/stack_Amask_sum_%d_in_%s_band_%.2frstar_%.2frgalx.h5' % (pp, band[tt], ext_r_star[kk], ext_r_galx[kk]), 'r') as f:
+					with h5py.File(tmp + 'stack_Amask_sum_%d_in_%s_band_%.2frstar_%.2frgalx.h5' % (pp, band[tt], ext_r_star[kk], ext_r_galx[kk]), 'r') as f:
 						sum_img = np.array(f['a'])
 
-					sub_Num = np.nanmax(p_count)
-					tot_N += sub_Num
+					with h5py.File(tmp + 'stack_Amask_Var_%d_in_%s_band_%.2frstar_%.2frgalx.h5' % (pp, band[tt], ext_r_star[kk], ext_r_galx[kk]), 'r') as f:
+						f2_sum = np.array(f['a'])
+
+					tot_N += p_count[0, 0]
 					id_zero = p_count == 0
 					ivx = id_zero == False
 					mean_img[ivx] = mean_img[ivx] + sum_img[ivx]
 					p_add_count[ivx] = p_add_count[ivx] + p_count[ivx]
+					sqare_f[ivx] = sqare_f[ivx] + f2_sum[ivx]
 
 				id_zero = p_add_count == 0
 				mean_img[id_zero] = np.nan
@@ -405,39 +416,108 @@ def main():
 				stack_img = mean_img / p_add_count
 				where_are_inf = np.isinf(stack_img)
 				stack_img[where_are_inf] = np.nan
-				with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_Amask_%d_in_%s_band_%.2frstar_%.2frgalx.h5' % 
-					(tot_N, band[tt], ext_r_star[kk], ext_r_galx[kk]), 'w') as f:
+				with h5py.File(home + 
+					'fig_15sigma/size_adjust/stack_Amask_%d_in_%s_band_%.2frstar_%.2frgalx.h5' % (tot_N, band[tt], ext_r_star[kk], ext_r_galx[kk]), 'w') as f:
 					f['a'] = np.array(stack_img)
+
+				## save the variance image
+				sqare_f[id_zero] = np.nan
+				E_f2 = sqare_f / p_add_count
+				id_inf = np.isinf(E_f2)
+				E_f2[id_inf] = np.nan
+				Var_f = E_f2 - stack_img**2
+				with h5py.File(home + 
+					'fig_15sigma/size_adjust/stack_Amask_Var_%d_in_%s_band_%.2frstar_%.2frgalx.h5' % (tot_N, band[tt], ext_r_star[kk], ext_r_galx[kk]), 'w') as f:
+					f['a'] = np.array(Var_f)
+
 	commd.Barrier()
 	'''
+	### 2D images
 	if rank == 1:
 		for tt in range(3):
 			for kk in range(N_set):
-				with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_Amask_%d_in_%s_band_%.2frstar_%.2frgalx.h5' % 
+				with h5py.File(home + 'fig_15sigma/size_adjust/stack_Amask_%d_in_%s_band_%.2frstar_%.2frgalx.h5' % 
 					(N_tt, band[tt], ext_r_star[kk], ext_r_galx[kk]), 'r') as f:
 					stack_img = np.array(f['a'])
 
 				plt.figure()
-				clust = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5, label = 'cluster region[1Mpc]')
+				clust_0 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5, label = 'cluster region[1Mpc]')
+				clust_1 = Circle(xy = (x0, y0), radius = 0.1 * Rpp, fill = False, linestyle = '--', ec = 'r', alpha = 0.5, label = 'BCG [0.1Mpc]')
 				ax = plt.subplot(111)
 				ax.set_title('2D stacking %d image in %s band %.2fr_star %.2fr_galx' % (N_tt, band[tt], ext_r_star[kk], ext_r_galx[kk]) )
 				tf = ax.imshow(stack_img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
-				plt.colorbar(tf, ax = ax, fraction = 0.035, pad = 0.01, label = 'flux[nmaggy]')
-				ax.add_patch(clust)
+				plt.colorbar(tf, ax = ax, fraction = 0.040, pad = 0.01, label = 'flux[nmaggy]')
+				ax.add_patch(clust_0)
+				ax.add_patch(clust_1)
 				ax.set_xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
 				ax.set_ylim(y0 - 2 * Rpp, y0 + 2 * Rpp)
 				ax.legend(loc = 1)
 				plt.subplots_adjust(left = 0.125, right = 0.9, bottom = 0.1, top = 0.9)
-				plt.savefig('/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/stack_%d_img_%s_band_%.2frstar_%.2frgalx.png' % 
+				plt.savefig(home + 'fig_15sigma/size_adjust/stack_%d_img_%s_band_%.2frstar_%.2frgalx.png' % 
 					(N_tt, band[tt], ext_r_star[kk], ext_r_galx[kk]), dpi = 300)
 				plt.close()
 
 	commd.Barrier()
 
+	## plot 500 image case noly
+	cen_pos = 1280
+	if rank == 0:
+		for kk in range(3):
+			with h5py.File(home + 'fig_15sigma/size_adjust/stack_Amask_%d_in_%s_band_2.80rstar_2.80rgalx.h5' % (N_tt, band[kk]), 'r') as f:
+				stack_img = np.array(f['a'])
+
+			ss_img = stack_img[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
+			Intns, Intns_r, Intns_err, Npix = light_measure(ss_img, bins, R_smal, R_max, R_cut, R_cut, pixel, z_ref)
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[kk]
+			id_nan = np.isnan(SB)
+			SBt, Rt = SB[id_nan == False], Intns_r[id_nan == False]
+
+			grd_x = np.linspace(0, ss_img.shape[1] - 1, ss_img.shape[1])
+			grd_y = np.linspace(0, ss_img.shape[0] - 1, ss_img.shape[0])
+			grd = np.array( np.meshgrid(grd_x, grd_y) )
+			ddr = np.sqrt( (grd[0,:] - cen_pos)**2 + (grd[1,:] - cen_pos)**2 )
+			idu = (ddr > Rpp) & (ddr < 1.1 * Rpp)
+			Resi_bl = np.nanmean( ss_img[idu] )
+
+			sub_SB = 22.5 - 2.5 * np.log10(Intns - Resi_bl) + 2.5 * np.log10(pixel**2) + mag_add[kk]
+
+			SB_tt = pds.read_csv( load + 'Zibetti_SB/%s_band_BCG_ICL.csv' % band[kk])
+			R_obs, SB_obs = SB_tt['(1000R)^(1/4)'], SB_tt['mag/arcsec^2']
+			R_obs = R_obs**4
+			## sersic part
+			Mu_e, R_e, n_e = mu_e[kk], r_e[kk], 4.
+			SB_Z05 = sers_pro(R_obs, Mu_e, R_e, n_e)
+
+			## cat. info
+			dat = pds.read_csv(home + 'fig_15sigma/stack_img/%s_band_%d_sample_info.csv' % (band[kk], N_tt),)
+			set_Mag = np.array(dat['r_Mag'])
+
+			plt.figure()
+			ax = plt.subplot(111)
+			ax.set_title('$ %s \, band \, SB \, [%d \, images] $' % (band[kk], N_tt),)
+			ax.plot(Rt, SBt, linestyle = '-', color = 'r', label = '$ stack \, imgs[\overline{M}_{r} = %.3f] $' % np.nanmean(set_Mag), alpha = 0.5)
+			ax.plot(Intns_r, sub_SB, linestyle = '--', color = 'g', label = 'RBL subtracted', alpha = 0.5)		
+			ax.plot(R_obs, SB_obs, 'k-', label = 'Z05', alpha = 0.5)
+			ax.plot(R_obs, SB_Z05, 'k:', label = 'Sersic Z05', alpha = 0.5)
+			ax.set_xlabel('$R[kpc]$')
+			ax.set_ylabel('$SB[mag / arcsec^2]$')
+			ax.set_xscale('log')
+			ax.set_ylim(20, 33)
+			ax.set_xlim(1, 1.5e3)
+			ax.legend(loc = 3)
+			ax.invert_yaxis()
+			ax.grid(which = 'both', axis = 'both')
+			ax.tick_params(axis = 'both', which = 'both', direction = 'in')
+			plt.savefig(home + 'fig_15sigma/size_adjust/stack_%d_imgs_%s_band.png' % (N_tt, band[kk]), dpi = 300)
+			plt.close()
+
+	commd.Barrier()
+
+	'''
 	### test for RBL region
 	cen_pos = 1280
 	R_bl = np.array([1.0, 1.1, 1.2, 1.3, 1.4, 1.5])
-	'''
+
 	if rank == 1:
 		for kk in range(3):
 
@@ -491,7 +571,7 @@ def main():
 			'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/SB_%d_img_%s_band_BL_sub.png' % (N_tt, band[kk]), dpi = 300)
 			plt.close()
 	commd.Barrier()
-	'''
+
 	ext_r_star = np.array([1.6, 1.8, 2., 2.2, 2.4, 2.6, 2.8])
 	ext_r_galx = np.array([1.6, 1.8, 2., 2.2, 2.4, 2.6, 2.8])
 	N_set = len(ext_r_star)
@@ -547,7 +627,7 @@ def main():
 			plt.close()
 	commd.Barrier()
 
-	### test for differ mask size
+	### comparison of differ mask size
 	if rank == 1:
 		for kk in range(3):
 
@@ -617,6 +697,7 @@ def main():
 			'/mnt/ddnfs/data_users/cxkttwl/ICL/fig_cut/SB_pro_%s_band_%d_img.png' % (band[kk], N_tt), dpi = 300)
 			plt.close()
 	commd.Barrier()
+	'''
 
 if __name__=="__main__":
 	main()

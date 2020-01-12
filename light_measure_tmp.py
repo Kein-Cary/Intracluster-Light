@@ -36,7 +36,7 @@ def flux_recal(data, z0, zref):
 	flux = obs * (1 + z0)**4 * Da0**2 / ((1 + z1)**4 * Da1**2)
 	return flux
 
-def light_measure(data, Nbin, R_small, R_max, cx, cy, psize, z0, pn):
+def light_measure_pn(data, Nbin, R_small, R_max, cx, cy, psize, z0, pn):
 
 	Da0 = Test_model.angular_diameter_distance(z0).value
 	Nx = data.shape[1]

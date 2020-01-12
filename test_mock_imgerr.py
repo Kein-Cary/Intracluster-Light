@@ -16,7 +16,8 @@ import astropy.io.fits as fits
 from astropy import cosmology as apcy
 from scipy.optimize import curve_fit, minimize
 from resample_modelu import down_samp, sum_samp
-from light_measure_tmp import light_measure, flux_recal
+
+from light_measure_tmp import light_measure_pn, flux_recal
 ## constant
 kpc2cm = U.kpc.to(U.cm)
 Mpc2pc = U.Mpc.to(U.pc)
@@ -96,9 +97,9 @@ def pro_err():
 	R_smal, R_max = 10, 10**3.02
 	N_mooth = N_mock * NMGY
 	N_flux = N_sub * NMGY
-	Intns, Intns_r, Intns_err, Npix = light_measure(N_flux, 65, R_smal, R_max, xc, yc, pixel, z_ref, 1.)
+	Intns, Intns_r, Intns_err, Npix = light_measure_pn(N_flux, 65, R_smal, R_max, xc, yc, pixel, z_ref, 1.)
 	ref_err0 = Intns_err * 1.
-	Intns, Intns_r, Intns_err, Npix = light_measure(N_mooth, 65, R_smal, R_max, xc, yc, pixel, z_ref, 1.)
+	Intns, Intns_r, Intns_err, Npix = light_measure_pn(N_mooth, 65, R_smal, R_max, xc, yc, pixel, z_ref, 1.)
 	ref_err1 = np.sqrt( (Intns / NMGY) / (Npix * gain) + N_sky / (gain * Npix) ) * NMGY
 	ref_eta = ref_err0 / ref_err1
 
@@ -111,44 +112,40 @@ def pro_err():
 	#pn = np.arange(0.2, 1.2, 0.2)
 
 	plt.figure()
-	gs = gridspec.GridSpec(2,1, height_ratios = [2,1])
-	ax = plt.subplot(gs[0])
-	bx = plt.subplot(gs[1])
+	ax = plt.subplot(111)
 	#ax.set_title('err ratio -- bins relation')
 	ax.set_title('err ratio -- pn relation')
 	for aa in range( len(pn) ):
 
-		#Intns, Intns_r, Intns_err, Npix = light_measure(N_flux, bins[aa], R_smal, R_max, xc, yc, pixel, z_ref, pn)
-		Intns, Intns_r, Intns_err, Npix = light_measure(N_flux, bins, R_smal, R_max, xc, yc, pixel, z_ref, pn[aa])
+		#Intns, Intns_r, Intns_err, Npix = light_measure_pn(N_flux, bins[aa], R_smal, R_max, xc, yc, pixel, z_ref, pn)
+		Intns, Intns_r, Intns_err, Npix = light_measure_pn(N_flux, bins, R_smal, R_max, xc, yc, pixel, z_ref, pn[aa])
 		cc_err0 = Intns_err * 1.
 
-		#Intns, Intns_r, Intns_err, Npix = light_measure(N_mooth, bins[aa], R_smal, R_max, xc, yc, pixel, z_ref, pn)
-		Intns, Intns_r, Intns_err, Npix = light_measure(N_mooth, bins, R_smal, R_max, xc, yc, pixel, z_ref, pn[aa])
+		#Intns, Intns_r, Intns_err, Npix = light_measure_pn(N_mooth, bins[aa], R_smal, R_max, xc, yc, pixel, z_ref, pn)
+		Intns, Intns_r, Intns_err, Npix = light_measure_pn(N_mooth, bins, R_smal, R_max, xc, yc, pixel, z_ref, pn[aa])
 
 		## for smooth image, the err should be the Poisson Noise
 		f_err = np.sqrt( (Intns / NMGY) / (Npix * gain) + N_sky / (gain * Npix) ) * NMGY # in single pix term
-		#f_err = np.sqrt( (Intns * Npix / NMGY) / gain + N_sky * Npix / gain ) * NMGY / Npixc # calculate the total flux and then convert to err
+		#f_err = np.sqrt( (Intns * Npix / NMGY) / gain + N_sky * Npix / gain ) * NMGY / Npix # calculate the total flux and then convert to err
 		cc_err1 = f_err * 1.
 
 		eta = cc_err0 / cc_err1
 
 		#ax.plot(Intns_r, eta, linestyle = '-', color = mpl.cm.rainbow(aa / len(bins) ), label = 'bins %d' % bins[aa], alpha = 0.5)
 		ax.plot(Intns_r, eta, linestyle = '-', color = mpl.cm.rainbow(aa / len(pn) ), label = 'pn = %.1f' % pn[aa], alpha = 0.5)
-		bx.plot(Intns_r, eta - ref_eta, linestyle = '--', color = mpl.cm.rainbow(aa / len(pn) ), alpha = 0.5)
-
+		'''
+		va = np.nanmean(eta)
+		la0 = va + np.nanstd(eta)
+		la1 = va - np.nanstd(eta)
+		ax.fill_between(Intns_r, y1 = la0, y2 = la1, color = mpl.cm.rainbow(aa / len(pn) ), alpha = 0.35)
+		'''
+	ax.axhline(y = 1., linestyle = ':', color = 'k',)
+	ax.set_ylim(0.5, 2)
 	ax.set_xscale('log')
-	#ax.set_xlabel('R[kpc]')
-	ax.legend(loc = 1, fontsize = 5)
-	ax.set_ylabel('$err_{Z05} / err_{Poisson}$')
-	ax.set_xticks([])
+	ax.set_xlabel('R[kpc]')
+	ax.legend(loc = 1, fontsize = 7.5)
+	ax.set_ylabel('$ \\sigma^{Estimation}_{SB} / \\sigma^{Poisson}_{SB} $')
 
-	bx.axhline(y = 0, linestyle = ':', color = 'k', alpha = 0.75)
-	bx.set_xscale('log')
-	bx.set_xlim(ax.get_xlim())
-	bx.set_xlabel('R[kpc]')
-	bx.set_ylabel('err ratio deviation')
-
-	plt.subplots_adjust(hspace = 0)
 	#plt.savefig('err_test_bins.png', dpi = 300)
 	plt.savefig('err_test_pn.png', dpi = 300)
 	plt.close()

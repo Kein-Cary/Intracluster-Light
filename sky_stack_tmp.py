@@ -228,8 +228,11 @@ def sky_rndm_cen(band_id, sub_z, sub_ra, sub_dec):
 	pos_y = np.zeros(stack_N, dtype = np.float)
 
 	sum_array_0 = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-	sum_array_1 = np.zeros((len(Ny), len(Nx)), dtype = np.float)	
+	sum_array_1 = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
+	sqare_f0 = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+	sqare_f1 = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+	n_add = 0.
 	for jj in range(stack_N):
 		ra_g = sub_ra[jj]
 		dec_g = sub_dec[jj]
@@ -275,7 +278,11 @@ def sky_rndm_cen(band_id, sub_z, sub_ra, sub_dec):
 
 		sum_array_0[la0: la1, lb0: lb1][idv] = sum_array_0[la0:la1, lb0:lb1][idv] + img_add0[idv]
 		sum_array_1[la0: la1, lb0: lb1][idv] = sum_array_1[la0:la1, lb0:lb1][idv] + img_add1[idv]
+		sqare_f0[la0: la1, lb0: lb1][idv] = sqare_f0[la0: la1, lb0: lb1][idv] + img_add0[idv]**2
+		sqare_f1[la0: la1, lb0: lb1][idv] = sqare_f1[la0: la1, lb0: lb1][idv] + img_add1[idv]**2
 
+		n_add += 1.
+	rndm_pcont[-1, -1] = n_add
 	## save the random center data
 	with h5py.File(tmp + 'rndm_sum_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
 		f['a'] = np.array(rndm_sum)
@@ -294,6 +301,11 @@ def sky_rndm_cen(band_id, sub_z, sub_ra, sub_dec):
 		f['a'] = np.array(sum_array_0)
 	with h5py.File(tmp + 'sky_random_minus_media_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
 		f['a'] = np.array(sum_array_1)
+	## Variance
+	with h5py.File(tmp + 'sky_random_mean_Var_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
+		f['a'] = np.array(sqare_f0)
+	with h5py.File(tmp + 'sky_random_media_Var_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
+		f['a'] = np.array(sqare_f1)
 
 	return
 
@@ -306,7 +318,7 @@ def main():
 	Nx = np.linspace(0, 4854, 4855)
 	Ny = np.linspace(0, 3530, 3531)
 
-	d_record = 1 ## record the random test
+	d_record = 5 ## record the random test
 	N_dd = np.array([2013, 2008, 2002, 2008, 2009]) ## sky-selected sample
 
 	for tt in range(3):
@@ -322,7 +334,7 @@ def main():
 		ra, dec, z, r_mag = sub_array[0,:], sub_array[1,:], sub_array[2,:], sub_array[3,:]
 		'''
 		## test for center closed BCG select
-		with h5py.File(load + 'sky_select_img/test_set/%s_band_sky_0.8Mpc_select.h5' % ( band[tt] ), 'r') as f:
+		with h5py.File(load + 'sky_select_img/%s_band_sky_0.8Mpc_select.h5' % ( band[tt] ), 'r') as f:
 			sub_array = np.array(f['a'])
 		ra, dec, z, r_mag = sub_array[0,:], sub_array[1,:], sub_array[2,:], sub_array[3,:]
 
@@ -350,29 +362,32 @@ def main():
 			N_sub0, N_sub1 = m * rank, (rank + 1) * m
 			if rank == cpus - 1:
 				N_sub1 += n
-
+			'''
 			sky_shuffle(tt, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1], 
 				shif_z[N_sub0 :N_sub1], shif_ra[N_sub0 :N_sub1], shif_dec[N_sub0 :N_sub1])
 			commd.Barrier()
-			'''
-			sky_oppose(tt, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
-			#commd.Barrier()
 
-			sky_rndm_cen(tt, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
+			sky_oppose(tt, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
 			commd.Barrier()
 			'''
+			sky_rndm_cen(tt, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
+			commd.Barrier()
+
 			if rank == 0:
 				## record the order of set_z....and shif_z..., this is the shuffle record
 				## and the former part is also order for oppose case stacking
 
 				tmp_array = np.array([set_z, set_ra, set_dec, shif_z, shif_ra, shif_dec])
-				#with h5py.File(load + 'sky/center_set/%d_oppos_shlf_%s_band_%d_order.h5' % (d_record, band[tt], N_tot[aa]), 'w') as f:
+				#with h5py.File(load + 'sky/cluster/%d_oppos_shlf_%s_band_%d_order.h5' % (d_record, band[tt], N_tot[aa]), 'w') as f:
 				#with h5py.File(load + 'sky_select_img/result/%d_oppos_shlf_%s_band_%d_order.h5' % (d_record, band[tt], N_tot[aa]), 'w') as f:
-				with h5py.File(load + 'sky_select_img/test_set/%d_oppos_shlf_%s_band_%d_order.h5' % (d_record, band[tt], N_tot[aa]), 'w') as f:
+				with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/%d_oppos_shlf_%s_band_%d_order.h5' % (d_record, band[tt], N_tot[aa]), 'w') as f:
+				#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/%d_oppos_shlf_%s_band_%d_order.h5' % (d_record, band[tt], N_tot[aa]), 'w') as f:
 					f['a'] = np.array(tmp_array)
-				#with h5py.File(load + 'sky/center_set/%d_oppos_shlf_%s_band_%d_order.h5' % (d_record, band[tt], N_tot[aa]) ) as f:
+
+				#with h5py.File(load + 'sky/cluster/%d_oppos_shlf_%s_band_%d_order.h5' % (d_record, band[tt], N_tot[aa]) ) as f:
 				#with h5py.File(load + 'sky_select_img/result/%d_oppos_shlf_%s_band_%d_order.h5' % (d_record, band[tt], N_tot[aa]) ) as f:
-				with h5py.File(load + 'sky_select_img/test_set/%d_oppos_shlf_%s_band_%d_order.h5' % (d_record, band[tt], N_tot[aa]) ) as f:
+				with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/%d_oppos_shlf_%s_band_%d_order.h5' % (d_record, band[tt], N_tot[aa]) ) as f:
+				#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/%d_oppos_shlf_%s_band_%d_order.h5' % (d_record, band[tt], N_tot[aa]) ) as f:
 					for ll in range(len(tmp_array)):
 						f['a'][ll,:] = tmp_array[ll,:]
 
@@ -387,6 +402,8 @@ def main():
 				rand_px, rand_py = np.array([0]), np.array([0])
 				rand_mean = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 				rand_media = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+				rand_mean_sqare = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+				rand_media_sqare = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
 				shlf_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 				shlf_cnt = np.zeros((len(Ny), len(Nx)), dtype = np.float)
@@ -394,6 +411,7 @@ def main():
 				shlf_media = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
 				for pp in range(cpus):
+					'''
 					## shuffle case
 					with h5py.File(tmp + 'sky_shuffle_sum_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
 						df_img = np.array(f['a'])
@@ -415,7 +433,7 @@ def main():
 
 					shlf_mean[ivx] = shlf_mean[ivx] + sub_shlf_mean[ivx]
 					shlf_media[ivx] = shlf_media[ivx] + sub_shlf_media[ivx]
-					'''
+
 					## oppose case
 					with h5py.File(tmp + 'sky_oppose_sum_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
 						sum_img = np.array(f['a'])
@@ -434,7 +452,7 @@ def main():
 
 					oppo_mean[ivx] = oppo_mean[ivx] + sub_op_mean[ivx]
 					oppo_media[ivx] = oppo_media[ivx] + sub_op_media[ivx]
-
+					'''
 					## random center case
 					with h5py.File(tmp + 'rndm_sum_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
 						rndm_sum = np.array(f['a'])
@@ -446,6 +464,13 @@ def main():
 					with h5py.File(tmp + 'sky_random_minus_media_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
 						sub_rndm_media = np.array(f['a'])
 
+					with h5py.File(tmp + 'sky_random_mean_Var_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
+						sqare_f0 = np.array(f['a'])
+					with h5py.File(tmp + 'sky_random_media_Var_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
+						sqare_f1 = np.array(f['a'])
+
+					sub_sum = rndm_pcont[-1, -1]
+					tt_N += sub_sum
 					id_zero = rndm_pcont == 0
 					ivx = id_zero == False
 					rand_img[ivx] = rand_img[ivx] + rndm_sum[ivx]
@@ -454,12 +479,15 @@ def main():
 					rand_mean[ivx] = rand_mean[ivx] + sub_rndm_mean[ivx]
 					rand_media[ivx] = rand_media[ivx] + sub_rndm_media[ivx]
 
+					rand_mean_sqare[ivx] = rand_mean_sqare[ivx] + sqare_f0[ivx]
+					rand_media_sqare[ivx] = rand_media_sqare[ivx] + sqare_f1[ivx]
+
 					with h5py.File(tmp + 'rdnm_pos_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
 						rndm_pos = np.array(f['a'])
 					pos_x, pos_y = rndm_pos[0,:], rndm_pos[1,:]
 					rand_px = np.r_[rand_px, pos_x]
 					rand_py = np.r_[rand_py, pos_y]
-					'''
+
 				## oppose case
 				tt_N = np.int(tt_N)
 				'''
@@ -478,16 +506,16 @@ def main():
 				id_inf = np.isinf(oppo_m_media)
 				oppo_m_media[id_inf] = np.nan	
 
-				with h5py.File(load + 'sky/%d_sky_oppose_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				with h5py.File(load + 'sky/cluster/%d_sky_oppose_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
 				#with h5py.File(load + 'sky_select_img/result/sky_oppose_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
 					f['a'] = np.array(oppo_stack)
-				with h5py.File(load + 'sky/%d_sky_oppose_mean_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				with h5py.File(load + 'sky/cluster/%d_sky_oppose_mean_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
 				#with h5py.File(load + 'sky_select_img/result/sky_oppose_mean_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
 					f['a'] = np.array(oppo_m_mean)
-				with h5py.File(load + 'sky/%d_sky_oppose_media_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				with h5py.File(load + 'sky/cluster/%d_sky_oppose_media_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
 				#with h5py.File(load + 'sky_select_img/result/sky_oppose_media_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
 					f['a'] = np.array(oppo_m_media)
-				'''
+
 				## shuffle center
 				id_zero = shlf_cnt == 0
 				shlf_img[id_zero] = np.nan
@@ -504,17 +532,17 @@ def main():
 				id_inf = np.isinf(shlf_m_media)
 				shlf_m_media[id_inf] = np.nan
 
-				#with h5py.File(load + 'sky/center_set/%d_sky_shuffle_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky/cluster/%d_sky_shuffle_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
 				#with h5py.File(load + 'sky_select_img/result/%d_sky_shuffle_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
 				with h5py.File(load + 'sky_select_img/test_set/%d_sky_shuffle_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
 					f['a'] = np.array(shlf_stack)
 
-				#with h5py.File(load + 'sky/center_set/%d_sky_shuffle_mean_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky/cluster/%d_sky_shuffle_mean_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
 				#with h5py.File(load + 'sky_select_img/result/%d_sky_shuffle_mean_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
 				with h5py.File(load + 'sky_select_img/test_set/%d_sky_shuffle_mean_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
 					f['a'] = np.array(shlf_m_mean)
 
-				#with h5py.File(load + 'sky/center_set/%d_sky_shuffle_media_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky/cluster/%d_sky_shuffle_media_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
 				#with h5py.File(load + 'sky_select_img/result/%d_sky_shuffle_media_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
 				with h5py.File(load + 'sky_select_img/test_set/%d_sky_shuffle_media_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
 					f['a'] = np.array(shlf_m_media)
@@ -534,74 +562,104 @@ def main():
 
 				rand_m_media = rand_media / rand_cnt
 				id_inf = np.isinf(rand_m_media)
-				rand_m_media[id_inf] = np.nan			
+				rand_m_media[id_inf] = np.nan
 
-				with h5py.File(load + 'sky/%d_sky_random_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
-				#with h5py.File(load + 'sky_select_img/result/sky_random_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				rand_mean_sqare[id_zero] = np.nan
+				mean_E_f2 = rand_mean_sqare / rand_cnt
+				id_inf = np.isinf(mean_E_f2)
+				mean_E_f2[id_inf] = np.nan
+				rand_mean_Var = mean_E_f2 - rand_m_mean**2
+
+				rand_media_sqare[id_zero] = np.nan
+				media_E_f2 = rand_media_sqare / rand_cnt
+				id_inf = np.isinf(media_E_f2)
+				media_E_f2[id_inf] = np.nan
+				rand_media_Var = media_E_f2 - rand_m_media**2
+
+				#with h5py.File(load + 'sky/cluster/%d_sky_random_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky_select_img/result/%d_sky_random_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/%d_sky_random_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/%d_sky_random_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
 					f['a'] = np.array(random_stack)
-				with h5py.File(load + 'sky/%d_sky_random_mean_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
-				#with h5py.File(load + 'sky_select_img/result/sky_random_mean_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+
+				#with h5py.File(load + 'sky/cluster/%d_sky_random_mean_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky_select_img/result/%d_sky_random_mean_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/%d_sky_random_mean_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/%d_sky_random_mean_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
 					f['a'] = np.array(rand_m_mean)
-				with h5py.File(load + 'sky/%d_sky_random_media_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
-				#with h5py.File(load + 'sky_select_img/result/sky_random_media_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+
+				#with h5py.File(load + 'sky/cluster/%d_sky_random_media_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky_select_img/result/%d_sky_random_media_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/%d_sky_random_media_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/%d_sky_random_media_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
 					f['a'] = np.array(rand_m_media)
+
+				with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/%d_sky_random_media_Var_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+					f['a'] = np.array(rand_media_Var)
+				with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/%d_sky_random_mean_Var_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+					f['a'] = np.array(rand_mean_Var)
+
 				## position
 				rand_px, rand_py = rand_px[1:], rand_py[1:]
 				rand_pos = np.array([rand_px, rand_py])
-				with h5py.File(load + 'test_h5/%d_sky_random-pos_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
-				#with h5py.File(load + 'sky_select_img/result/sky_random-pos_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky/cluster/%d_sky_random-pos_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky_select_img/result/%d_sky_random-pos_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/%d_sky_random-pos_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/%d_sky_random-pos_%d_imgs_%s_band.h5' % (d_record, tt_N, band[tt]), 'w') as f:
 					f['a'] = np.array(rand_pos)
-				'''
-			commd.Barrier()
 
+			commd.Barrier()
+	raise
 	## set color range
 	color_lim = np.array([  [0.55, 0.22, 1.025, 0.170, 3.2], 
 							[0.65, 0.26, 1.225, 0.205, 3.9] ])
 	color_sym = np.array([  [-0.05, -0.02, -0.1, -0.025, -0.2], 
 							[ 0.05,  0.02,  0.1,  0.025,  0.2]])
 
-	#N_sum = np.array([3378, 3377, 3363, 3378, 3372]) ## before selecting
 	#N_sum = np.array([3308, 3309, 3295, 3308, 3305]) ## after selecting
 	#N_sum = np.array([2013, 2008, 2002, 2008, 2009]) ## sky-select(BCG location) sample
-	raise
-	"""
+	#N_sum = np.array([1291, 1286, 1283, 1294, 1287]) ## 0.8Mpc
+	N_sum = np.array([876,  873,  872,  878,  877 ]) ## 0.65Mpc
+	'''
 	#### subtracted case
 	if rank == 0:
 		for tt in range(3):
 
-			#with h5py.File(load + 'sky/center_set/sky_minus_media_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'r') as f:
-			with h5py.File(load + 'sky/center_set/sky_minus_mean_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'r') as f:
+			with h5py.File(load + 'sky/cluster/sky_minus_media_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'r') as f:
+			#with h5py.File(load + 'sky/cluster/sky_minus_mean_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'r') as f:
 				BCG_minus_img = np.array(f['a'])
-			'''
-			with h5py.File(load + 'sky/%d_sky_shuffle_media_%d_imgs_%s_band.h5' % (d_record, N_sum[tt], band[tt]), 'r') as f:
-			#with h5py.File(load + 'sky/%d_sky_shuffle_mean_%d_imgs_%s_band.h5' % (d_record, N_sum[tt], band[tt]), 'r') as f:
-				shulf_minus_img = np.array(f['a'])
-			'''
+
 			shlf_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 			shlf_minus_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 			shlf_cnt = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 			for id_rec in range(1, 6):
 
-				with h5py.File(load + 'sky/center_set/%d_sky_shuffle_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+				with h5py.File(load + 'sky/cluster/%d_sky_shuffle_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+				#with h5py.File(load + 'sky/cluster/%d_sky_random_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
 					sub_img = np.array(f['a'])
 				id_nan = np.isnan(sub_img)
 				id_fals = id_nan == False
 				shlf_img[id_fals] = shlf_img[id_fals] + sub_img[id_fals]
 				shlf_cnt[id_fals] = shlf_cnt[id_fals] + 1.
 
-				#with h5py.File(load + 'sky/center_set/%d_sky_shuffle_media_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
-				with h5py.File(load + 'sky/center_set/%d_sky_shuffle_mean_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+				with h5py.File(load + 'sky/cluster/%d_sky_shuffle_media_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+				#with h5py.File(load + 'sky/cluster/%d_sky_shuffle_mean_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+				#with h5py.File(load + 'sky/cluster/%d_sky_random_media_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+				#with h5py.File(load + 'sky/cluster/%d_sky_random_mean_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
 					sub_minus_img = np.array(f['a'])
 				shlf_minus_img[id_fals] = shlf_minus_img[id_fals] + sub_minus_img[id_fals]
 
 			shulf_img = shlf_img / shlf_cnt
 			shulf_minus_img = shlf_minus_img / shlf_cnt
 
-			with h5py.File(load + 'sky/center_set/mean_sky_shuffle_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+			with h5py.File(load + 'sky/cluster/mean_sky_shuffle_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+			#with h5py.File(load + 'sky/cluster/mean_sky_random_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
 				f['a'] = np.array(shulf_img)
 
-			#with h5py.File(load + 'sky/center_set/mean_sky_shuffle_media_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
-			with h5py.File(load + 'sky/center_set/mean_sky_shuffle_mean_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+			with h5py.File(load + 'sky/cluster/mean_sky_shuffle_media_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+			#with h5py.File(load + 'sky/cluster/mean_sky_shuffle_mean_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+			#with h5py.File(load + 'sky/cluster/mean_sky_random_media_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+			#with h5py.File(load + 'sky/cluster/mean_sky_random_mean_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
 				f['a'] = np.array(shulf_minus_img)
 
 			plt.figure(figsize = (18, 6))
@@ -610,75 +668,98 @@ def main():
 			ax2 = plt.subplot(133)
 
 			clust = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5,)
-			ax0.set_title('%s band %d imgs centered on BCG [subtracted average]' % (band[tt], N_sum[tt]), fontsize = 7.5)
-			#ax0.set_title('%s band %d imgs centered on BCG [subtracted median]' % (band[tt], N_sum[tt]), fontsize = 7.5)
+			#ax0.set_title('%s band %d imgs centered on BCG [subtracted average]' % (band[tt], N_sum[tt]))
+			ax0.set_title('%s band %d imgs centered on BCG [subtracted median]' % (band[tt], N_sum[tt]),)
 			tf = ax0.imshow(BCG_minus_img, origin = 'lower', cmap = 'seismic', vmin = -2e-4, vmax = 2e-4,)
 			ax0.add_patch(clust)
 			ax0.set_xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
 			ax0.set_ylim(y0 - 2 * Rpp, y0 + 2 * Rpp)
-			plt.colorbar(tf, ax = ax0, fraction = 0.040, pad = 0.01, label = '$ flux \, [nmaggies]$')
+			plt.colorbar(tf, ax = ax0, fraction = 0.046, pad = 0.01, label = '$ flux \, [nmaggies]$')
 
 			clust = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5,)
-			ax1.set_title('%s band %d imgs shuffle case [subtracted average]' % (band[tt], N_sum[tt]), fontsize = 7.5)
-			#ax1.set_title('%s band %d imgs shuffle case [subtracted median]' % (band[tt], N_sum[tt]), fontsize = 7.5)
+			#ax1.set_title('%s band %d imgs shuffle case [subtracted average]' % (band[tt], N_sum[tt]),)
+			ax1.set_title('%s band %d imgs shuffle case [subtracted median]' % (band[tt], N_sum[tt]),)
+			#ax1.set_title('%s band %d imgs random case [subtracted average]' % (band[tt], N_sum[tt]),)
+			#ax1.set_title('%s band %d imgs random case [subtracted median]' % (band[tt], N_sum[tt]),)
+
 			tf = ax1.imshow(shulf_minus_img, origin = 'lower', cmap = 'seismic', vmin = -2e-4, vmax = 2e-4,)
 			ax1.add_patch(clust)
 			ax1.set_xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
 			ax1.set_ylim(y0 - 2 * Rpp, y0 + 2 * Rpp)
-			plt.colorbar(tf, ax = ax1, fraction = 0.040, pad = 0.01, label = '$ flux \, [nmaggies]$')
+			plt.colorbar(tf, ax = ax1, fraction = 0.046, pad = 0.01, label = '$ flux \, [nmaggies]$')
 
 			clust = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5,)
-			ax2.set_title('centered on BCG minus shuffle case [subtracted average]', fontsize = 7.5)
-			#ax2.set_title('centered on BCG minus shuffle case [subtracted median]', fontsize = 7.5)
+			#ax2.set_title('centered on BCG minus shuffle case [subtracted average]',)
+			ax2.set_title('centered on BCG minus shuffle case [subtracted median]',)
+			#ax2.set_title('centered on BCG minus random case [subtracted average]',)
+			#ax2.set_title('centered on BCG minus random case [subtracted median]',)
+
 			tf = ax2.imshow(BCG_minus_img - shulf_minus_img, origin = 'lower', cmap = 'seismic', vmin = -2e-4, vmax = 2e-4,)
 			ax2.add_patch(clust)
 			ax2.set_xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
 			ax2.set_ylim(y0 - 2 * Rpp, y0 + 2 * Rpp)
-			plt.colorbar(tf, ax = ax2, fraction = 0.040, pad = 0.01, label = '$ flux \, [nmaggies]$')
+			plt.colorbar(tf, ax = ax2, fraction = 0.046, pad = 0.01, label = '$ flux \, [nmaggies]$')
 
 			plt.tight_layout()
-			plt.subplots_adjust(bottom = 0.1, right = 0.8, top = 0.9)
+			plt.subplots_adjust(bottom = 0.1, right = 0.9, top = 0.9)
 
-			#plt.savefig(load + 'sky/center_set/BCG-shuffle_%d_imgs_%s_band_minus_media.png' % ( N_sum[tt], band[tt]), dpi = 300)
-			plt.savefig(load + 'sky/center_set/BCG-shuffle_%d_imgs_%s_band_minus_mean.png' % ( N_sum[tt], band[tt]), dpi = 300)
+			plt.savefig(load + 'sky/cluster/BCG-shuffle_%d_imgs_%s_band_minus_media.png' % ( N_sum[tt], band[tt]), dpi = 300)
+			#plt.savefig(load + 'sky/cluster/BCG-shuffle_%d_imgs_%s_band_minus_mean.png' % ( N_sum[tt], band[tt]), dpi = 300)
+			#plt.savefig(load + 'sky/cluster/BCG-random_%d_imgs_%s_band_minus_media.png' % ( N_sum[tt], band[tt]), dpi = 300)
+			#plt.savefig(load + 'sky/cluster/BCG-random_%d_imgs_%s_band_minus_mean.png' % ( N_sum[tt], band[tt]), dpi = 300)
 			plt.close()
 
 	commd.Barrier()
-	"""
+	'''
 	#### more center sample
-	N_sum = np.array([1291, 1286, 1283, 1294, 1287])
 	if rank == 0:
 		for tt in range(3):
 
 			#with h5py.File(load + 'sky_select_img/result/sky_minus_media_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'r') as f:
-			with h5py.File(load + 'sky_select_img/result/sky_minus_mean_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'r') as f:
-				BCG_minus_img = np.array(f['a'])
-			'''
-			#with h5py.File(load + 'sky_select_img/result/%d_sky_shuffle_media_%d_imgs_%s_band.h5' % (d_record, N_sum[tt], band[tt]), 'r') as f:
-			#with h5py.File(load + 'sky_select_img/result/%d_sky_shuffle_mean_%d_imgs_%s_band.h5' % (d_record, N_sum[tt], band[tt]), 'r') as f:
+			#with h5py.File(load + 'sky_select_img/result/sky_minus_mean_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'r') as f:
 
-			#with h5py.File(load + 'sky_select_img/test_set/%d_sky_shuffle_media_%d_imgs_%s_band.h5' % (d_record, N_sum[tt], band[tt]), 'r') as f:
-			with h5py.File(load + 'sky_select_img/test_set/%d_sky_shuffle_mean_%d_imgs_%s_band.h5' % (d_record, N_sum[tt], band[tt]), 'r') as f:			
-				shulf_minus_img = np.array(f['a'])
-			'''
+			#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/sky_minus_media_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'r') as f:
+			#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/sky_minus_mean_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'r') as f:
+
+			#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/sky_minus_media_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'r') as f:
+			with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/sky_minus_mean_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'r') as f:
+				BCG_minus_img = np.array(f['a'])
+
 			shlf_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 			shlf_minus_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 			shlf_cnt = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 			for id_rec in range(1, 6):
 
 				#with h5py.File(load + 'sky_select_img/result/%d_sky_shuffle_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
-				with h5py.File(load + 'sky_select_img/test_set/%d_sky_shuffle_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+				#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/%d_sky_shuffle_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+				with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/%d_sky_shuffle_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+
+				#with h5py.File(load + 'sky_select_img/result/%d_sky_random_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+				#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/%d_sky_random_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+				#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/%d_sky_random_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:				
 					sub_img = np.array(f['a'])
 				id_nan = np.isnan(sub_img)
 				id_fals = id_nan == False
 				shlf_img[id_fals] = shlf_img[id_fals] + sub_img[id_fals]
 				shlf_cnt[id_fals] = shlf_cnt[id_fals] + 1.
-
+				## -- >
 				#with h5py.File(load + 'sky_select_img/result/%d_sky_shuffle_media_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
 				#with h5py.File(load + 'sky_select_img/result/%d_sky_shuffle_mean_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
 
-				#with h5py.File(load + 'sky_select_img/test_set/%d_sky_shuffle_media_%d_imgs_%s_band.h5' % (d_record, N_sum[tt], band[tt]), 'r') as f:
-				with h5py.File(load + 'sky_select_img/test_set/%d_sky_shuffle_mean_%d_imgs_%s_band.h5' % (d_record, N_sum[tt], band[tt]), 'r') as f:				
+				#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/%d_sky_shuffle_media_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+				#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/%d_sky_shuffle_mean_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+
+				#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/%d_sky_shuffle_media_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+				with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/%d_sky_shuffle_mean_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+				## -- >
+				#with h5py.File(load + 'sky_select_img/result/%d_sky_random_media_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+				#with h5py.File(load + 'sky_select_img/result/%d_sky_random_mean_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+
+				#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/%d_sky_random_media_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+				#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/%d_sky_random_mean_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+
+				#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/%d_sky_random_media_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
+				#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/%d_sky_random_mean_%d_imgs_%s_band.h5' % (id_rec, N_sum[tt], band[tt]), 'r') as f:
 					sub_minus_img = np.array(f['a'])
 				shlf_minus_img[id_fals] = shlf_minus_img[id_fals] + sub_minus_img[id_fals]
 
@@ -686,14 +767,31 @@ def main():
 			shulf_minus_img = shlf_minus_img / shlf_cnt
 
 			#with h5py.File(load + 'sky_select_img/result/mean_sky_shuffle_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
-			with h5py.File(load + 'sky_select_img/test_set/mean_sky_shuffle_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
-				f['a'] = np.array(shulf_img)
+			#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/mean_sky_shuffle_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+			with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/mean_sky_shuffle_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
 
+			#with h5py.File(load + 'sky_select_img/result/mean_sky_random_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+			#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/mean_sky_random_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+			#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/mean_sky_random_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+				f['a'] = np.array(shulf_img)
+			## -- >
 			#with h5py.File(load + 'sky_select_img/result/mean_sky_shuffle_media_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
 			#with h5py.File(load + 'sky_select_img/result/mean_sky_shuffle_mean_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
 
-			#with h5py.File(load + 'sky_select_img/test_set/mean_sky_shuffle_media_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
-			with h5py.File(load + 'sky_select_img/test_set/mean_sky_shuffle_mean_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+			#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/mean_sky_shuffle_media_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+			#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/mean_sky_shuffle_mean_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+
+			#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/mean_sky_shuffle_media_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+			with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/mean_sky_shuffle_mean_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+			## -- >
+			#with h5py.File(load + 'sky_select_img/result/mean_sky_random_media_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+			#with h5py.File(load + 'sky_select_img/result/mean_sky_random_mean_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+
+			#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/mean_sky_random_media_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+			#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/mean_sky_random_mean_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+
+			#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/mean_sky_random_media_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
+			#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/mean_sky_random_mean_%d_imgs_%s_band.h5' % (N_sum[tt], band[tt]), 'w') as f:
 				f['a'] = np.array(shulf_minus_img)
 
 			plt.figure(figsize = (18, 6))
@@ -702,8 +800,8 @@ def main():
 			ax2 = plt.subplot(133)
 
 			clust = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5,)
-			ax0.set_title('%s band %d imgs centered on BCG [subtracted average]' % (band[tt], N_sum[tt]), fontsize = 7.5)
-			#ax0.set_title('%s band %d imgs centered on BCG [subtracted median]' % (band[tt], N_sum[tt]), fontsize = 7.5)
+			ax0.set_title('%s band %d imgs centered on BCG [subtracted average]' % (band[tt], N_sum[tt]),)
+			#ax0.set_title('%s band %d imgs centered on BCG [subtracted median]' % (band[tt], N_sum[tt]),)
 			tf = ax0.imshow(BCG_minus_img, origin = 'lower', cmap = 'seismic', vmin = -2e-4, vmax = 2e-4,)
 			ax0.add_patch(clust)
 			ax0.set_xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
@@ -711,8 +809,11 @@ def main():
 			plt.colorbar(tf, ax = ax0, fraction = 0.040, pad = 0.01, label = '$ flux \, [nmaggies]$')
 
 			clust = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5,)
-			ax1.set_title('%s band %d imgs shuffle case [subtracted average]' % (band[tt], N_sum[tt]), fontsize = 7.5)
-			#ax1.set_title('%s band %d imgs shuffle case [subtracted median]' % (band[tt], N_sum[tt]), fontsize = 7.5)
+			ax1.set_title('%s band %d imgs shuffle case [subtracted average]' % (band[tt], N_sum[tt]),)
+			#ax1.set_title('%s band %d imgs shuffle case [subtracted median]' % (band[tt], N_sum[tt]),)
+			#ax1.set_title('%s band %d imgs random case [subtracted average]' % (band[tt], N_sum[tt]),)
+			#ax1.set_title('%s band %d imgs random case [subtracted median]' % (band[tt], N_sum[tt]),)
+
 			tf = ax1.imshow(shulf_minus_img, origin = 'lower', cmap = 'seismic', vmin = -2e-4, vmax = 2e-4,)
 			ax1.add_patch(clust)
 			ax1.set_xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
@@ -720,8 +821,11 @@ def main():
 			plt.colorbar(tf, ax = ax1, fraction = 0.040, pad = 0.01, label = '$ flux \, [nmaggies]$')
 
 			clust = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5,)
-			ax2.set_title('centered on BCG minus shuffle case [subtracted average]', fontsize = 7.5)
-			#ax2.set_title('centered on BCG minus shuffle case [subtracted median]', fontsize = 7.5)
+			ax2.set_title('centered on BCG minus shuffle case [subtracted average]',)
+			#ax2.set_title('centered on BCG minus shuffle case [subtracted median]',)
+			#ax2.set_title('centered on BCG minus random case [subtracted average]',)
+			#ax2.set_title('centered on BCG minus random case [subtracted median]',)
+
 			tf = ax2.imshow(BCG_minus_img - shulf_minus_img, origin = 'lower', cmap = 'seismic', vmin = -2e-4, vmax = 2e-4,)
 			ax2.add_patch(clust)
 			ax2.set_xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
@@ -729,13 +833,25 @@ def main():
 			plt.colorbar(tf, ax = ax2, fraction = 0.040, pad = 0.01, label = '$ flux \, [nmaggies]$')
 
 			plt.tight_layout()
-			plt.subplots_adjust(bottom = 0.1, right = 0.8, top = 0.9)
-
+			plt.subplots_adjust(bottom = 0.1, right = 0.9, top = 0.9)
+			## -- >
 			#plt.savefig(load + 'sky_select_img/result/BCG-shuffle_%d_imgs_%s_band_minus_media.png' % (N_sum[tt], band[tt]), dpi = 300)
 			#plt.savefig(load + 'sky_select_img/result/BCG-shuffle_%d_imgs_%s_band_minus_mean.png' % (N_sum[tt], band[tt]), dpi = 300)
 
-			#plt.savefig(load + 'sky_select_img/test_set/BCG-shuffle_%d_imgs_%s_band_minus_media.png' % (N_sum[tt], band[tt]), dpi = 300)
-			plt.savefig(load + 'sky_select_img/test_set/BCG-shuffle_%d_imgs_%s_band_minus_mean.png' % (N_sum[tt], band[tt]), dpi = 300)
+			#plt.savefig(load + 'sky_select_img/test_set/0.8Mpc/BCG-shuffle_%d_imgs_%s_band_minus_media.png' % (N_sum[tt], band[tt]), dpi = 300)
+			#plt.savefig(load + 'sky_select_img/test_set/0.8Mpc/BCG-shuffle_%d_imgs_%s_band_minus_mean.png' % (N_sum[tt], band[tt]), dpi = 300)
+
+			#plt.savefig(load + 'sky_select_img/test_set/0.65Mpc/BCG-shuffle_%d_imgs_%s_band_minus_media.png' % (N_sum[tt], band[tt]), dpi = 300)
+			plt.savefig(load + 'sky_select_img/test_set/0.65Mpc/BCG-shuffle_%d_imgs_%s_band_minus_mean.png' % (N_sum[tt], band[tt]), dpi = 300)
+			## -- >
+			#plt.savefig(load + 'sky_select_img/result/BCG-random_%d_imgs_%s_band_minus_media.png' % (N_sum[tt], band[tt]), dpi = 300)
+			#plt.savefig(load + 'sky_select_img/result/BCG-random_%d_imgs_%s_band_minus_mean.png' % (N_sum[tt], band[tt]), dpi = 300)
+
+			#plt.savefig(load + 'sky_select_img/test_set/0.8Mpc/BCG-random_%d_imgs_%s_band_minus_media.png' % (N_sum[tt], band[tt]), dpi = 300)
+			#plt.savefig(load + 'sky_select_img/test_set/0.8Mpc/BCG-random_%d_imgs_%s_band_minus_mean.png' % (N_sum[tt], band[tt]), dpi = 300)
+
+			#plt.savefig(load + 'sky_select_img/test_set/0.65Mpc/BCG-random_%d_imgs_%s_band_minus_media.png' % (N_sum[tt], band[tt]), dpi = 300)
+			#plt.savefig(load + 'sky_select_img/test_set/0.65Mpc/BCG-random_%d_imgs_%s_band_minus_mean.png' % (N_sum[tt], band[tt]), dpi = 300)
 			plt.close()
 
 	commd.Barrier()

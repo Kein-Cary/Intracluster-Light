@@ -75,7 +75,8 @@ def selection(band_id, sub_z, sub_ra, sub_dec,  sub_rmag):
 		dec_g = sub_dec[k]
 		z_g = sub_z[k]
 
-		data_A = fits.getdata(load + 'resample/1_5sigma/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+		data_A = fits.getdata(load + 
+			'resample/1_5sigma_larger_R/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
 		img_A = data_A[0]
 		xn = data_A[1]['CENTER_X']
 		yn = data_A[1]['CENTER_Y']
@@ -86,8 +87,8 @@ def selection(band_id, sub_z, sub_ra, sub_dec,  sub_rmag):
 		#x_side = np.array([cx - Rpp, cx + Rpp])
 		#y_side = np.array([cy - Rpp, cy + Rpp])
 
-		x_side = np.array([cx - 0.8 * Rpp, cx + 0.8 * Rpp]) ## more closer to center
-		y_side = np.array([cy - 0.8 * Rpp, cy + 0.8 * Rpp])
+		x_side = np.array([cx - 0.65 * Rpp, cx + 0.65 * Rpp]) ## more closer to center
+		y_side = np.array([cy - 0.65 * Rpp, cy + 0.65 * Rpp])
 
 		idx = (x_side[0] < xn) & (xn < x_side[1])
 		idy = (y_side[0] < yn) & (yn < y_side[1])
@@ -123,7 +124,8 @@ def imgs_cut(band_id, sub_z, sub_ra, sub_dec):
 		dec_g = sub_dec[k]
 		z_g = sub_z[k]
 
-		data = fits.getdata(load + 'resample/1_5sigma/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+		data = fits.getdata(load + 
+			'resample/1_5sigma_larger_R/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
 		img = data[0]
 		BCGx, BCGy = data[1]['CENTER_X'], data[1]['CENTER_Y']
 		RA0, DEC0 = data[1]['CRVAL1'], data[1]['CRVAL2']
@@ -224,10 +226,10 @@ def main():
 			n_sum = len(set_z)
 			set_array = np.array([set_ra, set_dec, set_z, set_mag])
 			#with h5py.File(load + 'sky_select_img/%s_band_%d_imgs_sky_select.h5' % (band[tt], n_sum), 'w') as f:
-			with h5py.File(load + 'sky_select_img/test_set/%s_band_sky_%.1fMpc_select.h5' % (band[tt], 0.8), 'w') as f: ## more close to center
+			with h5py.File(load + 'sky_select_img/test_set/%s_band_sky_%.2fMpc_select.h5' % (band[tt], 0.65), 'w') as f: ## more close to center
 				f['a'] = np.array(set_array)
 			#with h5py.File(load + 'sky_select_img/%s_band_%d_imgs_sky_select.h5' % (band[tt], n_sum) ) as f:
-			with h5py.File(load + 'sky_select_img/test_set/%s_band_sky_%.1fMpc_select.h5' % (band[tt], 0.8) ) as f: ## more close to center
+			with h5py.File(load + 'sky_select_img/test_set/%s_band_sky_%.2fMpc_select.h5' % (band[tt], 0.65) ) as f: ## more close to center
 				for ll in range( len(set_array) ):
 					f['a'][ll,:] = set_array[ll,:]
 

@@ -26,7 +26,6 @@ from light_measure import sigmamc
 from extinction_redden import A_wave
 from resample_modelu import sum_samp, down_samp
 from light_measure import light_measure, flux_recal
-
 import time
 import random
 import sfdmap
@@ -69,12 +68,18 @@ l_wave = np.array([6166, 4686, 7480, 3551, 8932])
 mag_add = np.array([0, 0, 0, -0.04, 0.02])
 zpot = np.array([22.5, 22.5, 22.5, 22.46, 22.52])
 sb_lim = np.array([24.5, 25, 24, 24.35, 22.9])
-
+'''
+## total sample for z: 0.2~0.3
 with h5py.File('/home/xkchen/mywork/ICL/code/sample_catalog.h5') as f:
 	catalogue = np.array(f['a'])
 z = catalogue[0]
 ra = catalogue[1]
 dec = catalogue[2]
+'''
+dat = pds.read_csv('/home/xkchen/mywork/ICL/data/redmapper/r_band_sky_catalog.csv')
+z = np.array(dat['z'])
+ra = np.array(dat['ra'])
+dec = np.array(dat['dec'])
 
 goal_data = fits.getdata('/home/xkchen/mywork/ICL/data/redmapper/redmapper_dr8_public_v6.3_catalog.fits')
 redshift = np.array(goal_data.Z_SPEC)
@@ -252,7 +257,7 @@ def mask_B():
 			set_mag = np.array(cat['r'])
 			OBJ = np.array(cat['type'])
 			xt = cat['Column1']
-			tau = 8 # the mask size set as 6 * FWHM from dr12
+			tau = 8 # the mask size set as 8 * FWHM from dr12
 
 			set_A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
 			set_B = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
@@ -348,7 +353,7 @@ def mask_B():
 			fig.suptitle('B mask ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[q]) )
 			cluster1 = Circle(xy = (cenx, ceny), radius = R_p, fill = False, ec = 'b', alpha = 0.5, label = 'cluster region[1Mpc]')
 			ax1 = plt.subplot(111)
-			ax1.imshow(mirro_B, cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mpl.colors.LogNorm())
+			ax1.imshow(mirro_B, cmap = 'Greys', vmin = 1e-5, vmax = 1e2, origin = 'lower', norm = mpl.colors.LogNorm())
 
 			ax1.add_patch(cluster1)
 			ax1.set_title('B Mask image')
@@ -463,7 +468,7 @@ def resamp_B():
 			#f_SB = interp(R1, SB_ref, kind = 'cubic')
 
 			Intns, Intns_r, Intns_err, Npix = light_measure(f_goal, bins, R_smal, R_max, cx, cy, pixel * mu, z_ref)
-			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[ii]
+			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(mu**2 * pixel**2) + mag_add[ii]
 			id_nan = np.isnan(SB)
 			SB2, R2 = SB[id_nan == False], Intns_r[id_nan == False]
 
@@ -608,7 +613,7 @@ def stack_B():
 		ax1 = plt.subplot(122)
 		Clus0 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', ls = '-')
 		Clus1 = Circle(xy = (x0, y0), radius = 0.2 * Rpp, fill = False, ec = 'r', ls = '--')
-		tf = ax0.imshow(mean_total, cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mpl.colors.LogNorm())
+		tf = ax0.imshow(mean_total, cmap = 'Greys', vmin = 1e-5, vmax = 1e2, origin = 'lower', norm = mpl.colors.LogNorm())
 		plt.colorbar(tf, ax = ax0, fraction = 0.045, pad = 0.01, label = '$flux[nmaggy]$')
 		ax0.add_patch(Clus0)
 		ax0.add_patch(Clus1)
@@ -652,20 +657,27 @@ def mask_A():
 	out_cat = '/home/xkchen/mywork/ICL/data/SEX/default_mask_A.param'
 	out_load_A = '/home/xkchen/mywork/ICL/data/SEX/result/mask_A_test.cat'
 	'''
+	# select with richness
 	idv = Lambd > 50
 	red_rich = Lambd[idv]
 	red_z = z[idv]
 	red_ra = ra[idv]
 	red_dec = dec[idv]
 	# set lambda bins: <30, 30 < lambda < 40, >50 [stack image --> low, media, high]
-	'''
+
+	## for sdss pro. comparison
 	zN = 20
 	idu = (com_Mag >= 17) & (com_Mag <= 18)
 	red_ra = ra[idu]
 	red_dec = dec[idu]
 	red_z = z[idu]
+	'''
+	zN = 20
+	np.random.seed(1)
+	tt0 = np.random.choice(len(z), size = zN, replace = False)
+	red_ra, red_dec, red_z = ra[tt0], dec[tt0], z[tt0]
 
-	for i in range(3):
+	for i in range(1):
 		for q in range(zN):
 			ra_g = red_ra[q]
 			dec_g = red_dec[q]
@@ -706,7 +718,6 @@ def mask_A():
 			Al = A_wave(l_wave[i], Rv) * Av
 			cc_img = sub_img * 10**(Al / 2.5)
 
-			'''
 			# SB record
 			Intns, Intns_r, Intns_err, Npix = light_measure(img, bins, R_smal, R_max, cx_BCG, cy_BCG, pixel, z_g)
 			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[i]
@@ -742,7 +753,36 @@ def mask_A():
 
 			plt.savefig('SB_befo_mask_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[i]), dpi = 300)
 			plt.close()
-			'''
+
+			plt.figure(figsize = (12, 6))
+			ax0 = plt.subplot(121)
+			ax1 = plt.subplot(122)
+
+			cluster1 = Circle(xy = (cx_BCG, cy_BCG), radius = R_p, fill = False, ec = 'b', alpha = 0.5, label = 'cluster region[1Mpc]')
+			c_cle1 = Circle(xy = (cx_BCG, cy_BCG), radius = 0.15 * R_p, fill = False, linestyle = '--', ec = 'b', alpha = 0.5, label = 'Center [0.15Mpc]')
+			cluster2 = Circle(xy = (cx_BCG, cy_BCG), radius = R_p, fill = False, ec = 'b', alpha = 0.5, label = 'cluster region[1Mpc]')
+			c_cle2 = Circle(xy = (cx_BCG, cy_BCG), radius = 0.15 * R_p, fill = False, linestyle = '--', ec = 'b', alpha = 0.5, label = 'Center [0.15Mpc]')
+
+			ax0.set_title('original img [%s band ra%.3f dec%.3f z%.3f]' % (band[i], ra_g, dec_g, z_g))
+			tf = ax0.imshow(img, origin = 'lower', cmap = 'Greys', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
+			plt.colorbar(tf, ax = ax0, fraction = 0.035, pad = 0.01, label = '$flux[nmaggy]$')
+			ax0.add_patch(cluster1)
+			ax0.add_patch(c_cle1)
+			ax0.set_xlim(0, img.shape[1])
+			ax0.set_ylim(0, img.shape[0])
+
+			ax1.set_title('Extinction calibration')
+			tf = ax1.imshow(cc_img, origin = 'lower', cmap = 'Greys', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
+			plt.colorbar(tf, ax = ax1, fraction = 0.035, pad = 0.01, label = '$flux[nmaggy]$')
+			ax1.add_patch(cluster2)
+			ax1.add_patch(c_cle2)
+			ax1.set_xlim(0, cc_img.shape[1])
+			ax1.set_ylim(0, cc_img.shape[0])
+
+			plt.tight_layout()
+			plt.savefig('Extinction_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[i]), dpi = 300)
+			plt.close()
+
 			hdu = fits.PrimaryHDU()
 			hdu.data = cc_img
 			hdu.header = head_inf
@@ -773,7 +813,7 @@ def mask_A():
 			cy = np.array(source['Y_IMAGE']) - 1
 			p_type = np.array(source['CLASS_STAR'])
 			id_type = p_type >= 0
-			Kron = 6
+			Kron = 6 * 2.8   ## change to the mask size test result
 			a = Kron * A[id_type]
 			b = Kron * B[id_type]
 			Numb = len(a)
@@ -785,7 +825,7 @@ def mask_A():
 			set_mag = np.array(cat['r'])
 			OBJ = np.array(cat['type'])
 			xt = cat['Column1']
-			tau = 8 # the mask size set as 6 * FWHM from dr12
+			tau = 10 * 2.8 # the mask size set as 10 * FWHM from dr12 (2.8 is the test result of masking size test)
 
 			set_A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
 			set_B = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
@@ -872,26 +912,32 @@ def mask_A():
 					iv[iu] = np.nan
 					mask_A[lb0: lb1, la0: la1] = mask_A[lb0: lb1, la0: la1] * iv
 			mirro_A = mask_A * cc_img
-			'''
+
 			hdu = fits.PrimaryHDU()
 			hdu.data = mirro_A
 			hdu.header = head_inf
 			hdu.writeto(
 				'/home/xkchen/mywork/ICL/data/test_data/mask/A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[i], ra_g, dec_g, z_g),overwrite = True)
-			'''
-			fig = plt.figure()
-			fig.suptitle('A mask ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[i]) )
-			cluster1 = Circle(xy = (cx_BCG, cy_BCG), radius = R_p, fill = False, ec = 'b', alpha = 0.5, label = 'cluster region[1Mpc]')
+
+			fig = plt.figure(figsize = (12, 6))
 			ax1 = plt.subplot(122)
 			bx = plt.subplot(121)
 
-			bx.imshow(cc_img, cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mpl.colors.LogNorm())
+			fig.suptitle('A mask ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[i]) )
+			cluster1 = Circle(xy = (cx_BCG, cy_BCG), radius = R_p, fill = False, ec = 'b', alpha = 0.5, label = 'cluster region[1Mpc]')
+			c_cle1 = Circle(xy = (cx_BCG, cy_BCG), radius = 0.15 * R_p, fill = False, linestyle = '--', ec = 'b', alpha = 0.5, label = 'Center [0.15Mpc]')
+			cluster2 = Circle(xy = (cx_BCG, cy_BCG), radius = R_p, fill = False, ec = 'b', alpha = 0.5, label = 'cluster region[1Mpc]')
+			c_cle2 = Circle(xy = (cx_BCG, cy_BCG), radius = 0.15 * R_p, fill = False, linestyle = '--', ec = 'b', alpha = 0.5, label = 'Center [0.15Mpc]')
+
+			bx.imshow(cc_img, cmap = 'Greys', vmin = 1e-5, vmax = 1e2, origin = 'lower', norm = mpl.colors.LogNorm())
+			bx.add_patch(cluster1)
+			bx.add_patch(c_cle1)
 			bx.set_xlim(0, cc_img.shape[1])
 			bx.set_ylim(0, cc_img.shape[0])
 
-			tf = ax1.imshow(mirro_A, cmap = 'Greys', vmin = 1e-5, origin = 'lower', norm = mpl.colors.LogNorm())
-			#plt.colorbar(tf, ax = ax1, fraction = 0.035, pad = 0.01, label = '$flux[nmaggy]$')
-			ax1.add_patch(cluster1)
+			ax1.imshow(mirro_A, cmap = 'Greys', vmin = 1e-5, vmax = 1e2, origin = 'lower', norm = mpl.colors.LogNorm())
+			ax1.add_patch(cluster2)
+			ax1.add_patch(c_cle2)
 			ax1.set_title('A masked image')
 			ax1.set_xlim(0, cc_img.shape[1])
 			ax1.set_ylim(0, cc_img.shape[0])
@@ -900,8 +946,7 @@ def mask_A():
 			plt.savefig('A_mask_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[i]), dpi = 300)
 			plt.close()
 
-			'''
-			Intns, Intns_r, Intns_err, Npix = light_measure(mirro_A, bins, 10, R_p, cx_BCG, cy_BCG, pixel, z_g)
+			Intns, Intns_r, Intns_err, Npix = light_measure(mirro_A, bins, R_smal, R_max, cx_BCG, cy_BCG, pixel, z_g)
 			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[i]
 			id_nan = np.isnan(SB)
 			SB4, R4 = SB[id_nan == False], Intns_r[id_nan == False]
@@ -909,8 +954,8 @@ def mask_A():
 			fig = plt.figure()
 			fig.suptitle('SB variation during A mask ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[i]) )
 			ax = plt.subplot(111)
-			ax.plot(R4, SB4, 'g--', label = '$allpying \; A \; mask$', alpha = 0.5)
-			ax.plot(R3, SB3, 'r-', label = '$extinction \; calibration$', alpha = 0.5)
+			ax.plot(R4, SB4, 'g--', label = '$ Applied \; A \; mask $', alpha = 0.5)
+			ax.plot(R3, SB3, 'r-', label = '$ Extinction \; calibration $', alpha = 0.5)
 			ax.set_xscale('log')
 			ax.set_xlim(np.nanmin(R3) + 1, np.nanmax(R3) + 50)
 			ax.set_xlabel('$Radius[kpc]$')
@@ -930,36 +975,43 @@ def mask_A():
 
 			plt.savefig('SB_with_mask_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[i]), dpi = 300)
 			plt.close()
-			'''
+
 	raise
 	return
 
 def resamp_A():
 	load = '/home/xkchen/mywork/ICL/data/test_data/resamp/'
+	tmp_load = '/home/xkchen/mywork/ICL/data/test_data/'
 	'''
+	# select by richness
 	idv = Lambd > 50
 	red_rich = Lambd[idv]
 	red_z = z[idv]
 	red_ra = ra[idv]
 	red_dec = dec[idv]
-	'''
+	# for sdss pro. comparison
 	zN = 20
 	idu = (com_Mag >= 17) & (com_Mag <= 18)
 	red_ra = ra[idu]
 	red_dec = dec[idu]
 	red_z = z[idu]
+	'''
+	zN = 20
+	np.random.seed(1)
+	tt0 = np.random.choice(len(z), size = zN, replace = False)
+	red_ra, red_dec, red_z = ra[tt0], dec[tt0], z[tt0]
 
 	bins = 65
 	R_smal, R_max = 10, 10**3.02
-	for ii in range(3):
+
+	for ii in range(1):
 		for jj in range(zN):
 			ra_g = red_ra[jj]
 			dec_g = red_dec[jj]
 			z_g = red_z[jj]
 
 			Da_g = Test_model.angular_diameter_distance(z_g).value
-			data = fits.getdata('/home/xkchen/mywork/ICL/data/test_data/mask/'
-			+'A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
+			data = fits.getdata(tmp_load + 'mask/A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
 			img = data[0]
 			wcs = awc.WCS(data[1])
 			cx_BCG, cy_BCG = wcs.all_world2pix(ra_g*U.deg, dec_g*U.deg, 1)
@@ -997,39 +1049,62 @@ def resamp_A():
 			fil = fits.Header(ff)
 			fits.writeto(load + 
 				'resamp_A-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), resam_d, header = fil, overwrite=True)
-			'''
-			plt.figure()
-			ax = plt.subplot(111)
-			ax.imshow(resam_d, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
+
+			plt.figure(figsize = (12, 6))
+			ax0 = plt.subplot(121)
+			ax1 = plt.subplot(122)
+
+			cluster1 = Circle(xy = (cx_BCG, cy_BCG), radius = Rp, fill = False, ec = 'b', alpha = 0.5, label = 'cluster region[1Mpc]')
+			c_cle1 = Circle(xy = (cx_BCG, cy_BCG), radius = 0.15 * Rp, fill = False, linestyle = '--', ec = 'b', alpha = 0.5, label = 'Center [0.15Mpc]')
+			cluster2 = Circle(xy = (xnd, ynd), radius = Rpp, fill = False, ec = 'b', alpha = 0.5, label = 'cluster region[1Mpc]')
+			c_cle2 = Circle(xy = (xnd, ynd), radius = 0.15 * Rpp, fill = False, linestyle = '--', ec = 'b', alpha = 0.5, label = 'Center [0.15Mpc]')
+
+			ax0.set_title('Mask img [%s band ra%.3f dec%.3f z%.3f]' % (band[ii], ra_g, dec_g, z_g))
+			tf = ax0.imshow(img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
+			plt.colorbar(tf, ax = ax0, fraction = 0.035, pad = 0.01, label = '$flux[nmaggy]$')
+			ax0.add_patch(cluster1)
+			ax0.add_patch(c_cle1)
+			ax0.set_xlim(0, img.shape[1])
+			ax0.set_ylim(0, img.shape[0])
+
+			ax1.set_title('Scaled + resampling img')
+			tf = ax1.imshow(resam_d, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
+			plt.colorbar(tf, ax = ax1, fraction = 0.035, pad = 0.01, label = '$flux[nmaggy]$')
+			ax1.add_patch(cluster2)
+			ax1.add_patch(c_cle2)
+			ax1.set_xlim(0, resam_d.shape[1])
+			ax1.set_ylim(0, resam_d.shape[0])
+
+			plt.tight_layout()
 			plt.savefig('resamp_A_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
 			plt.close()
 
 			Intns, Intns_r, Intns_err, Npix = light_measure(img, bins, R_smal, R_max, cx_BCG, cy_BCG, pixel, z_g)
-			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[ii]
-			id_nan = np.isnan(SB)
-			SB1, R1 = SB[id_nan == False], Intns_r[id_nan == False]
-			SB_ref = SB1 + 10*np.log10((1 + z_ref) / (1 + z_g))
-			#f_SB = interp(R1, SB_ref, kind = 'cubic')
+			SB_t0 = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[ii]
+			id_nan = np.isnan(SB_t0)
+			SB1, R1 = SB_t0[id_nan == False], Intns_r[id_nan == False]
+			SB_ref = SB_t0 + 10*np.log10((1 + z_ref) / (1 + z_g))
+			R_ref = Intns_r * 1
 
-			Intns, Intns_r, Intns_err, Npix = light_measure(f_D, bins, R_smal, R_max, cx_BCG, cy_BCG, pixel * miu, z_ref)
-			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[ii]
-			id_nan = np.isnan(SB)
-			SB2, R2 = SB[id_nan == False], Intns_r[id_nan == False]
+			Intns, Intns_r, Intns_err, Npix = light_measure(f_D, bins, R_smal, R_max, cx_BCG, cy_BCG, miu * pixel, z_ref)
+			SB_t1 = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10( miu**2 * pixel**2) + mag_add[ii]
+			id_nan = np.isnan(SB_t1)
+			SB2, R2 = SB_t1[id_nan == False], Intns_r[id_nan == False]
 
 			Intns, Intns_r, Intns_err, Npix = light_measure(resam_d, bins, R_smal, R_max, xnd, ynd, pixel, z_ref)
-			SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[ii]
-			id_nan = np.isnan(SB)
-			SB3, R3 = SB[id_nan == False], Intns_r[id_nan == False]
+			SB_t2 = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[ii]
+			id_nan = np.isnan(SB_t2)
+			SB3, R3 = SB_t2[id_nan == False], Intns_r[id_nan == False]
 
 			fig = plt.figure()
 			gs = gridspec.GridSpec(2,1, height_ratios = [4,1])
 			fig.suptitle('A mask resampling ra%.3f dec%.3f z%.3f %s band' % (ra_g, dec_g, z_g, band[ii]) )
 			ax = plt.subplot(gs[0])
 			cx = plt.subplot(gs[1])
-			#ax.plot(R1, SB1, 'r-', label = '$ A \; Mask$', alpha = 0.5)
-			ax.plot(R2, SB2, 'g-', label = '$ scaled \; image$', alpha = 0.5)
-			ax.plot(R1, SB_ref, 'r--', label = '$reference \; profile$', alpha = 0.5)
-			ax.plot(R3, SB3, 'b-', label = '$scaled + resample \; image$', alpha = 0.5)
+			ax.plot(R1, SB1, 'm--', linewidth = 0.95, label = '$ Applied \; A \; Mask $', alpha = 0.5)
+			ax.plot(R2, SB2, 'g--', linewidth = 0.95, label = '$ Scaled \; image $', alpha = 0.5)
+			ax.plot(R_ref, SB_ref, 'r-', linewidth = 0.95, label = '$ Reference \; profile $', alpha = 0.5)
+			ax.plot(R3, SB3, 'b-', linewidth = 0.95, label = '$ scaled + resampled \; image $', alpha = 0.5)
 
 			ax.set_xscale('log')
 			ax.set_xlabel('$Radius[kpc]$')
@@ -1049,8 +1124,8 @@ def resamp_A():
 			bx1.tick_params(axis = 'both', which = 'both', direction = 'in')
 			ax.set_xticks([])
 
-			ddbr = R3
-			ddb = SB3 - SB_ref
+			ddbr = R_ref
+			ddb = SB_t2 - SB_ref
 			std = np.nanstd(ddb)
 			aver = np.nanmean(ddb)
 
@@ -1062,15 +1137,14 @@ def resamp_A():
 
 			cx.set_xscale('log')
 			cx.set_xlabel('$Radius[kpc]$')
-			cx.set_ylabel('$SB_{after \; resample} - SB_{ref}$')
+			cx.set_ylabel('$SB_{scaled + resampled} - SB_{ref}$')
 			cx.set_ylim(aver - 1.1 * std, aver + 1.1 * std)
 			cx.set_xlim(ax.get_xlim())
 
 			plt.subplots_adjust(hspace = 0.01)
 			plt.savefig('A_mask_resamp_ra%.3f_dec%.3f_z%.3f_%s_band.png' % (ra_g, dec_g, z_g, band[ii]), dpi = 300)
 			plt.close()
-			'''
-	#raise
+	raise
 	return
 
 def stack_A():
@@ -1323,10 +1397,10 @@ def main():
 	#stack_B()
 
 	#mask_A()
-	#resamp_A()
+	resamp_A()
 	#stack_A()
 
-	SB_ICL()
+	#SB_ICL()
 
 if __name__ == "__main__":
 	main()

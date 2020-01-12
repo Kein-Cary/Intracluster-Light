@@ -60,7 +60,7 @@ com_z_Mag_err = z_Mag_err[(redshift >= 0.2) & (redshift <= 0.3)]
 
 band = ['r', 'g', 'i', 'u', 'z']
 zN, bN = len(com_z), len(band)
-'''
+
 for kk in range(bN):
     ## bad images
     with h5py.File(load + 'mpi_h5/Except_%s_sample.h5' % band[kk], 'r') as f:
@@ -68,14 +68,14 @@ for kk in range(bN):
     except_ra = ['%.3f' % ll for ll in except_cat[0,:] ]
     except_dec = ['%.3f' % ll for ll in except_cat[1,:] ]
     #except_z = ['%.3f' % ll for ll in except_cat[2,:] ]
-
+    '''
     ## special mask
     with h5py.File(load + 'mpi_h5/special_mask_cat.h5', 'r') as f:
         special_cat = np.array(f['a'])
     speci_ra = ['%.3f' % ll for ll in special_cat[0,:] ]
     speci_dec = ['%.3f' % ll for ll in special_cat[1,:] ]
     #speci_z = ['%.3f' % ll for ll in special_cat[2,:] ]
-
+    '''
     sub_z = []
     sub_ra = []
     sub_dec = []
@@ -97,8 +97,9 @@ for kk in range(bN):
         i_mag, i_err = com_i_Mag[jj], com_i_Mag_err[jj]
         u_mag, u_err = com_u_Mag[jj], com_u_Mag_err[jj]
         z_mag, z_err = com_z_Mag[jj], com_z_Mag_err[jj]
+
         ## rule out bad image (once a cluster image is bad in a band, all the five band image will be ruled out!)
-        identi0 = ('%.3f'%ra_g in except_ra) & ('%.3f'%dec_g in except_dec)# & ('%.3f'%z_g in except_z)
+        identi0 = ('%.3f'%ra_g in except_ra) & ('%.3f'%dec_g in except_dec)# & ('%.3f'%z_g in except_z) ## use this only for "img_data_select"
         identi1 = ('%.3f'%ra_g in speci_ra) & ('%.3f'%dec_g in speci_dec)# & ('%.3f'%z_g in speci_z)
         if  identi0 == True: 
             continue
@@ -146,12 +147,16 @@ for kk in range(bN):
             sub_r_Merr, sub_g_Merr, sub_i_Merr, sub_u_Merr, sub_z_Merr]
     fill = dict(zip(keys, values))
     data = pds.DataFrame(fill)
-    data.to_csv(load + 'selection/%s_band_stack_catalog.csv' % band[kk])
+    #data.to_csv(load + 'selection/%s_band_img_data_select.csv' % band[kk])
+    data.to_csv(load + 'selection/%s_band_stack_catalog.csv' % band[kk]) ## also rule out special_mask sample
+
     ## save h5py for mpirun
     sub_array = np.array([sub_ra, sub_dec, sub_z, sub_rich, sub_r_mag, sub_g_mag, sub_i_mag, sub_u_mag, sub_z_mag,
             sub_r_Merr, sub_g_Merr, sub_i_Merr, sub_u_Merr, sub_z_Merr])
+    #with h5py.File(load + 'mpi_h5/%s_band_img_data_select.h5' % band[kk], 'w') as f:
     with h5py.File(load + 'mpi_h5/%s_band_sample_catalog.h5' % band[kk], 'w') as f:
         f['a'] = np.array(sub_array)
+    #with h5py.File(load + 'mpi_h5/%s_band_img_data_select.h5' % band[kk]) as f:
     with h5py.File(load + 'mpi_h5/%s_band_sample_catalog.h5' % band[kk]) as f:
         for tt in range( len(sub_array) ):
             f['a'][tt,:] = sub_array[tt,:]
@@ -268,4 +273,5 @@ for kk in range(bN):
         for tt in range( len(sub_array) ):
             f['a'][tt,:] = sub_array[tt,:]
 
+'''
 print('done!')
