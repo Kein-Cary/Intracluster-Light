@@ -249,9 +249,9 @@ def main():
 
 			commd.Barrier()
 	"""
-	N_sum = np.array([3308, 3309, 3295, 3308, 3305])
-	#N_sum = np.array([2013, 2008, 2002, 2008, 2009]) ## sky-select sample
-	#N_sum = np.array([1291, 1286, 1283, 1294, 1287]) ## 0.8Mpc
+	#N_sum = np.array([3308, 3309, 3295, 3308, 3305])
+	#N_sum = np.array([2013, 2008, 2002, 2008, 2009]) ## sky-select sample(1Mpc)
+	N_sum = np.array([1291, 1286, 1283, 1294, 1287]) ## 0.8Mpc
 	#N_sum = np.array([876, 873, 872, 878, 877]) ## 0.65Mpc
 
 	## 2D image and Sb profile
@@ -266,9 +266,9 @@ def main():
 			Mu_e, R_e, n_e = mu_e[kk], r_e[kk], 4.
 			SB_Z05 = sers_pro(R_obs, Mu_e, R_e, n_e)
 
-			with h5py.File(load + 'sky/cluster/stack_Amask_%d_in_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
+			#with h5py.File(load + 'sky/cluster/stack_Amask_%d_in_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
 			#with h5py.File(load + 'sky_select_img/result/stack_cut_A_%d_in_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
-			#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/stack_cut_A_%d_in_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
+			with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/stack_cut_A_%d_in_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
 			#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/stack_cut_A_%d_in_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
 				stack_img = np.array(f['a'])
 			ss_img = stack_img[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
@@ -279,16 +279,16 @@ def main():
 			id_nan = np.isnan(SB)
 			SBt, Rt = SB[id_nan == False], Intns_r[id_nan == False]
 
-			set_info = pds.read_csv(load + 'sky/cluster/%s_band_%d_sample_info.csv' % (band[kk], N_sum[kk]) )
+			#set_info = pds.read_csv(load + 'sky/cluster/%s_band_%d_sample_info.csv' % (band[kk], N_sum[kk]) )
 			#set_info = pds.read_csv(load + 'sky_select_img/result/%s_band_%d_sample_info.csv' % (band[kk], N_sum[kk]) )
-			#set_info = pds.read_csv(load + 'sky_select_img/test_set/0.8Mpc/%s_band_%d_sample_info.csv' % (band[kk], N_sum[kk]) )
-			#set_info = pds.read_csv(load + 'sky_select_img/test_set/0.65Mpc/%s_band_%d_sample_info.csv' % (band[kk], N_sum[kk]) )
+			set_info = pds.read_csv(load + 'sky_select_img/test_set/0.8Mpc/%s_band_%d_sample_info.csv' % (band[kk], N_sum[kk]) )
+			#set_info = pds.read_csv(load + 'sky_semeanlect_img/test_set/0.65Mpc/%s_band_%d_sample_info.csv' % (band[kk], N_sum[kk]) )
 			set_Mag = set_info['r_Mag']
 
 			#### add-back the over sky component (BCG case - shuffle case)
-			with h5py.File(load + 'sky/cluster/sky_minus_media_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
+			#with h5py.File(load + 'sky/cluster/sky_minus_media_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
 			#with h5py.File(load + 'sky_select_img/result/sky_minus_media_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
-			#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/sky_minus_media_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
+			with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/sky_minus_media_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
 			#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/sky_minus_media_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
 				BCG_add = np.array(f['a'])
 			#############
@@ -297,12 +297,16 @@ def main():
 			#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/mean_sky_shuffle_media_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
 			#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/mean_sky_shuffle_media_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
 
-			with h5py.File(load + 'sky/cluster/mean_sky_random_media_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
+			#with h5py.File(load + 'sky/cluster/mean_sky_random_media_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
 			#with h5py.File(load + 'sky_select_img/result/mean_sky_random_media_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
-			#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/mean_sky_random_media_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
+			with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/mean_sky_random_media_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
 			#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/mean_sky_random_media_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'r') as f:
 				shlf_add = np.array(f['a'])
 			resi_add = BCG_add - shlf_add
+
+			### save the difference image (make sure the size is the same)
+			with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/sky_difference_img_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
+				f['a'] = np.array(resi_add)
 
 			add_img = ss_img + resi_add[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
 			Intns, Intns_r, Intns_err, Npix = light_measure(add_img, bins, R_smal, R_max, R_cut, R_cut, pixel, z_ref)
@@ -335,9 +339,9 @@ def main():
 
 			## save the correction image
 			correct_img = stack_img + resi_add - Resi_bl
-			with h5py.File(load + 'sky/cluster/random_correct_cut_A_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
+			#with h5py.File(load + 'sky/cluster/random_correct_cut_A_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
 			#with h5py.File(load + 'sky_select_img/result/random_correct_cut_A_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
-			#with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/random_correct_cut_A_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
+			with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/random_correct_cut_A_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
 			#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/random_correct_cut_A_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
 				f['a'] = np.array(correct_img)
 
@@ -367,13 +371,13 @@ def main():
 			ax.tick_params(axis = 'both', which = 'both', direction = 'in')
 
 			#plt.savefig(load + 'sky/cluster/SB_%d_add_sub_median_pros_%s_band.png' %(N_sum[kk], band[kk]), dpi = 300)
-			plt.savefig(load + 'sky/cluster/SB_%d_add_sub_median_pros_%s_band_random.png' %(N_sum[kk], band[kk]), dpi = 300)
+			#plt.savefig(load + 'sky/cluster/SB_%d_add_sub_median_pros_%s_band_random.png' %(N_sum[kk], band[kk]), dpi = 300)
 
 			#plt.savefig(load + 'sky_select_img/result/cutA_%d_imgs_SB_pro_%s_band_add_sub_media.png' %(N_sum[kk], band[kk]), dpi = 300)
 			#plt.savefig(load + 'sky_select_img/result/cutA_%d_imgs_SB_pro_%s_band_add_sub_media_random.png' %(N_sum[kk], band[kk]), dpi = 300)
 
 			#plt.savefig(load + 'sky_select_img/test_set/0.8Mpc/cutA_%d_imgs_SB_pro_%s_band_add_sub_media.png' %(N_sum[kk], band[kk]), dpi = 300)
-			#plt.savefig(load + 'sky_select_img/test_set/0.8Mpc/cutA_%d_imgs_SB_pro_%s_band_add_sub_media_random.png' %(N_sum[kk], band[kk]), dpi = 300)
+			plt.savefig(load + 'sky_select_img/test_set/0.8Mpc/cutA_%d_imgs_SB_pro_%s_band_add_sub_media_random.png' %(N_sum[kk], band[kk]), dpi = 300)
 
 			#plt.savefig(load + 'sky_select_img/test_set/0.65Mpc/cutA_%d_imgs_SB_pro_%s_band_add_sub_media.png' %(N_sum[kk], band[kk]), dpi = 300)
 			#plt.savefig(load + 'sky_select_img/test_set/0.65Mpc/cutA_%d_imgs_SB_pro_%s_band_add_sub_media_random.png' %(N_sum[kk], band[kk]), dpi = 300)
@@ -417,13 +421,13 @@ def main():
 			plt.subplots_adjust(bottom = 0.1, right = 0.9, top = 0.9)
 
 			#plt.savefig(load + 'sky/cluster/Amask_stack_%d_imgs_%s_band.png' % (N_sum[kk], band[kk]), dpi = 300)
-			plt.savefig(load + 'sky/cluster/Amask_stack_%d_imgs_%s_band_random.png' % (N_sum[kk], band[kk]), dpi = 300)
+			#plt.savefig(load + 'sky/cluster/Amask_stack_%d_imgs_%s_band_random.png' % (N_sum[kk], band[kk]), dpi = 300)
 
 			#plt.savefig(load + 'sky_select_img/result/cutA_stack_%d_imgs_%s_band.png' % (N_sum[kk], band[kk]), dpi = 300)
 			#plt.savefig(load + 'sky_select_img/result/cutA_stack_%d_imgs_%s_band_random.png' % (N_sum[kk], band[kk]), dpi = 300)
 
 			#plt.savefig(load + 'sky_select_img/test_set/0.8Mpc/cutA_stack_%d_imgs_%s_band.png' % (N_sum[kk], band[kk]), dpi = 300)
-			#plt.savefig(load + 'sky_select_img/test_set/0.8Mpc/cutA_stack_%d_imgs_%s_band_random.png' % (N_sum[kk], band[kk]), dpi = 300)
+			plt.savefig(load + 'sky_select_img/test_set/0.8Mpc/cutA_stack_%d_imgs_%s_band_random.png' % (N_sum[kk], band[kk]), dpi = 300)
 
 			#plt.savefig(load + 'sky_select_img/test_set/0.65Mpc/cutA_stack_%d_imgs_%s_band.png' % (N_sum[kk], band[kk]), dpi = 300)
 			#plt.savefig(load + 'sky_select_img/test_set/0.65Mpc/cutA_stack_%d_imgs_%s_band_random.png' % (N_sum[kk], band[kk]), dpi = 300)

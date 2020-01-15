@@ -53,6 +53,7 @@ Rpp = Angu_ref / pixel
 dfile_i = '/home/xkchen/jupyter/random_correct_cut_A_1283_imgs_i_band.h5'
 dfile_r = '/home/xkchen/jupyter/random_correct_cut_A_1291_imgs_r_band.h5'
 dfile_g = '/home/xkchen/jupyter/random_correct_cut_A_1286_imgs_g_band.h5'
+dfile_test = '/home/xkchen/jupyter/stack_1000_img.h5'
 
 with h5py.File(dfile_i, 'r') as f:
 	img_i = np.array(f['a'])
@@ -62,6 +63,9 @@ with h5py.File(dfile_r, 'r') as f:
 
 with h5py.File(dfile_g, 'r') as f:
 	img_g = np.array(f['a'])
+
+with h5py.File(dfile_test, 'r') as f:
+	img_test = np.array(f['a'])
 
 x0, y0 = 2427, 1765
 Nx = np.linspace(0, 4854, 4855)
@@ -76,6 +80,7 @@ SB2flux = 10**( (22.5 - SB_lel + 2.5 * np.log10(pixel**2)) / 2.5)
 cen_img = img_i[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
 #cen_img = img_r[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
 #cen_img = img_g[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
+#cen_img = img_test[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
 
 dnoise = 20
 kernl_img = ndimage.gaussian_filter(cen_img, sigma = dnoise,  mode = 'nearest')
@@ -85,7 +90,8 @@ plt.figure()
 ax = plt.subplot(111)
 ax.set_title('i band stack img [1283 imgs]')
 #ax.set_title('r band stack img [1291 imgs]')
-#ax.set_title('r band stack img [1286 imgs]')
+#ax.set_title('g band stack img [1286 imgs]')
+#ax.set_title('stack r band mock img [1000 imgs]')
 
 # i band case
 Clus0 = Circle(xy = (R_cut, R_cut), radius = Rpp, fill = False, ec = 'k', ls = '-', label = '1Mpc')
@@ -99,8 +105,8 @@ Clus0 = Circle(xy = (R_cut, R_cut), radius = Rpp, fill = False, ec = 'k', ls = '
 Clus2 = Circle(xy = (R_cut, R_cut), radius = 0.5 * Rpp, fill = False, ec = 'k', ls = '-.', label = '0.5Mpc')
 #Clus3 = Circle(xy = (R_cut, R_cut), radius = 0.15 * Rpp, fill = False, ec = 'k', ls = '--',)
 '''
-tf = ax.contour(SB_img, origin = 'lower', cmap = 'rainbow', levels = SB_lel,)
-plt.clabel(tf, fontsize = 6.5, colors = 'k', fmt = '%.0f')
+tf = ax.contour(SB_img, origin = 'lower', cmap = 'rainbow', levels = SB_lel, )
+plt.clabel(tf, inline = False, fontsize = 6.5, colors = 'k', fmt = '%.0f')
 
 # i band case
 ax.add_patch(Clus0)
@@ -123,4 +129,5 @@ ax.legend(loc = 2)
 plt.savefig('i_band_stack_img_contour.png', dpi = 300)
 #plt.savefig('r_band_stack_img_contour.png', dpi = 300)
 #plt.savefig('g_band_stack_img_contour.png', dpi = 300)
+#plt.savefig('r_band_stack_mock_img_contour.png', dpi = 300)
 plt.show()

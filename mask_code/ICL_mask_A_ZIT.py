@@ -121,7 +121,7 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 		cy = np.array(source['Y_IMAGE']) - 1
 		p_type = np.array(source['CLASS_STAR'])
 		#Kron = source['KRON_RADIUS']
-		Kron = 6 * 3
+		Kron = 6 * 2.8 ## mask with the test result
 		a = Kron * A
 		b = Kron * B
 
@@ -132,7 +132,7 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 		set_mag = np.array(cat['r'])
 		OBJ = np.array(cat['type'])
 		xt = cat['Column1']
-		tau = 10 * 3 # the mask size set as 10 * FWHM from dr12
+		tau = 10 * 2.8 # the mask size set as 10 * FWHM from dr12
 
 		set_A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
 		set_B = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel

@@ -191,12 +191,12 @@ def sky_stack(band_id, sub_z, sub_ra, sub_dec, cen_dx):
 	count_cen = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
 	p_count_cen = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
+	## f^2 image and save the random position for each image
+	f2_sum = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+
 	## subtracted array
 	bcg_mean = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 	bcg_media = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-	## f^2 image and save the random position for each image
-	sqare_f0 = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-	sqare_f1 = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
 	cen_mean = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 	cen_media = np.zeros((len(Ny), len(Nx)), dtype = np.float)
@@ -243,6 +243,7 @@ def sky_stack(band_id, sub_z, sub_ra, sub_dec, cen_dx):
 		img_add_1 = img - np.nanmedian(img)
 
 		sum_array[la0: la1, lb0: lb1][idv] = sum_array[la0:la1, lb0:lb1][idv] + img[idv]
+		f2_sum[la0: la1, lb0: lb1][idv] = f2_sum[la0: la1, lb0: lb1][idv] + img[idv]**2
 		count_array[la0: la1, lb0: lb1][idv] = img[idv]
 		id_nan = np.isnan(count_array)
 		id_fals = np.where(id_nan == False)
@@ -252,8 +253,7 @@ def sky_stack(band_id, sub_z, sub_ra, sub_dec, cen_dx):
 
 		bcg_mean[la0: la1, lb0: lb1][idv] = bcg_mean[la0: la1, lb0: lb1][idv] + img_add_0[idv]
 		bcg_media[la0: la1, lb0: lb1][idv] = bcg_media[la0: la1, lb0: lb1][idv] + img_add_1[idv]
-		sqare_f0[la0: la1, lb0: lb1][idv] = sqare_f0[la0: la1, lb0: lb1][idv] + img_add_0[idv]**2
-		sqare_f1[la0: la1, lb0: lb1][idv] = sqare_f1[la0: la1, lb0: lb1][idv] + img_add_1[idv]**2
+
 		#sky_lel[jj] = 22.5 - 2.5 * np.log10( np.nanmean(img) ) + 2.5 * np.log10(pixel**2)
 
 		if open_id == 1:
@@ -476,19 +476,19 @@ def main():
 				id_inf = np.isinf(stack_m_media)
 				stack_m_media[id_inf] = np.nan
 
-				with h5py.File(load + 'sky/sky_stack_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky/cluster/sky_stack_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
 				#with h5py.File(load + 'sky_select_img/result/sky_stack_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
-				#with h5py.File(load + 'sky_select_img/test_set/sky_stack_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/sky_stack_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
 					f['a'] = np.array(stack_img)
 
-				with h5py.File(load + 'sky/sky_minus_media_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky/cluster/sky_minus_media_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
 				#with h5py.File(load + 'sky_select_img/result/sky_minus_media_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
-				#with h5py.File(load + 'sky_select_img/test_set/sky_minus_media_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/sky_minus_media_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
 					f['a'] = np.array(stack_m_media)
 
-				with h5py.File(load + 'sky/sky_minus_mean_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky/cluster/sky_minus_mean_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
 				#with h5py.File(load + 'sky_select_img/result/sky_minus_mean_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
-				#with h5py.File(load + 'sky_select_img/test_set/sky_minus_mean_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/sky_minus_mean_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
 					f['a'] = np.array(stack_m_mean)
 
 				## save the square flux and sky SB
@@ -498,9 +498,9 @@ def main():
 				E_f2[id_inf] = np.nan
 				Var_f = E_f2 - stack_img**2
 
-				with h5py.File(load + 'sky/sky_Var_%d_in_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				#with h5py.File(load + 'sky/cluster/sky_Var_%d_in_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
 				#with h5py.File(load + 'sky_select_img/result/sky_Var_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
-				#with h5py.File(load + 'sky_select_img/test_set/sky_Var_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/sky_Var_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
 					f['a'] = np.array(Var_f)
 				'''
 				sky_light = sky_light[1:]

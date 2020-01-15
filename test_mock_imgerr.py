@@ -107,8 +107,8 @@ def pro_err():
 	#bins = np.arange(35, 75, 5)
 	#pn = 1.
 
-	bins = 65
-	pn = np.arange(1, 10, 1)
+	bins = 70
+	pn = np.arange(1, 11, 2)
 	#pn = np.arange(0.2, 1.2, 0.2)
 
 	plt.figure()
@@ -133,14 +133,9 @@ def pro_err():
 
 		#ax.plot(Intns_r, eta, linestyle = '-', color = mpl.cm.rainbow(aa / len(bins) ), label = 'bins %d' % bins[aa], alpha = 0.5)
 		ax.plot(Intns_r, eta, linestyle = '-', color = mpl.cm.rainbow(aa / len(pn) ), label = 'pn = %.1f' % pn[aa], alpha = 0.5)
-		'''
-		va = np.nanmean(eta)
-		la0 = va + np.nanstd(eta)
-		la1 = va - np.nanstd(eta)
-		ax.fill_between(Intns_r, y1 = la0, y2 = la1, color = mpl.cm.rainbow(aa / len(pn) ), alpha = 0.35)
-		'''
+
 	ax.axhline(y = 1., linestyle = ':', color = 'k',)
-	ax.set_ylim(0.5, 2)
+	ax.set_ylim(0.5, 1.5)
 	ax.set_xscale('log')
 	ax.set_xlabel('R[kpc]')
 	ax.legend(loc = 1, fontsize = 7.5)

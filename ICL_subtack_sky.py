@@ -162,7 +162,7 @@ def sky_subtract(band_id, z_set, ra_set, dec_set):
 		hdu.data = sub_img
 		hdu.header = data[0].header
 		hdu.writeto('/mnt/ddnfs/data_users/cxkttwl/ICL/data/' + 
-		'/sky_sub_img/Revis-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk]), overwrite = True)
+			'sky_sub_img/Revis-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk]), overwrite = True)
 
 		sky_light[jj] = 22.5 - 2.5*np.log10(Back_lel) + 2.5 * np.log10(pixel**2)
 	## save the sky SB
