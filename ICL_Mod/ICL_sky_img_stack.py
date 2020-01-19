@@ -177,14 +177,19 @@ def main():
 		with h5py.File(load + 'mpi_h5/%s_band_sample_catalog.h5' % band[kk], 'r') as f:
 			cat = np.array(f['a'])
 		ra, dec, z = cat[0,:], cat[1,:], cat[2,:]
-
 		zN = len(z)
-		m, n = divmod(zN, cpus)
+
+		Ns = 100
+		np.random.seed(1)
+		tt0 = np.random.choice(zN, size = Ns, replace = False)
+		set_z, set_ra, set_dec = z[tt0], ra[tt0], dec[tt0]
+
+		m, n = divmod(Ns, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
 		if rank == cpus - 1:
 			N_sub1 += n
 
-		sky_stack_BCG(kk, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
+		sky_stack_BCG(kk, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1], cor_id)
 		commd.Barrier()
 
 	## combine all of the sub-stack imgs
@@ -237,7 +242,7 @@ def main():
 			E_f2 = sqr_f / bcg_count
 			id_inf = np.isinf(E_f2)
 			E_f2[id_inf] = np.nan
-			Var_f = E_f2 - stack_img**2
+			Var_f = E_f2 - stack_img**2  ## Variance img
 
 			if cor_id == 0:
 				with h5py.File(tmp + 'test/stack_sky_mean_Var_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
@@ -248,19 +253,24 @@ def main():
 	commd.Barrier()
 
 	##### for random case
-	d_record = 0 ## 1, 2, 3, 4, 5
+	d_record = 1 ## 1, 2, 3, 4, 5
 	#for kk in range(len(band)):
 	for kk in range( 3 ):
 		with h5py.File(load + 'mpi_h5/%s_band_sample_catalog.h5' % band[kk], 'r') as f:
 			cat = np.array(f['a'])
 		ra, dec, z = cat[0,:], cat[1,:], cat[2,:]
-
 		zN = len(z)
-		m, n = divmod(zN, cpus)
+
+		Ns = 100
+		np.random.seed(1)
+		tt0 = np.random.choice(zN, size = Ns, replace = False)
+		set_z, set_ra, set_dec = z[tt0], ra[tt0], dec[tt0]
+
+		m, n = divmod(Ns, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
 		if rank == cpus - 1:
 			N_sub1 += n
-		sky_stack_rndm(kk, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
+		sky_stack_rndm(kk, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1], cor_id)
 		commd.Barrier()
 
 	if rank == 0:
@@ -308,7 +318,7 @@ def main():
 			mean_E_f2 = rand_sqare / rand_cnt
 			id_inf = np.isinf(mean_E_f2)
 			mean_E_f2[id_inf] = np.nan
-			rand_Var = mean_E_f2 - random_stack**2
+			rand_Var = mean_E_f2 - random_stack**2 ## Variance img
 
 			if cor_id == 0:
 				with h5py.File(tmp + 'test/%d_sky_rndm_mean_%d_imgs_%s_band.h5' % (d_record, tt_N, band[kk]), 'w') as f:
@@ -326,6 +336,51 @@ def main():
 			rand_pos = np.array([rand_px, rand_py])
 			with h5py.File(tmp + 'test/%d_sky_random-pos_%d_imgs_%s_band.h5' % (d_record, tt_N, band[kk]), 'w') as f:
 				f['a'] = np.array(rand_pos)
+
+	commd.Barrier()
+	N_sum = 100
+	## calculate the image average for random case
+	if rank == 0:
+		for kk in range(3):
+
+			m_rndm_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+			m_rndm_var = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+			rndm_cnt = np.zeros((len(Ny), len(Nx)), dtype = np.float)
+
+			for id_rec in range(1, 6):
+
+				if cor_id == 0:
+					with h5py.File(tmp + 'test/%d_sky_rndm_mean_%d_imgs_%s_band.h5' % (id_rec, N_sum, band[kk]), 'r') as f:
+						sub_img = np.array(f['a'])
+					with h5py.File(tmp + 'test/%d_sky_rndm_mean_Var_%d_imgs_%s_band.h5' % (id_rec, N_sum, band[kk]), 'r') as f:
+						sub_Var = np.array(f['a'])
+
+				if cor_id == 1:
+					with h5py.File(tmp + 'test/%d_sky_rndm_median_%d_imgs_%s_band.h5' % (id_rec, N_sum, band[kk]), 'r') as f:
+						sub_img = np.array(f['a'])
+					with h5py.File(tmp + 'test/%d_sky_rndm_median_Var_%d_imgs_%s_band.h5' % (id_rec, N_sum, band[kk]), 'r') as f:
+						sub_Var = np.array(f['a'])
+
+				id_nan = np.isnan(sub_img)
+				id_fals = id_nan == False
+				m_rndm_img[id_fals] = m_rndm_img[id_fals] + sub_img[id_fals]
+				m_rndm_var[id_fals] = m_rndm_var[id_fals] + sub_Var[id_fals]
+				rndm_cnt[id_fals] = rndm_cnt[id_fals] + 1.
+
+			m_rndm_img = m_rndm_img / rndm_cnt
+			m_rndm_var = m_rndm_var / rndm_cnt
+
+			if cor_id == 0:
+				with h5py.File(tmp + 'test/M_sky_rndm_mean_%d_imgs_%s_band.h5' % (N_sum, band[kk]), 'w') as f:
+					f['a'] = np.array(m_rndm_img)
+				with h5py.File(tmp + 'test/M_sky_rndm_mean_Var_%d_imgs_%s_band.h5' % (N_sum, band[kk]), 'w') as f:
+					f['a'] = np.array(m_rndm_var)
+
+			if cor_id == 1:
+				with h5py.File(tmp + 'test/M_sky_rndm_median_%d_imgs_%s_band.h5' % (N_sum, band[kk]), 'w') as f:
+					f['a'] = np.array(m_rndm_img)
+				with h5py.File(tmp + 'test/M_sky_rndm_median_Var_%d_imgs_%s_band.h5' % (N_sum, band[kk]), 'w') as f:
+					f['a'] = np.array(m_rndm_var)
 
 	commd.Barrier()
 

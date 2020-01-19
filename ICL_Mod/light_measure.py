@@ -255,7 +255,7 @@ def angu_area(s0, z0, zref):
 
 def main():
 
-	#light_measure()
+	S_a = angu_area(0.4**2, 0.2, 0.25)
 
 if __name__ == '__main__':
 	main()

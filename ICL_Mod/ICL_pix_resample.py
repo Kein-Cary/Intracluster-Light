@@ -94,20 +94,27 @@ def pix_resample(band_id, sub_z, sub_ra, sub_dec):
 
 def main():
 
-	#for kk in range(len(band)):
 	for kk in range( 3 ):
+	#for kk in range(len(band)):
 		with h5py.File(load + 'mpi_h5/%s_band_sample_catalog.h5' % band[kk], 'r') as f:
 			cat = np.array(f['a'])
 		ra, dec, z = cat[0,:], cat[1,:], cat[2,:]
-
 		zN = len(z)
-		m, n = divmod(zN, cpus)
+
+		Ns = 100
+		np.random.seed(1)
+		tt0 = np.random.choice(zN, size = Ns, replace = False)
+		set_z, set_ra, set_dec = z[tt0], ra[tt0], dec[tt0]
+
+		m, n = divmod(Ns, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
 		if rank == cpus - 1:
 			N_sub1 += n
 
 		pix_resample(kk, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
 		commd.Barrier()
+
+	print('Done!')
 
 if __name__ == "__main__":
 	main()

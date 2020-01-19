@@ -80,9 +80,14 @@ def main():
 		with h5py.File(load + 'mpi_h5/%s_band_sample_catalog.h5' % band[kk], 'r') as f:
 			cat = np.array(f['a'])
 		ra, dec, z = cat[0,:], cat[1,:], cat[2,:]
-
 		zN = len(z)
-		m, n = divmod(zN, cpus)
+
+		Ns = 100
+		np.random.seed(1)
+		tt0 = np.random.choice(zN, size = Ns, replace = False)
+		set_z, set_ra, set_dec = z[tt0], ra[tt0], dec[tt0]
+
+		m, n = divmod(Ns, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
 		if rank == cpus - 1:
 			N_sub1 += n
@@ -133,7 +138,7 @@ def main():
 			E_f2 = sqare_f / p_add_count
 			id_inf = np.isinf(E_f2)
 			E_f2[id_inf] = np.nan
-			Var_f = E_f2 - stack_img**2
+			Var_f = E_f2 - stack_img**2  ## Variance img
 			with h5py.File(tmp + 'test/stack_maskA_pix_Var_%d_in_%s_band.h5' % (tot_N, band[kk]), 'w') as f:
 				f['a'] = np.array(Var_f)
 
