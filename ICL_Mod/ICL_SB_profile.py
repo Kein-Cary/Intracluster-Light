@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 
 import h5py
 import numpy as np
+import pandas as pds
 import astropy.io.fits as fits
 import astropy.units as U
 import astropy.constants as C
@@ -40,6 +41,10 @@ def sers_pro(r, mu_e, r_e, n):
 	return mu_r
 
 def main():
+	## sersic pro of Zibetti 05
+	mu_e = np.array([23.87, 25.22, 23.4])
+	r_e = np.array([19.29, 19.40, 20])
+
 	x0, y0 = 2427, 1765  ## center of stack image
 	R_cut, bins = 1280, 80
 	R_smal, R_max = 1, 1.7e3 # kpc
@@ -76,15 +81,6 @@ def main():
 
 		resi_add = BCG_add - shlf_add
 
-		### save the difference image (make sure the size is the same)
-		with h5py.File(tmp + 'test/sky_difference_img_%d_imgs_%s_band.h5' % (N_sum, band[kk]), 'w') as f:
-			f['a'] = np.array(resi_add)
-
-		### save the corrected image
-		correct_img = stack_img + resi_add - Resi_bl
-		with h5py.File(tmp + 'test/Correct_stack_maskA_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
-			f['a'] = np.array(correct_img)
-
 		add_img = ss_img + resi_add[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
 		Intns, Intns_r, Intns_err, Npix = light_measure(add_img, bins, R_smal, R_max, R_cut, R_cut, pixel, z_ref)
 		SB_add = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[kk]
@@ -96,8 +92,16 @@ def main():
 		grd_y = np.linspace(0, BL_img.shape[0] - 1, BL_img.shape[0])
 		grd = np.array( np.meshgrid(grd_x, grd_y) )
 		ddr = np.sqrt( (grd[0,:] - cen_pos)**2 + (grd[1,:] - cen_pos)**2 )
-		idu = (ddr > r_a0 * Rpp) & (ddr < r_a1 * Rpp)
+		idu = (ddr > r_a0 * Rp_ref) & (ddr < r_a1 * Rp_ref)
 		Resi_bl = np.nanmean( BL_img[idu] )
+
+		### save the difference image (make sure the size is the same)
+		with h5py.File(tmp + 'test/sky_difference_img_%d_imgs_%s_band.h5' % (N_sum, band[kk]), 'w') as f:
+			f['a'] = np.array(resi_add)
+		### save the corrected image
+		correct_img = stack_img + resi_add - Resi_bl
+		with h5py.File(tmp + 'test/Correct_stack_maskA_%d_imgs_%s_band.h5' % (N_sum, band[kk]), 'w') as f:
+			f['a'] = np.array(correct_img)
 
 		# minus the RBL
 		sub_SB = 22.5 - 2.5 * np.log10(Intns - Resi_bl) + 2.5 * np.log10(pixel**2) + mag_add[kk]

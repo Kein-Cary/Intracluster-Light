@@ -5,11 +5,17 @@ import matplotlib.pyplot as plt
 import h5py
 import numpy as np
 import astropy.io.fits as fits
+from astropy import cosmology as apcy
 
 from mpi4py import MPI
 commd = MPI.COMM_WORLD
 rank = commd.Get_rank()
 cpus = commd.Get_size()
+
+# cosmology model
+Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
+H0 = Test_model.H0.value
+h = H0 / 100
 
 band = ['r', 'g', 'i', 'u', 'z']
 l_wave = np.array([6166, 4686, 7480, 3551, 8932])
@@ -40,7 +46,7 @@ def img_stack(band_id, sub_z, sub_ra, sub_dec):
 		z_g = sub_z[jj]
 		Da_g = Test_model.angular_diameter_distance(z_g).value
 
-		data_A = fits.getdata(tmp + 'test/resam-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g) header = True)
+		data_A = fits.getdata(tmp + 'test/resam-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
 
 		img_A = data_A[0]
 		xn = data_A[1]['CENTER_X']
@@ -75,6 +81,10 @@ def img_stack(band_id, sub_z, sub_ra, sub_dec):
 
 def main():
 	### sub-stack mask A
+	x0, y0 = 2427, 1765
+	Nx = np.linspace(0, 4854, 4855)
+	Ny = np.linspace(0, 3530, 3531)
+
 	#for kk in range(len(band)):
 	for kk in range( 3 ):
 		with h5py.File(load + 'mpi_h5/%s_band_sample_catalog.h5' % band[kk], 'r') as f:

@@ -113,7 +113,7 @@ def sky_stack_rndm(band_id, sub_z, sub_ra, sub_dec, cor_id):
 		z_g = sub_z[jj]
 
 		## scaled
-		data = fits.open( tmp + 'test/resam-sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g) )
+		data = fits.open( tmp + 'test/resam-sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
 		img = data[0].data
 		cx, cy = data[0].header['CENTER_X'], data[0].header['CENTER_Y']
 		## rule out the edge pixels
@@ -169,8 +169,12 @@ def sky_stack_rndm(band_id, sub_z, sub_ra, sub_dec, cor_id):
 	return
 
 def main():
+	x0, y0 = 2427, 1765
+	Nx = np.linspace(0, 4854, 4855)
+	Ny = np.linspace(0, 3530, 3531)
 
 	cor_id = 0 # 1. (see description at the beginning)
+	"""
 	### sub-stack
 	#for kk in range(len(band)):
 	for kk in range( 3 ):
@@ -204,12 +208,12 @@ def main():
 
 			for pp in range(cpus):
 
-				with h5py.File(tmp + 'sky_sum_pcount_%d_in_%s_band.h5' % (pp, band[tt]), 'r')as f:
+				with h5py.File(tmp + 'sky_sum_pcount_%d_in_%s_band.h5' % (pp, band[kk]), 'r')as f:
 					p_count = np.array(f['a'])
-				with h5py.File(tmp + 'sky_sum_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
+				with h5py.File(tmp + 'sky_sum_%d_in_%s_band.h5' % (pp, band[kk]), 'r') as f:
 					sum_img = np.array(f['a'])
 
-				with h5py.File(tmp + 'sky_f2_%d_in_%s_band.h5' % (pp, band[tt]), 'r') as f:
+				with h5py.File(tmp + 'sky_f2_%d_in_%s_band.h5' % (pp, band[kk]), 'r') as f:
 					f2_sum = np.array(f['a'])
 
 				tt_N += p_count[0, 0]
@@ -231,10 +235,10 @@ def main():
 			stack_img[id_inf] = np.nan
 
 			if cor_id == 0:
-				with h5py.File(tmp + 'test/stack_sky_mean_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				with h5py.File(tmp + 'test/stack_sky_mean_%d_imgs_%s_band.h5' % (tt_N, band[kk]), 'w') as f:
 					f['a'] = np.array(stack_img)
 			if cor_id == 1:
-				with h5py.File(tmp + 'test/stack_sky_median_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				with h5py.File(tmp + 'test/stack_sky_median_%d_imgs_%s_band.h5' % (tt_N, band[kk]), 'w') as f:
 					f['a'] = np.array(stack_img)
 
 			## save the square flux and sky SB
@@ -245,15 +249,15 @@ def main():
 			Var_f = E_f2 - stack_img**2  ## Variance img
 
 			if cor_id == 0:
-				with h5py.File(tmp + 'test/stack_sky_mean_Var_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				with h5py.File(tmp + 'test/stack_sky_mean_Var_%d_imgs_%s_band.h5' % (tt_N, band[kk]), 'w') as f:
 					f['a'] = np.array(Var_f)
 			if cor_id == 1:
-				with h5py.File(tmp + 'test/stack_sky_median_Var_%d_imgs_%s_band.h5' % (tt_N, band[tt]), 'w') as f:
+				with h5py.File(tmp + 'test/stack_sky_median_Var_%d_imgs_%s_band.h5' % (tt_N, band[kk]), 'w') as f:
 					f['a'] = np.array(Var_f)
 	commd.Barrier()
 
 	##### for random case
-	d_record = 1 ## 1, 2, 3, 4, 5
+	d_record = 5 ## 1, 2, 3, 4, 5
 	#for kk in range(len(band)):
 	for kk in range( 3 ):
 		with h5py.File(load + 'mpi_h5/%s_band_sample_catalog.h5' % band[kk], 'r') as f:
@@ -338,6 +342,7 @@ def main():
 				f['a'] = np.array(rand_pos)
 
 	commd.Barrier()
+	"""
 	N_sum = 100
 	## calculate the image average for random case
 	if rank == 0:
