@@ -59,7 +59,6 @@ tmp = '/mnt/ddnfs/data_users/cxkttwl/PC/'
 home = '/mnt/ddnfs/data_users/cxkttwl/ICL/'
 
 band = ['r', 'g', 'i', 'u', 'z']
-bnd_indx = [2, 1, 3, 0, 4]
 mag_add = np.array([0, 0, 0, -0.04, 0.02])
 
 def sers_pro(r, mu_e, r_e, n):

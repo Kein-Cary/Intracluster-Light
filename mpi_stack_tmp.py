@@ -84,6 +84,7 @@ def stack_process(band_number, subz, subra, subdec, N_tt):
 	p_count_A = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 	f2_sum = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 	id_nm = 0.
+
 	for jj in range(stack_N):
 
 		ra_g = sub_ra[jj]
@@ -171,7 +172,7 @@ def main():
 		ra, dec, z, r_mag = sub_array[0,:], sub_array[1,:], sub_array[2,:], sub_array[3,:]
 		'''
 		## test for center closed BCG select
-		with h5py.File(load + 'sky_select_img/%s_band_sky_0.8Mpc_select.h5' % ( band[tt] ), 'r') as f:
+		with h5py.File(load + 'sky_select_img/%s_band_sky_0.80Mpc_select.h5' % ( band[tt] ), 'r') as f:
 			sub_array = np.array(f['a'])
 		ra, dec, z, r_mag = sub_array[0,:], sub_array[1,:], sub_array[2,:], sub_array[3,:]
 
@@ -282,7 +283,7 @@ def main():
 			#set_info = pds.read_csv(load + 'sky/cluster/%s_band_%d_sample_info.csv' % (band[kk], N_sum[kk]) )
 			#set_info = pds.read_csv(load + 'sky_select_img/result/%s_band_%d_sample_info.csv' % (band[kk], N_sum[kk]) )
 			set_info = pds.read_csv(load + 'sky_select_img/test_set/0.8Mpc/%s_band_%d_sample_info.csv' % (band[kk], N_sum[kk]) )
-			#set_info = pds.read_csv(load + 'sky_semeanlect_img/test_set/0.65Mpc/%s_band_%d_sample_info.csv' % (band[kk], N_sum[kk]) )
+			#set_info = pds.read_csv(load + 'sky_select_img/test_set/0.65Mpc/%s_band_%d_sample_info.csv' % (band[kk], N_sum[kk]) )
 			set_Mag = set_info['r_Mag']
 
 			#### add-back the over sky component (BCG case - shuffle case)
@@ -305,7 +306,10 @@ def main():
 			resi_add = BCG_add - shlf_add
 
 			### save the difference image (make sure the size is the same)
+			#with h5py.File(load + 'sky/cluster/sky_difference_img_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
+			#with h5py.File(load + 'sky_select_img/result/sky_difference_img_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
 			with h5py.File(load + 'sky_select_img/test_set/0.8Mpc/sky_difference_img_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
+			#with h5py.File(load + 'sky_select_img/test_set/0.65Mpc/sky_difference_img_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
 				f['a'] = np.array(resi_add)
 
 			add_img = ss_img + resi_add[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
@@ -337,7 +341,7 @@ def main():
 			idx_nan = np.isnan(dSB1)
 			cli_err1[idx_nan] = 100.
 
-			## save the correction image
+			### save the correction image
 			correct_img = stack_img + resi_add - Resi_bl
 			#with h5py.File(load + 'sky/cluster/random_correct_cut_A_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
 			#with h5py.File(load + 'sky_select_img/result/random_correct_cut_A_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:

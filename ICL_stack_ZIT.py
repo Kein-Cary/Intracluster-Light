@@ -146,9 +146,9 @@ def main():
 	#R_smal, R_max = 1, 10**3.02 # kpc
 	R_cut, bins = 1280, 80
 	R_smal, R_max = 1, 1.7e3 # kpc
-	'''
+
 	for tt in range(3):
-		with h5py.File(load + 'sky_select_img/%s_band_sky_0.8Mpc_select.h5' % band[tt], 'r') as f:
+		with h5py.File(load + 'sky_select_img/%s_band_sky_0.80Mpc_select.h5' % band[tt], 'r') as f:
 			set_array = np.array(f['a'])
 		set_ra, set_dec, set_z = set_array[0,:], set_array[1,:], set_array[2,:]
 		zN = len(set_z)
@@ -188,10 +188,10 @@ def main():
 			with h5py.File(load + 'Z05_record/select_set/stack_Amask_%d_in_%s_band.h5' % (tot_N, band[tt]), 'w') as f:
 				f['a'] = np.array(stack_img)
 	commd.Barrier()
-	'''
+
 	r_a0, r_a1 = 1.0, 1.1
 	N_sum = np.array([1291, 1286, 1283, 1294, 1287])
-	'''
+
 	if rank == 1:
 		for tt in range(3):
 			with h5py.File(load + 'Z05_record/select_set/stack_Amask_%d_in_%s_band.h5' % (N_sum[tt], band[tt]), 'r') as f:
@@ -211,7 +211,7 @@ def main():
 			plt.savefig(load + 'Z05_record/select_set/Z05_stack_%d_img_%s_band.png' % (N_sum[tt], band[tt]), dpi = 300)
 			plt.close()
 	commd.Barrier()
-	'''
+
 	if rank == 1:
 		for kk in range(3):
 

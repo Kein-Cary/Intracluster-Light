@@ -57,6 +57,9 @@ d_file = '/mnt/ddnfs/data_users/cxkttwl/ICL/wget_data/'
 load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 band = ['r', 'g', 'i', 'u', 'z']
 l_wave = np.array([6166, 4686, 7480, 3551, 8932])
+mag_add = np.array([0, 0, 0, -0.04, 0.02])
+zopt = np.array([22.5, 22.5, 22.5, 22.46, 22.52])
+sb_lim = np.array([24.5, 25, 24, 24.35, 22.9])
 Rv = 3.1
 sfd = SFDQuery()
 

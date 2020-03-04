@@ -97,11 +97,10 @@ def imgs_cut(band_id, sub_z, sub_ra, sub_dec):
 	return
 
 def main():
-	N_sum = np.array([2013, 2008, 2002, 2008, 2009]) ## center 1Mpc
 	### cut imgs edge
 	for kk in range(3):
 
-		with h5py.File(load + 'sky_select_img/%s_band_%d_imgs_sky_select.h5' % (band[kk], N_sum[kk]), 'r') as f:
+		with h5py.File(load + 'sky_select_img/%s_band_sky_1.00Mpc_select.h5' % band[kk], 'r') as f:
 			set_array = np.array(f['a'])
 		set_ra, set_dec, set_z = set_array[0,:], set_array[1,:], set_array[2,:]
 

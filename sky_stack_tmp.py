@@ -13,9 +13,7 @@ import astropy.units as U
 import astropy.constants as C
 
 from astropy import cosmology as apcy
-from scipy.ndimage import map_coordinates as mapcd
 from resample_modelu import sum_samp, down_samp
-from astropy.coordinates import SkyCoord
 from matplotlib.patches import Circle, Ellipse
 from light_measure import light_measure, light_measure_Z0
 
@@ -49,8 +47,6 @@ f0 = 3631 * Jy # zero point in unit (erg/s)/cm^-2
 load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 tmp = '/mnt/ddnfs/data_users/cxkttwl/PC/'
 band = ['r', 'g', 'i', 'u', 'z']
-sky_SB = [21.04, 22.01, 20.36, 22.30, 19.18] # ref_value from SDSS
-mag_add = np.array([0, 0, 0, -0.04, 0.02])
 
 def sky_oppose(band_id, sub_z, sub_ra, sub_dec):
 

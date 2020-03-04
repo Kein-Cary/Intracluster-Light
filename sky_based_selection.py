@@ -60,7 +60,7 @@ mag_add = np.array([0, 0, 0, -0.04, 0.02])
 Rv = 3.1
 sfd = SFDQuery()
 
-def selection(band_id, sub_z, sub_ra, sub_dec,  sub_rmag):
+def selection(band_id, sub_z, sub_ra, sub_dec, sub_rmag, sub_rich):
 
 	ii = np.int(band_id)
 	zn = len(sub_z)
@@ -69,7 +69,9 @@ def selection(band_id, sub_z, sub_ra, sub_dec,  sub_rmag):
 	dec_fit = np.zeros(zn, dtype = np.float)
 	z_fit = np.zeros(zn, dtype = np.float)
 	rmag_fit = np.zeros(zn, dtype = np.float)
+	rich_fit = np.zeros(zn, dtype = np.float)
 
+	cen_dst = 0.65 ## centric distance: 1 Mpc, 0.8Mpc, 0.65Mpc
 	for k in range(zn):
 		ra_g = sub_ra[k]
 		dec_g = sub_dec[k]
@@ -87,8 +89,8 @@ def selection(band_id, sub_z, sub_ra, sub_dec,  sub_rmag):
 		#x_side = np.array([cx - Rpp, cx + Rpp])
 		#y_side = np.array([cy - Rpp, cy + Rpp])
 
-		x_side = np.array([cx - 0.65 * Rpp, cx + 0.65 * Rpp]) ## more closer to center
-		y_side = np.array([cy - 0.65 * Rpp, cy + 0.65 * Rpp])
+		x_side = np.array([cx - cen_dst * Rpp, cx + cen_dst * Rpp]) ## more closer to center
+		y_side = np.array([cy - cen_dst * Rpp, cy + cen_dst * Rpp])
 
 		idx = (x_side[0] < xn) & (xn < x_side[1])
 		idy = (y_side[0] < yn) & (yn < y_side[1])
@@ -97,6 +99,7 @@ def selection(band_id, sub_z, sub_ra, sub_dec,  sub_rmag):
 		if idz == True:
 			ra_fit[k], dec_fit[k], z_fit[k] = ra_g, dec_g, z_g
 			rmag_fit[k] = sub_rmag[k]
+			rich_fit[k] = sub_rich[k]
 		else:
 			continue
 	id_zeros = ra_fit == 0
@@ -106,8 +109,9 @@ def selection(band_id, sub_z, sub_ra, sub_dec,  sub_rmag):
 	z_fit = z_fit[id_false]
 	rmag_fit = rmag_fit[id_false]
 	ra_fit = ra_fit[id_false]
+	rich_fit = rich_fit[id_false]
 
-	sel_arr = np.array([ra_fit, dec_fit, z_fit, rmag_fit])
+	sel_arr = np.array([ra_fit, dec_fit, z_fit, rmag_fit, rich_fit])
 
 	with h5py.File(tmp + 'sky_select_%d_%s_band.h5' % (rank, band[ii]), 'w') as f:
 		f['a'] = np.array(sel_arr)
@@ -200,7 +204,7 @@ def main():
 		if rank == cpus - 1:
 			N_sub1 += n
 
-		selection(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1], r_mag[N_sub0 :N_sub1])
+		selection(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1], r_mag[N_sub0 :N_sub1], rich[N_sub0 :N_sub1])
 		commd.Barrier()
 
 	if rank == 0:
@@ -210,6 +214,7 @@ def main():
 			set_dec = np.array([0.])
 			set_z = np.array([0.])
 			set_mag = np.array([0.])
+			set_rich = np.array([0.])
 			for pp in range(cpus):
 				with h5py.File(tmp + 'sky_select_%d_%s_band.h5' % (pp, band[tt]), 'r') as f:
 					sel_arr = np.array(f['a'])
@@ -217,19 +222,19 @@ def main():
 				set_dec = np.r_[ set_dec, sel_arr[1,:] ]
 				set_z = np.r_[ set_z, sel_arr[2,:] ]
 				set_mag = np.r_[ set_mag, sel_arr[3,:] ]
+				set_rich = np.r_[ set_rich, sel_arr[4,:] ]
 
 			set_ra = set_ra[1:]
 			set_dec = set_dec[1:]
 			set_z = set_z[1:]
 			set_mag = set_mag[1:]
+			set_rich = set_rich[1:]
 
 			n_sum = len(set_z)
-			set_array = np.array([set_ra, set_dec, set_z, set_mag])
-			#with h5py.File(load + 'sky_select_img/%s_band_%d_imgs_sky_select.h5' % (band[tt], n_sum), 'w') as f:
-			with h5py.File(load + 'sky_select_img/test_set/%s_band_sky_%.2fMpc_select.h5' % (band[tt], 0.65), 'w') as f: ## more close to center
+			set_array = np.array([set_ra, set_dec, set_z, set_mag, set_rich])
+			with h5py.File(load + 'sky_select_img/%s_band_sky_%.2fMpc_select.h5' % (band[tt], 0.65), 'w') as f: ## more close to center
 				f['a'] = np.array(set_array)
-			#with h5py.File(load + 'sky_select_img/%s_band_%d_imgs_sky_select.h5' % (band[tt], n_sum) ) as f:
-			with h5py.File(load + 'sky_select_img/test_set/%s_band_sky_%.2fMpc_select.h5' % (band[tt], 0.65) ) as f: ## more close to center
+			with h5py.File(load + 'sky_select_img/%s_band_sky_%.2fMpc_select.h5' % (band[tt], 0.65) ) as f: ## more close to center
 				for ll in range( len(set_array) ):
 					f['a'][ll,:] = set_array[ll,:]
 

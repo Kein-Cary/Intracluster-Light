@@ -150,7 +150,7 @@ def resamp_sky(band_id, sub_z, sub_ra, sub_dec):
 		L_ref = Da_ref * pixel / rad2asec
 		L_z0 = Da_g * pixel / rad2asec
 		b = L_ref / L_z0
-		Rref = (rad2asec / Da_ref) / pixel
+
 		ix0 = np.int(cx0 / b)
 		iy0 = np.int(cy0 / b)
 
