@@ -2,6 +2,7 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 
+import h5py
 import numpy as np
 import astropy.constants as C
 import astropy.units as U
@@ -43,30 +44,52 @@ def main():
 	F_lamda, G_z = 1.12, 0.18
 	V_num = 200
 
-	## case 1:
-	z = np.linspace(0.2, 0.3, 6)
-	lamda = 32
-	R = rich2R(z, lamda, M0, lamd0, z0, F_lamda, G_z, V_num)
+	## view the R200 of samples
+	load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
+	band = ['r', 'g', 'i', 'u', 'z']
+	rich_a0, rich_a1, rich_a2 = 20, 30, 50
 
-	plt.figure()
-	ax = plt.subplot(111)
-	ax.plot(z, R)
-	ax.set_xlabel('z')
-	ax.set_ylabel('$ R_{200}[kpc] $')
-	plt.savefig('R200_z.png', dpi = 300)
-	plt.close()
+	for kk in range(3):
+		## R200 calculate
+		with h5py.File(load + 'sky_select_img/%s_band_sky_0.80Mpc_select.h5' % band[kk], 'r') as f:
+			set_array = np.array(f['a'])
+		set_z, set_rich = set_array[2,:], set_array[4,:]
+		R_vir = rich2R(set_z, set_rich, M0, lamd0, z0, F_lamda, G_z, V_num)
 
-	z = 0.3
-	lamda = np.linspace(20, 50, 6)
-	R = rich2R(z, lamda, M0, lamd0, z0, F_lamda, G_z, V_num)
+		plt.figure()
+		ax = plt.subplot(111)
+		ax.set_title('%s band R200 PDF' % band[kk] )
 
-	plt.figure()
-	ax = plt.subplot(111)
-	ax.plot(lamda, R)
-	ax.set_xlabel('$ \\lambda $')
-	ax.set_ylabel('$ R_{200}[kpc] $')
-	plt.savefig('R200_lambda.png', dpi = 300)
-	plt.close()	
+		for lk in range(3):
+			if lk == 0:
+				idx = (set_rich >= rich_a0) & (set_rich <= rich_a1)
+				sub_r200 = R_vir[idx]
+				ax.hist(sub_r200, bins = 20, histtype = 'step', color = 'r', density = True, 
+					label = '$ 20 \\leqslant \\lambda \\leqslant 30 $')
+				ax.axvline(x = np.nanmean(sub_r200), linestyle = '--', color = 'r', label = 'mean')
+				ax.axvline(x = np.nanmedian(sub_r200), linestyle = ':', color = 'r', label = 'median')
+			elif lk == 1:
+				idx = (set_rich >= rich_a1) & (set_rich <= rich_a2)
+				sub_r200 = R_vir[idx]
+				ax.hist(sub_r200, bins = 20, histtype = 'step', color = 'g', density = True, 
+					label = '$ 30 \\leqslant \\lambda \\leqslant 50 $')
+				ax.axvline(x = np.nanmean(sub_r200), linestyle = '--', color = 'g', label = 'mean')
+				ax.axvline(x = np.nanmedian(sub_r200), linestyle = ':', color = 'g', label = 'median')
+			else:
+				idx = (set_rich >= rich_a2)
+				sub_r200 = R_vir[idx]
+				ax.hist(sub_r200, bins = 20, histtype = 'step', color = 'b', density = True, 
+					label = '$ 50 \\leqslant \\lambda $')
+				ax.axvline(x = np.nanmean(sub_r200), linestyle = '--', color = 'b', label = 'mean')
+				ax.axvline(x = np.nanmedian(sub_r200), linestyle = ':', color = 'b', label = 'median')
+		ax.axvline(x = 1e3, linestyle = '-', color = 'k', label = '1Mpc')
+		ax.axvline(x = 1.1e3, linestyle = '--', color = 'k', label = '1.1Mpc')
+		ax.legend(loc = 1)
+		ax.set_ylabel('$ pdf $')
+		ax.set_xlabel('$ R_{200}[kpc] $')
+		ax.tick_params(axis = 'both', which = 'both', direction = 'in')
+		plt.savefig(load + '%s_band_rich_R200.png' % band[kk], dpi = 300)
+		plt.close()
 
 if __name__ == "__main__":
 	main()

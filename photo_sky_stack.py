@@ -58,7 +58,7 @@ def sky_stack_BCG(band_id, sub_z, sub_ra, sub_dec, cor_id):
 		'''
 		## sky-select sample
 		data = fits.open( load + 
-			'photo_z/sky/sky_cut_img/phoz_Cut_sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
+			'photo_z/sky/sky_cut_img/Cut_edge_sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
 		img = data[0].data
 		cx, cy = data[0].header['CENTER_X'], data[0].header['CENTER_Y']
 
@@ -131,7 +131,7 @@ def sky_stack_rndm(band_id, sub_z, sub_ra, sub_dec, cor_id):
 		'''
 		## sky-select sample
 		data = fits.open( load + 
-			'photo_z/sky/sky_cut_img/phoz_Cut_sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
+			'photo_z/sky/sky_cut_img/Cut_edge_sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
 		img = data[0].data
 		cx, cy = data[0].header['CENTER_X'], data[0].header['CENTER_Y']
 
@@ -150,7 +150,7 @@ def sky_stack_rndm(band_id, sub_z, sub_ra, sub_dec, cor_id):
 		if cor_id == 0:
 			img_add = img - np.nanmean(img)
 		if cor_id == 1:
-			img_add1 = img - np.nanmedian(img)
+			img_add = img - np.nanmedian(img)
 
 		rndm_sum[la0:la1, lb0:lb1][idv] = rndm_sum[la0:la1, lb0:lb1][idv] + img_add[idv]
 		f2_sum[la0:la1, lb0:lb1][idv] = f2_sum[la0:la1, lb0:lb1][idv] + img_add[idv]**2
@@ -186,43 +186,17 @@ def main():
 	Nx = np.linspace(0, 4854, 4855)
 	Ny = np.linspace(0, 3530, 3531)
 
-	cor_id = 0 # 1. (see description at the beginning)
+	cor_id = 1 # /0 (see description at the beginning)
 	rich_a0, rich_a1, rich_a2 = 20, 30, 50
-
+	"""
 	### sub-stack
-	#for kk in range(len(band)):
 	for kk in range( 3 ):
-		'''
-		for lamda_k in range(3):
-			with h5py.File(load + 'mpi_h5/photo_z_difference_sample.h5', 'r') as f:
-				dat = np.array(f['a'])
-			set_ra, set_dec, set_z, set_rich = dat[0,:], dat[1,:], dat[2,:], dat[3,:]
-			zN = len(z)
 
-			if lamda_k == 0:
-				idx = (set_rich >= rich_a0) & (set_rich <= rich_a1)
-			elif lamda_k == 1:
-				idx = (set_rich >= rich_a1) & (set_rich <= rich_a2)
-			else:
-				idx = (set_rich >= rich_a2)
-
-			lis_z = set_z[idx]
-			lis_ra = set_ra[idx]
-			lis_dec = set_dec[idx]
-			lis_rich = set_rich[idx]
-			zN = len(lis_z)
-
-			m, n = divmod(zN, cpus)
-			N_sub0, N_sub1 = m * rank, (rank + 1) * m
-			if rank == cpus - 1:
-				N_sub1 += n
-			sky_stack_BCG(kk, lis_z[N_sub0 :N_sub1], lis_ra[N_sub0 :N_sub1], lis_dec[N_sub0 :N_sub1], cor_id)
-			commd.Barrier()
-		'''
-		with h5py.File(load + 'mpi_h5/photo_z_difference_sample.h5', 'r') as f:
+		#with h5py.File(load + 'mpi_h5/phot_z_%s_band_stack_cat.h5' % band[kk], 'r') as f:
+		with h5py.File(load + 'photo_z/%s_band_img-center_cat.h5' % band[kk], 'r') as f: # sky-selected imgs
 			dat = np.array(f['a'])
 		set_ra, set_dec, set_z, set_rich = dat[0,:], dat[1,:], dat[2,:], dat[3,:]
-		zN = len(z)
+		zN = len(set_z)
 		m, n = divmod(zN, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
 		if rank == cpus - 1:
@@ -260,12 +234,10 @@ def main():
 			id_inf = np.isinf(stack_img)
 			stack_img[id_inf] = np.nan
 			if cor_id == 0:
-				#with h5py.File(load + 'rich_sample/stack_sky_mean_%d_imgs_%s_band_%drich.h5' % (tt_N, band[kk], lamda_k), 'w') as f:
-				with h5py.File(load + 'rich_sample/stack_sky_mean_%d_imgs_%s_band.h5' % (tt_N, band[kk]), 'w') as f:
+				with h5py.File(load + 'photo_z/stack/stack_sky_mean_%d_imgs_%s_band.h5' % (tt_N, band[kk]), 'w') as f:
 					f['a'] = np.array(stack_img)
 			if cor_id == 1:
-				#with h5py.File(load + 'rich_sample/stack_sky_median_%d_imgs_%s_band_%drich.h5' % (tt_N, band[kk], lamda_k), 'w') as f:
-				with h5py.File(load + 'rich_sample/stack_sky_median_%d_imgs_%s_band.h5' % (tt_N, band[kk]), 'w') as f:
+				with h5py.File(load + 'photo_z/stack/stack_sky_median_%d_imgs_%s_band.h5' % (tt_N, band[kk]), 'w') as f:
 					f['a'] = np.array(stack_img)
 			## save the square flux and sky SB
 			sqr_f[id_zero] = np.nan
@@ -274,49 +246,23 @@ def main():
 			E_f2[id_inf] = np.nan
 			Var_f = E_f2 - stack_img**2  ## Variance img
 			if cor_id == 0:
-				#with h5py.File(load + 'rich_sample/stack_sky_mean_Var_%d_imgs_%s_band_%drich.h5' % (tt_N, band[kk], lamda_k), 'w') as f:
-				with h5py.File(load + 'rich_sample/stack_sky_mean_Var_%d_imgs_%s_band.h5' % (tt_N, band[kk]), 'w') as f:
+				with h5py.File(load + 'photo_z/stack/stack_sky_mean_Var_%d_imgs_%s_band.h5' % (tt_N, band[kk]), 'w') as f:
 					f['a'] = np.array(Var_f)
 			if cor_id == 1:
-				#with h5py.File(load + 'rich_sample/stack_sky_median_Var_%d_imgs_%s_band_%drich.h5' % (tt_N, band[kk], lamda_k), 'w') as f:
-				with h5py.File(load + 'rich_sample/stack_sky_median_Var_%d_imgs_%s_band.h5' % (tt_N, band[kk]), 'w') as f:
+				with h5py.File(load + 'photo_z/stack/stack_sky_median_Var_%d_imgs_%s_band.h5' % (tt_N, band[kk]), 'w') as f:
 					f['a'] = np.array(Var_f)
 		commd.Barrier()
-
+	"""
+	"""
 	##### for random case
 	d_record = 5 ## 1, 2, 3, 4, 5
-	#for kk in range(len(band)):
 	for kk in range( 3 ):
-		'''
-		for lamda_k in range(3):
-			with h5py.File(load + 'mpi_h5/photo_z_difference_sample.h5', 'r') as f:
-				dat = np.array(f['a'])
-			set_ra, set_dec, set_z, set_rich = dat[0,:], dat[1,:], dat[2,:], dat[3,:]
 
-			if lamda_k == 0:
-				idx = (set_rich >= rich_a0) & (set_rich <= rich_a1)
-			elif lamda_k == 1:
-				idx = (set_rich >= rich_a1) & (set_rich <= rich_a2)
-			else:
-				idx = (set_rich >= rich_a2)
-
-			lis_z = set_z[idx]
-			lis_ra = set_ra[idx]
-			lis_dec = set_dec[idx]
-			lis_rich = set_rich[idx]
-			zN = len(lis_z)
-
-			m, n = divmod(zN, cpus)
-			N_sub0, N_sub1 = m * rank, (rank + 1) * m
-			if rank == cpus - 1:
-				N_sub1 += n
-			sky_stack_rndm(kk, lis_z[N_sub0 :N_sub1], lis_ra[N_sub0 :N_sub1], lis_dec[N_sub0 :N_sub1], cor_id)
-			commd.Barrier()
-		'''
-		with h5py.File(load + 'mpi_h5/photo_z_difference_sample.h5', 'r') as f:
+		#with h5py.File(load + 'mpi_h5/phot_z_%s_band_stack_cat.h5' % band[kk], 'r') as f:
+		with h5py.File(load + 'photo_z/%s_band_img-center_cat.h5' % band[kk], 'r') as f: # sky-selected imgs
 			dat = np.array(f['a'])
 		set_ra, set_dec, set_z, set_rich = dat[0,:], dat[1,:], dat[2,:], dat[3,:]
-		zN = len(z)
+		zN = len(set_z)
 		m, n = divmod(zN, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
 		if rank == cpus - 1:
@@ -363,41 +309,33 @@ def main():
 			mean_E_f2[id_inf] = np.nan
 			rand_Var = mean_E_f2 - random_stack**2 ## Variance img
 			if cor_id == 0:
-				#with h5py.File(load + 'rich_sample/%d_sky_rndm_mean_%d_imgs_%s_band_%drich.h5' % 
-				#	(d_record, tt_N, band[kk], lamda_k), 'w') as f:
-				with h5py.File(load + 'rich_sample/%d_sky_rndm_mean_%d_imgs_%s_band.h5' % (d_record, tt_N, band[kk]), 'w') as f:
+
+				with h5py.File(load + 'photo_z/stack/%d_sky_rndm_mean_%d_imgs_%s_band.h5' % (d_record, tt_N, band[kk]), 'w') as f:
 					f['a'] = np.array(random_stack)
 
-				#with h5py.File(load + 'rich_sample/%d_sky_rndm_mean_Var_%d_imgs_%s_band_%drich.h5' % 
-				#	(d_record, tt_N, band[kk], lamda_k), 'w') as f:
-				with h5py.File(load + 'rich_sample/%d_sky_rndm_mean_Var_%d_imgs_%s_band.h5' % (d_record, tt_N, band[kk]), 'w') as f:
+				with h5py.File(load + 'photo_z/stack/%d_sky_rndm_mean_Var_%d_imgs_%s_band.h5' % (d_record, tt_N, band[kk]), 'w') as f:
 					f['a'] = np.array(rand_Var)
 			if cor_id == 1:
-				#with h5py.File(load + 'rich_sample/%d_sky_rndm_median_%d_imgs_%s_band_%drich.h5' % 
-				#	(d_record, tt_N, band[kk], lamda_k), 'w') as f:
-				with h5py.File(load + 'rich_sample/%d_sky_rndm_median_%d_imgs_%s_band.h5' % (d_record, tt_N, band[kk]), 'w') as f:
+
+				with h5py.File(load + 'photo_z/stack/%d_sky_rndm_median_%d_imgs_%s_band.h5' % (d_record, tt_N, band[kk]), 'w') as f:
 					f['a'] = np.array(random_stack)
 
-				#with h5py.File(load + 'rich_sample/%d_sky_rndm_median_Var_%d_imgs_%s_band_%drich.h5' % 
-				#	(d_record, tt_N, band[kk], lamda_k), 'w') as f:
-				with h5py.File(load + 'rich_sample/%d_sky_rndm_median_Var_%d_imgs_%s_band.h5' % (d_record, tt_N, band[kk]), 'w') as f:
+				with h5py.File(load + 'photo_z/stack/%d_sky_rndm_median_Var_%d_imgs_%s_band.h5' % (d_record, tt_N, band[kk]), 'w') as f:
 					f['a'] = np.array(rand_Var)
 			## position
 			rand_px, rand_py = rand_px[1:], rand_py[1:]
 			rand_pos = np.array([rand_px, rand_py])
-			#with h5py.File(load + 'rich_sample/%d_sky_random-pos_%d_imgs_%s_band_%drich.h5' % (d_record, tt_N, band[kk], lamda_k), 'w') as f:
-			with h5py.File(load + 'rich_sample/%d_sky_random-pos_%d_imgs_%s_band.h5' % (d_record, tt_N, band[kk]), 'w') as f:
+			with h5py.File(load + 'photo_z/stack/%d_sky_random-pos_%d_imgs_%s_band.h5' % (d_record, tt_N, band[kk]), 'w') as f:
 				f['a'] = np.array(rand_pos)
 		commd.Barrier()
-
-	N_sum = np.array([1291, 1286, 1283, 1294, 1287]) ## 0.8Mpc
-	N_bin = np.array([ [711, 434, 141], [710, 430, 141], [707, 429, 142] ])
+	"""
+	#N_sum = np.array([1497, 1503, 1492])
+	N_sum = np.array([1213, 1209, 1211])
 
 	## calculate the image average for random case
 	if rank == 0:
 		for kk in range(3):
 
-			#for lamda_k in range(3):
 			m_rndm_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 			m_rndm_var = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 			rndm_cnt = np.zeros((len(Ny), len(Nx)), dtype = np.float)
@@ -405,24 +343,15 @@ def main():
 			for id_rec in range(1, 6):
 
 				if cor_id == 0:
-					#with h5py.File(load + 'rich_sample/%d_sky_rndm_mean_%d_imgs_%s_band_%drich.h5' % 
-					#	(id_rec, N_bin[kk, lamda_k], band[kk], lamda_k), 'r') as f:
-					with h5py.File(load + 'rich_sample/%d_sky_rndm_mean_%d_imgs_%s_band.h5' % (id_rec, N_bin[kk, lamda_k], band[kk]), 'r') as f:
+					with h5py.File(load + 'photo_z/stack/%d_sky_rndm_mean_%d_imgs_%s_band.h5' % (id_rec, N_sum[kk], band[kk]), 'r') as f:
 						sub_img = np.array(f['a'])
-					#with h5py.File(load + 'rich_sample/%d_sky_rndm_mean_Var_%d_imgs_%s_band_%drich.h5' % 
-					#	(id_rec, N_bin[kk, lamda_k], band[kk], lamda_k), 'r') as f:
-					with h5py.File(load + 'rich_sample/%d_sky_rndm_mean_Var_%d_imgs_%s_band.h5' % (id_rec, N_bin[kk, lamda_k], band[kk]), 'r') as f:
+					with h5py.File(load + 'photo_z/stack/%d_sky_rndm_mean_Var_%d_imgs_%s_band.h5' % (id_rec, N_sum[kk], band[kk]), 'r') as f:
 						sub_Var = np.array(f['a'])
 
 				if cor_id == 1:
-					#with h5py.File(load + 'rich_sample/%d_sky_rndm_median_%d_imgs_%s_band_%drich.h5' % 
-					#	(id_rec, N_bin[kk, lamda_k], band[kk], lamda_k), 'r') as f:
-					with h5py.File(load + 'rich_sample/%d_sky_rndm_median_%d_imgs_%s_band.h5' % (id_rec, N_bin[kk, lamda_k], band[kk]), 'r') as f:
+					with h5py.File(load + 'photo_z/stack/%d_sky_rndm_median_%d_imgs_%s_band.h5' % (id_rec, N_sum[kk], band[kk]), 'r') as f:
 						sub_img = np.array(f['a'])
-					#with h5py.File(load + 'rich_sample/%d_sky_rndm_median_Var_%d_imgs_%s_band_%drich.h5' % 
-					#	(id_rec, N_bin[kk, lamda_k], band[kk], lamda_k), 'r') as f:
-					with h5py.File(load + 'rich_sample/%d_sky_rndm_median_Var_%d_imgs_%s_band.h5' % 
-						(id_rec, N_bin[kk, lamda_k], band[kk]), 'r') as f:
+					with h5py.File(load + 'photo_z/stack/%d_sky_rndm_median_Var_%d_imgs_%s_band.h5' % (id_rec, N_sum[kk], band[kk]), 'r') as f:
 						sub_Var = np.array(f['a'])
 
 				id_nan = np.isnan(sub_img)
@@ -435,21 +364,19 @@ def main():
 			m_rndm_var = m_rndm_var / rndm_cnt
 
 			if cor_id == 0:
-				#with h5py.File(load + 'rich_sample/M_sky_rndm_mean_%d_imgs_%s_band_%drich.h5' % (N_bin[kk, lamda_k], band[kk], lamda_k), 'w') as f:
-				with h5py.File(load + 'rich_sample/M_sky_rndm_mean_%d_imgs_%s_band.h5' % (N_bin[kk, lamda_k], band[kk]), 'w') as f:
+
+				with h5py.File(load + 'photo_z/stack/M_sky_rndm_mean_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
 					f['a'] = np.array(m_rndm_img)
-				#with h5py.File(load + 'rich_sample/M_sky_rndm_mean_Var_%d_imgs_%s_band_%drich.h5' % 
-				#	(N_bin[kk, lamda_k], band[kk], lamda_k), 'w') as f:
-				with h5py.File(load + 'rich_sample/M_sky_rndm_mean_Var_%d_imgs_%s_band.h5' % (N_bin[kk, lamda_k], band[kk]), 'w') as f:
+
+				with h5py.File(load + 'photo_z/stack/M_sky_rndm_mean_Var_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
 					f['a'] = np.array(m_rndm_var)
 
 			if cor_id == 1:
-				#with h5py.File(load + 'rich_sample/M_sky_rndm_median_%d_imgs_%s_band_%drich.h5' % (N_bin[kk, lamda_k], band[kk], lamda_k), 'w') as f:
-				with h5py.File(load + 'rich_sample/M_sky_rndm_median_%d_imgs_%s_band.h5' % (N_bin[kk, lamda_k], band[kk]), 'w') as f:
+
+				with h5py.File(load + 'photo_z/stack/M_sky_rndm_median_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
 					f['a'] = np.array(m_rndm_img)
-				#with h5py.File(load + 'rich_sample/M_sky_rndm_median_Var_%d_imgs_%s_band_%drich.h5' % 
-				#	(N_bin[kk, lamda_k], band[kk], lamda_k), 'w') as f:
-				with h5py.File(load + 'rich_sample/M_sky_rndm_median_Var_%d_imgs_%s_band.h5' % (N_bin[kk, lamda_k], band[kk]), 'w') as f:
+
+				with h5py.File(load + 'photo_z/stack/M_sky_rndm_median_Var_%d_imgs_%s_band.h5' % (N_sum[kk], band[kk]), 'w') as f:
 					f['a'] = np.array(m_rndm_var)
 
 	commd.Barrier()

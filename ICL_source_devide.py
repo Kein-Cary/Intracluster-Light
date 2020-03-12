@@ -206,7 +206,10 @@ def main():
     N_sum = np.array([1291, 1286, 1283, 1294, 1287]) ## 0.8Mpc
     N_bin = np.array([ [711, 434, 141], [710, 430, 141], [707, 429, 142] ])
 
-    r_a0, r_a1 = 1.0, 1.1
+    r_a0 = np.array([1.1, 1.3, 1.6])
+    r_a1 = np.array([1.2, 1.4, 1.7])
+    #r_a0, r_a1 = 1.0, 1.1
+    
     ## R200 calculate parameter
     M0, lamd0, z0 = 14.37, 30, 0.5
     F_lamda, G_z = 1.12, 0.18
@@ -237,7 +240,6 @@ def main():
             gs = gridspec.GridSpec(2,1, height_ratios = [4,1])
             ax0 = plt.subplot(gs[0])
             ax1 = plt.subplot(gs[1])
-
             ax0.set_title('$ %s \; band \; binned \; with \; \\lambda $' % band[kk])
 
             for lamda_k in range(3):
@@ -298,7 +300,7 @@ def main():
                 grd_y = np.linspace(0, BL_img.shape[0] - 1, BL_img.shape[0])
                 grd = np.array( np.meshgrid(grd_x, grd_y) )
                 ddr = np.sqrt( (grd[0,:] - cen_pos)**2 + (grd[1,:] - cen_pos)**2 )
-                idu = (ddr > r_a0 * Rpp) & (ddr < r_a1 * Rpp)
+                idu = (ddr > r_a0[lamda_k] * Rpp) & (ddr < r_a1[lamda_k] * Rpp)
                 Resi_bl = np.nanmean( BL_img[idu] )
 
                 # minus the RBL

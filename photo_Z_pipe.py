@@ -309,7 +309,8 @@ def pho_edg_cut(band_id, sub_z, sub_ra, sub_dec):
 			ff = dict(zip(keys,value))
 			fil = fits.Header(ff)
 			fits.writeto(load + 
-			'photo_z/resamp_cut/cut_edge-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), re_img, header = fil, overwrite=True)
+			'photo_z/resamp_cut/cut_edge-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % 
+			(band[ii], ra_g, dec_g, z_g), re_img, header = fil, overwrite=True)
 		except FileNotFoundError:
 			continue
 

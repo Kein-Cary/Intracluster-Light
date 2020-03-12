@@ -174,11 +174,75 @@ def photo_sky_cut(band_id, sub_z, sub_ra, sub_dec):
 		except FileNotFoundError:
 			continue
 
+def phot_z_center_cat(band_id, sub_z, sub_ra, sub_dec, sub_rmag, sub_rich):
+
+	ii = np.int(band_id)
+	zn = len(sub_z)
+
+	ra_fit = np.zeros(zn, dtype = np.float)
+	dec_fit = np.zeros(zn, dtype = np.float)
+	z_fit = np.zeros(zn, dtype = np.float)
+	rmag_fit = np.zeros(zn, dtype = np.float)
+	rich_fit = np.zeros(zn, dtype = np.float)
+
+	#cen_dst = 0.65 ## centric distance: 1 Mpc, 0.8Mpc, 0.65Mpc
+
+	for k in range(zn):
+		ra_g = sub_ra[k]
+		dec_g = sub_dec[k]
+		z_g = sub_z[k]
+
+		try:
+			data_A = fits.getdata(load + 
+				'photo_z/resample/pho_z-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+			img_A = data_A[0]
+			xn = data_A[1]['CENTER_X']
+			yn = data_A[1]['CENTER_Y']
+
+			cx = np.int(img_A.shape[1] / 2)
+			cy = np.int(img_A.shape[0] / 2)
+
+			x_side = np.array( [cx - np.int(1.3 * Rpp), cx + np.int(1.3 * Rpp)] )
+			y_side = np.array( [cy - np.int(Rpp), cy + np.int(Rpp)] )
+
+			idx = (x_side[0] < xn) & (xn < x_side[1])
+			idy = (y_side[0] < yn) & (yn < y_side[1])
+			idz = idx & idy
+
+			if idz == True:
+				ra_fit[k], dec_fit[k], z_fit[k] = ra_g, dec_g, z_g
+				rmag_fit[k] = sub_rmag[k]
+				rich_fit[k] = sub_rich[k]
+			else:
+				continue
+
+		except FileNotFoundError:
+			continue
+
+	id_zeros = ra_fit == 0
+	id_false = id_zeros == False
+
+	dec_fit = dec_fit[id_false]
+	z_fit = z_fit[id_false]
+	rmag_fit = rmag_fit[id_false]
+	ra_fit = ra_fit[id_false]
+	rich_fit = rich_fit[id_false]
+
+	sel_arr = np.array([ra_fit, dec_fit, z_fit, rmag_fit, rich_fit])
+
+	with h5py.File(tmp + 'sky_select_%d_%s_band.h5' % (rank, band[ii]), 'w') as f:
+		f['a'] = np.array(sel_arr)
+	with h5py.File(tmp + 'sky_select_%d_%s_band.h5' % (rank, band[ii]) ) as f:
+		for ll in range(len(sel_arr)):
+			f['a'][ll,:] = sel_arr[ll,:]
+
+	return
+
 def main():
 
 	with h5py.File(load + 'mpi_h5/photo_z_difference_sample.h5', 'r') as f:
 		dat = np.array(f['a'])
-	ra, dec, z = dat[0,:], dat[1,:], dat[2,:]
+	ra, dec, z, rich, r_mag = dat[0,:], dat[1,:], dat[2,:], dat[3,:], dat[4,:]
 	zN = len(z)
 	'''
 	## read the sky image (also save the sky img)
@@ -198,7 +262,7 @@ def main():
 			N_sub1 += n
 		photo_sky_resamp(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
 	commd.Barrier()
-	'''
+
 	## rule out the edges pixels
 	for tt in range(3):
 		m, n = divmod(zN, cpus)
@@ -206,6 +270,51 @@ def main():
 		if rank == cpus - 1:
 			N_sub1 += n
 		photo_sky_cut(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
+	commd.Barrier()
+	'''
+	## build img-center catalogue
+	for tt in range(3):
+
+		m, n = divmod(zN, cpus)
+		N_sub0, N_sub1 = m * rank, (rank + 1) * m
+		if rank == cpus - 1:
+			N_sub1 += n
+
+		phot_z_center_cat(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1], r_mag[N_sub0 :N_sub1], rich[N_sub0 :N_sub1])
+		commd.Barrier()
+
+	if rank == 0:
+		for tt in range(3):
+
+			set_ra = np.array([0.])
+			set_dec = np.array([0.])
+			set_z = np.array([0.])
+			set_mag = np.array([0.])
+			set_rich = np.array([0.])
+			for pp in range(cpus):
+				with h5py.File(tmp + 'sky_select_%d_%s_band.h5' % (pp, band[tt]), 'r') as f:
+					sel_arr = np.array(f['a'])
+				set_ra = np.r_[ set_ra, sel_arr[0,:] ]
+				set_dec = np.r_[ set_dec, sel_arr[1,:] ]
+				set_z = np.r_[ set_z, sel_arr[2,:] ]
+				set_mag = np.r_[ set_mag, sel_arr[3,:] ]
+				set_rich = np.r_[ set_rich, sel_arr[4,:] ]
+
+			set_ra = set_ra[1:]
+			set_dec = set_dec[1:]
+			set_z = set_z[1:]
+			set_mag = set_mag[1:]
+			set_rich = set_rich[1:]
+
+			n_sum = len(set_z)
+			set_array = np.array([set_ra, set_dec, set_z, set_rich, set_mag])
+			with h5py.File(load + 'photo_z/%s_band_img-center_cat.h5' % ( band[tt] ), 'w') as f:
+				f['a'] = np.array(set_array)
+			with h5py.File(load + 'photo_z/%s_band_img-center_cat.h5' % ( band[tt] ) ) as f:
+				for ll in range( len(set_array) ):
+					f['a'][ll,:] = set_array[ll,:]
+
+			print( len(set_z) )
 	commd.Barrier()
 
 if __name__ == "__main__":
