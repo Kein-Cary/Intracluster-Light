@@ -94,8 +94,9 @@ def rich_divid(band_id, sub_z, sub_ra, sub_dec):
         '''
         ## A mask imgs without edge pixels
         data_A = fits.getdata(load + 
-            'sky_select_img/imgs/cut_edge-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
-
+            'edge_cut/sample_img/Edg_cut-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+        #data_A = fits.getdata(load + 
+        #    'sky_select_img/imgs/cut_edge-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
         img_A = data_A[0]
         xn = data_A[1]['CENTER_X']
         yn = data_A[1]['CENTER_Y']
@@ -138,13 +139,18 @@ def main():
 
     R_cut, bins = 1280, 80
     R_smal, R_max = 1, 1.7e3 # kpc
-    '''
+    """
     for kk in range(3):
 
         for lamda_k in range(3):
+            '''
             with h5py.File(load + 'sky_select_img/%s_band_sky_0.80Mpc_select.h5' % band[kk], 'r') as f:
                 set_array = np.array(f['a'])
             set_ra, set_dec, set_z, set_rich = set_array[0,:], set_array[1,:], set_array[2,:], set_array[4,:]
+            '''
+            with h5py.File(load + 'mpi_h5/%s_band_sky_catalog.h5' % band[kk], 'r') as f:
+                set_array = np.array(f['a'])
+            set_ra, set_dec, set_z, set_rich = set_array[0,:], set_array[1,:], set_array[2,:], set_array[3,:]
 
             if lamda_k == 0:
                 idx = (set_rich >= rich_a0) & (set_rich <= rich_a1)
@@ -199,17 +205,18 @@ def main():
                     f['a'] = np.array(stack_img)
 
             commd.Barrier()
+    """
     '''
-    #N_sum = np.array([2013, 2008, 2002, 2008, 2009]) ## sky-select sample(1Mpc)
-    #N_bin = np.array([ [1137, 657, 212], [1133, 658, 210], [1131, 653, 211] ])
-
-    N_sum = np.array([1291, 1286, 1283, 1294, 1287]) ## 0.8Mpc
+    N_sum = np.array([1291, 1286, 1283]) ## 0.8Mpc
     N_bin = np.array([ [711, 434, 141], [710, 430, 141], [707, 429, 142] ])
+    '''
+    N_sum = np.array([3268, 3271, 3258]) ## total sky-select imgs
+    N_bin = np.array([ [1857, 1069, 342], [1860, 1071, 340], [1853, 1068, 337] ])
 
-    r_a0 = np.array([1.1, 1.3, 1.6])
-    r_a1 = np.array([1.2, 1.4, 1.7])
-    #r_a0, r_a1 = 1.0, 1.1
-    
+    #r_a0 = np.array([1.1, 1.3, 1.6])
+    #r_a1 = np.array([1.2, 1.4, 1.7])
+    r_a0, r_a1 = 1.0, 1.1
+
     ## R200 calculate parameter
     M0, lamd0, z0 = 14.37, 30, 0.5
     F_lamda, G_z = 1.12, 0.18
@@ -242,6 +249,9 @@ def main():
             ax1 = plt.subplot(gs[1])
             ax0.set_title('$ %s \; band \; binned \; with \; \\lambda $' % band[kk])
 
+            ## test for RBL
+            set_RBL = 0.
+
             for lamda_k in range(3):
 
                 if lamda_k == 0:
@@ -265,18 +275,7 @@ def main():
                 SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[kk]
                 id_nan = np.isnan(SB)
                 SBt, Rt = SB[id_nan == False], Intns_r[id_nan == False]
-                '''
-                ## read difference img
-                # mean difference
-                with h5py.File(load + 'rich_sample/stack_sky_mean_%d_imgs_%s_band_%drich.h5' % 
-                    (N_bin[kk, lamda_k], band[kk], lamda_k), 'r') as f:
-                    BCG_sky = np.array(f['a'])
 
-                with h5py.File(load + 'rich_sample/M_sky_rndm_mean_%d_imgs_%s_band_%drich.h5' % 
-                    (N_bin[kk, lamda_k], band[kk], lamda_k), 'r') as f:
-                    rand_sky = np.array(f['a'])                
-                differ_img = BCG_sky - rand_sky
-                '''
                 # median difference
                 with h5py.File(load + 'rich_sample/stack_sky_median_%d_imgs_%s_band_%drich.h5' % 
                     (N_bin[kk, lamda_k], band[kk], lamda_k), 'r') as f:
@@ -300,20 +299,29 @@ def main():
                 grd_y = np.linspace(0, BL_img.shape[0] - 1, BL_img.shape[0])
                 grd = np.array( np.meshgrid(grd_x, grd_y) )
                 ddr = np.sqrt( (grd[0,:] - cen_pos)**2 + (grd[1,:] - cen_pos)**2 )
-                idu = (ddr > r_a0[lamda_k] * Rpp) & (ddr < r_a1[lamda_k] * Rpp)
+                idu = (ddr > r_a0 * Rpp) & (ddr < r_a1 * Rpp)
                 Resi_bl = np.nanmean( BL_img[idu] )
 
+                if lamda_k == 0:
+                    set_RBL = Resi_bl * 1
+
                 # minus the RBL
-                sub_SB = 22.5 - 2.5 * np.log10(Intns - Resi_bl) + 2.5 * np.log10(pixel**2) + mag_add[kk]
-                flux0 = Intns + Intns_err - Resi_bl
-                flux1 = Intns - Intns_err - Resi_bl
+                #sub_SB = 22.5 - 2.5 * np.log10(Intns - Resi_bl) + 2.5 * np.log10(pixel**2) + mag_add[kk]
+                #flux0 = Intns + Intns_err - Resi_bl
+                #flux1 = Intns - Intns_err - Resi_bl
+
+                sub_SB = 22.5 - 2.5 * np.log10(Intns - set_RBL) + 2.5 * np.log10(pixel**2) + mag_add[kk]
+                flux0 = Intns + Intns_err - set_RBL
+                flux1 = Intns - Intns_err - set_RBL
+
                 dSB0 = 22.5 - 2.5 * np.log10(flux0) + 2.5 * np.log10(pixel**2) + mag_add[kk]
                 dSB1 = 22.5 - 2.5 * np.log10(flux1) + 2.5 * np.log10(pixel**2) + mag_add[kk]
                 err0 = sub_SB - dSB0
                 err1 = dSB1 - sub_SB
 
                 SB_arr.append(sub_SB)
-                flux_arr.append(Intns - Resi_bl) ## ratio of SB need to use flux
+                #flux_arr.append(Intns - Resi_bl) ## ratio of SB need to use flux
+                flux_arr.append(Intns - set_RBL) ## ratio of SB need to use flux
                 R_arr.append(R_add)
 
                 id_nan = np.isnan(sub_SB)
@@ -322,12 +330,115 @@ def main():
                 idx_nan = np.isnan(dSB1)
                 cli_err1[idx_nan] = 100.
 
+                ## fig the result
+                plt.figure(figsize = (12, 12))
+                bx0 = plt.subplot(221)
+                bx1 = plt.subplot(222)
+                bx2 = plt.subplot(223)
+                bx3 = plt.subplot(224)
                 if lamda_k == 0:
-                    ax0.plot(cli_R, cli_SB, 'b-', alpha = 0.5, label = '$ 20 \\leqslant \\lambda \\leqslant 30 $')
+                    bx0.set_title('$ %s \; band \; stack \; img [20 \\leqslant \\lambda \\leqslant 30] $' % band[kk])
                 elif lamda_k == 1:
-                    ax0.plot(cli_R, cli_SB, 'g-', alpha = 0.5, label = '$ 30 \\leqslant \\lambda \\leqslant 50 $')
+                    bx0.set_title('$ %s \; band \; stack \; img [30 \\leqslant \\lambda \\leqslant 50] $' % band[kk])
                 else:
-                    ax0.plot(cli_R, cli_SB, 'r-', alpha = 0.5, label = '$ 50  \\leqslant \\lambda $')
+                    bx0.set_title('$ %s \; band \; stack \; img [50 \\leqslant \\lambda] $' % band[kk])
+                clust0 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5,)
+                tf = bx0.imshow(stack_img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
+                plt.colorbar(tf, ax = bx0, fraction = 0.040, pad = 0.01, label = 'flux[nmaggy]')
+                bx0.add_patch(clust0)
+                bx0.set_xlim(x0 - R_cut, x0 + R_cut)
+                bx0.set_ylim(y0 - R_cut, y0 + R_cut)
+                bx0.set_xticks([])
+                bx0.set_yticks([])
+
+                bx1.set_title('%s band difference img' % band[kk] )
+                clust1 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5,)
+                tf = bx1.imshow(differ_img, origin = 'lower', cmap = 'seismic', vmin = -2e-4, vmax = 2e-4)
+                plt.colorbar(tf, ax = bx1, fraction = 0.040, pad = 0.01, label = 'flux[nmaggy]')
+                bx1.add_patch(clust1)
+                bx1.set_xlim(x0 - R_cut, x0 + R_cut)
+                bx1.set_ylim(y0 - R_cut, y0 + R_cut)
+                bx1.set_xticks([])
+                bx1.set_yticks([])
+
+                bx2.set_title('%s band difference + stack img' % band[kk] )
+                clust2 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5,)
+                tf = bx2.imshow(differ_img + stack_img,cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
+                plt.colorbar(tf, ax = bx2, fraction = 0.040, pad = 0.01, label = 'flux[nmaggy]')
+                bx2.add_patch(clust2)
+                bx2.set_xlim(x0 - R_cut, x0 + R_cut)
+                bx2.set_ylim(y0 - R_cut, y0 + R_cut)
+                bx2.set_xticks([])
+                bx2.set_yticks([])
+
+                bx3.set_title('%s band difference + stack - RBL' % band[kk] )
+                clust3 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', alpha = 0.5,)
+                #tf = bx3.imshow(differ_img + stack_img - Resi_bl, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, 
+                #    norm = mpl.colors.LogNorm())
+
+                tf = bx3.imshow(differ_img + stack_img - set_RBL, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, 
+                    norm = mpl.colors.LogNorm())
+                plt.colorbar(tf, ax = bx3, fraction = 0.040, pad = 0.01, label = 'flux[nmaggy]')
+                bx3.add_patch(clust3)
+                bx3.set_xlim(x0 - R_cut, x0 + R_cut)
+                bx3.set_ylim(y0 - R_cut, y0 + R_cut)
+                bx3.set_xticks([])
+                bx3.set_yticks([])
+
+                plt.tight_layout()
+                if lamda_k == 0:
+                    plt.savefig(load + 'rich_sample/low_rich_%s_band_process.png' % band[kk], dpi = 300)
+                elif lamda_k == 1:
+                    plt.savefig(load + 'rich_sample/median_rich_%s_band_process.png' % band[kk], dpi = 300)
+                else:
+                    plt.savefig(load + 'rich_sample/high_rich_%s_band_process.png' % band[kk], dpi = 300) 
+                plt.close()
+
+                plt.figure()
+                cx0 = plt.subplot(111)
+                if lamda_k == 0:
+                    cx0.set_title('$ %s \, band \, SB \, profile \, [20 \\leqslant \\lambda \\leqslant 30] $' % band[kk])
+                    cx0.plot(Rt, SBt, 'r-', alpha = 0.5, label = 'Stacking')
+                    cx0.plot(R_add, SB_add, 'g--', alpha = 0.5, label = 'Stacking + Difference')
+                    cx0.plot(cli_R, cli_SB, 'b-.', alpha = 0.5, label = 'Stacking + Difference - RBL')
+                elif lamda_k == 1:
+                    cx0.set_title('$ %s \, band \, SB \, profile \, [30 \\leqslant \\lambda \\leqslant 50] $' % band[kk])
+                    cx0.plot(Rt, SBt, 'r-', alpha = 0.5, label = 'Stacking')
+                    cx0.plot(R_add, SB_add, 'g--', alpha = 0.5, label = 'Stacking + Difference')
+                    cx0.plot(cli_R, cli_SB, 'b-.', alpha = 0.5, label = 'Stacking + Difference - RBL')
+                else:
+                    cx0.set_title('$ %s \, band \, SB \, profile \, [50  \\leqslant \\lambda] $' % band[kk])
+                    cx0.plot(Rt, SBt, 'r-', alpha = 0.5, label = 'Stacking')
+                    cx0.plot(R_add, SB_add, 'g--', alpha = 0.5, label = 'Stacking + Difference')
+                    cx0.plot(cli_R, cli_SB, 'b-.', alpha = 0.5, label = 'Stacking + Difference - RBL')
+                cx0.plot(R_obs, SB_obs, 'k-.', label = 'Z05', alpha = 0.5)
+                cx0.plot(R_obs, SB_Z05, 'k:', label = 'Sersic', alpha = 0.5)
+                cx0.set_xlabel('$R[kpc]$')
+                cx0.set_ylabel('$SB[mag / arcsec^2]$')
+                cx0.set_xscale('log')
+                cx0.set_ylim(20, 32)
+                cx0.set_xlim(1, 1.5e3)
+                cx0.legend(loc = 1)
+                cx0.invert_yaxis()
+                cx0.grid(which = 'both', axis = 'both')
+                cx0.tick_params(axis = 'both', which = 'both', direction = 'in')
+                if lamda_k == 0:
+                    plt.savefig(load + 'rich_sample/low_rich_%s_band_SB_change.png' % band[kk], dpi = 300)
+                elif lamda_k == 1:
+                    plt.savefig(load + 'rich_sample/median_rich_%s_band_SB_change.png' % band[kk], dpi = 300)
+                else:
+                    plt.savefig(load + 'rich_sample/high_rich_%s_band_SB_change.png' % band[kk], dpi = 300) 
+                plt.close()
+
+                if lamda_k == 0:
+                    ax0.errorbar(cli_R, cli_SB, yerr = [cli_err0, cli_err1], xerr = None, color = 'b', marker = '.', ls = '', linewidth = 1, 
+                    markersize = 5, ecolor = 'b', elinewidth = 1, label = '$ 20 \\leqslant \\lambda \\leqslant 30 $', alpha = 0.5)
+                elif lamda_k == 1:
+                    ax0.errorbar(cli_R, cli_SB, yerr = [cli_err0, cli_err1], xerr = None, color = 'g', marker = '.', ls = '', linewidth = 1, 
+                    markersize = 5, ecolor = 'g', elinewidth = 1, label = '$ 30 \\leqslant \\lambda \\leqslant 50 $', alpha = 0.5)
+                else:
+                    ax0.errorbar(cli_R, cli_SB, yerr = [cli_err0, cli_err1], xerr = None, color = 'r', marker = '.', ls = '', linewidth = 1, 
+                    markersize = 5, ecolor = 'r', elinewidth = 1, label = '$ 50  \\leqslant \\lambda $', alpha = 0.5)
 
             ax0.plot(R_obs, SB_obs, 'k-.', label = 'Z05', alpha = 0.5)
             ax0.plot(R_obs, SB_Z05, 'k:', label = 'Sersic', alpha = 0.5)
@@ -350,6 +461,7 @@ def main():
             ax1.plot(Rarr, flux_arr[1,:] / flux_arr[2,:], 'g-', alpha = 0.5, label = '$ mid \; \\lambda / high \; \\lambda $')
             ax1.set_xlim(ax0.get_xlim())
             ax1.set_xscale('log')
+            ax1.set_yscale('log')
             ax1.set_xlabel('$R[kpc]$')
             ax1.set_ylabel('$ SB / SB_{50 \\leqslant \\lambda} $')
             ax1.legend(loc = 2)
@@ -358,8 +470,7 @@ def main():
             ax0.set_xticks([])
 
             plt.subplots_adjust(hspace = 0.01)
-            #plt.savefig(load + 'rich_sample/%s_band_SB_rich_binned.png' % band[kk], dpi = 300)
-            plt.savefig(load + 'rich_sample/%s_band_SB_rich_binned_median.png' % band[kk], dpi = 300)
+            plt.savefig(load + 'rich_sample/%s_band_SB_rich_binned.png' % band[kk], dpi = 300)
             plt.close()
 
             ## scaled with R200
@@ -379,12 +490,10 @@ def main():
             ax.grid(which = 'both', axis = 'both')
             ax.tick_params(axis = 'both', which = 'both', direction = 'in')
 
-            #plt.savefig(load + 'rich_sample/%s_band_R200_scaled_SB_rich_bin.png' % band[kk], dpi = 300)
-            plt.savefig(load + 'rich_sample/%s_band_R200_scaled_SB_rich_bin_median.png' % band[kk], dpi = 300)
+            plt.savefig(load + 'rich_sample/%s_band_R200_scaled_SB_rich_bin.png' % band[kk], dpi = 300)
             plt.close()
 
     commd.Barrier()
-    raise
 
 if __name__ == "__main__":
     main()

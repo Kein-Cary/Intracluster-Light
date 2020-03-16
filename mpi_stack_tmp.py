@@ -92,15 +92,16 @@ def stack_process(band_number, subz, subra, subdec, N_tt):
 		z_g = sub_z[jj]
 		Da_g = Test_model.angular_diameter_distance(z_g).value
 		'''
-		## stack A mask
+		## A mask imgs with edge pixels
 		# 1.5sigma
 		data_A = fits.getdata(load + 
 			'resample/1_5sigma_larger_R/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
 		'''
-		## sky-select sample
+		## A mask imgs without edge pixels
 		data_A = fits.getdata(load + 
-			'sky_select_img/imgs/cut_edge-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
-
+			'edge_cut/sample_img/Edg_cut-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+		#data_A = fits.getdata(load + 
+		#	'sky_select_img/imgs/cut_edge-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
 		img_A = data_A[0]
 		xn = data_A[1]['CENTER_X']
 		yn = data_A[1]['CENTER_Y']
@@ -112,15 +113,6 @@ def stack_process(band_number, subz, subra, subdec, N_tt):
 
 		idx = np.isnan(img_A)
 		idv = np.where(idx == False)
-		'''
-		## select the 1 Mpc ~ 1.1 Mpc region as background
-		grd_x = np.linspace(0, img_A.shape[1] - 1, img_A.shape[1])
-		grd_y = np.linspace(0, img_A.shape[0] - 1, img_A.shape[0])
-		grd = np.array( np.meshgrid(grd_x, grd_y) )
-		ddr = np.sqrt( (grd[0,:] - xn)**2 + (grd[1,:] - yn)**2 )
-		idu = (ddr > Rpp) & (ddr < 1.1 * Rpp) # using SB in 1 Mpc ~ 1.1 Mpc region as residual sky
-		'''
-		#BL = np.nanmean(img_A[idu])
 		BL = 0.
 		sub_BL_img = img_A - BL
 
@@ -152,14 +144,12 @@ def main():
 	Nx = np.linspace(0, 4854, 4855)
 	Ny = np.linspace(0, 3530, 3531)
 
-	#R_cut, bins = 900, 75
-	#R_smal, R_max = 1, 10**3.02 # kpc
 	R_cut, bins = 1280, 80
 	R_smal, R_max = 1, 1.7e3 # kpc
 
 	#N_tt = np.array([50, 100, 150, 200, 250, 500, 1000, 1500, 2000, 2500, 3000])
 	N_dd = np.array([2013, 2008, 2002, 2008, 2009]) ## sky-select sample
-	"""
+
 	for tt in range(3):
 		'''
 		with h5py.File(load + 'mpi_h5/%s_band_sky_catalog.h5' % band[tt], 'r') as f:
@@ -249,7 +239,7 @@ def main():
 					f['a'] = np.array(Var_f)
 
 			commd.Barrier()
-	"""
+	raise
 	#N_sum = np.array([3308, 3309, 3295, 3308, 3305])
 	#N_sum = np.array([2013, 2008, 2002, 2008, 2009]) ## sky-select sample(1Mpc)
 	N_sum = np.array([1291, 1286, 1283, 1294, 1287]) ## 0.8Mpc

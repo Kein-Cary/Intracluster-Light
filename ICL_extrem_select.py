@@ -3,7 +3,8 @@ import numpy as np
 import pandas as pds
 
 def data_select():
-	lod = '/home/xkchen/mywork/ICL/data/redmapper/'
+	#lod = '/home/xkchen/mywork/ICL/data/redmapper/'
+	lod = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 	csv_1 = 'Except_r_sample.csv'
 	csv_2 = 'Except_g_sample.csv'
 	csv_3 = 'Except_i_sample.csv'
@@ -18,7 +19,12 @@ def data_select():
 					'248.482', '250.342', '255.705', '330.691', '351.680', '354.643', '180.927',
 					'154.207', '233.938', '133.229', '10.814',  '186.372', '231.786', '12.742',  
 					'190.946', '145.632', '223.211', '18.302',  '238.323', '37.662' , '145.632', 
-					'186.372']
+					'186.372',
+					'181.789', '150.065', '197.735', '28.393',  '155.740', '200.870', '201.089', 
+					'240.829', '172.883', '350.475', '16.774',  '192.056', '245.143', '180.893', 
+					'118.547', '218.217', '196.467', '136.956', '219.808', '232.370', '134.154', 
+					'232.100', '191.059', '244.422', '168.003', '242.452', '26.713',  '216.025', 
+					'215.244', ]
 
 	except_dec_r = ['-8.845', '-10.586', '6.724', '-0.633', '15.237', '0.387', '-6.379', '1.911',
 					'-4.182', '48.404', '36.515', '38.226', '61.733', '5.180', '27.627',
@@ -28,7 +34,12 @@ def data_select():
 					'43.091', '24.974', '31.842', '-8.544', '1.134',  '-1.781', '1.032', 
 					'21.965', '0.083',  '18.196', '2.531',  '0.726',  '50.305', '-9.490', 
 					'51.831', '30.025', '15.746', '25.084', '10.319', '-4.991', '30.025', 
-					'0.726' ]
+					'0.726',  
+					'4.412',  '57.012', '21.966', '-1.302', '15.189', '17.109', '4.322', 
+					'3.279',  '36.290', '2.891',  '15.774', '18.629', '26.127', '8.732', 
+					'17.739', '30.489', '60.222', '31.324', '58.749', '18.986', '58.492', 
+					'28.836', '41.112', '42.539', '33.689', '26.578', '-3.012', '-2.197', 
+					'0.229',  ]
 
 	except_z_r = [	'0.260', '0.291', '0.264', '0.261', '0.296', '0.295', '0.236', '0.243',
 					'0.250', '0.213', '0.289', '0.244', '0.298', '0.258', '0.237',
@@ -38,7 +49,12 @@ def data_select():
 					'0.270', '0.274', '0.273', '0.210', '0.277', '0.251', '0.255',
 					'0.218', '0.295', '0.257', '0.262', '0.238', '0.278', '0.200', 
 					'0.268', '0.271', '0.297', '0.255', '0.226', '0.292', '0.271', 
-					'0.238']
+					'0.238', 
+					'0.235', '0.230', '0.282', '0.244', '0.256', '0.297', '0.260', 
+					'0.222', '0.229', '0.264', '0.223', '0.227', '0.228', '0.231', 
+					'0.209', '0.266', '0.262', '0.285', '0.243', '0.212', '0.220', 
+					'0.224', '0.250', '0.294', '0.249', '0.287', '0.253', '0.278', 
+					'0.277', ]
 
 	x_ra = np.array( [ np.float(ll) for ll in except_ra_r] )
 	x_dec = np.array( [ np.float(ll) for ll in except_dec_r] )
@@ -47,7 +63,7 @@ def data_select():
 	values = [x_ra, x_dec, x_z]
 	fill = dict(zip(keys, values))
 	data = pds.DataFrame(fill)
-	data.to_csv(lod + csv_1)
+	data.to_csv(lod + 'selection/' + csv_1)
 
 	except_ra_g = [ '1.980',   '8.320',   '10.814',  '15.970',  '18.217',  '29.544',  '34.675',  '35.888',
 					'37.662',  '113.119', '121.566', '124.701', '128.611', '130.537', '133.229', '136.374',
@@ -56,7 +72,11 @@ def data_select():
 					'186.666', '188.950', '190.946', '208.380', '210.871', '211.215', '215.244', '216.308',
 					'221.403', '224.024', '226.406', '227.367', '233.938', '238.323', '242.344', '250.342',
 					'255.705', '330.691', '340.792', '351.680', '10.814',  '186.372', '231.786', '12.742',  
-					'190.946', '145.632', '223.211', '18.302' , '238.323', '37.662' , '145.632', '186.372']
+					'190.946', '145.632', '223.211', '18.302' , '238.323', '37.662' , '145.632', '186.372',
+					'181.789', '150.065', '197.735', '28.393',  '155.740', '200.870', '201.089', 
+					'240.829', '172.883', '350.475', '16.774',  '192.056', '245.143', '180.893', 
+					'118.547', '218.217', '196.467', '136.956', '219.808', '232.370', '134.154', 
+					'232.100', '191.059', '244.422', '242.452', '26.713',  '195.231', ]
 
 	except_dec_g = ['-8.845', '-0.633', '2.531', '-0.960', '3.247',  '6.212',  '0.114',   '-7.228',
 					'-4.991', '37.617', '19.247', '4.898',  '36.515', '38.226', '18.196', '5.180',
@@ -65,7 +85,11 @@ def data_select():
 					'3.383',  '15.556', '51.831', '53.575', '22.397', '47.084', '0.229',  '7.192',
 					'8.243',  '16.449', '51.449', '0.899',  '0.083',  '10.319', '36.393', '24.974',
 					'31.842', '-8.544', '-9.211', '1.134',  '2.531',  '0.726',  '50.305', '-9.490', 
-					'51.831', '30.025', '15.746', '25.084', '10.319', '-4.991', '30.025', '0.726' ]
+					'51.831', '30.025', '15.746', '25.084', '10.319', '-4.991', '30.025', '0.726' , 
+					'4.412',  '57.012', '21.966', '-1.302', '15.189', '17.109', '4.322', 
+					'3.279',  '36.290', '2.891',  '15.774', '18.629', '26.127', '8.732', 
+					'17.739', '30.489', '60.222', '31.324', '58.749', '18.986', '58.492', 
+					'28.836', '41.112', '42.539', '26.578', '-3.012', '23.735', ]
 
 	except_z_g = [  '0.260', '0.261', '0.262', '0.208', '0.261', '0.298', '0.272', '0.279',
 					'0.292', '0.203', '0.285', '0.252', '0.289', '0.244', '0.257', '0.258',
@@ -74,7 +98,11 @@ def data_select():
 					'0.226', '0.285', '0.268', '0.225', '0.224', '0.238', '0.277', '0.284',
 					'0.268', '0.287', '0.268', '0.263', '0.295', '0.226', '0.281', '0.274',
 					'0.273', '0.210', '0.266', '0.277', '0.262', '0.238', '0.278', '0.200', 
-					'0.268', '0.271', '0.297', '0.255', '0.226', '0.292', '0.271', '0.238']
+					'0.268', '0.271', '0.297', '0.255', '0.226', '0.292', '0.271', '0.238', 
+					'0.235', '0.230', '0.282', '0.244', '0.256', '0.297', '0.260', 
+					'0.222', '0.229', '0.264', '0.223', '0.227', '0.228', '0.231', 
+					'0.209', '0.266', '0.262', '0.285', '0.243', '0.212', '0.220', 
+					'0.224', '0.250', '0.294', '0.287', '0.253', '0.267', ]
 
 	x_ra = np.array( [ np.float(ll) for ll in except_ra_g] )
 	x_dec = np.array( [ np.float(ll) for ll in except_dec_g] )
@@ -83,7 +111,7 @@ def data_select():
 	values = [x_ra, x_dec, x_z]
 	fill = dict(zip(keys, values))
 	data = pds.DataFrame(fill)
-	data.to_csv(lod + csv_2)
+	data.to_csv(lod + 'selection/' + csv_2)
 
 	except_ra_i = [ '5.200',   '8.320',   '10.708',  '10.720',  '12.742',  '21.224',  '22.289', 
 					'24.320',  '32.425',  '37.108',  '37.662',  '43.747',  '117.410', '117.585',
@@ -96,7 +124,11 @@ def data_select():
 					'242.452', '250.342', '255.705', '259.786', '330.691', '347.415', '351.680',
 					'129.462', '154.207', '233.938', '10.814',  '186.372', '231.786', '12.742',  
 					'190.946', '145.632', '223.211', '18.302' , '238.323', '37.662' , '145.632', 
-					'186.372']
+					'186.372', 
+					'181.789', '150.065', '197.735', '28.393',  '155.740', '200.870', '201.089', 
+					'240.829', '172.883', '350.475', '16.774',  '192.056', '245.143', '180.893', 
+					'118.547', '218.217', '196.467', '136.956', '219.808', '232.370', '134.154', 
+					'232.100', '191.059', '244.422', '216.025', '168.650', '184.136', ]
 
 	except_dec_i = ['1.585',  '-0.633', '0.215',  '0.718',  '-9.490', '2.508',  '3.630', 
 					'7.882',  '2.377',  '1.503',  '-4.991', '1.212',  '27.287', '26.293', 
@@ -109,7 +141,11 @@ def data_select():
 					'26.578', '24.974', '31.842', '30.735', '-8.544', '-3.423', '1.134', 
 					'6.777',  '21.965', '0.083',  '2.531',  '0.726',  '50.305', '-9.490', 
 					'51.831', '30.025', '15.746', '25.084', '10.319', '-4.991', '30.025', 
-					'0.726' ]
+					'0.726' , 
+					'4.412',  '57.012', '21.966', '-1.302', '15.189', '17.109', '4.322', 
+					'3.279',  '36.290', '2.891',  '15.774', '18.629', '26.127', '8.732', 
+					'17.739', '30.489', '60.222', '31.324', '58.749', '18.986', '58.492', 
+					'28.836', '41.112', '42.539', '-2.197', '15.610', '27.177', ]
 
 	except_z_i = [  '0.208', '0.261', '0.269', '0.270', '0.200', '0.217', '0.269',
 			  		'0.258', '0.269', '0.264', '0.292', '0.235', '0.243', '0.205',
@@ -122,7 +158,11 @@ def data_select():
 					'0.287', '0.274', '0.273', '0.280', '0.210', '0.274', '0.277',
 					'0.236', '0.218', '0.295', '0.262', '0.238', '0.278', '0.200', 
 					'0.268', '0.271', '0.297', '0.255', '0.226', '0.292', '0.271', 
-					'0.238']
+					'0.238', 
+					'0.235', '0.230', '0.282', '0.244', '0.256', '0.297', '0.260', 
+					'0.222', '0.229', '0.264', '0.223', '0.227', '0.228', '0.231', 
+					'0.209', '0.266', '0.262', '0.285', '0.243', '0.212', '0.220', 
+					'0.224', '0.250', '0.294', '0.278', '0.274', '0.293', ]
 
 	x_ra = np.array( [ np.float(ll) for ll in except_ra_i] )
 	x_dec = np.array( [ np.float(ll) for ll in except_dec_i] )
@@ -131,7 +171,7 @@ def data_select():
 	values = [x_ra, x_dec, x_z]
 	fill = dict(zip(keys, values))
 	data = pds.DataFrame(fill)
-	data.to_csv(lod + csv_3)
+	data.to_csv(lod + 'selection/' + csv_3)
 
 	except_ra_z = [ '8.320',   '8.546',   '18.302',  '24.320',  '26.775',  '37.894',  '117.585', '122.573', '126.251',
 					'127.509', '128.611', '130.537', '129.462', '136.374', '140.078', '141.507', '145.632',
@@ -170,7 +210,7 @@ def data_select():
 	values = [x_ra, x_dec, x_z]
 	fill = dict(zip(keys, values))
 	data = pds.DataFrame(fill)
-	data.to_csv(lod + csv_4)
+	data.to_csv(lod + 'selection/' + csv_4)
 
 	except_ra_u = [ '3.333',   '18.302',  '28.393',  '35.888',  '116.809', '128.611', '130.537', '131.189', 
 					'145.545', '150.379', '151.716', '155.763', '155.783', '158.222', '162.913', '168.650', 
@@ -206,16 +246,16 @@ def data_select():
 	values = [x_ra, x_dec, x_z]
 	fill = dict(zip(keys, values))
 	data = pds.DataFrame(fill)
-	data.to_csv(lod + csv_5)
+	data.to_csv(lod + 'selection/' + csv_5)
 
 	## use h5py data form. for mpi4py run
 	t_ra_r = [np.float(ll) for ll in except_ra_r]
 	t_dec_r = [np.float(ll) for ll in except_dec_r]
 	t_z_r = [np.float(ll) for ll in except_z_r]
 	t_data_r = np.array([t_ra_r, t_dec_r, t_z_r])
-	with h5py.File(lod + 'Except_r_sample.h5', 'w') as f:
+	with h5py.File(lod + 'mpi_h5/' + 'Except_r_sample.h5', 'w') as f:
 		f['a'] = np.array(t_data_r)
-	with h5py.File(lod + 'Except_r_sample.h5') as f:
+	with h5py.File(lod + 'mpi_h5/' + 'Except_r_sample.h5') as f:
 		for tt in range(len(t_data_r)):
 			f['a'][tt,:] = np.array(t_data_r[tt,:])
 
@@ -223,9 +263,9 @@ def data_select():
 	t_dec_g = [np.float(ll) for ll in except_dec_g]
 	t_z_g = [np.float(ll) for ll in except_z_g]
 	t_data_g = np.array([t_ra_g, t_dec_g, t_z_g])
-	with h5py.File(lod + 'Except_g_sample.h5', 'w') as f:
+	with h5py.File(lod + 'mpi_h5/' + 'Except_g_sample.h5', 'w') as f:
 		f['a'] = np.array(t_data_g)
-	with h5py.File(lod + 'Except_g_sample.h5') as f:
+	with h5py.File(lod + 'mpi_h5/' + 'Except_g_sample.h5') as f:
 		for tt in range(len(t_data_g)):
 			f['a'][tt,:] = np.array(t_data_g[tt,:])
 
@@ -233,9 +273,9 @@ def data_select():
 	t_dec_i = [np.float(ll) for ll in except_dec_i]
 	t_z_i = [np.float(ll) for ll in except_z_i]
 	t_data_i = np.array([t_ra_i, t_dec_i, t_z_i])
-	with h5py.File(lod + 'Except_i_sample.h5', 'w') as f:
+	with h5py.File(lod + 'mpi_h5/' + 'Except_i_sample.h5', 'w') as f:
 		f['a'] = np.array(t_data_i)
-	with h5py.File(lod + 'Except_i_sample.h5') as f:
+	with h5py.File(lod + 'mpi_h5/' + 'Except_i_sample.h5') as f:
 		for tt in range(len(t_data_i)):
 			f['a'][tt,:] = np.array(t_data_i[tt,:])
 
@@ -243,9 +283,9 @@ def data_select():
 	t_dec_u = [np.float(ll) for ll in except_dec_u]
 	t_z_u = [np.float(ll) for ll in except_z_u]
 	t_data_u = np.array([t_ra_u, t_dec_u, t_z_u])
-	with h5py.File(lod + 'Except_u_sample.h5', 'w') as f:
+	with h5py.File(lod + 'mpi_h5/' + 'Except_u_sample.h5', 'w') as f:
 		f['a'] = np.array(t_data_u)
-	with h5py.File(lod + 'Except_u_sample.h5') as f:
+	with h5py.File(lod + 'mpi_h5/' + 'Except_u_sample.h5') as f:
 		for tt in range(len(t_data_u)):
 			f['a'][tt,:] = np.array(t_data_u[tt,:])
 
@@ -253,9 +293,9 @@ def data_select():
 	t_dec_z = [np.float(ll) for ll in except_dec_z]
 	t_z_z = [np.float(ll) for ll in except_z_z]
 	t_data_z = np.array([t_ra_z, t_dec_z, t_z_z])
-	with h5py.File(lod + 'Except_z_sample.h5', 'w') as f:
+	with h5py.File(lod + 'mpi_h5/' + 'Except_z_sample.h5', 'w') as f:
 		f['a'] = np.array(t_data_z)
-	with h5py.File(lod + 'Except_z_sample.h5') as f:
+	with h5py.File(lod + 'mpi_h5/' + 'Except_z_sample.h5') as f:
 		for tt in range(len(t_data_z)):
 			f['a'][tt,:] = np.array(t_data_z[tt,:])
 
@@ -273,12 +313,13 @@ def data_select():
 	values = [x_ra, x_dec, x_z]
 	fill = dict(zip(keys, values))
 	data = pds.DataFrame(fill)
-	data.to_csv(lod + 'Bad_match_dr7_cat.csv')
+	data.to_csv(lod + 'selection/' + 'Bad_match_dr7_cat.csv')
 
 	return
 
 def spec_cat():
-	lod = '/home/xkchen/mywork/ICL/data/redmapper/'
+	#lod = '/home/xkchen/mywork/ICL/data/redmapper/'
+	lod = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 	## this mask is mainly for g, r, i band
 	cat_ra = ['328.403', '196.004', '140.502', '180.973', '168.198', '140.296', '180.610', 
 			'182.343', '241.928', '10.814',  '247.330', '186.372', '14.652', '125.865', 
@@ -311,22 +352,23 @@ def spec_cat():
 	values = [cat_ra, cat_dec, cat_z]
 	fill = dict(zip(keys, values))
 	data = pds.DataFrame(fill)
-	data.to_csv(lod + 'special_mask_cat.csv')
+	data.to_csv(lod + 'selection/' + 'special_mask_cat.csv')
 	# use h5py data form. for mpi4py run
 	t_ra = [np.float(ll) for ll in cat_ra]
 	t_dec = [np.float(ll) for ll in cat_dec]
 	t_z = [np.float(ll) for ll in cat_z]
 	t_data = np.array([t_ra, t_dec, t_z])
-	with h5py.File(lod + 'special_mask_cat.h5', 'w') as f:
+	with h5py.File(lod + 'selection/' + 'special_mask_cat.h5', 'w') as f:
 		f['a'] = np.array(t_data)
-	with h5py.File(lod + 'special_mask_cat.h5') as f:
+	with h5py.File(lod + 'selection/' + 'special_mask_cat.h5') as f:
 		for tt in range(len(t_data)):
 			f['a'][tt,:] = np.array(t_data[tt,:])
 	print('Special!')
 	return	
 
 def sky_rule_out():
-	lod = '/home/xkchen/mywork/ICL/data/redmapper/'
+	#lod = '/home/xkchen/mywork/ICL/data/redmapper/'
+	lod = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 
 	cat_ra = [  '172.584', '155.825', '192.342', '149.544', '227.637', '144.349', 
 				'331.843', '357.192', '180.927', '16.543',  '134.612', '189.716', 
@@ -347,22 +389,22 @@ def sky_rule_out():
 	values = [cat_ra, cat_dec, cat_z]
 	fill = dict(zip(keys, values))
 	data = pds.DataFrame(fill)
-	data.to_csv(lod + 'sky_rule_out_cat.csv')
+	data.to_csv(lod + 'selection/' + 'sky_rule_out_cat.csv')
 	## save data for mpirun
 	t_ra = [np.float(ll) for ll in cat_ra]
 	t_dec = [np.float(ll) for ll in cat_dec]
 	t_z = [np.float(ll) for ll in cat_z]
 
 	sky_cat = np.array([t_ra, t_dec, t_z])
-	with h5py.File(lod + 'sky_rule_out_cat.h5', 'w') as f:
+	with h5py.File(lod + 'selection/' + 'sky_rule_out_cat.h5', 'w') as f:
 		f['a'] = np.array(sky_cat)
-	with h5py.File(lod + 'sky_rule_out_cat.h5') as f:
+	with h5py.File(lod + 'selection/' + 'sky_rule_out_cat.h5') as f:
 		for tt in range( len(sky_cat) ):
 			f['a'][tt,:] = np.array( sky_cat[tt,:] )
 	print('saved!')
 
 def main():
-	#data_select()
+	data_select()
 	spec_cat()
 	sky_rule_out()
 

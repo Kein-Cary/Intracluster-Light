@@ -57,7 +57,8 @@ def sky_stack_BCG(band_id, sub_z, sub_ra, sub_dec, cor_id):
 		img[:,-1] = np.nan
 		'''
 		## sky-select sample
-		data = fits.open( load + 'sky_select_img/sky_set/Cut_edge_sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
+		data = fits.open( load + 'edge_cut/sample_sky/Edg_cut-sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
+		#data = fits.open( load + 'sky_select_img/sky_set/Cut_edge_sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
 		img = data[0].data
 		cx, cy = data[0].header['CENTER_X'], data[0].header['CENTER_Y']
 
@@ -128,7 +129,8 @@ def sky_stack_rndm(band_id, sub_z, sub_ra, sub_dec, cor_id):
 		img[:,-1] = np.nan
 		'''
 		## sky-select sample
-		data = fits.open( load + 'sky_select_img/sky_set/Cut_edge_sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
+		data = fits.open( load + 'edge_cut/sample_sky/Edg_cut-sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
+		#data = fits.open( load + 'sky_select_img/sky_set/Cut_edge_sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
 		img = data[0].data
 		cx, cy = data[0].header['CENTER_X'], data[0].header['CENTER_Y']
 
@@ -185,15 +187,19 @@ def main():
 
 	cor_id = 1 # 0, 1 (see description at the beginning)
 	rich_a0, rich_a1, rich_a2 = 20, 30, 50
-	'''
+	"""
 	### sub-stack
-	#for kk in range(len(band)):
 	for kk in range( 3 ):
 
 		for lamda_k in range(3):
+			'''
 			with h5py.File(load + 'sky_select_img/%s_band_sky_0.80Mpc_select.h5' % band[kk], 'r') as f:
 				set_array = np.array(f['a'])
 			set_ra, set_dec, set_z, set_rich = set_array[0,:], set_array[1,:], set_array[2,:], set_array[4,:]
+			'''
+			with h5py.File(load + 'mpi_h5/%s_band_sky_catalog.h5' % band[kk], 'r') as f:
+				set_array = np.array(f['a'])
+			set_ra, set_dec, set_z, set_rich = set_array[0,:], set_array[1,:], set_array[2,:], set_array[3,:]
 
 			if lamda_k == 0:
 				idx = (set_rich >= rich_a0) & (set_rich <= rich_a1)
@@ -235,6 +241,7 @@ def main():
 					bcg_stack[ivx] = bcg_stack[ivx] + sum_img[ivx]
 					sqr_f[ivx] = sqr_f[ivx] + f2_sum[ivx]
 					bcg_count[ivx] = bcg_count[ivx] + p_count[ivx]
+
 				## sample sky SB
 				tt_N = np.int(tt_N)
 				## centered on BCG
@@ -263,17 +270,21 @@ def main():
 					with h5py.File(load + 'rich_sample/stack_sky_median_Var_%d_imgs_%s_band_%drich.h5' % (tt_N, band[kk], lamda_k), 'w') as f:
 						f['a'] = np.array(Var_f)
 			commd.Barrier()
-	'''
-	'''
+	"""
+	"""
 	##### for random case
 	d_record = 1 ## 1, 2, 3, 4, 5
-	#for kk in range(len(band)):
 	for kk in range( 3 ):
 
 		for lamda_k in range(3):
+			'''
 			with h5py.File(load + 'sky_select_img/%s_band_sky_0.80Mpc_select.h5' % band[kk], 'r') as f:
 				set_array = np.array(f['a'])
 			set_ra, set_dec, set_z, set_rich = set_array[0,:], set_array[1,:], set_array[2,:], set_array[4,:]
+			'''
+			with h5py.File(load + 'mpi_h5/%s_band_sky_catalog.h5' % band[kk], 'r') as f:
+				set_array = np.array(f['a'])
+			set_ra, set_dec, set_z, set_rich = set_array[0,:], set_array[1,:], set_array[2,:], set_array[3,:]
 
 			if lamda_k == 0:
 				idx = (set_rich >= rich_a0) & (set_rich <= rich_a1)
@@ -354,9 +365,13 @@ def main():
 					(d_record, tt_N, band[kk], lamda_k), 'w') as f:
 					f['a'] = np.array(rand_pos)
 			commd.Barrier()
+	"""
 	'''
-	N_sum = np.array([1291, 1286, 1283, 1294, 1287]) ## 0.8Mpc
+	N_sum = np.array([1291, 1286, 1283]) ## 0.8Mpc
 	N_bin = np.array([ [711, 434, 141], [710, 430, 141], [707, 429, 142] ])
+	'''
+	N_sum = np.array([3268, 3271, 3258]) ## total sky-select imgs
+	N_bin = np.array([ [1857, 1069, 342], [1860, 1071, 340], [1853, 1068, 337] ])
 
 	## calculate the image average for random case
 	if rank == 0:

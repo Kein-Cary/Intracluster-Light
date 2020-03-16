@@ -239,12 +239,12 @@ def phot_z_center_cat(band_id, sub_z, sub_ra, sub_dec, sub_rmag, sub_rich):
 	return
 
 def main():
-
+	'''
 	with h5py.File(load + 'mpi_h5/photo_z_difference_sample.h5', 'r') as f:
 		dat = np.array(f['a'])
 	ra, dec, z, rich, r_mag = dat[0,:], dat[1,:], dat[2,:], dat[3,:], dat[4,:]
 	zN = len(z)
-	'''
+
 	## read the sky image (also save the sky img)
 	for tt in range(3):
 		m, n = divmod(zN, cpus)
@@ -274,6 +274,10 @@ def main():
 	'''
 	## build img-center catalogue
 	for tt in range(3):
+		with h5py.File(load + 'mpi_h5/phot_z_%s_band_stack_cat.h5' % band[tt], 'r') as f:
+			dat = np.array(f['a'])
+		ra, dec, z, rich, r_mag = dat[0,:], dat[1,:], dat[2,:], dat[3,:], dat[4,:]
+		zN = len(z)
 
 		m, n = divmod(zN, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m

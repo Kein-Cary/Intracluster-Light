@@ -193,7 +193,7 @@ def main():
 	for kk in range( 3 ):
 
 		#with h5py.File(load + 'mpi_h5/phot_z_%s_band_stack_cat.h5' % band[kk], 'r') as f:
-		with h5py.File(load + 'photo_z/%s_band_img-center_cat.h5' % band[kk], 'r') as f: # sky-selected imgs
+		with h5py.File(load + 'photo_z/%s_band_img-center_cat.h5' % band[kk], 'r') as f:
 			dat = np.array(f['a'])
 		set_ra, set_dec, set_z, set_rich = dat[0,:], dat[1,:], dat[2,:], dat[3,:]
 		zN = len(set_z)
@@ -255,11 +255,11 @@ def main():
 	"""
 	"""
 	##### for random case
-	d_record = 5 ## 1, 2, 3, 4, 5
+	d_record = 1 ## 1, 2, 3, 4, 5
 	for kk in range( 3 ):
 
 		#with h5py.File(load + 'mpi_h5/phot_z_%s_band_stack_cat.h5' % band[kk], 'r') as f:
-		with h5py.File(load + 'photo_z/%s_band_img-center_cat.h5' % band[kk], 'r') as f: # sky-selected imgs
+		with h5py.File(load + 'photo_z/%s_band_img-center_cat.h5' % band[kk], 'r') as f:
 			dat = np.array(f['a'])
 		set_ra, set_dec, set_z, set_rich = dat[0,:], dat[1,:], dat[2,:], dat[3,:]
 		zN = len(set_z)
@@ -330,7 +330,7 @@ def main():
 		commd.Barrier()
 	"""
 	#N_sum = np.array([1497, 1503, 1492])
-	N_sum = np.array([1213, 1209, 1211])
+	N_sum = np.array([1176, 1176, 1169])
 
 	## calculate the image average for random case
 	if rank == 0:

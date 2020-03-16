@@ -68,14 +68,14 @@ for kk in range(bN):
     except_ra = ['%.3f' % ll for ll in except_cat[0,:] ]
     except_dec = ['%.3f' % ll for ll in except_cat[1,:] ]
     #except_z = ['%.3f' % ll for ll in except_cat[2,:] ]
-    '''
+
     ## special mask
     with h5py.File(load + 'mpi_h5/special_mask_cat.h5', 'r') as f:
         special_cat = np.array(f['a'])
     speci_ra = ['%.3f' % ll for ll in special_cat[0,:] ]
     speci_dec = ['%.3f' % ll for ll in special_cat[1,:] ]
     #speci_z = ['%.3f' % ll for ll in special_cat[2,:] ]
-    '''
+
     sub_z = []
     sub_ra = []
     sub_dec = []
@@ -160,7 +160,7 @@ for kk in range(bN):
     with h5py.File(load + 'mpi_h5/%s_band_sample_catalog.h5' % band[kk]) as f:
         for tt in range( len(sub_array) ):
             f['a'][tt,:] = sub_array[tt,:]
-'''
+
 ########################################################
 # Based on the image data sample, seletcing the sky image sample
 ##### selected sky sample
@@ -273,5 +273,4 @@ for kk in range(bN):
         for tt in range( len(sub_array) ):
             f['a'][tt,:] = sub_array[tt,:]
 
-'''
 print('done!')

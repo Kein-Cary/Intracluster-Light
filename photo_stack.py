@@ -126,18 +126,16 @@ def main():
 	x0, y0 = 2427, 1765
 	Nx = np.linspace(0, 4854, 4855)
 	Ny = np.linspace(0, 3530, 3531)
-	'''
-	## deteck "bad" images
-	with h5py.File(load + 'mpi_h5/photo_z_difference_sample.h5', 'r') as f:
-		dat = np.array(f['a'])
-	ra, dec, z = dat[0,:], dat[1,:], dat[2,:]
-	zN = len(z)
-	da0, da1 = 764, 817 # zN - 1
-	Ntt = np.int(da1 - da0)
-	'''
 	"""
 	for kk in range( 3 ):
 		'''
+		#with h5py.File(load + 'mpi_h5/phot_z_%s_band_stack_cat.h5' % band[kk], 'r') as f:
+		with h5py.File(load + 'photo_z/%s_band_img-center_cat.h5' % ( band[kk] ), 'r') as f:
+			dat = np.array(f['a'])
+		ra, dec, z = dat[0,:], dat[1,:], dat[2,:]
+		zN = len(z)
+		da0, da1 = 0, zN - 1
+		Ntt = np.int(da1 - da0)
 		set_z, set_ra, set_dec = z[da0: da1], ra[da0: da1], dec[da0: da1]
 		m, n = divmod(Ntt, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
@@ -146,7 +144,7 @@ def main():
 		img_stack(kk, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
 		'''
 		#with h5py.File(load + 'mpi_h5/phot_z_%s_band_stack_cat.h5' % band[kk], 'r') as f:
-		with h5py.File(load + 'photo_z/%s_band_img-center_cat.h5' % ( band[kk] ), 'r') as f: # sky-selected imgs
+		with h5py.File(load + 'photo_z/%s_band_img-center_cat.h5' % ( band[kk] ), 'r') as f:
 			dat = np.array(f['a'])
 		ra, dec, z = dat[0,:], dat[1,:], dat[2,:]
 		zN = len(z)
@@ -155,6 +153,7 @@ def main():
 		if rank == cpus - 1:
 			N_sub1 += n
 		img_stack(kk, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
+
 		commd.Barrier()
 
 	### combine all of the sub-stack A mask image
@@ -190,7 +189,6 @@ def main():
 			stack_img = mean_img / p_add_count
 			where_are_inf = np.isinf(stack_img)
 			stack_img[where_are_inf] = np.nan
-
 			with h5py.File(load + 'photo_z/stack/stack_maskA_%d_in_%s_band.h5' % (tot_N, band[kk]), 'w') as f:
 				f['a'] = np.array(stack_img)
 
@@ -206,7 +204,7 @@ def main():
 	commd.Barrier()
 	"""
 	#N_sum = np.array([1497, 1503, 1492])
-	N_sum = np.array([1213, 1209, 1211])
+	N_sum = np.array([1176, 1176, 1169])
 
 	r_a0, r_a1 = 1.0, 1.1
 	## R200 calculate parameter
