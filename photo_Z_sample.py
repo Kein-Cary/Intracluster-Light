@@ -231,7 +231,7 @@ def photo_star_sql(z_set, ra_set, dec_set):
 		doc.close()
 
 def main():
-	#phot_z_sample()
+	phot_z_sample()
 	'''
 	## image data
 	for tt in range(3):
@@ -245,7 +245,7 @@ def main():
 			N_sub1 += n 
 		photo_z_fig(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
 		commd.Barrier()
-	'''
+
 	## star catalogue
 	with h5py.File(load + 'data/mpi_h5/photo_z_difference_sample.h5', 'r') as f:
 		dat = np.array(f['a'])
@@ -256,7 +256,8 @@ def main():
 	if rank == cpus - 1:
 		N_sub1 += n
 	photo_star_sql(z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
-	commd.Barrier()	
+	commd.Barrier()
+	'''
 
 if __name__ == "__main__":
 	main()

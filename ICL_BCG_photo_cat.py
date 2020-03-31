@@ -35,8 +35,8 @@ dec = catalogue[2]
 ## in unit of degree, centered at BCG center, about 70 arcsec
 r_select = 0.02
 
-load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/BCG_pros/'
-goal_data = fits.getdata('/mnt/ddnfs/data_users/cxkttwl/ICL/data/redmapper/redmapper_dr8_public_v6.3_catalog.fits')
+load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
+goal_data = fits.getdata(load + 'redmapper/redmapper_dr8_public_v6.3_catalog.fits')
 redshift = np.array(goal_data.Z_SPEC)
 Mag_bcgs = np.array(goal_data.MODEL_MAG_R)
 Mag_err = np.array(goal_data.MODEL_MAGERR_R)
@@ -54,11 +54,17 @@ def BCG_mag_sql(cat_z, cat_ra, cat_dec, cat_ID):
 
 		data_set = """
 		SELECT
-			pro.objID, pro.bin, pro.band, pro.profMean, pro.profErr
-		FROM PhotoProfile AS pro
+			G.objID, 
+			G.deVAB_u, G.deVAB_g, G.deVAB_r, G.deVAB_i, G.deVAB_z,
+			G.deVPhi_u, G.deVPhi_g, G.deVPhi_r, G.deVPhi_i, G.deVPhi_z,
+			G.deVRad_u, G.deVRad_g, G.deVRad_r, G.deVRad_i, G.deVRad_z,
+			G.expAB_u, G.expAB_g, G.expAB_r, G.expAB_i, G.expAB_z,
+			G.expPhi_u, G.expPhi_g, G.expPhi_r, G.expPhi_i, G.expPhi_z,
+			G.expRad_u, G.expRad_g, G.expRad_r, G.expRad_i,G.expRad_z
+
+		FROM Galaxy AS G
 		WHERE
-			pro.objID = %d
-			AND pro.bin BETWEEN 0 AND 15
+			G.objID = %d
 		""" % cat_ID[kk]
 
 		br = mechanize.Browser()
@@ -71,7 +77,7 @@ def BCG_mag_sql(cat_z, cat_ra, cat_dec, cat_ID):
 		br['format'] = ['csv']
 		response = br.submit()
 		s = str(response.get_data(), encoding = 'utf-8')
-		doc = open( load + 'BCG_prof_Z%.3f_ra%.3f_dec%.3f.txt'%(z_g, ra_g, dec_g), 'w')
+		doc = open( load + 'BCG_photometric/BCG_photo_Z%.3f_ra%.3f_dec%.3f.txt'%(z_g, ra_g, dec_g), 'w')
 		print(s, file = doc)
 		doc.close()
 

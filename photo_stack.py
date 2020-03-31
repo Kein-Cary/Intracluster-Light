@@ -126,23 +126,9 @@ def main():
 	x0, y0 = 2427, 1765
 	Nx = np.linspace(0, 4854, 4855)
 	Ny = np.linspace(0, 3530, 3531)
-	"""
+
 	for kk in range( 3 ):
-		'''
-		#with h5py.File(load + 'mpi_h5/phot_z_%s_band_stack_cat.h5' % band[kk], 'r') as f:
-		with h5py.File(load + 'photo_z/%s_band_img-center_cat.h5' % ( band[kk] ), 'r') as f:
-			dat = np.array(f['a'])
-		ra, dec, z = dat[0,:], dat[1,:], dat[2,:]
-		zN = len(z)
-		da0, da1 = 0, zN - 1
-		Ntt = np.int(da1 - da0)
-		set_z, set_ra, set_dec = z[da0: da1], ra[da0: da1], dec[da0: da1]
-		m, n = divmod(Ntt, cpus)
-		N_sub0, N_sub1 = m * rank, (rank + 1) * m
-		if rank == cpus - 1:
-			N_sub1 += n
-		img_stack(kk, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
-		'''
+
 		#with h5py.File(load + 'mpi_h5/phot_z_%s_band_stack_cat.h5' % band[kk], 'r') as f:
 		with h5py.File(load + 'photo_z/%s_band_img-center_cat.h5' % ( band[kk] ), 'r') as f:
 			dat = np.array(f['a'])
@@ -192,17 +178,8 @@ def main():
 			with h5py.File(load + 'photo_z/stack/stack_maskA_%d_in_%s_band.h5' % (tot_N, band[kk]), 'w') as f:
 				f['a'] = np.array(stack_img)
 
-			## save the variance image
-			sqare_f[id_zero] = np.nan
-			E_f2 = sqare_f / p_add_count
-			id_inf = np.isinf(E_f2)
-			E_f2[id_inf] = np.nan
-			Var_f = E_f2 - stack_img**2  ## Variance img
-			with h5py.File(load + 'photo_z/stack/stack_maskA_pix_Var_%d_in_%s_band.h5' % (tot_N, band[kk]), 'w') as f:
-				f['a'] = np.array(Var_f)
-
 	commd.Barrier()
-	"""
+
 	#N_sum = np.array([1497, 1503, 1492])
 	N_sum = np.array([1176, 1176, 1169])
 

@@ -193,7 +193,7 @@ def phot_z_use_sample():
 	return
 
 def main():
-	#phot_z_rule_out()
+	phot_z_rule_out()
 	phot_z_use_sample()
 
 if __name__ == "__main__":

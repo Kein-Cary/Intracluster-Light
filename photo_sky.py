@@ -75,8 +75,6 @@ def photo_sky(band_id, z_set, ra_set, dec_set):
 			inds = np.array(np.meshgrid(sky_x, sky_y))
 			t_sky = mapcd(sky0, [inds[1,:], inds[0,:]], order = 1, mode = 'nearest')
 			sky_bl = t_sky * (data[0].header['NMGY'])
-			cimg = img + sky_bl ## PS: here the original image, do not apply Galactic extinction calibration
-			SB_sky = 22.5 - 2.5 * np.log10( np.mean(sky_bl) ) + 2.5 * np.log10(pixel**2)
 
 			## save the sky img
 			hdu = fits.PrimaryHDU()
@@ -154,15 +152,18 @@ def photo_sky_cut(band_id, sub_z, sub_ra, sub_dec):
 			RA0, DEC0 = data[1]['CRVAL1'], data[1]['CRVAL2']
 
 			xc, yc = np.int(img.shape[1] / 2), np.int(img.shape[0] / 2)
-			re_img = img[yc - np.int(Rpp): yc + np.int(Rpp), xc - np.int(1.3 * Rpp): xc + np.int(1.3 * Rpp)]
+			## keep the image size but set np.nan for egde pixels
+			re_img = np.zeros( (img.shape[0], img.shape[1]), dtype = np.float) + np.nan
+			( re_img[yc - np.int(Rpp): yc + np.int(Rpp), xc - np.int(1.3 * Rpp): xc + np.int(1.3 * Rpp)] ) = ( 
+				img[yc - np.int(Rpp): yc + np.int(Rpp), xc - np.int(1.3 * Rpp): xc + np.int(1.3 * Rpp)] )
 
-			New_bcgx = BCGx - (xc - np.int(1.3 * Rpp))
-			New_bcgy = BCGy - (yc - np.int(Rpp))
+			New_bcgx = BCGx + 0
+			New_bcgy = BCGy + 0
 
 			Lx = re_img.shape[1]
 			Ly = re_img.shape[0]
-			Crx = np.int(1.3 * Rpp)
-			Cry = np.int(Rpp)
+			Crx = xc + 0
+			Cry = yc + 0
 
 			keys = ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2','CRPIX1','CRPIX2','CENTER_X','CENTER_Y',
 					'CRVAL1','CRVAL2','CENTER_RA','CENTER_DEC','ORIGN_Z', 'P_SCALE']
@@ -184,8 +185,6 @@ def phot_z_center_cat(band_id, sub_z, sub_ra, sub_dec, sub_rmag, sub_rich):
 	z_fit = np.zeros(zn, dtype = np.float)
 	rmag_fit = np.zeros(zn, dtype = np.float)
 	rich_fit = np.zeros(zn, dtype = np.float)
-
-	#cen_dst = 0.65 ## centric distance: 1 Mpc, 0.8Mpc, 0.65Mpc
 
 	for k in range(zn):
 		ra_g = sub_ra[k]
@@ -239,12 +238,12 @@ def phot_z_center_cat(band_id, sub_z, sub_ra, sub_dec, sub_rmag, sub_rich):
 	return
 
 def main():
-	'''
+
 	with h5py.File(load + 'mpi_h5/photo_z_difference_sample.h5', 'r') as f:
 		dat = np.array(f['a'])
 	ra, dec, z, rich, r_mag = dat[0,:], dat[1,:], dat[2,:], dat[3,:], dat[4,:]
 	zN = len(z)
-
+	'''
 	## read the sky image (also save the sky img)
 	for tt in range(3):
 		m, n = divmod(zN, cpus)
@@ -262,7 +261,7 @@ def main():
 			N_sub1 += n
 		photo_sky_resamp(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
 	commd.Barrier()
-
+	'''
 	## rule out the edges pixels
 	for tt in range(3):
 		m, n = divmod(zN, cpus)
@@ -320,6 +319,7 @@ def main():
 
 			print( len(set_z) )
 	commd.Barrier()
+	'''
 
 if __name__ == "__main__":
 	main()
