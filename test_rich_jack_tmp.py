@@ -11,15 +11,15 @@ import h5py
 import time
 import numpy as np
 import pandas as pds
+import statistics as sts
 import astropy.wcs as awc
 import subprocess as subpro
 import astropy.io.fits as fits
-import statistics as sts
 
 from scipy import ndimage
-from astropy import cosmology as apcy
-from light_measure import light_measure
 from Mass_rich_radius import rich2R
+from astropy import cosmology as apcy
+from light_measure import light_measure, light_measure_rn
 
 from mpi4py import MPI
 commd = MPI.COMM_WORLD
@@ -53,7 +53,6 @@ Angu_ref = (R0/Da_ref)*rad2asec
 Rpp = Angu_ref/pixel
 M_dot = 4.83 # the absolute magnitude of SUN
 
-home = '/mnt/ddnfs/data_users/cxkttwl/ICL/'
 load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 tmp = '/mnt/ddnfs/data_users/cxkttwl/PC/'
 band = ['r', 'g', 'i', 'u', 'z']
@@ -65,11 +64,21 @@ cat_Rii = np.array([0.23,  0.68,  1.03,   1.76,   3.00,
 					44.21, 69.00, 107.81, 168.20, 263.00])
 ## the band info. of SDSS BCG pro. : 0, 1, 2, 3, 4 --> u, g, r, i, z
 
-def sers_pro(r, mu_e, r_e, n):
-	belta_n = 2 * n - 0.324
-	fn = 1.086 * belta_n * ( (r/r_e)**(1/n) - 1)
-	mu_r = mu_e + fn
-	return mu_r
+def betwn_SB(data, R_low, R_up, cx, cy, pix_size, z0, band_id):
+
+	betwn_r, betwn_Intns, betwn_err = light_measure_rn(data, R_low, R_up, cx, cy, pix_size, z0)
+	betwn_lit = 22.5 - 2.5 * np.log10(betwn_Intns) + 2.5 * np.log10(pixel**2) + mag_add[band_id]
+	flux0 = betwn_Intns + betwn_err
+	flux1 = betwn_Intns - betwn_err
+	dSB0 = 22.5 - 2.5 * np.log10(flux0) + 2.5 * np.log10(pixel**2) + mag_add[band_id]
+	dSB1 = 22.5 - 2.5 * np.log10(flux1) + 2.5 * np.log10(pixel**2) + mag_add[band_id]
+	btn_err0 = betwn_lit - dSB0
+	btn_err1 = dSB1 - betwn_lit
+	id_nan = np.isnan(dSB1)
+	if id_nan == True:
+		btn_err1 = 100.
+
+	return betwn_r, betwn_lit, btn_err0, btn_err1, betwn_Intns, betwn_err
 
 def jack_SB(SB_array, R_array, band_id, N_bins):
 	## stacking profile based on flux
@@ -299,16 +308,30 @@ def sky_stack_rndm(band_id, sub_z, sub_ra, sub_dec, cor_id):
 	return
 
 def SB_result():
+	back_id = 1 # 0, 1
 	# calculate the cat_Rii at z = 0.25 in physical unit (kpc)
 	ref_Rii = Da_ref * cat_Rii * 10**3 / rad2asec # in unit kpc
+
+	if back_id == 0:
+		## background based on 1-1.1Mpc brightness
+		R_cut, bins_0, bins_1 = 1280, 70, 7 # around 2Mpc set
+		R_min_0, R_max_0 = 1, 1e3 # kpc
+		R_min_1, R_max_1 = 1.1e3, 2e3 # kpc
+		r_a0, r_a1 = 1e3, 1.1e3
+		d_load = load + 'rich_sample/test_img/'
+	if back_id == 1:
+		## background based on 1-1.1Mpc brightness
+		R_cut, bins_0, bins_1 = 1318, 80, 5 # around 2.1Mpc set
+		R_min_0, R_max_0 = 1, 1.4e3 # kpc
+		R_min_1, R_max_1 = 1.5e3, 2.1e3 # kpc
+		r_a0, r_a1 = 1.4e3, 1.5e3
+		d_load = load + 'rich_sample/test_14_15/'
+
+	bins, R_smal, R_max = 80, 1, 2e3 ## for sky ICL
 
 	x0, y0 = 2427, 1765
 	Nx = np.linspace(0, 4854, 4855)
 	Ny = np.linspace(0, 3530, 3531)
-
-	R_cut, bins = 1280, 80
-	R_smal, R_max = 1, 1.7e3 # kpc
-	r_a0, r_a1 = 1.0, 1.1
 
 	## R200 calculate parameter
 	dnoise = 25
@@ -339,13 +362,13 @@ def SB_result():
 		clust_cnt = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 		differ_2d = np.zeros((N_bin, len(Ny), len(Nx)), dtype = np.float) + np.nan
 		differ_cnt = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-		"""
+
 		fig = plt.figure(figsize = (20, 20))
 		fig.suptitle('%s band sub-sample SB profile' % band[kk])
 		gs = gridspec.GridSpec(N_bin // 5, 5)
+
 		for nn in range(N_bin):
-			with h5py.File(load + 
-				'rich_sample/test_img/%s_band_%d_sub-samp_SB_pro.h5' % (band[kk], nn), 'r') as f:
+			with h5py.File(load + 'rich_sample/test_img/%s_band_%d_sub-samp_SB_pro.h5' % (band[kk], nn), 'r') as f:
 				tmp_array = np.array(f['a'])
 			bcg_Rii, bcg_SB, err0, err1, SB_mean = tmp_array[0,:],tmp_array[1,:],tmp_array[2,:],tmp_array[3,:],tmp_array[4,:]
 			id_nan = np.isnan(bcg_SB)
@@ -372,15 +395,28 @@ def SB_result():
 			BCG_cont_Mx[idv] += 1.
 
 			ss_img = clust_img[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
-			Rt, SBt, t_err0, t_err1, Intns_0, Intns_r_0, Intns_err_0 = SB_pro(ss_img, bins, R_smal, R_max, R_cut, R_cut, pixel, z_ref, kk)
-			stack_sb.append(Intns_0 / pixel**2)
-			stack_r.append(Intns_r_0)
+			Rt_0, SBt_0, t_err0_0, t_err1_0, Intns_0_0, Intns_r_0_0, Intns_err_0_0 = SB_pro(
+				ss_img, bins_0, R_min_0, R_max_0, R_cut, R_cut, pixel, z_ref, kk)
+			Rt_1, SBt_1, t_err0_1, t_err1_1, Intns_0_1, Intns_r_0_1, Intns_err_0_1 = SB_pro(
+				ss_img, bins_1, R_min_1, R_max_1, R_cut, R_cut, pixel, z_ref, kk)
+			betwn_r, betwn_lit, btn_err0, btn_err1, betwn_Intns, betwn_err = betwn_SB(ss_img, r_a0, r_a1, R_cut, R_cut, pixel, z_ref, kk)
+
+			Rt = np.r_[Rt_0, betwn_r, Rt_1]
+			SBt = np.r_[SBt_0, betwn_lit, SBt_1]
+			t_err0 = np.r_[t_err0_0, btn_err0, t_err0_1]
+			t_err1 = np.r_[t_err1_0, btn_err1, t_err1_1]
+			Intns_0 = np.r_[Intns_0_0, betwn_Intns, Intns_0_1]
+			Intns_r_0 = np.r_[Intns_r_0_0, betwn_r, Intns_r_0_1]
+			Intns_err_0 = np.r_[Intns_err_0_0, betwn_err, Intns_err_0_1]
+
 			Intns_0, Intns_err_0 = Intns_0 / pixel**2, Intns_err_0 / pixel**2
+			stack_sb.append(Intns_0)
+			stack_r.append(Intns_r_0)
 			#......
 			dmp_array = np.array([Intns_r_0, Intns_0, Intns_err_0])
-			with h5py.File(load + 'rich_sample/test_img/%s_band_%d_sub-stack_clust_SB.h5' % (band[kk], nn), 'w') as f:
+			with h5py.File(d_load + '%s_band_%d_sub-stack_clust_SB.h5' % (band[kk], nn), 'w') as f:
 				f['a'] = np.array(dmp_array)
-			with h5py.File(load + 'rich_sample/test_img/%s_band_%d_sub-stack_clust_SB.h5' % (band[kk], nn) ) as f:
+			with h5py.File(d_load + '%s_band_%d_sub-stack_clust_SB.h5' % (band[kk], nn) ) as f:
 				for ll in range(len(dmp_array)):
 					f['a'][ll,:] = dmp_array[ll,:]
 			#......
@@ -394,7 +430,7 @@ def SB_result():
 				rand_sky = np.array(f['a'])
 
 			differ_img = BCG_sky - rand_sky
-			with h5py.File(load + 'rich_sample/test_img/%s_band_%d_sub-differ_img.h5' % (band[kk], nn), 'w') as f:
+			with h5py.File(d_load + '%s_band_%d_sub-differ_img.h5' % (band[kk], nn), 'w') as f:
 				f['a'] = np.array(differ_img)
 
 			idnx = np.isnan(differ_img)
@@ -406,14 +442,14 @@ def SB_result():
 
 			resi_add = differ_img[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
 			R_sky, sky_ICL, sky_err0, sky_err1, Intns, Intns_r, Intns_err = SB_pro(resi_add, bins, R_smal, R_max, R_cut, R_cut, pixel, z_ref, kk)
-			sky_lit.append(Intns / pixel**2)
-			sky_r.append(Intns_r)
 			Intns, Intns_err = Intns / pixel**2, Intns_err / pixel**2
+			sky_lit.append(Intns)
+			sky_r.append(Intns_r)
 			#......
 			dmp_array = np.array([Intns_r, Intns, Intns_err])
-			with h5py.File(load + 'rich_sample/test_img/%s_band_%d_sub-stack_sky_ICL.h5' % (band[kk], nn), 'w') as f:
+			with h5py.File(d_load + '%s_band_%d_sub-stack_sky_ICL.h5' % (band[kk], nn), 'w') as f:
 				f['a'] = np.array(dmp_array)
-			with h5py.File(load + 'rich_sample/test_img/%s_band_%d_sub-stack_sky_ICL.h5' % (band[kk], nn) ) as f:
+			with h5py.File(d_load + '%s_band_%d_sub-stack_sky_ICL.h5' % (band[kk], nn) ) as f:
 				for ll in range(len(dmp_array)):
 					f['a'][ll,:] = dmp_array[ll,:]
 			#......
@@ -422,37 +458,38 @@ def SB_result():
 
 			## add the sky difference image
 			add_img = ss_img + resi_add
-			R_add, SB_add, add_err0, add_err1, Intns_1, Intns_r_1, Intns_err_1 = SB_pro(add_img, bins, R_smal, R_max, R_cut, R_cut, pixel, z_ref, kk)
-			add_sb.append(Intns_1 / pixel**2)
-			add_r.append(Intns_r_1)
+			R_add_0, SB_add_0, add_err0_0, add_err1_0, Intns_1_0, Intns_r_1_0, Intns_err_1_0 = SB_pro(
+				add_img, bins_0, R_min_0, R_max_0, R_cut, R_cut, pixel, z_ref, kk)
+			R_add_1, SB_add_1, add_err0_1, add_err1_1, Intns_1_1, Intns_r_1_1, Intns_err_1_1 = SB_pro(
+				add_img, bins_1, R_min_1, R_max_1, R_cut, R_cut, pixel, z_ref, kk)
+			betwn_r, betwn_lit, btn_err0, btn_err1, betwn_Intns, betwn_err = betwn_SB(add_img, r_a0, r_a1, R_cut, R_cut, pixel, z_ref, kk)
+
+			R_add = np.r_[R_add_0, betwn_r, R_add_1]
+			SB_add = np.r_[SB_add_0, betwn_lit, SB_add_1]
+			add_err0 = np.r_[add_err0_0, btn_err0, add_err0_1]
+			add_err1 = np.r_[add_err1_0, btn_err1, add_err1_1]
+			Intns_1 = np.r_[Intns_1_0, betwn_Intns, Intns_1_1]
+			Intns_r_1 = np.r_[Intns_r_1_0, betwn_r, Intns_r_1_1]
+			Intns_err_1 = np.r_[Intns_err_1_0, betwn_err, Intns_err_1_1]
+
 			Intns_1, Intns_err_1 = Intns_1 / pixel**2, Intns_err_1 / pixel**2
+			add_sb.append(Intns_1)
+			add_r.append(Intns_r_1)
 			#......
 			dmp_array = np.array([Intns_r_1, Intns_1, Intns_err_1])
-			with h5py.File(load + 'rich_sample/test_img/%s_band_%d_sub-stack_add_SB.h5' % (band[kk], nn), 'w') as f:
+			with h5py.File(d_load + '%s_band_%d_sub-stack_add_SB.h5' % (band[kk], nn), 'w') as f:
 				f['a'] = np.array(dmp_array)
-			with h5py.File(load + 'rich_sample/test_img/%s_band_%d_sub-stack_add_SB.h5' % (band[kk], nn) ) as f:
+			with h5py.File(d_load + '%s_band_%d_sub-stack_add_SB.h5' % (band[kk], nn) ) as f:
 				for ll in range(len(dmp_array)):
 					f['a'][ll,:] = dmp_array[ll,:]
 			#......
 
 			## RBL estimation
-			cen_pos = R_cut * 1 # 1280 pixel, for z = 0.25, larger than 2Mpc
-			BL_img = add_img * 1
-			grd_x = np.linspace(0, BL_img.shape[1] - 1, BL_img.shape[1])
-			grd_y = np.linspace(0, BL_img.shape[0] - 1, BL_img.shape[0])
-			grd = np.array( np.meshgrid(grd_x, grd_y) )
-			ddr = np.sqrt( (grd[0,:] - cen_pos)**2 + (grd[1,:] - cen_pos)**2 )
-			idu = (ddr > r_a0 * Rpp) & (ddr < r_a1 * Rpp)
-			Resi_bl = np.nanmean( BL_img[idu] )
-			Resi_std = np.nanstd( BL_img[idu] )
-			rbl[nn] = Resi_bl * 1
-
-			Resi_sky = 22.5 - 2.5 * np.log10(Resi_bl) + 2.5 * np.log10(pixel**2) + mag_add[kk]
-			bl_dSB0 = 22.5 - 2.5 * np.log10(Resi_bl + Resi_std) + 2.5 * np.log10(pixel**2) + mag_add[kk]
-			bl_dSB1 = 22.5 - 2.5 * np.log10(Resi_bl - Resi_std) + 2.5 * np.log10(pixel**2) + mag_add[kk]
-			idvx = np.isnan(bl_dSB1)
-			if idvx == True:
-				bl_dSB1 = 100.
+			Resi_bl = betwn_Intns * 1.
+			Resi_std = betwn_err * 1.
+			Resi_sky = betwn_lit * 1.
+			bl_dSB0, bl_dSB1 = betwn_lit - btn_err0, betwn_lit + btn_err1
+			rbl[nn] = Resi_bl * 1.
 
 			## minus the residual background
 			cli_R = Intns_r_1 * 1.
@@ -476,9 +513,9 @@ def SB_result():
 			R_arr.append(Intns_r_2)
 			#......
 			dmp_array = np.array([Intns_r_2, Intns_2, Intns_err_2])
-			with h5py.File(load + 'rich_sample/test_img/%s_band_%d_sub-stack_cli_SB.h5' % (band[kk], nn), 'w') as f:
+			with h5py.File(d_load + '%s_band_%d_sub-stack_cli_SB.h5' % (band[kk], nn), 'w') as f:
 				f['a'] = np.array(dmp_array)
-			with h5py.File(load + 'rich_sample/test_img/%s_band_%d_sub-stack_cli_SB.h5' % (band[kk], nn) ) as f:
+			with h5py.File(d_load + '%s_band_%d_sub-stack_cli_SB.h5' % (band[kk], nn) ) as f:
 				for ll in range(len(dmp_array)):
 					f['a'][ll,:] = dmp_array[ll,:]
 			#......
@@ -489,7 +526,7 @@ def SB_result():
 			Intns_2, Intns_r_2, Intns_err_2 = Intns_2[id_nan == False], Intns_r_2[id_nan == False], Intns_err_2[id_nan == False]
 
 			### fig sub-sample results
-			plt.figure()
+			fig = plt.figure()
 			cx0 = plt.subplot(111)
 			cx0.set_title('%s band %d sub-sample SB' % (band[kk], nn) )
 
@@ -506,11 +543,30 @@ def SB_result():
 			cx0.set_ylabel('$SB[ nmaggy / arcsec^2]$')
 			cx0.set_xscale('log')
 			cx0.set_yscale('log')
-			cx0.set_xlim(1, 1.5e3)
+			cx0.set_xlim(1, 2e3)
+			cx0.set_ylim(1e-5, 1e1)
 			cx0.legend(loc = 1, frameon = False)
 			cx0.grid(which = 'major', axis = 'both')
 			cx0.tick_params(axis = 'both', which = 'both', direction = 'in')
-			plt.savefig(load + 'rich_sample/test_img/%s_band_%d_sub-sample_SB.png' % (band[kk], nn), dpi = 300)
+
+			subax = fig.add_axes([0.2, 0.2, 0.32, 0.32])
+			subax.errorbar(Intns_r_0, Intns_0, yerr = Intns_err_0, xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
+				ecolor = 'r', elinewidth = 1, alpha = 0.5)
+			subax.errorbar(Intns_r_1, Intns_1, yerr = Intns_err_1, xerr = None, color = 'g', marker = 'None', ls = '-', linewidth = 1, 
+				ecolor = 'g', elinewidth = 1, alpha = 0.5)
+			subax.errorbar(Intns_r_2, Intns_2, yerr = Intns_err_2, xerr = None, color = 'b', marker = 'None', ls = '-', linewidth = 1,
+				ecolor = 'b', elinewidth = 1, alpha = 0.5)
+			subax.errorbar(Intns_r, Intns, yerr = Intns_err, xerr = None, color = 'm', marker = 'None', ls = '-', linewidth = 1,
+				ecolor = 'm', elinewidth = 1, alpha = 0.5)
+
+			subax.set_xlim(4e2, 1.4e3)
+			subax.set_xscale('log')
+			subax.set_ylim(3e-3, 7e-3)
+			subax.set_yscale('log')
+			subax.grid(which = 'both', axis = 'both')
+			subax.tick_params(axis = 'both', which = 'both', direction = 'in', labelsize = 5.)
+
+			plt.savefig(d_load + '%s_band_%d_sub-sample_SB.png' % (band[kk], nn), dpi = 300)
 			plt.close()
 
 			## process img
@@ -596,7 +652,7 @@ def SB_result():
 			bx3.set_yticks([])
 
 			plt.tight_layout()
-			plt.savefig(load + 'rich_sample/test_img/%s_band_%d_sub-stack_process.png' % (band[kk], nn), dpi = 300) 
+			plt.savefig(d_load + '%s_band_%d_sub-stack_process.png' % (band[kk], nn), dpi = 300)
 			plt.close()
 			### 
 			ax = plt.subplot(gs[nn // 5, nn % 5])
@@ -624,12 +680,11 @@ def SB_result():
 			ax.tick_params(axis = 'both', which = 'both', direction = 'in')
 
 		plt.tight_layout()
-		plt.savefig(load + 'rich_sample/test_img/%s_band_sub-stack_SB_pros.png' % band[kk], dpi = 300)
+		plt.savefig(d_load + '%s_band_sub-stack_SB_pros.png' % band[kk], dpi = 300)
 		plt.close()
 		"""
 		for nn in range(N_bin):
-			with h5py.File(load + 
-				'rich_sample/test_img/%s_band_%d_sub-samp_SB_pro.h5' % (band[kk], nn), 'r') as f:
+			with h5py.File(load + 'rich_sample/test_img/%s_band_%d_sub-samp_SB_pro.h5' % (band[kk], nn), 'r') as f:
 				tmp_array = np.array(f['a'])
 			bcg_Rii, bcg_SB, err0, err1, SB_mean = tmp_array[0,:],tmp_array[1,:],tmp_array[2,:],tmp_array[3,:],tmp_array[4,:]
 			id_nan = np.isnan(bcg_SB)
@@ -644,22 +699,22 @@ def SB_result():
 				idy = dr == np.min(dr)
 				bcg_pros[nn,:][idy] = SB_mean[mm]
 
-			with h5py.File(load + 'rich_sample/test_img/%s_band_%d_sub-stack_clust_SB.h5' % (band[kk], nn), 'r') as f:
+			with h5py.File(d_load + '%s_band_%d_sub-stack_clust_SB.h5' % (band[kk], nn), 'r') as f:
 				dmp_array = np.array(f['a'])
 			stack_sb.append(dmp_array[1])
 			stack_r.append(dmp_array[0])
 
-			with h5py.File(load + 'rich_sample/test_img/%s_band_%d_sub-stack_sky_ICL.h5' % (band[kk], nn), 'r') as f:
+			with h5py.File(d_load + '%s_band_%d_sub-stack_sky_ICL.h5' % (band[kk], nn), 'r') as f:
 				dmp_array = np.array(f['a'])
 			sky_lit.append(dmp_array[1])
 			sky_r.append(dmp_array[0])
 
-			with h5py.File(load + 'rich_sample/test_img/%s_band_%d_sub-stack_add_SB.h5' % (band[kk], nn), 'r') as f:
+			with h5py.File(d_load + '%s_band_%d_sub-stack_add_SB.h5' % (band[kk], nn), 'r') as f:
 				dmp_array = np.array(f['a'])
 			add_sb.append(dmp_array[1])
 			add_r.append(dmp_array[0])
 
-			with h5py.File(load + 'rich_sample/test_img/%s_band_%d_sub-stack_cli_SB.h5' % (band[kk], nn), 'r') as f:
+			with h5py.File(d_load + '%s_band_%d_sub-stack_cli_SB.h5' % (band[kk], nn), 'r') as f:
 				dmp_array = np.array(f['a'])
 			SB_flux.append(dmp_array[1])
 			R_arr.append(dmp_array[0])
@@ -671,7 +726,7 @@ def SB_result():
 				rand_sky = np.array(f['a'])
 
 			differ_img = BCG_sky - rand_sky
-			with h5py.File(load + 'rich_sample/test_img/%s_band_%d_sub-differ_img.h5' % (band[kk], nn), 'w') as f:
+			with h5py.File(d_load + '%s_band_%d_sub-differ_img.h5' % (band[kk], nn), 'w') as f:
 				f['a'] = np.array(differ_img)
 
 			idnx = np.isnan(differ_img)
@@ -701,7 +756,7 @@ def SB_result():
 			idu = (ddr > r_a0 * Rpp) & (ddr < r_a1 * Rpp)
 			Resi_bl = np.nanmean( BL_img[idu] )
 			rbl[nn] = Resi_bl * 1.
-
+		"""
 		####################
 
 		## stack sub-stacking img result
@@ -710,10 +765,10 @@ def SB_result():
 		id_zeros = M_clust_img == 0.
 		M_clust_img[id_inf] = np.nan
 		M_clust_img[id_zeros] = np.nan
-		with h5py.File(load + 'rich_sample/test_img/%s_band_clust_tot-stack_img.h5' % band[kk], 'w') as f:
+		with h5py.File(d_load + '%s_band_clust_tot-stack_img.h5' % band[kk], 'w') as f:
 			f['a'] = np.array(M_clust_img)
 
-		with h5py.File(load + 'rich_sample/test_img/%s_band_clust_tot-stack_img.h5' % band[kk], 'r') as f:
+		with h5py.File(d_load + '%s_band_clust_tot-stack_img.h5' % band[kk], 'r') as f:
 			M_clust_img = np.array(f['a'])
 
 		M_difference = m_differ_img / differ_cont
@@ -721,47 +776,64 @@ def SB_result():
 		id_zeros = M_difference == 0.
 		M_difference[id_inf] = np.nan
 		M_difference[id_zeros] = np.nan
-		with h5py.File(load + 'rich_sample/test_img/%s_band_tot-difference_img.h5' % band[kk], 'w') as f:
+		with h5py.File(d_load + '%s_band_tot-difference_img.h5' % band[kk], 'w') as f:
 			f['a'] = np.array(M_difference)
 
-		with h5py.File(load + 'rich_sample/test_img/%s_band_tot-difference_img.h5' % band[kk], 'r') as f:
+		with h5py.File(d_load + '%s_band_tot-difference_img.h5' % band[kk], 'r') as f:
 			M_difference = np.array(f['a'])
 
 		ss_img = M_clust_img[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
-		Rt, SBt, t_err0, t_err1, Intns_0, Intns_r_0, Intns_err_0 = SB_pro(ss_img, bins, R_smal, R_max, R_cut, R_cut, pixel, z_ref, kk)
+		## stacking image
+		Rt_0, SBt_0, t_err0_0, t_err1_0, Intns_0_0, Intns_r_0_0, Intns_err_0_0 = SB_pro(
+			ss_img, bins_0, R_min_0, R_max_0, R_cut, R_cut, pixel, z_ref, kk)
+		Rt_1, SBt_1, t_err0_1, t_err1_1, Intns_0_1, Intns_r_0_1, Intns_err_0_1 = SB_pro(
+			ss_img, bins_1, R_min_1, R_max_1, R_cut, R_cut, pixel, z_ref, kk)
+		betwn_r, betwn_lit, btn_err0, btn_err1, betwn_Intns, betwn_err = betwn_SB(ss_img, r_a0, r_a1, R_cut, R_cut, pixel, z_ref, kk)
+
+		Rt = np.r_[Rt_0, betwn_r, Rt_1]
+		SBt = np.r_[SBt_0, betwn_lit, SBt_1]
+		t_err0 = np.r_[t_err0_0, btn_err0, t_err0_1]
+		t_err1 = np.r_[t_err1_0, btn_err1, t_err1_1]
+		Intns_0 = np.r_[Intns_0_0, betwn_Intns, Intns_0_1]
+		Intns_r_0 = np.r_[Intns_r_0_0, betwn_r, Intns_r_0_1]
+		Intns_err_0 = np.r_[Intns_err_0_0, betwn_err, Intns_err_0_1]
+
 		Intns_0, Intns_err_0 = Intns_0 / pixel**2, Intns_err_0 / pixel**2
 		id_nan = np.isnan(Intns_0)
 		Intns_0, Intns_r_0, Intns_err_0 = Intns_0[id_nan == False], Intns_r_0[id_nan == False], Intns_err_0[id_nan == False]
-
+		## difference image
 		resi_add = M_difference[y0 - R_cut: y0 + R_cut, x0 - R_cut: x0 + R_cut]
 		R_sky, sky_ICL, sky_err0, sky_err1, Intns, Intns_r, Intns_err = SB_pro(resi_add, bins, R_smal, R_max, R_cut, R_cut, pixel, z_ref, kk)
 		Intns, Intns_err = Intns / pixel**2, Intns_err / pixel**2
 		id_nan = np.isnan(Intns)
 		Intns, Intns_r, Intns_err = Intns[id_nan == False], Intns_r[id_nan == False], Intns_err[id_nan == False]
 
+		## add image
 		add_img = ss_img + resi_add
-		R_add, SB_add, add_err0, add_err1, Intns_1, Intns_r_1, Intns_err_1 = SB_pro(add_img, bins, R_smal, R_max, R_cut, R_cut, pixel, z_ref, kk)
+
+		R_add_0, SB_add_0, add_err0_0, add_err1_0, Intns_1_0, Intns_r_1_0, Intns_err_1_0 = SB_pro(
+			add_img, bins_0, R_min_0, R_max_0, R_cut, R_cut, pixel, z_ref, kk)
+		R_add_1, SB_add_1, add_err0_1, add_err1_1, Intns_1_1, Intns_r_1_1, Intns_err_1_1 = SB_pro(
+			add_img, bins_1, R_min_1, R_max_1, R_cut, R_cut, pixel, z_ref, kk)
+		betwn_r, betwn_lit, btn_err0, btn_err1, betwn_Intns, betwn_err = betwn_SB(add_img, r_a0, r_a1, R_cut, R_cut, pixel, z_ref, kk)
+
+		R_add = np.r_[R_add_0, betwn_r, R_add_1]
+		SB_add = np.r_[SB_add_0, betwn_lit, SB_add_1]
+		add_err0 = np.r_[add_err0_0, btn_err0, add_err0_1]
+		add_err1 = np.r_[add_err1_0, btn_err1, add_err1_1]
+		Intns_1 = np.r_[Intns_1_0, betwn_Intns, Intns_1_1]
+		Intns_r_1 = np.r_[Intns_r_1_0, betwn_r, Intns_r_1_1]
+		Intns_err_1 = np.r_[Intns_err_1_0, betwn_err, Intns_err_1_1]
+
 		Intns_1, Intns_err_1 = Intns_1 / pixel**2, Intns_err_1 / pixel**2
 		id_nan = np.isnan(Intns_1)
 		Intns_1, Intns_r_1, Intns_err_1 = Intns_1[id_nan == False], Intns_r_1[id_nan == False], Intns_err_1[id_nan == False]
 
 		## RBL estimation
-		cen_pos = R_cut * 1 # 1280 pixel, for z = 0.25, larger than 2Mpc
-		BL_img = add_img * 1
-		grd_x = np.linspace(0, BL_img.shape[1] - 1, BL_img.shape[1])
-		grd_y = np.linspace(0, BL_img.shape[0] - 1, BL_img.shape[0])
-		grd = np.array( np.meshgrid(grd_x, grd_y) )
-		ddr = np.sqrt( (grd[0,:] - cen_pos)**2 + (grd[1,:] - cen_pos)**2 )
-		idu = (ddr > r_a0 * Rpp) & (ddr < r_a1 * Rpp)
-		Resi_bl = np.nanmean( BL_img[idu] )
-		Resi_std = np.nanstd( BL_img[idu] )
-
-		Resi_sky = 22.5 - 2.5 * np.log10(Resi_bl) + 2.5 * np.log10(pixel**2) + mag_add[kk]
-		bl_dSB0 = 22.5 - 2.5 * np.log10(Resi_bl + Resi_std) + 2.5 * np.log10(pixel**2) + mag_add[kk]
-		bl_dSB1 = 22.5 - 2.5 * np.log10(Resi_bl - Resi_std) + 2.5 * np.log10(pixel**2) + mag_add[kk]
-		idvx = np.isnan(bl_dSB1)
-		if idvx == True:
-			bl_dSB1 = 100.
+		Resi_bl = betwn_Intns * 1.
+		Resi_std = betwn_err * 1.
+		Resi_sky = betwn_lit * 1.
+		bl_dSB0, bl_dSB1 = betwn_lit - btn_err0, betwn_lit + btn_err1
 
 		## minus the residual background
 		cli_R = Intns_r_1 * 1.
@@ -796,13 +868,14 @@ def SB_result():
 		err0 = m_BCG_SB - m_dSB0
 		err1 = m_dSB1 - m_BCG_SB
 		id_nan = np.isnan(m_BCG_SB)
-		m_BCG_SB, m_BCG_r, m_BCG_err0, m_BCG_err1 = m_BCG_SB[id_nan == False], bcg_pro_r[id_nan == False], err0[id_nan == False], err1[id_nan == False]
+		m_BCG_SB, m_BCG_r = m_BCG_SB[id_nan == False], bcg_pro_r[id_nan == False]
+		m_BCG_err0, m_BCG_err1 = err0[id_nan == False], err1[id_nan == False]
 
 		### jackknife calculation (mean process SB)
-		with h5py.File(load + 'rich_sample/test_img/%s_band_RBL_SB.h5' % (band[kk]), 'w') as f:
+		with h5py.File(d_load + '%s_band_RBL_SB.h5' % (band[kk]), 'w') as f:
 			f['a'] = np.array(rbl)
 
-		with h5py.File(load + 'rich_sample/test_img/%s_band_RBL_SB.h5' % (band[kk]), 'r') as f:
+		with h5py.File(d_load + '%s_band_RBL_SB.h5' % (band[kk]), 'r') as f:
 			rbl = np.array(f['a'])
 
 		m_rbl = np.nanmean(rbl)
@@ -824,15 +897,14 @@ def SB_result():
 		JK_SB, JK_R, JK_err0, JK_err1, jk_cli_R, jk_cli_SB, jk_cli_err = jack_SB(SB_flux, R_arr, kk, N_bin)
 
 		## pixel jackknife err
-
-		with h5py.File(load + 'rich_sample/test_img/%s_band_all_clust_2D.h5' % (band[kk]), 'w') as f:
+		with h5py.File(d_load + '%s_band_all_clust_2D.h5' % (band[kk]), 'w') as f:
 			f['a'] = np.array(clust_2d)
-		with h5py.File(load + 'rich_sample/test_img/%s_band_all_differ_2D.h5' % (band[kk]), 'w') as f:
+		with h5py.File(d_load + '%s_band_all_differ_2D.h5' % (band[kk]), 'w') as f:
 			f['a'] = np.array(differ_2d)
 
-		with h5py.File(load + 'rich_sample/test_img/%s_band_all_clust_2D.h5' % (band[kk]), 'r') as f:
+		with h5py.File(d_load + '%s_band_all_clust_2D.h5' % (band[kk]), 'r') as f:
 			clust_2d = np.array(f['a'])
-		with h5py.File(load + 'rich_sample/test_img/%s_band_all_differ_2D.h5' % (band[kk]), 'r') as f:
+		with h5py.File(d_load + '%s_band_all_differ_2D.h5' % (band[kk]), 'r') as f:
 			differ_2d = np.array(f['a'])
 
 		clus_rms = np.nanstd(clust_2d, axis = 0)
@@ -855,7 +927,7 @@ def SB_result():
 		ax.set_ylim(y0 - 0.7 * R_cut, y0 + 0.7 * R_cut)
 		ax.set_xticks([])
 		ax.set_yticks([])
-		plt.savefig(load + 'rich_sample/test_img/%s_band_clust-rms.png' % (band[kk]), dpi = 300)
+		plt.savefig(d_load + '%s_band_clust-rms.png' % (band[kk]), dpi = 300)
 		plt.close()
 
 		plt.figure()
@@ -872,15 +944,12 @@ def SB_result():
 		ax.set_ylim(y0 - 0.7 * R_cut, y0 + 0.7 * R_cut)
 		ax.set_xticks([])
 		ax.set_yticks([])
-		plt.savefig(load + 'rich_sample/test_img/%s_band_differ-rms.png' % (band[kk]), dpi = 300)
+		plt.savefig(d_load + '%s_band_differ-rms.png' % (band[kk]), dpi = 300)
 		plt.close()
 		##################################################
 		## SB profile
-		plt.figure()
-		gs = gridspec.GridSpec(2,1, height_ratios = [4,1])
-		ax = plt.subplot(gs[0])
-		bx = plt.subplot(gs[1])
-		#ax = plt.subplot(111)
+		fig = plt.figure()
+		ax = plt.subplot(111)
 		ax.set_title('%s band jackknife stacking SB' % band[kk])
 
 		ax.errorbar(Stack_R, Stack_SB, yerr = jk_Stack_err, xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
@@ -889,36 +958,37 @@ def SB_result():
 			ecolor = 'g', elinewidth = 1, alpha = 0.5, label = 'image ICL + background + sky ICL')
 		ax.errorbar(jk_cli_R, jk_cli_SB, yerr = jk_cli_err, xerr = None, color = 'm', marker = 'None', ls = '-', linewidth = 1, 
 			ecolor = 'm', elinewidth = 1, alpha = 0.5, label = 'image ICL + sky ICL')
-		ax.errorbar(sky_R - 10, m_sky_SB, yerr = jk_sky_err, xerr = None, color = 'c', marker = 'None', ls = '-', linewidth = 1, 
-			ecolor = 'c', elinewidth = 1, label = 'sky ICL', alpha = 0.5)
+		#ax.errorbar(sky_R - 10, m_sky_SB, yerr = jk_sky_err, xerr = None, color = 'c', marker = 'None', ls = '-', linewidth = 1, 
+		#	ecolor = 'c', elinewidth = 1, label = 'sky ICL', alpha = 0.5)
+		ax.plot(sky_R, m_sky_SB, color = 'c', ls = '-', linewidth = 1, label = 'sky ICL', alpha = 0.5)
 
-		ax.axhline( y = m_rbl / pixel**2, ls = '--', color = 'k', label = 'background', linewidth = 0.5, alpha = 0.5)
-		yarr0 = np.ones(len(Add_R), dtype = np.float) * ((m_rbl - jk_std_rbl) / pixel**2)
-		yarr1 = np.ones(len(Add_R), dtype = np.float) * ((m_rbl + jk_std_rbl) / pixel**2)
-		ax.fill_between(Add_R, y1 = yarr0, y2 = yarr1, color = 'k', alpha = 0.25)
-
-		ax.set_xlabel('$R[kpc]$')
-		ax.set_ylabel('$SB[nmaggy / arcsec^2]$')
+		ax.set_xlabel('$ R[kpc] $')
+		ax.set_ylabel('$ SB[nmaggy / arcsec^2] $')
 		ax.set_xscale('log')
 		ax.set_yscale('log')
-		ax.set_xlim(1, 1.5e3)
+		ax.set_xlim(1, 2e3)
+		ax.set_ylim(1e-5, 1e1)
 		ax.legend(loc = 1, fontsize = 8., frameon = False)
 		ax.grid(which = 'major', axis = 'both')
 		ax.tick_params(axis = 'both', which = 'both', direction = 'in')
 
-		bx.plot(Stack_R, Stack_SB - m_rbl / pixel**2, color = 'r', ls = '-', linewidth = 0.5, alpha = 0.5)
-		bx.plot(Add_R, Add_SB - m_rbl / pixel**2, color = 'g', ls = '-', linewidth = 0.5, alpha = 0.5)
-		bx.set_xlim(ax.get_xlim())
-		bx.set_ylim(-5e-4, 5e-4)
-		bx.set_xlabel('$ R[kpc] $')
-		bx.set_ylabel('$ \\Delta SB[nmaggy / arcsec^2] $')
-		bx.grid(which = 'major', axis = 'both')
-		bx.tick_params(axis = 'both', which = 'both', direction = 'in')
-		bx.set_xscale('log')
-		ax.set_xticklabels([])
-		#plt.savefig(load + 'rich_sample/test_img/%s_band_tot-stack_flux_dens.png' % band[kk], dpi = 300)
-		plt.subplots_adjust(hspace = 0.01)
-		plt.savefig(load + 'rich_sample/test_img/%s_band_tot-stack_flux_dens_add_devi.png' % band[kk], dpi = 300)
+		subax = fig.add_axes([0.2, 0.2, 0.32, 0.32])
+		subax.errorbar(Stack_R, Stack_SB, yerr = jk_Stack_err, xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
+			ecolor = 'r', elinewidth = 1, alpha = 0.5)
+		subax.errorbar(Add_R, Add_SB, yerr = jk_Add_err, xerr = None, color = 'g', marker = 'None', ls = '-', linewidth = 1, 
+			ecolor = 'g', elinewidth = 1, alpha = 0.5)
+		subax.errorbar(jk_cli_R, jk_cli_SB, yerr = jk_cli_err, xerr = None, color = 'm', marker = 'None', ls = '-', linewidth = 1, 
+			ecolor = 'm', elinewidth = 1, alpha = 0.5,)
+		subax.plot(sky_R, m_sky_SB, color = 'c', ls = '-', linewidth = 1, alpha = 0.5)
+
+		subax.set_xlim(4e2, 1.4e3)
+		subax.set_xscale('log')
+		subax.set_ylim(3e-3, 7e-3)
+		subax.set_yscale('log')
+		subax.grid(which = 'both', axis = 'both')
+		subax.tick_params(axis = 'both', which = 'both', direction = 'in', labelsize = 5.)
+
+		plt.savefig(d_load + '%s_band_tot-stack_flux_dens.png' % band[kk], dpi = 300)
 		plt.close()
 
 		plt.figure()
@@ -931,21 +1001,25 @@ def SB_result():
 			linewidth = 1, ecolor = 'g', elinewidth = 1, alpha = 0.5, label = 'img ICL + background + sky ICL')
 		ax.errorbar(JK_R, JK_SB, yerr = [JK_err0, JK_err1], xerr = None, color = 'm', marker = 'None', ls = '-', linewidth = 1, 
 			ecolor = 'm', elinewidth = 1, alpha = 0.5, label = 'img ICL + sky ICL')
-		ax.errorbar(jk_sky_R - 10, jk_sky_SB, yerr = [jk_sky_err0, jk_sky_err1], xerr = None, color = 'c', marker = 'None', ls = '-', 
-			linewidth = 1, ecolor = 'c', elinewidth = 1, alpha = 0.5, label = 'sky ICL')
+		#ax.errorbar(jk_sky_R - 10, jk_sky_SB, yerr = [jk_sky_err0, jk_sky_err1], xerr = None, color = 'c', marker = 'None', ls = '-', 
+		#	linewidth = 1, ecolor = 'c', elinewidth = 1, alpha = 0.5, label = 'sky ICL')
+		ax.plot(jk_sky_R, jk_sky_SB, color = 'c', ls = '-', linewidth = 1, alpha = 0.5, label = 'sky ICL')
 
-		ax.errorbar(m_BCG_r, m_BCG_SB, yerr = [m_BCG_err0, m_BCG_err1], xerr = None, color = 'k', marker = 'D', ls = '-', linewidth = 1, 
-			markersize = 3, ecolor = 'k', elinewidth = 1, label = 'SDSS photo. cat.', alpha = 0.5)
+		#ax.errorbar(m_BCG_r, m_BCG_SB, yerr = [m_BCG_err0, m_BCG_err1], xerr = None, color = 'k', marker = 'D', ls = '-', linewidth = 1, 
+		#	markersize = 3, ecolor = 'k', elinewidth = 1, label = 'SDSS photo. cat.', alpha = 0.5)
+		ax.plot(m_BCG_r, m_BCG_SB, color = 'k', ls = '-', linewidth = 1, label = 'SDSS photo. cat.', alpha = 0.5)
+
 		ax.set_xlabel('$R[kpc]$')
 		ax.set_ylabel('$SB[mag / arcsec^2]$')
 		ax.set_xscale('log')
-		ax.set_ylim(20, 35)
-		ax.set_xlim(1, 1.5e3)
+		ax.set_ylim(19, 34)
+		ax.set_xlim(1, 2e3)
 		ax.legend(loc = 1, fontsize = 8., frameon = False)
 		ax.invert_yaxis()
 		ax.grid(which = 'major', axis = 'both')
 		ax.tick_params(axis = 'both', which = 'both', direction = 'in')
-		plt.savefig(load + 'rich_sample/test_img/%s_band_tot-stack_SB_pros.png' % band[kk], dpi = 300)
+
+		plt.savefig(d_load + '%s_band_tot-stack_SB_pros.png' % band[kk], dpi = 300)
 		plt.close()
 		########################################################
 		## process img
@@ -1032,7 +1106,7 @@ def SB_result():
 		bx3.set_yticks([])
 
 		plt.tight_layout()
-		plt.savefig(load + 'rich_sample/test_img/%s_band_tot-stack_process.png' % band[kk], dpi = 300) 
+		plt.savefig(d_load + '%s_band_tot-stack_process.png' % band[kk], dpi = 300)
 		plt.close()
 
 	return
