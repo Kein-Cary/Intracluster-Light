@@ -28,12 +28,21 @@ pixel = 0.396
 
 ###
 url = 'http://skyserver.sdss.org/dr12/en/tools/search/sql.aspx'
-
-with h5py.File('/mnt/ddnfs/data_users/cxkttwl/ICL/data/sample_catalog.h5', 'r') as f:
+load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
+'''
+## spec_z sample
+with h5py.File(load + 'mpi_h5/sample_catalog.h5', 'r') as f:
 	catalogue = np.array(f['a'])
 z = catalogue[0]
 Ra = catalogue[1]
 Dec = catalogue[2]
+'''
+## redMapper random catalogue
+with h5py.File(load + 'mpi_h5/redMapper_rand_cat.h5', 'r') as f:
+	cat_array = np.array(f['a'])
+Ra = cat_array[0]
+Dec = cat_array[1]
+z = cat_array[2]
 '''
 Rp = 1.5 * rad2asec / Test_model.angular_diameter_distance(z).value # select the region within 1.5Mpc
 r_select = Rp / 3600
@@ -84,8 +93,8 @@ def sdss_sql(z_set, ra_set, dec_set):
 		br['format'] = ['csv']
 		response = br.submit()
 		s = str(response.get_data(), encoding = 'utf-8')
-		doc = open( 
-			'/mnt/ddnfs/data_users/cxkttwl/ICL/data/bright_star_dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'%(time, ra, dec), 'w')
+		#doc = open(load + 'bright_star_dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'%(time, ra, dec), 'w') ## spec_z cat.
+		doc = open(load + 'random_cat/star_cat/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'%(time, ra, dec), 'w') ## random cat.
 		print(s, file = doc)
 		doc.close()
 

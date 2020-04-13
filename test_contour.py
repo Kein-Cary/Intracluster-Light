@@ -15,7 +15,6 @@ import subprocess as subpro
 import astropy.constants as C
 
 from astropy import cosmology as apcy
-from astropy.coordinates import SkyCoord
 from matplotlib.patches import Circle, Ellipse
 from light_measure import light_measure, flux_recal
 from scipy import ndimage

@@ -9,7 +9,6 @@ from astropy import cosmology as apcy
 
 import h5py
 import numpy as np
-import pandas as pd
 import astropy.wcs as awc
 import astropy.io.ascii as asc
 import astropy.io.fits as fits
@@ -75,7 +74,6 @@ def resamp_15sigma(band_id, sub_z, sub_ra, sub_dec):
 
 		data = fits.getdata(load + 'mask_data/A_plane/1.5sigma/A_mask_data_%s_ra%.3f_dec%.3f_z%.3f.fits'%(band[ii], ra_g, dec_g, z_g), header = True)
 		img = data[0]
-		head_mean = data[1]
 		cx0 = data[1]['CRPIX1']
 		cy0 = data[1]['CRPIX2']
 		RA0 = data[1]['CRVAL1']
@@ -89,7 +87,6 @@ def resamp_15sigma(band_id, sub_z, sub_ra, sub_dec):
 		L_ref = Da_ref*pixel/rad2asec
 		L_z0 = Da_g*pixel/rad2asec
 		b = L_ref/L_z0
-		Rref = (R0*rad2asec/Da_ref)/pixel
 
 		f_goal = flux_recal(img, z_g, z_ref)
 		ix0 = np.int(cx0/b)

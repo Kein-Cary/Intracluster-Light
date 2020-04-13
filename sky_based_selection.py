@@ -241,11 +241,11 @@ def main():
 			print( len(set_z) )
 	commd.Barrier()
 	"""
-	N_sum = np.array([2013, 2008, 2002, 2008, 2009])
+	cen_ds = 0.65, 0.8, 1.0
 	### cut imgs edge
 	for kk in range(3):
 
-		with h5py.File(load + 'sky_select_img/%s_band_%d_imgs_sky_select.h5' % (band[kk], N_sum[kk]), 'r') as f:
+		with h5py.File(load + 'sky_select_img/%s_band_sky_%.2fMpc_select.h5' % (band[kk], cen_ds), 'r') as f:
 			set_array = np.array(f['a'])
 		set_ra, set_dec, set_z = set_array[0,:], set_array[1,:], set_array[2,:]
 
@@ -261,7 +261,7 @@ def main():
 	### sky_set
 	for kk in range(3):
 
-		with h5py.File(load + 'sky_select_img/%s_band_%d_imgs_sky_select.h5' % (band[kk], N_sum[kk]), 'r') as f:
+		with h5py.File(load + 'sky_select_img/%s_band_sky_%.2fMpc_select.h5' % (band[kk], cen_ds), 'r') as f:
 			set_array = np.array(f['a'])
 		set_ra, set_dec, set_z = set_array[0,:], set_array[1,:], set_array[2,:]
 

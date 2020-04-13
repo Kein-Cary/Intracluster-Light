@@ -64,7 +64,8 @@ cat_Rii = np.array([0.23,  0.68,  1.03,   1.76,   3.00,
 					44.21, 69.00, 107.81, 168.20, 263.00])
 ## the band info. of SDSS BCG pro. : 0, 1, 2, 3, 4 --> u, g, r, i, z
 
-def BCG_pro_stack(band_id, set_z, set_ra, set_dec, sample_id):
+def BCG_pro_stack(band_id, rich_id, set_z, set_ra, set_dec, sample_id):
+
 	if band_id == 0:
 		pro_id = 2
 	if band_id == 1:
@@ -73,6 +74,7 @@ def BCG_pro_stack(band_id, set_z, set_ra, set_dec, sample_id):
 		pro_id = 3
 
 	zn = len(set_z)
+	d_load = load + 'rich_sample/jackknife/'
 	# calculate the cat_Rii at z = 0.25 in physical unit (kpc)
 	ref_Rii = Da_ref * cat_Rii * 10**3 / rad2asec # in unit kpc
 	Nr = len(ref_Rii)
@@ -115,71 +117,53 @@ def BCG_pro_stack(band_id, set_z, set_ra, set_dec, sample_id):
 	err1 = SB1 - SB_pro
 	# save the result
 	tmp_array = np.array([ref_Rii, SB_pro, err0, err1, SB_mean, SB_std])
-	with h5py.File(load + 
-		'rich_sample/test_img/%s_band_%d_sub-samp_SB_pro.h5' % (band[band_id], sample_id), 'w') as f:
+	with h5py.File(d_load + '%s_band_%d_rich_%d_sub-samp_SB_pro.h5' % (band[band_id], rich_id, sample_id), 'w') as f:
 		f['a'] = np.array(tmp_array)
-	with h5py.File(load + 
-		'rich_sample/test_img/%s_band_%d_sub-samp_SB_pro.h5' % (band[band_id], sample_id), ) as f:
+	with h5py.File(d_load + '%s_band_%d_rich_%d_sub-samp_SB_pro.h5' % (band[band_id], rich_id, sample_id), ) as f:
 		for ll in range( len(tmp_array) ):
 			f['a'][ll, :] = tmp_array[ll, :]
-
-	id_nan = np.isnan(SB_pro)
-	mm_SB, SB0, SB1 = SB_pro[id_nan == False], SB0[id_nan == False], SB1[id_nan == False]
-	mm_R, mm_err0, mm_err1 = ref_Rii[id_nan == False], err0[id_nan == False], err1[id_nan == False]
-	id_nan = np.isnan(SB1)
-	mm_err1[id_nan] = 100.
-
-	# fig
-	plt.figure()
-	ax = plt.subplot(111)
-	ax.set_title('%s band %d sub-samp mean SB profile' % (band[band_id], sample_id) )
-
-	ax.errorbar(mm_R, mm_SB, yerr = [mm_err0, mm_err1], xerr = None, ls = '--', fmt = 'k.', label = 'Mean of SDSS cat_pro', alpha = 0.5)
-	ax.set_xscale('log')
-	ax.set_xlabel('k[kpc]')
-	ax.set_ylabel('SB[mag/arcsec^2]')
-	ax.set_ylim(19, 29)
-	ax.set_xlim(1, 200)
-	ax.legend(loc = 1)
-	ax.invert_yaxis()
-	plt.savefig(load + 
-		'rich_sample/test_img/%s_band_%d_sub-samp_mean_SB_pro.png' % (band[band_id], sample_id), dpi = 300)
-	plt.close()
 
 	return
 
 def main():
-	N_bin = 20
-	rich_a0, rich_a1, rich_a2 = 20, 30, 50
-	## stack cluster img
-	for kk in range(3):
+	rich_a0, rich_a1, rich_a2 = 20, 30, 50 # for lamda_k = 0, 1, 2
+	N_bin = 30
 
+	## stack BCG pros.
+	for kk in range(rank, rank + 1):
 		with h5py.File(load + 'mpi_h5/%s_band_sky_catalog.h5' % band[kk], 'r') as f:
 			set_array = np.array(f['a'])
 		set_ra, set_dec, set_z, set_rich = set_array[0,:], set_array[1,:], set_array[2,:], set_array[3,:]
 
-		idx = set_rich >= rich_a2
-		lis_z = set_z[idx]
-		lis_ra = set_ra[idx]
-		lis_dec = set_dec[idx]
-
-		zN = len(lis_z)
-		n_step = zN // N_bin
-		id_arr = np.linspace(0, zN - 1, zN)
-		id_arr = id_arr.astype(int)
-
-		for nn in range(N_bin):
-			if nn == N_bin - 1:
-				dot = id_arr[nn * n_step:]
+		for lamda_k in range(3):
+			if lamda_k == 0:
+				idx = (set_rich >= rich_a0) & (set_rich <= rich_a1)
+			elif lamda_k == 1:
+				idx = (set_rich >= rich_a1) & (set_rich <= rich_a2)
 			else:
-				dot = id_arr[nn * n_step: (nn + 1) * n_step]
-			id_use = list( set( id_arr ).difference( set( dot ) ) )
-			id_use = np.array(id_use)
+				idx = (set_rich >= rich_a2)
 
-			z_use = lis_z[id_use]
-			ra_use = lis_ra[id_use]
-			dec_use = lis_dec[id_use]
-			BCG_pro_stack(kk, z_use, ra_use, dec_use, nn)
+			lis_z = set_z[idx]
+			lis_ra = set_ra[idx]
+			lis_dec = set_dec[idx]
+
+			zN = len(lis_z)
+			n_step = zN // N_bin
+			id_arr = np.linspace(0, zN - 1, zN)
+			id_arr = id_arr.astype(int)
+
+			for nn in range(N_bin):
+				if nn == N_bin - 1:
+					dot = id_arr[nn * n_step:]
+				else:
+					dot = id_arr[nn * n_step: (nn + 1) * n_step]
+				id_use = list( set( id_arr ).difference( set( dot ) ) )
+				id_use = np.array(id_use)
+
+				z_use = lis_z[id_use]
+				ra_use = lis_ra[id_use]
+				dec_use = lis_dec[id_use]
+				BCG_pro_stack(kk, lamda_k, z_use, ra_use, dec_use, nn)
 	raise
 
 if __name__ == "__main__":

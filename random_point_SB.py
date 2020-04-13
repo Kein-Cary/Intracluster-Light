@@ -80,8 +80,10 @@ def rand_pont(band_id, sub_z, sub_ra, sub_dec):
         try:
             data_A = fits.open(load + 'random_cat/resample_img/rand-resamp-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g) )
             img_A = data_A[0].data
-            xn = data_A[0].header['CENTER_X']
-            yn = data_A[0].header['CENTER_Y']
+            #xn = data_A[0].header['CENTER_X']
+            #yn = data_A[0].header['CENTER_Y']
+            xn = np.int(img_A.shape[1] / 2)
+            yn = np.int(img_A.shape[0] / 2)
 
             la0 = np.int(y0 - yn)
             la1 = np.int(y0 - yn + img_A.shape[0])
@@ -123,14 +125,18 @@ def main():
     R_cut, bins = 1280, 80
     R_smal, R_max = 1, 1.7e3 # kpc
 
+    da0, da1 = 200, 400
+
     for kk in range(3):
 
-        m, n = divmod(zN, cpus)
+        set_z, set_ra, set_dec = z[da0:da1], ra[da0:da1], dec[da0:da1]
+        DN = len(set_z)
+        m, n = divmod(DN, cpus)
         N_sub0, N_sub1 = m * rank, (rank + 1) * m
         if rank == cpus - 1:
             N_sub1 += n
 
-        rand_pont(kk, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
+        rand_pont(kk, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
         commd.Barrier()
         if rank == 0:
 
@@ -162,7 +168,7 @@ def main():
                 ax.set_title('%s band %d cpus img' % (band[kk], pp) )
                 clust20 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', ls = '-', alpha = 0.5,)
                 clust21 = Circle(xy = (x0, y0), radius = 0.5 * Rpp, fill = False, ec = 'r', ls = '--', alpha = 0.5,)
-                tf = bx2.imshow(sub_mean, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
+                tf = ax.imshow(sub_mean, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
                 plt.colorbar(tf, ax = ax, fraction = 0.042, pad = 0.01, label = 'flux[nmaggy]')
 
                 ax.add_patch(clust20)
@@ -185,14 +191,15 @@ def main():
             where_are_inf = np.isinf(stack_img)
             stack_img[where_are_inf] = np.nan
 
-            with h5py.File(load + 'random_cat/stack/stack_A_%d_in_%s_band_%drich.h5' % (tot_N, band[kk], lamda_k), 'w') as f:
+            with h5py.File(load + 'random_cat/stack/%s_band_stack_%d_imgs.h5' % (band[kk], tot_N), 'w') as f:
                 f['a'] = np.array(stack_img)
+
             plt.figure()
             ax = plt.subplot(111)
             ax.set_title('%s band stack %d img' % (band[kk], tot_N) )
             clust20 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', ls = '-', alpha = 0.5,)
             clust21 = Circle(xy = (x0, y0), radius = 0.5 * Rpp, fill = False, ec = 'r', ls = '--', alpha = 0.5,)
-            tf = bx2.imshow(stack_img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
+            tf = ax.imshow(stack_img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
             plt.colorbar(tf, ax = ax, fraction = 0.042, pad = 0.01, label = 'flux[nmaggy]')
 
             ax.add_patch(clust20)
@@ -203,7 +210,7 @@ def main():
             ax.set_xticks([])
             ax.set_yticks([])
 
-            plt.savefig(load + 'random_cat/stack/%s_band_stack_%d_img.png' % (band[kk], tot_N), dpi = 300)
+            plt.savefig(load + 'random_cat/stack/%s_band_stack_%d_imgs.png' % (band[kk], tot_N), dpi = 300)
             plt.close()
 
         commd.Barrier()
