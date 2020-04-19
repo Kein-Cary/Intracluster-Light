@@ -74,38 +74,30 @@ def light_measure_pn(data, Nbin, R_small, R_max, cx, cy, psize, z0, pn):
 		phi = phi - 180
 
 		ir = (dr >= rbin[k]) & (dr < rbin[k + 1])
-		io = np.where(ir == True)
-		num = len(io[0])
+		bool_sum = np.sum(ir)
 
 		r_iner = set_r[k] ## useing radius in unit of kpc
 		r_out = set_r[k + 1]
 
-		if num == 0:
+		if bool_sum == 0:
 			intens[k] = np.nan
 			intens_err[k] = np.nan
 			N_pix[k] = np.nan
-
-			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
-			#intens_r[k] = np.sqrt(r_iner * r_out)
-
+			intens_r[k] = 0.5 * (r_iner + r_out)
 		else:
-			iy = io[0]
-			ix = io[1]
-			sampf = data[iy, ix]
-			tot_flux = np.nanmean(sampf)
+			samp_f = data[ir]
+			samp_chi = chi[ir]
+
+			tot_flux = np.nanmean(samp_f)
 			tot_area = psize**2
 			intens[k] = tot_flux
-			N_pix[k] = len(sampf)
-
-			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
-			#intens_r[k] = np.sqrt(r_iner * r_out)
+			N_pix[k] = len(samp_f)
+			intens_r[k] = 0.5 * (r_iner + r_out)
 
 			tmpf = []
 			for tt in range(len(phi) - 1):
-				iv = (chi >= phi[tt]) & (chi <= phi[tt+1])
-				iu = iv & ir
-				set_samp = data[iu]
-
+				iv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt+1])
+				set_samp = samp_f[iv]
 				ttf = np.nanmean(set_samp)
 				tmpf.append(ttf)
 
@@ -135,14 +127,7 @@ def light_measure_pn(data, Nbin, R_small, R_max, cx, cy, psize, z0, pn):
 	return Intns, Intns_r, Intns_err, Npix
 
 def light_measure_rn(data, R_low, R_up, cx, cy, pix_size, z0):
-	"""
-	use to get the surface brightness for given radius
-	data : data used to measure brightness (2D-array)
-	R_low, R_up : the low_limit and up_limit of the given radius (in unit of "kpc")
-	cx, cy : the center location / the reference point of the radius
-	pix_size : the pixel size in unit of arcsec
-	z0 : the redshift of the data 
-	"""
+
 	Da0 = Test_model.angular_diameter_distance(z0).value
 	R_pix_low = (R_low * 1e-3 * rad2arcsec / Da0) / pix_size
 	R_pix_up = (R_up * 1e-3 * rad2arcsec / Da0) / pix_size
@@ -162,6 +147,8 @@ def light_measure_rn(data, R_low, R_up, cx, cy, pix_size, z0):
 	where_are_nan = np.isnan(theta)
 	theta[where_are_nan] = 0
 	chi = theta * 180 / np.pi
+	samp_chi = chi[idu]
+	samp_flux = data[idu]
 
 	cdr = R_up - R_low
 	d_phi = ( cdr / (0.5 * (R_low + R_up) ) ) * 180 / np.pi
@@ -171,8 +158,8 @@ def light_measure_rn(data, R_low, R_up, cx, cy, pix_size, z0):
 
 	tmpf = []
 	for tt in range(len(phi) - 1):
-		idv = (chi >= phi[tt]) & (chi <= phi[tt + 1])
-		set_samp = data[idv]
+		idv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt + 1])
+		set_samp = samp_flux[idv]
 
 		ttf = np.nanmean(set_samp)
 		tmpf.append(ttf)

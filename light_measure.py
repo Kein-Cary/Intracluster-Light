@@ -71,7 +71,6 @@ def light_measure(data, Nbin, R_small, R_max, cx, cy, pix_size, z0):
 	intens = np.zeros(len(r) - ic, dtype = np.float)
 	intens_r = np.zeros(len(r) - ic, dtype = np.float)
 	intens_err = np.zeros(len(r) - ic, dtype = np.float)
-	N_pix = np.zeros(len(r) - ic, dtype = np.float)
 
 	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
 		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
@@ -84,33 +83,29 @@ def light_measure(data, Nbin, R_small, R_max, cx, cy, pix_size, z0):
 		phi = phi - 180
 
 		ir = (dr >= rbin[k]) & (dr < rbin[k + 1])
-		io = np.where(ir == True)
-		num = len(io[0])
+		bool_sum = np.sum(ir)
 
 		r_iner = set_r[k] ## useing radius in unit of kpc
 		r_out = set_r[k + 1]
 
-		if num == 0:
+		if bool_sum == 0:
 			intens[k] = np.nan
 			intens_err[k] = np.nan
-			N_pix[k] = np.nan
 			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
 
 		else:
-			iy = io[0]
-			ix = io[1]
-			sampf = data[iy, ix]
-			tot_flux = np.nanmean(sampf)
+			samp_flux = data[ir]
+			samp_chi = chi[ir]
+
+			tot_flux = np.nanmean(samp_flux)
 			tot_area = pix_size**2
 			intens[k] = tot_flux
-			N_pix[k] = len(sampf)
 			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
 
 			tmpf = []
 			for tt in range(len(phi) - 1):
-				iv = (chi >= phi[tt]) & (chi <= phi[tt+1])
-				iu = iv & ir
-				set_samp = data[iu]
+				iv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt+1])
+				set_samp = samp_flux[iv]
 				ttf = np.nanmean(set_samp)
 				tmpf.append(ttf)
 
@@ -134,10 +129,7 @@ def light_measure(data, Nbin, R_small, R_max, cx, cy, pix_size, z0):
 	intens_err[intens_err == 0] = np.nan
 	Intns_err = intens_err * 1
 
-	N_pix[ N_pix == 0] = np.nan
-	Npix = N_pix * 1
-
-	return Intns, Intns_r, Intns_err, Npix
+	return Intns, Intns_r, Intns_err
 
 def light_measure_rn(data, R_low, R_up, cx, cy, pix_size, z0):
 	"""
@@ -167,6 +159,8 @@ def light_measure_rn(data, R_low, R_up, cx, cy, pix_size, z0):
 	where_are_nan = np.isnan(theta)
 	theta[where_are_nan] = 0
 	chi = theta * 180 / np.pi
+	samp_chi = chi[idu]
+	samp_flux = data[idu]
 
 	cdr = R_up - R_low
 	d_phi = ( cdr / (0.5 * (R_low + R_up) ) ) * 180 / np.pi
@@ -176,8 +170,8 @@ def light_measure_rn(data, R_low, R_up, cx, cy, pix_size, z0):
 
 	tmpf = []
 	for tt in range(len(phi) - 1):
-		idv = (chi >= phi[tt]) & (chi <= phi[tt + 1])
-		set_samp = data[idv]
+		idv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt + 1])
+		set_samp = samp_flux[idv]
 
 		ttf = np.nanmean(set_samp)
 		tmpf.append(ttf)
@@ -235,35 +229,28 @@ def light_measure_Z0(data, pix_size, r_lim, R_pix, cx, cy, bins):
 		phi = phi - 180
 
 		ir = (dr >= rbin[k]) & (dr < rbin[k + 1])
-		io = np.where(ir == True)
-		num = len(io[0])
+		bool_sum = np.sum(ir)
 
 		r_iner = rbin[k]
 		r_out = rbin[k + 1]
 
-		if num == 0:
+		if bool_sum == 0:
 			intens[k] = np.nan
 			intens_err[k] = np.nan
-
 			Angl_r[k] = 0.5 * (r_iner + r_out) * pix_size
-			#Angl_r[k] = np.sqrt(r_iner * r_out) * pix_size
+
 		else:
-			iy = io[0]
-			ix = io[1]
-			sampf = data[iy, ix]
-			tot_flux = np.nanmean(sampf)
+			samp_flux = data[ir]
+			samp_chi = chi[ir]
+			tot_flux = np.nanmean(samp_flux)
 			tot_area = pix_size**2
 			intens[k] = tot_flux
-
 			Angl_r[k] = 0.5 * (r_iner + r_out) * pix_size
-			#Angl_r[k] = np.sqrt(r_iner * r_out) * pix_size
 
 			tmpf = []
 			for tt in range(len(phi) - 1):
-				iv = (chi >= phi[tt]) & (chi <= phi[tt+1])
-				iu = iv & ir
-				set_samp = data[iu]
-
+				iv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt+1])
+				set_samp = samp_flux[iv]
 				ttf = np.nanmean(set_samp)
 				tmpf.append(ttf)
 
