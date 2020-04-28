@@ -81,8 +81,8 @@ def betwn_SB(data, R_low, R_up, cx, cy, pix_size, z0, band_id):
 
 def jack_SB(SB_array, R_array, band_id, N_bins):
 	## stacking profile based on flux
-	stack_sb = np.array(SB_array) 
 	stack_r = np.array(R_array)
+	stack_sb = np.array(SB_array)
 	Stack_R = np.nanmean(stack_r, axis = 0)
 	Stack_SB = np.nanmean(stack_sb, axis = 0)
 	std_Stack_SB = np.nanstd(stack_sb, axis = 0)
@@ -105,7 +105,7 @@ def jack_SB(SB_array, R_array, band_id, N_bins):
 
 def SB_pro(img, R_bins, R_min, R_max, Cx, Cy, pix_size, zg, band_id):
 	kk = band_id
-	Intns, Intns_r, Intns_err, Npix = light_measure(img, R_bins, R_min, R_max, Cx, Cy, pix_size, zg)
+	Intns, Intns_r, Intns_err = light_measure(img, R_bins, R_min, R_max, Cx, Cy, pix_size, zg)
 	SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[kk]
 	flux0 = Intns + Intns_err
 	flux1 = Intns - Intns_err
@@ -127,11 +127,10 @@ def SB_result():
 	# calculate the cat_Rii at z = 0.25 in physical unit (kpc)
 	ref_Rii = Da_ref * cat_Rii * 10**3 / rad2asec # in unit kpc
 
-	## background based on 1-1.1Mpc brightness
-	R_cut, bins_0, bins_1 = 1318, 80, 5 # around 2.1Mpc set
-	R_min_0, R_max_0 = 1, 1.4e3 # kpc
-	R_min_1, R_max_1 = 1.5e3, 2.1e3 # kpc
-	r_a0, r_a1 = 1.4e3, 1.5e3
+	R_cut, bins_0, bins_1 = 1318, 75, 8 # around 2.1Mpc set
+	R_min_0, R_max_0 = 1, 1e3 # kpc
+	R_min_1, R_max_1 = 1.1e3, 2.1e3 # kpc
+	r_a0, r_a1 = 1.0e3, 1.1e3
 	d_load = load + 'rich_sample/jackknife/'
 
 	bins, R_smal, R_max = 80, 1, 2e3 ## for sky ICL
@@ -172,7 +171,7 @@ def SB_result():
 			differ_cnt = np.zeros((len(Ny), len(Nx)), dtype = np.float)
 
 			fig = plt.figure(figsize = (20, 20))
-			fig.suptitle('%s band sub-sample SB profile' % band[kk])
+			fig.suptitle('%s band sub-sample SB profile %.1f-%.1f Mpc' % (band[kk], r_a0 / 1e3, r_a1 / 1e3) )
 			gs = gridspec.GridSpec(N_bin // 5, 5)
 
 			for nn in range(N_bin):
@@ -222,9 +221,11 @@ def SB_result():
 				stack_r.append(Intns_r_0)
 				#......
 				dmp_array = np.array([Intns_r_0, Intns_0, Intns_err_0])
-				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-stack_clust_SB.h5' % (band[kk], lamda_k, nn), 'w') as f:
+				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-stack_clust_SB_%.1f-%.1f_Mpc.h5' % 
+					(band[kk], lamda_k, nn, r_a0 / 1e3, r_a1 / 1e3), 'w') as f:
 					f['a'] = np.array(dmp_array)
-				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-stack_clust_SB.h5' % (band[kk], lamda_k, nn) ) as f:
+				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-stack_clust_SB_%.1f-%.1f_Mpc.h5' % 
+					(band[kk], lamda_k, nn, r_a0 / 1e3, r_a1 / 1e3) ) as f:
 					for ll in range(len(dmp_array)):
 						f['a'][ll,:] = dmp_array[ll,:]
 				#......
@@ -286,9 +287,11 @@ def SB_result():
 				add_r.append(Intns_r_1)
 				#......
 				dmp_array = np.array([Intns_r_1, Intns_1, Intns_err_1])
-				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-stack_add_SB.h5' % (band[kk], lamda_k, nn), 'w') as f:
+				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-stack_add_SB_%.1f-%.1f_Mpc.h5' % 
+					(band[kk], lamda_k, nn, r_a0 / 1e3, r_a1 / 1e3), 'w') as f:
 					f['a'] = np.array(dmp_array)
-				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-stack_add_SB.h5' % (band[kk], lamda_k, nn) ) as f:
+				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-stack_add_SB_%.1f-%.1f_Mpc.h5' % 
+					(band[kk], lamda_k, nn, r_a0 / 1e3, r_a1 / 1e3) ) as f:
 					for ll in range(len(dmp_array)):
 						f['a'][ll,:] = dmp_array[ll,:]
 				#......
@@ -322,9 +325,11 @@ def SB_result():
 				R_arr.append(Intns_r_2)
 				#......
 				dmp_array = np.array([Intns_r_2, Intns_2, Intns_err_2])
-				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-stack_cli_SB.h5' % (band[kk], lamda_k, nn), 'w') as f:
+				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-stack_cli_SB_%.1f-%.1f_Mpc.h5' % 
+					(band[kk], lamda_k, nn, r_a0 / 1e3, r_a1 / 1e3), 'w') as f:
 					f['a'] = np.array(dmp_array)
-				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-stack_cli_SB.h5' % (band[kk], lamda_k, nn) ) as f:
+				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-stack_cli_SB_%.1f-%.1f_Mpc.h5' % 
+					(band[kk], lamda_k, nn, r_a0 / 1e3, r_a1 / 1e3) ) as f:
 					for ll in range(len(dmp_array)):
 						f['a'][ll,:] = dmp_array[ll,:]
 				#......
@@ -334,136 +339,7 @@ def SB_result():
 				id_nan = np.isnan(Intns_2)
 				Intns_2, Intns_r_2, Intns_err_2 = Intns_2[id_nan == False], Intns_r_2[id_nan == False], Intns_err_2[id_nan == False]
 
-				### fig sub-sample results
-				fig = plt.figure()
-				cx0 = plt.subplot(111)
-				cx0.set_title('%s band %d sub-sample SB' % (band[kk], nn) )
-
-				cx0.errorbar(Intns_r_0, Intns_0, yerr = Intns_err_0, xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
-					ecolor = 'r', elinewidth = 1, label = 'img ICL + background', alpha = 0.5)
-				cx0.errorbar(Intns_r_1, Intns_1, yerr = Intns_err_1, xerr = None, color = 'g', marker = 'None', ls = '-', linewidth = 1, 
-					ecolor = 'g', elinewidth = 1, label = 'img ICL + background + sky ICL', alpha = 0.5)
-				cx0.errorbar(Intns_r_2, Intns_2, yerr = Intns_err_2, xerr = None, color = 'b', marker = 'None', ls = '-', linewidth = 1,
-					ecolor = 'b', elinewidth = 1, label = 'img ICL + sky ICL', alpha = 0.5)
-				cx0.errorbar(Intns_r, Intns, yerr = Intns_err, xerr = None, color = 'm', marker = 'None', ls = '-', linewidth = 1,
-					ecolor = 'm', elinewidth = 1, label = 'sky ICL', alpha = 0.5)
-
-				cx0.set_xlabel('$R [kpc] $')
-				cx0.set_ylabel('$SB[ nmaggy / arcsec^2]$')
-				cx0.set_xscale('log')
-				cx0.set_yscale('log')
-				cx0.set_xlim(1, 2e3)
-				cx0.set_ylim(1e-5, 1e1)
-				cx0.legend(loc = 1, frameon = False)
-				cx0.grid(which = 'major', axis = 'both')
-				cx0.tick_params(axis = 'both', which = 'both', direction = 'in')
-
-				subax = fig.add_axes([0.2, 0.2, 0.32, 0.32])
-				subax.errorbar(Intns_r_0, Intns_0, yerr = Intns_err_0, xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
-					ecolor = 'r', elinewidth = 1, alpha = 0.5)
-				subax.errorbar(Intns_r_1, Intns_1, yerr = Intns_err_1, xerr = None, color = 'g', marker = 'None', ls = '-', linewidth = 1, 
-					ecolor = 'g', elinewidth = 1, alpha = 0.5)
-				subax.errorbar(Intns_r_2, Intns_2, yerr = Intns_err_2, xerr = None, color = 'b', marker = 'None', ls = '-', linewidth = 1,
-					ecolor = 'b', elinewidth = 1, alpha = 0.5)
-				subax.errorbar(Intns_r, Intns, yerr = Intns_err, xerr = None, color = 'm', marker = 'None', ls = '-', linewidth = 1,
-					ecolor = 'm', elinewidth = 1, alpha = 0.5)
-
-				subax.set_xlim(4e2, 1.4e3)
-				subax.set_xscale('log')
-				subax.set_ylim(3e-3, 7e-3)
-				subax.set_yscale('log')
-				subax.grid(which = 'both', axis = 'both')
-				subax.tick_params(axis = 'both', which = 'both', direction = 'in', labelsize = 5.)
-
-				plt.savefig(d_load + '%s_band_%d_rich_%d_sub-sample_SB.png' % (band[kk], lamda_k, nn), dpi = 300)
-				plt.close()
-
-				## process img
-				plt.figure(figsize = (16, 12))
-				bx0 = plt.subplot(221)
-				bx1 = plt.subplot(222)
-				bx2 = plt.subplot(223)
-				bx3 = plt.subplot(224)
-
-				bx0.set_title('$ %s \; band \; %d \; sub-stack \; img [50 \\leqslant \\lambda] $' % (band[kk], nn) )
-				clust00 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', ls = '-', alpha = 0.5,)
-				clust01 = Circle(xy = (x0, y0), radius = 0.5 * Rpp, fill = False, ec = 'r', ls = '--', alpha = 0.5,)
-				tf = bx0.imshow(clust_img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
-				plt.colorbar(tf, ax = bx0, fraction = 0.042, pad = 0.01, label = 'flux[nmaggy]')
-				## add contour
-				con_img = clust_img * 1.
-				kernl_img = ndimage.gaussian_filter(clust_img, sigma = dnoise,  mode = 'nearest')
-				SB_img = 22.5 - 2.5 * np.log10(kernl_img) + 2.5 * np.log10(pixel**2)
-				tg = bx0.contour(SB_img, origin = 'lower', cmap = 'rainbow', levels = SB_lel, )
-				plt.clabel(tg, inline = False, fontsize = 6.5, colors = 'k', fmt = '%.0f')
-
-				bx0.add_patch(clust00)
-				bx0.add_patch(clust01)
-				bx0.axis('equal')
-				bx0.set_xlim(x0 - 0.7 * R_cut, x0 + 0.7 * R_cut)
-				bx0.set_ylim(y0 - 0.7 * R_cut, y0 + 0.7 * R_cut)
-				bx0.set_xticks([])
-				bx0.set_yticks([])
-
-				bx1.set_title('%s band difference img' % band[kk] )
-				clust10 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', ls = '-',)
-				clust11 = Circle(xy = (x0, y0), radius = 0.5 * Rpp, fill = False, ec = 'r', ls = '--',)
-				tf = bx1.imshow(differ_img, origin = 'lower', cmap = 'seismic', vmin = -2e-4, vmax = 2e-4)
-				plt.colorbar(tf, ax = bx1, fraction = 0.042, pad = 0.01, label = 'flux[nmaggy]')
-				bx1.add_patch(clust10)
-				bx1.add_patch(clust11)
-				bx1.axis('equal')
-				bx1.set_xlim(x0 - 0.7 * R_cut, x0 + 0.7 * R_cut)
-				bx1.set_ylim(y0 - 0.7 * R_cut, y0 + 0.7 * R_cut)
-				bx1.set_xticks([])
-				bx1.set_yticks([])
-
-				bx2.set_title('%s band difference + stack img' % band[kk] )
-				clust20 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', ls = '-', alpha = 0.5,)
-				clust21 = Circle(xy = (x0, y0), radius = 0.5 * Rpp, fill = False, ec = 'r', ls = '--', alpha = 0.5,)
-				tf = bx2.imshow(differ_img + clust_img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
-				plt.colorbar(tf, ax = bx2, fraction = 0.042, pad = 0.01, label = 'flux[nmaggy]')
-				## add contour
-				con_img = differ_img + clust_img
-				kernl_img = ndimage.gaussian_filter(con_img, sigma = dnoise,  mode = 'nearest')
-				SB_img = 22.5 - 2.5 * np.log10(kernl_img) + 2.5 * np.log10(pixel**2)
-				tg = bx2.contour(SB_img, origin = 'lower', cmap = 'rainbow', levels = SB_lel, )
-				plt.clabel(tg, inline = False, fontsize = 6.5, colors = 'k', fmt = '%.0f')
-
-				bx2.add_patch(clust20)
-				bx2.add_patch(clust21)
-				bx2.axis('equal')
-				bx2.set_xlim(x0 - 0.7 * R_cut, x0 + 0.7 * R_cut)
-				bx2.set_ylim(y0 - 0.7 * R_cut, y0 + 0.7 * R_cut)
-				bx2.set_xticks([])
-				bx2.set_yticks([])
-
-				bx3.set_title('%s band difference + stack - RBL' % band[kk] )
-				clust30 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', ls = '-', alpha = 0.5,)
-				clust31 = Circle(xy = (x0, y0), radius = 0.5 * Rpp, fill = False, ec = 'r', ls = '--', alpha = 0.5,)
-
-				tf = bx3.imshow(differ_img + clust_img - Resi_bl, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, 
-					norm = mpl.colors.LogNorm())
-				plt.colorbar(tf, ax = bx3, fraction = 0.042, pad = 0.01, label = 'flux[nmaggy]')
-				## add contour
-				con_img = differ_img + clust_img - Resi_bl
-				kernl_img = ndimage.gaussian_filter(con_img, sigma = dnoise,  mode = 'nearest')
-				SB_img = 22.5 - 2.5 * np.log10(kernl_img) + 2.5 * np.log10(pixel**2)
-				tg = bx3.contour(SB_img, origin = 'lower', cmap = 'rainbow', levels = SB_lel, )
-				plt.clabel(tg, inline = False, fontsize = 6.5, colors = 'k', fmt = '%.0f')
-
-				bx3.add_patch(clust30)
-				bx3.add_patch(clust31)
-				bx3.axis('equal')
-				bx3.set_xlim(x0 - 0.7 * R_cut, x0 + 0.7 * R_cut)
-				bx3.set_ylim(y0 - 0.7 * R_cut, y0 + 0.7 * R_cut)
-				bx3.set_xticks([])
-				bx3.set_yticks([])
-
-				plt.tight_layout()
-				plt.savefig(d_load + '%s_band_%d_rich_%d_sub-stack_process.pdf' % (band[kk], lamda_k, nn), dpi = 300)
-				plt.close()
-				### 
+				## save the SB profile of sub-stacking
 				ax = plt.subplot(gs[nn // 5, nn % 5])
 				ax.errorbar(Rt, SBt, yerr = [t_err0, t_err1], xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1,
 					ecolor = 'r', elinewidth = 1, label = 'img ICL + background', alpha = 0.5)
@@ -489,9 +365,86 @@ def SB_result():
 				ax.tick_params(axis = 'both', which = 'both', direction = 'in')
 
 			plt.tight_layout()
-			plt.savefig(d_load + '%s_band_%d_rich_sub-stack_SB_pros.pdf' % (band[kk], lamda_k), dpi = 300)
+			plt.savefig(d_load + '%s_band_%d_rich_sub-stack_SB_pros_%.1f-%.1f_Mpc.pdf' % (band[kk], lamda_k, r_a0 / 1e3, r_a1 / 1e3), dpi = 300)
 			plt.close()
+			"""
+			for nn in range(N_bin):
+				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-samp_SB_pro.h5' % (band[kk], lamda_k, nn), 'r') as f:
+					tmp_array = np.array(f['a'])
+				bcg_Rii, bcg_SB, err0, err1, SB_mean = tmp_array[0,:],tmp_array[1,:],tmp_array[2,:],tmp_array[3,:],tmp_array[4,:]
+				id_nan = np.isnan(bcg_SB)
+				SB_obs = bcg_SB[id_nan == False]
+				R_obs, obs_err0, obs_err1 = bcg_Rii[id_nan == False], err0[id_nan == False], err1[id_nan == False]
+				id_nan = np.isnan(obs_err1)
+				obs_err1[id_nan] = 100.
 
+				Nr = len(bcg_Rii)
+				for mm in range( Nr ):
+					dr = np.abs( ref_Rii - bcg_Rii[mm] )
+					idy = dr == np.min(dr)
+					bcg_pros[nn,:][idy] = SB_mean[mm]
+
+				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-stack_clust_SB_%.1f-%.1f_Mpc.h5' % 
+					(band[kk], lamda_k, nn, r_a0 / 1e3, r_a1 / 1e3), 'r') as f:
+					dmp_array = np.array(f['a'])
+				stack_sb.append(dmp_array[1])
+				stack_r.append(dmp_array[0])
+
+				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-stack_sky_ICL.h5' % (band[kk], lamda_k, nn), 'r') as f:
+					dmp_array = np.array(f['a'])
+				sky_lit.append(dmp_array[1])
+				sky_r.append(dmp_array[0])
+
+				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-stack_add_SB_%.1f-%.1f_Mpc.h5' % 
+					(band[kk], lamda_k, nn, r_a0 / 1e3, r_a1 / 1e3), 'r') as f:
+					dmp_array = np.array(f['a'])
+				add_sb.append(dmp_array[1])
+				add_r.append(dmp_array[0])
+
+				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-stack_cli_SB_%.1f-%.1f_Mpc.h5' % 
+					(band[kk], lamda_k, nn, r_a0 / 1e3, r_a1 / 1e3), 'r') as f:
+					dmp_array = np.array(f['a'])
+				SB_flux.append(dmp_array[1])
+				R_arr.append(dmp_array[0])
+
+				## sky image
+				with h5py.File(d_load + '%d_rich_sky-median_%d_sub-stack_%s_band_img.h5' % (lamda_k, nn, band[kk]), 'r') as f:
+					BCG_sky = np.array(f['a'])
+
+				with h5py.File(d_load + '%d_rich_M_rndm_sky-median_%d_sub-stack_%s_band.h5' % (lamda_k, nn, band[kk]), 'r') as f:
+					rand_sky = np.array(f['a'])
+
+				differ_img = BCG_sky - rand_sky
+				with h5py.File(d_load + '%s_band_%d_rich_%d_sub-differ_img.h5' % (band[kk], lamda_k, nn), 'w') as f:
+					f['a'] = np.array(differ_img)
+
+				idnx = np.isnan(differ_img)
+				idv = np.where(idnx == False)
+				differ_2d[nn][idv] = differ_img[idv]
+				differ_cnt[idv] = differ_cnt[idv] + 1
+				m_differ_img[idv] = m_differ_img[idv] + differ_img[idv]
+				differ_cont[idv] += 1.
+
+				## cluster image
+				with h5py.File(d_load + '%d_rich_%d_sub-stack_%s_band_img.h5' % (lamda_k, nn, band[kk]), 'r') as f:
+					clust_img = np.array(f['a'])
+
+				idnx = np.isnan(clust_img)
+				idv = np.where(idnx == False)
+				clust_2d[nn][idv] = clust_img[idv]
+				clust_cnt[idv] = clust_cnt[idv] + 1
+				m_BCG_img[idv] = m_BCG_img[idv] + clust_img[idv]
+				BCG_cont_Mx[idv] += 1.
+
+				add_img = clust_img + differ_img
+				betwn_r, betwn_lit, btn_err0, btn_err1, betwn_Intns, betwn_err = betwn_SB(add_img, r_a0, r_a1, x0, y0, pixel, z_ref, kk)
+
+				Resi_bl = betwn_Intns * 1.
+				Resi_std = betwn_err * 1.
+				Resi_sky = betwn_lit * 1.
+				bl_dSB0, bl_dSB1 = betwn_lit - btn_err0, betwn_lit + btn_err1
+				rbl[nn] = Resi_bl * 1.
+			"""
 			####################
 			## stack sub-stacking img result
 			M_clust_img = m_BCG_img / BCG_cont_Mx
@@ -529,10 +482,9 @@ def SB_result():
 			m_BCG_err0, m_BCG_err1 = err0[id_nan == False], err1[id_nan == False]
 
 			### jackknife calculation (mean process SB)
-			with h5py.File(d_load + '%s_band_%d_rich_RBL_SB.h5' % (band[kk], lamda_k), 'w') as f:
+			with h5py.File(d_load + '%s_band_%d_rich_RBL_SB_%.1f-%.1f_Mpc.h5' % (band[kk], lamda_k, r_a0 / 1e3, r_a1 / 1e3), 'w') as f:
 				f['a'] = np.array(rbl)
-
-			with h5py.File(d_load + '%s_band_%d_rich_RBL_SB.h5' % (band[kk], lamda_k), 'r') as f:
+			with h5py.File(d_load + '%s_band_%d_rich_RBL_SB_%.1f-%.1f_Mpc.h5' % (band[kk], lamda_k, r_a0 / 1e3, r_a1 / 1e3), 'r') as f:
 				rbl = np.array(f['a'])
 
 			m_rbl = np.nanmean(rbl)
@@ -567,7 +519,7 @@ def SB_result():
 			with h5py.File(d_load + '%s_band_%d_rich_all_differ_2D.h5' % (band[kk], lamda_k), 'w') as f:
 				f['a'] = np.array(differ_2d)
 
-			with h5py.File(d_load + '%s_band__%d_rich_all_clust_2D.h5' % (band[kk], lamda_k), 'r') as f:
+			with h5py.File(d_load + '%s_band_%d_rich_all_clust_2D.h5' % (band[kk], lamda_k), 'r') as f:
 				clust_2d = np.array(f['a'])
 			with h5py.File(d_load + '%s_band_%d_rich_all_differ_2D.h5' % (band[kk], lamda_k), 'r') as f:
 				differ_2d = np.array(f['a'])
@@ -629,6 +581,8 @@ def SB_result():
 			##################################################
 			## SB profile
 			fig = plt.figure()
+			plt.suptitle('BL %.1f-%.1f Mpc' % (r_a0 / 1e3, r_a1 / 1e3) )
+
 			ax = plt.subplot(111)
 			if lamda_k == 0:
 				ax.set_title('$ %s \; band \; jackknife \; stacking \; SB[20 \\leqslant \\lambda \\leqslant 30] $' % band[kk])
@@ -669,7 +623,7 @@ def SB_result():
 			subax.set_xlim(4e2, 1.5e3)
 			subax.set_xscale('log')
 			if kk == 0:
-				subax.set_ylim(4e-3, 7e-3)
+				subax.set_ylim(3e-3, 7e-3)
 			if kk == 1:
 				subax.set_ylim(3e-3, 5e-3)
 			if kk == 2:
@@ -678,10 +632,12 @@ def SB_result():
 			subax.grid(which = 'both', axis = 'both')
 			subax.tick_params(axis = 'both', which = 'both', direction = 'in', labelsize = 5.)
 
-			plt.savefig(d_load + '%s_band_%d_rich_tot-stack_flux_dens.png' % (band[kk], lamda_k), dpi = 300)
+			plt.savefig(d_load + '%s_band_%d_rich_tot-stack_flux_dens_%.1f-%.1f_Mpc.png' % (band[kk], lamda_k, r_a0 / 1e3, r_a1 / 1e3), dpi = 300)
 			plt.close()
 
 			fig = plt.figure()
+			plt.suptitle('BL %.1f-%.1f Mpc' % (r_a0 / 1e3, r_a1 / 1e3) )
+
 			ax = plt.subplot(111)
 			if lamda_k == 0:
 				ax.set_title('$ %s \; band \; jackknife \; stacking \; SB[20 \\leqslant \\lambda \\leqslant 30] $' % band[kk])
@@ -727,16 +683,16 @@ def SB_result():
 			subax.set_xlim(4e2, 1.5e3)
 			subax.set_xscale('log')
 			if kk == 0:
-				subax.set_ylim(27.75, 28.50)
+				subax.set_ylim(28.0, 28.6)
 			if kk == 1:
-				subax.set_ylim(28.25, 28.75)
+				subax.set_ylim(28.4, 28.8)
 			if kk == 2:
-				subax.set_ylim(27.25, 28.50)
+				subax.set_ylim(27.4, 28.5)
 			subax.invert_yaxis()
 			subax.grid(which = 'both', axis = 'both')
 			subax.tick_params(axis = 'both', which = 'both', direction = 'in', labelsize = 5.)
 
-			plt.savefig(d_load + '%s_band_%d_rich_tot-stack_SB_pros.png' % (band[kk], lamda_k), dpi = 300)
+			plt.savefig(d_load + '%s_band_%d_rich_tot-stack_SB_pros_%.1f-%.1f_Mpc.png' % (band[kk], lamda_k, r_a0 / 1e3, r_a1 / 1e3), dpi = 300)
 			plt.close()
 
 	return

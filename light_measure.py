@@ -56,8 +56,6 @@ def light_measure(data, Nbin, R_small, R_max, cx, cy, pix_size, z0):
 	pix_id = np.array(np.meshgrid(x0,y0))
 
 	theta = np.arctan2((pix_id[1,:]-cy), (pix_id[0,:]-cx))
-	where_are_nan = np.isnan(theta)
-	theta[where_are_nan] = 0
 	chi = theta * 180 / np.pi
 
 	divi_r = np.logspace(np.log10(R_small), np.log10(R_max), Nbin)
@@ -156,8 +154,6 @@ def light_measure_rn(data, R_low, R_up, cx, cy, pix_size, z0):
 	Intns = np.nanmean( data[idu] )
 
 	theta = np.arctan2((pix_id[1,:] - cy), (pix_id[0,:] - cx))
-	where_are_nan = np.isnan(theta)
-	theta[where_are_nan] = 0
 	chi = theta * 180 / np.pi
 	samp_chi = chi[idu]
 	samp_flux = data[idu]
@@ -207,9 +203,7 @@ def light_measure_Z0(data, pix_size, r_lim, R_pix, cx, cy, bins):
 	y0 = np.linspace(0, Ny-1, Ny)
 	pix_id = np.array(np.meshgrid(x0,y0))
 
-	theta = np.arctan2((pix_id[1,:]-cy), (pix_id[0,:]-cx))
-	where_are_nan = np.isnan(theta)
-	theta[where_are_nan] = 0
+	theta = np.arctan2((pix_id[1,:] - cy), (pix_id[0,:] - cx))
 	chi = theta * 180 / np.pi
 	# radius in unit of pixel number
 	rbin = np.logspace(np.log10(r_lim), np.log10(R_pix), bins)

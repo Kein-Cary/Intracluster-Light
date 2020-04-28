@@ -46,8 +46,6 @@ def light_measure_pn(data, Nbin, R_small, R_max, cx, cy, psize, z0, pn):
 
 	pix_id = np.array(np.meshgrid(x0,y0))
 	theta = np.arctan2((pix_id[1,:]-cy), (pix_id[0,:]-cx))
-	where_are_nan = np.isnan(theta)
-	theta[where_are_nan] = 0
 	chi = theta * 180 / np.pi
 
 	divi_r = np.logspace(np.log10(R_small), np.log10(R_max), Nbin)
@@ -144,8 +142,6 @@ def light_measure_rn(data, R_low, R_up, cx, cy, pix_size, z0):
 	Intns = np.nanmean( data[idu] )
 
 	theta = np.arctan2((pix_id[1,:] - cy), (pix_id[0,:] - cx))
-	where_are_nan = np.isnan(theta)
-	theta[where_are_nan] = 0
 	chi = theta * 180 / np.pi
 	samp_chi = chi[idu]
 	samp_flux = data[idu]
