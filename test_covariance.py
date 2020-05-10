@@ -150,10 +150,10 @@ def cov_MX(radius, pros):
 N_bin = 30
 #d_load = load + 'rich_sample/jackknife/'
 #r_a0, r_a1 = 1.6e3, 1.8e3 ## also for correlation matrix comparison
-d_load = load + 'rich_sample/scale_fig/'
+d_load = load + 'rich_sample/scale_fig/R200_m/'
+bl_set = 0.75 # bl_set must be 1.0 for 'R200_c/' case
 
-#for kk in range(rank, rank + 1):
-for kk in range(1, 2):
+for kk in range(rank, rank + 1):
 
 	plt.figure()
 	#plt.suptitle('BL %.1f-%.1f Mpc' % (r_a0 / 1e3, r_a1 / 1e3) )
@@ -168,11 +168,11 @@ for kk in range(1, 2):
 	sub_err1 = []
 	scale_r = []
 
-	for lamda_k in range(2, 3):
+	for lamda_k in range(3):
 		## read the virial radius cat.
-		with h5py.File( load + 'rich_sample/jackknife/%s_band_%d_rich_R200.h5' % (band[kk], lamda_k), 'r') as f:
+		with h5py.File( load + 'rich_sample/jackknife/%s_band_%d_rich_R200m.h5' % (band[kk], lamda_k), 'r') as f:
 			r200_array = np.array(f['a'])
-		R200 = np.median(r200_array[0])
+		R200 = np.median(r200_array[0]) * bl_set
 		#R200 = np.mean(r200_array[0])
 		scale_r.append(R200)
 		r_a0, r_a1 = R200, R200 + 100.
@@ -240,14 +240,22 @@ for kk in range(1, 2):
 		sub_err1.append(err1)
 
 		if lamda_k == 0:
-			ax0.errorbar(JK_R, JK_SB, yerr = [JK_err0, JK_err1], xerr = None, color = 'b', marker = 'None', ls = '-', linewidth = 1, 
-				ecolor = 'b', elinewidth = 1, alpha = 0.5, label = '$ 20 \\leq \\lambda \\leq 30 $')
+			#ax0.errorbar(JK_R, JK_SB, yerr = [JK_err0, JK_err1], xerr = None, color = 'b', marker = 'None', ls = '-', linewidth = 1, 
+			#	ecolor = 'b', elinewidth = 1, alpha = 0.5, label = '$ 20 \\leq \\lambda \\leq 30 $')
+			ax0.plot(JK_R, JK_SB, color = 'b', alpha = 0.5, ls = '-',)
+			ax0.fill_between(JK_R, y1 = JK_SB - JK_err0, y2 = JK_SB + JK_err1, color = 'b', alpha = 0.30, label = '$ 20 \\leq \\lambda \\leq 30 $')
+
 		elif lamda_k == 1:
-			ax0.errorbar(JK_R, JK_SB, yerr = [JK_err0, JK_err1], xerr = None, color = 'g', marker = 'None', ls = '-', linewidth = 1, 
-				ecolor = 'g', elinewidth = 1, alpha = 0.5, label = '$ 30 \\leq \\lambda \\leq 50 $')
+			#ax0.errorbar(JK_R, JK_SB, yerr = [JK_err0, JK_err1], xerr = None, color = 'g', marker = 'None', ls = '-', linewidth = 1, 
+			#	ecolor = 'g', elinewidth = 1, alpha = 0.5, label = '$ 30 \\leq \\lambda \\leq 50 $')
+			ax0.plot(JK_R, JK_SB, color = 'g', alpha = 0.5, ls = '-',)
+			ax0.fill_between(JK_R, y1 = JK_SB - JK_err0, y2 = JK_SB + JK_err1, color = 'g', alpha = 0.30, label = '$ 30 \\leq \\lambda \\leq 50 $')
+
 		else:
-			ax0.errorbar(JK_R, JK_SB, yerr = [JK_err0, JK_err1], xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
-				ecolor = 'r', elinewidth = 1, alpha = 0.5, label = '$ \\lambda \\geq 50 $')
+			#ax0.errorbar(JK_R, JK_SB, yerr = [JK_err0, JK_err1], xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
+			#	ecolor = 'r', elinewidth = 1, alpha = 0.5, label = '$ \\lambda \\geq 50 $')
+			ax0.plot(JK_R, JK_SB, color = 'r', alpha = 0.5, ls = '-',)
+			ax0.fill_between(JK_R, y1 = JK_SB - JK_err0, y2 = JK_SB + JK_err1, color = 'r', alpha = 0.30, label = '$ \\lambda \\geq 50 $')
 
 	ax0.set_xlabel('$R[kpc]$')
 	ax0.set_ylabel('$SB[mag / arcsec^2]$')
@@ -288,22 +296,23 @@ for kk in range(1, 2):
 	dev_R2 = id_R2[idx]
 	dev_SB2 = id_SB2[idx] - f_SB(dev_R2)
 	dev_err2_0, dev_err2_1 = id_err0[idx], id_err1[idx]
+	"""
 	ax1.errorbar(dev_R2, dev_SB2, yerr = [dev_err2_0, dev_err2_1], xerr = None, color = 'r', marker = 'None', 
 		ls = '-', linewidth = 1, ecolor = 'r', elinewidth = 1, alpha = 0.5,)
 	ax1.errorbar(sub_R[1], sub_SB[1] - sub_SB[1], yerr = [ sub_err0[1], sub_err1[1] ], xerr = None, color = 'g', marker = 'None', 
 		ls = '-', linewidth = 1, ecolor = 'g', elinewidth = 1, alpha = 0.5,)
 	ax1.errorbar(dev_R0, dev_SB0, yerr = [dev_err0_0, dev_err0_1], xerr = None, color = 'b', marker = 'None', 
 		ls = '-', linewidth = 1, ecolor = 'b', elinewidth = 1, alpha = 0.5,)
-	'''
-	ax1.errorbar(sub_R[2], sub_SB[2] - sub_SB[1], yerr = [ sub_err0[2], sub_err1[2] ], xerr = None, color = 'r', marker = 'None', 
-		ls = '-', linewidth = 1, ecolor = 'r', elinewidth = 1, alpha = 0.5,)
-	ax1.errorbar(sub_R[1], sub_SB[1] - sub_SB[1], yerr = [ sub_err0[1], sub_err1[1] ], xerr = None, color = 'g', marker = 'None', 
-		ls = '-', linewidth = 1, ecolor = 'g', elinewidth = 1, alpha = 0.5,)
-	ax1.errorbar(sub_R[0], sub_SB[0] - sub_SB[1], yerr = [ sub_err0[0], sub_err1[0] ], xerr = None, color = 'b', marker = 'None', 
-		ls = '-', linewidth = 1, ecolor = 'b', elinewidth = 1, alpha = 0.5,)
-	'''
+	"""
+	ax1.plot(dev_R2, dev_SB2, color = 'r', alpha = 0.5, ls = '-')
+	ax1.fill_between(dev_R2, y1 = dev_SB2 - dev_err2_0, y2 = dev_SB2 + dev_err2_1, color = 'r', alpha = 0.30,)
+	ax1.plot(sub_R[1], sub_SB[1] - sub_SB[1], color = 'g', alpha = 0.5, ls = '-')
+	ax1.fill_between(sub_R[1], y1 = 0 - sub_err0[1], y2 = 0 + sub_err1[1], color = 'g', alpha = 0.30,)
+	ax1.plot(dev_R0, dev_SB0, color = 'b', alpha = 0.5, ls = '-')
+	ax1.fill_between(dev_R0, y1 = dev_SB0 - dev_err0_0, y2 = dev_SB0 + dev_err0_1, color = 'b', alpha = 0.30,)
+
 	ax1.set_xlim(ax0.get_xlim())
-	ax1.set_ylim(-2, 2)
+	ax1.set_ylim(-0.5, 0.5)
 	ax1.set_xscale('log')
 	ax1.set_xlabel('$ R[kpc] $')
 	ax1.set_ylabel('$ SB - SB_{30 \\leq \\lambda \\leq 50} $')
@@ -319,12 +328,21 @@ for kk in range(1, 2):
 	plt.figure()
 	ax = plt.subplot(111)
 	ax.set_title('$ %s \; band \; R_{200} \; scaled \; SB $' % band[kk])
+	"""
 	ax.errorbar(sub_R[2] / scale_r[2], sub_SB[2], yerr = [ sub_err0[2], sub_err1[2] ], xerr = None, color = 'r', marker = 'None', 
 		ls = '-', linewidth = 1, ecolor = 'r', elinewidth = 1, alpha = 0.5, label = '$ \\lambda \\geq 50 $')
 	ax.errorbar(sub_R[1] / scale_r[1], sub_SB[1], yerr = [ sub_err0[1], sub_err1[1] ], xerr = None, color = 'g', marker = 'None', 
 		ls = '-', linewidth = 1, ecolor = 'g', elinewidth = 1, alpha = 0.5, label = '$ 30 \\leq \\lambda \\leq 50 $')
 	ax.errorbar(sub_R[0] / scale_r[0], sub_SB[0], yerr = [ sub_err0[0], sub_err1[0] ], xerr = None, color = 'b', marker = 'None', 
 		ls = '-', linewidth = 1, ecolor = 'b', elinewidth = 1, alpha = 0.5, label = '$ 20 \\leq \\lambda \\leq 30 $')
+	"""
+	ax.plot(sub_R[2] / scale_r[2], sub_SB[2], color = 'r', alpha = 0.5, ls = '-', label = '$ \\lambda \\geq 50 $')
+	ax.fill_between(sub_R[2] / scale_r[2], y1 = sub_SB[2] - sub_err0[2], y2 = sub_SB[2] + sub_err1[2], color = 'r', alpha = 0.30,)
+	ax.plot(sub_R[1] / scale_r[1], sub_SB[1], color = 'g', alpha = 0.5, ls = '-', label = '$ 30 \\leq \\lambda \\leq 50 $')
+	ax.fill_between(sub_R[1] / scale_r[1], y1 = sub_SB[1] - sub_err0[1], y2 = sub_SB[1] + sub_err1[1], color = 'g', alpha = 0.30,)
+	ax.plot(sub_R[0] / scale_r[0], sub_SB[0], color = 'b', alpha = 0.5, ls = '-', label = '$ 20 \\leq \\lambda \\leq 30 $')
+	ax.fill_between(sub_R[0] / scale_r[0], y1 = sub_SB[0] - sub_err0[0], y2 = sub_SB[0] + sub_err1[0], color = 'b', alpha = 0.30,)	
+
 	ax.set_xlabel('$ R / R_{200}$')
 	ax.set_ylabel('$SB[mag / arcsec^2]$')
 	ax.set_xscale('log')
