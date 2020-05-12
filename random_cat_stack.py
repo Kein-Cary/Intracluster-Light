@@ -18,6 +18,7 @@ import astropy.io.fits as fits
 from scipy import ndimage
 from astropy import cosmology as apcy
 from light_measure import light_measure, flux_recal
+from scipy.stats import binned_statistic as binned
 
 from mpi4py import MPI
 commd = MPI.COMM_WORLD
@@ -213,7 +214,99 @@ def sky_stack_rndm(band_id, sub_z, sub_ra, sub_dec):
 
     return
 
+def binned_img_flux():
+    N_bin = 30
+    bin_side = np.linspace(-1e-1, 1e-1, N_bin + 1)
+
+    for kk in range(3):
+
+        with h5py.File(load + 'random_cat/rand_%s_band_catalog.h5' % (band[kk]), 'r') as f:
+            tmp_array = np.array(f['a'])
+        ra, dec, z, rich = np.array(tmp_array[0]), np.array(tmp_array[1]), np.array(tmp_array[2]), np.array(tmp_array[3])
+        zN = len(z)
+
+        bin_flux_mean = np.zeros((zN, N_bin), dtype = np.float)
+        bin_flux_median = np.zeros((zN, N_bin), dtype = np.float)
+        bin_num = np.zeros((zN, N_bin), dtype = np.float)
+
+        for jj in range(zN):
+            ra_g, dec_g, z_g = ra[jj], dec[jj], z[jj]
+            data_A = fits.open(load + 'random_cat/edge_cut_img/rand_pont_Edg_cut-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
+            img_A = data_A[0].data
+
+            id_nan = np.isnan(img_A)
+            flux_array = img_A[id_nan == False]
+
+            value_mean = binned(flux_array, flux_array, statistic='mean', bins = bin_side)[0]
+            value_median = binned(flux_array, flux_array, statistic='median', bins = bin_side)[0]
+            value_number = binned(flux_array, flux_array, statistic='count', bins = bin_side)[0]
+            bin_flux_mean[jj,:] = value_mean
+            bin_flux_median[jj,:] = value_median
+            bin_num[jj,:] = value_number / np.nansum(value_number)
+
+        flux_mean = np.nanmean(bin_flux_mean, axis = 0) / pixel**2
+        flux_median = np.nanmean(bin_flux_median, axis = 0) / pixel**2
+        num_mean = np.nanmean(bin_num, axis = 0)
+
+        dmp_array = np.array([flux_mean, num_mean])
+        with h5py.File(load + 'random_cat/stack/%s_band_random_field_pix_SB_mean_pdf.h5' % band[kk], 'w') as f:
+            f['a'] = np.array(dmp_array)
+        with h5py.File(load + 'random_cat/stack/%s_band_random_field_pix_SB_mean_pdf.h5' % band[kk], ) as f:
+            for ll in range(len(dmp_array)):
+                f['a'][ll,:] = dmp_array[ll,:]
+
+        dmp_array = np.array([flux_median, num_mean])
+        with h5py.File(load + 'random_cat/stack/%s_band_random_field_pix_SB_median_pdf.h5' % band[kk], 'w') as f:
+            f['a'] = np.array(dmp_array)
+        with h5py.File(load + 'random_cat/stack/%s_band_random_field_pix_SB_median_pdf.h5' % band[kk], ) as f:
+            for ll in range(len(dmp_array)):
+                f['a'][ll,:] = dmp_array[ll,:]
+
+        with h5py.File(load + 'random_cat/stack/%s_band_random_field_pix_SB_mean_pdf.h5' % band[kk], 'r') as f:
+            dmp_array = np.array(f['a'])
+        flux_mean, num_mean = dmp_array[0], dmp_array[1]
+        dx = flux_mean[1:] - flux_mean[:-1]
+        dx = np.r_[dx[0], dx]
+        M_flux_mean = np.sum(flux_mean * num_mean * dx)
+
+        with h5py.File(load + 'random_cat/stack/%s_band_random_field_pix_SB_mean_pdf.h5' % band[kk], 'r') as f:
+            dmp_array = np.array(f['a'])
+        flux_median, num_mean = dmp_array[0], dmp_array[1]
+        dx = flux_median[1:] - flux_median[:-1]
+        dx = np.r_[dx[0], dx]
+        M_flux_median = np.sum(flux_median * num_mean * dx)
+
+        fig = plt.figure()
+        ax = plt.subplot(111)
+        ax.set_title('%s band random filed pixel SB pdf' % band[kk])
+        ax.plot(flux_mean, num_mean, c = 'r', ls = '-', label = 'Mean pixel SB')
+        ax.axvline(x = M_flux_mean, color = 'r', linestyle = '-', alpha = 0.5)
+        #ax.plot(flux_median, num_mean, c = 'g', ls = '--', label = 'Median pixel SB')
+        #ax.axvline(x = M_flux_median, color = 'g', linestyle = '--', alpha = 0.5)
+        ax.set_xlabel('$ pixel \; SB \; [nanomaggies / arcsec^2]$')
+        ax.set_ylabel('pdf')
+        ax.legend(loc = 1, frameon = False)
+        ax.tick_params(axis = 'both', which = 'both', direction = 'in')
+
+        subax = fig.add_axes([0.2, 0.35, 0.25, 0.4])
+        subax.plot(flux_mean, num_mean, c = 'r', ls = '-', label = 'Mean pixel SB')
+        subax.axvline(x = M_flux_mean, color = 'r', linestyle = '-', alpha = 0.5)        
+        subax.set_xlim(-5e-4, 5e-4)
+        xtick = subax.get_xticks()
+        re_xtick = xtick * 1e4
+        subax.set_xticks(xtick)
+        subax.set_xticklabels(['%.1f' % ll for ll in re_xtick])
+        subax.set_xlabel('1e4 * pixel SB')
+        subax.tick_params(axis = 'both', which = 'both', direction = 'in')
+
+        plt.savefig(load + 'random_cat/stack/%s_band_pix_SB_pdf.png' % band[kk], dpi = 300)
+        plt.close()
+
+    return
+
 def main():
+
+    #binned_img_flux()
 
     x0, y0 = 2427, 1765
     Nx = np.linspace(0, 4854, 4855)
@@ -265,6 +358,7 @@ def main():
                 f['a'] = np.array(stack_img)
 
         commd.Barrier()
+    raise
     ## stack sky
     for kk in range( 3 ):
 

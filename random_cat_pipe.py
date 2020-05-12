@@ -288,10 +288,50 @@ def resamp_img(band_id, sub_z, sub_ra, sub_dec):
 			continue
 	return
 
+def edge_cut(band_id, sub_z, sub_ra, sub_dec):
+
+	ii = np.int(band_id)
+	zn = len(sub_z)
+	for k in range(zn):
+		ra_g = sub_ra[k]
+		dec_g = sub_dec[k]
+		z_g = sub_z[k]
+		try:
+			data = fits.getdata(load + 'random_cat/resample_img/rand-resamp-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % 
+				(band[ii], ra_g, dec_g, z_g), header = True)
+			img = data[0]
+			BCGx, BCGy = data[1]['CENTER_X'], data[1]['CENTER_Y']
+			RA0, DEC0 = data[1]['CRVAL1'], data[1]['CRVAL2']
+
+			xc, yc = np.int(img.shape[1] / 2), np.int(img.shape[0] / 2)
+			## keep the image size but set np.nan for egde pixels
+			re_img = np.zeros( (img.shape[0], img.shape[1]), dtype = np.float) + np.nan
+			( re_img[yc - np.int(Rpp): yc + np.int(Rpp), xc - np.int(1.3 * Rpp): xc + np.int(1.3 * Rpp)] ) = ( 
+				img[yc - np.int(Rpp): yc + np.int(Rpp), xc - np.int(1.3 * Rpp): xc + np.int(1.3 * Rpp)] )
+
+			New_bcgx = BCGx + 0
+			New_bcgy = BCGy + 0
+
+			Lx = re_img.shape[1]
+			Ly = re_img.shape[0]
+			Crx = xc + 0
+			Cry = yc + 0
+
+			keys = ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2','CRPIX1','CRPIX2','CENTER_X','CENTER_Y',
+					'CRVAL1','CRVAL2','CENTER_RA','CENTER_DEC','ORIGN_Z', 'P_SCALE']
+			value = ['T', 32, 2, Lx, Ly, Crx, Cry, New_bcgx, New_bcgy, RA0, DEC0, ra_g, dec_g, z_g, pixel]
+			ff = dict(zip(keys,value))
+			fil = fits.Header(ff)
+			fits.writeto(load + 'random_cat/edge_cut_img/rand_pont_Edg_cut-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % 
+				(band[ii], ra_g, dec_g, z_g), re_img, header = fil, overwrite=True)
+		except FileNotFoundError:
+			continue
+	return
+
 def main():
 
 	Ntot = len(z)
-
+	"""
 	for tt in range(len(band)):
 		m, n = divmod(Ntot, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
@@ -306,6 +346,15 @@ def main():
 		if rank == cpus - 1:
 			N_sub1 += n
 		resamp_img(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
+	commd.Barrier()
+	"""
+	for tt in range( 3 ):
+		m, n = divmod(Ntot, cpus)
+		N_sub0, N_sub1 = m * rank, (rank + 1) * m
+		if rank == cpus - 1:
+			N_sub1 += n
+		edge_cut(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
+
 	commd.Barrier()
 
 if __name__ == "__main__":
