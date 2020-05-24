@@ -17,8 +17,7 @@ import astropy.io.fits as fits
 
 from scipy import ndimage
 from astropy import cosmology as apcy
-from light_measure import light_measure, light_measure_rn
-from Mass_rich_radius import rich2R_critical_2019
+from light_measure import light_measure, light_measure_Z0
 
 from mpi4py import MPI
 commd = MPI.COMM_WORLD
@@ -56,21 +55,39 @@ load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 band = ['r', 'g', 'i', 'u', 'z']
 mag_add = np.array([0, 0, 0, -0.04, 0.02])
 
-def betwn_SB(data, R_low, R_up, cx, cy, pix_size, z0, band_id):
+def cov_MX(radius, pros):
+    flux_array = np.array(pros)
+    r_array = np.array(radius)
+    Nt = len(flux_array)
+    SB_value = []
+    R_value = []
+    for ll in range(Nt):
+        id_nan = np.isnan(flux_array[ll])
+        setx = flux_array[ll][id_nan == False]
+        setr = r_array[ll][id_nan == False]
+        SB_value.append(setx)
+        R_value.append(setr)
+    SB_value = np.array(SB_value)
+    R_value = np.array(R_value)
+    R_mean_img = np.nanmean(R_value, axis = 0)
 
-    betwn_r, betwn_Intns, betwn_err = light_measure_rn(data, R_low, R_up, cx, cy, pix_size, z0)
-    betwn_lit = 22.5 - 2.5 * np.log10(betwn_Intns) + 2.5 * np.log10(pixel**2) + mag_add[band_id]
-    flux0 = betwn_Intns + betwn_err
-    flux1 = betwn_Intns - betwn_err
-    dSB0 = 22.5 - 2.5 * np.log10(flux0) + 2.5 * np.log10(pixel**2) + mag_add[band_id]
-    dSB1 = 22.5 - 2.5 * np.log10(flux1) + 2.5 * np.log10(pixel**2) + mag_add[band_id]
-    btn_err0 = betwn_lit - dSB0
-    btn_err1 = dSB1 - betwn_lit
-    id_nan = np.isnan(dSB1)
-    if id_nan == True:
-        btn_err1 = 100.
+    mean_lit = np.nanmean(SB_value, axis = 0)
+    std_lit = np.nanstd(SB_value, axis = 0)
+    nx, ny = SB_value.shape[1], SB_value.shape[0]
 
-    return betwn_r, betwn_lit, btn_err0, btn_err1, betwn_Intns, betwn_err
+    cov_tt = np.zeros((nx, nx), dtype = np.float)
+    cor_tt = np.zeros((nx, nx), dtype = np.float)
+
+    for qq in range(nx):
+        for tt in range(nx):
+            cov_tt[qq, tt] = np.sum( (SB_value[:,qq] - mean_lit[qq]) * (SB_value[:,tt] - mean_lit[tt]) ) / ny
+
+    for qq in range(nx):
+        for tt in range(nx):
+            cor_tt[qq, tt] = cov_tt[qq, tt] / (std_lit[qq] * std_lit[tt])
+    cov_MX_img = cov_tt * 1.
+    cor_MX_img = cor_tt * 1.
+    return R_mean_img, cov_MX_img, cor_MX_img
 
 def SB_pro(img, R_bins, R_min, R_max, Cx, Cy, pix_size, zg, band_id):
     kk = band_id
@@ -90,7 +107,28 @@ def SB_pro(img, R_bins, R_min, R_max, Cx, Cy, pix_size, zg, band_id):
 
     return R_out, SB_out, out_err0, out_err1, Intns, Intns_r, Intns_err
 
-def main():
+def SB_pro_0z(img, pix_size, r_lim, R_pix, cx, cy, R_bins, band_id):
+    kk = band_id
+    Intns, Angl_r, Intns_err = light_measure_Z0(img, pix_size, r_lim, R_pix, cx, cy, R_bins)
+    SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[kk]
+    flux0 = Intns + Intns_err
+    flux1 = Intns - Intns_err
+    dSB0 = 22.5 - 2.5 * np.log10(flux0) + 2.5 * np.log10(pixel**2) + mag_add[kk]
+    dSB1 = 22.5 - 2.5 * np.log10(flux1) + 2.5 * np.log10(pixel**2) + mag_add[kk]
+    err0 = SB - dSB0
+    err1 = dSB1 - SB
+    id_nan = np.isnan(SB)
+
+    SB_out, R_out, out_err0, out_err1 = SB[id_nan == False], Angl_r[id_nan == False], err0[id_nan == False], err1[id_nan == False]
+    dSB0, dSB1 = dSB0[id_nan == False], dSB1[id_nan == False]
+    idx_nan = np.isnan(dSB1)
+    out_err1[idx_nan] = 100.
+
+    return R_out, SB_out, out_err0, out_err1, Intns, Angl_r, Intns_err
+
+def origin_img_case():
+
+    img_id = 2 ## 0 : center-stack, 2 : centered on catalog, 1 : rand-stack
 
     x0, y0 = 2427, 1765
     Nx = np.linspace(0, 4854, 4855)
@@ -98,137 +136,532 @@ def main():
 
     bins, R_smal, R_max = 95, 1, 3.0e3 ## for sky ICL
     dnoise = 30
-    SB_lel = np.arange(27, 31, 1) ## cotour c-label
 
     for kk in range(rank, rank + 1):
-        ## cluster img
-        with h5py.File(load + 'random_cat/stack/%s_band_stack_cluster_imgs.h5' % band[kk], 'r') as f:
-            clust_img = np.array(f['a'])
-        ## sky img
-        with h5py.File(load + 'random_cat/stack/sky-median-sub_%s_band_img.h5' % band[kk], 'r') as f:
-            BCG_sky = np.array(f['a'])
-        with h5py.File(load + 'random_cat/stack/M_rndm_sky-median-sub_stack_%s_band.h5' % band[kk], 'r') as f:
-            rand_sky = np.array(f['a'])
 
-        differ_img = BCG_sky - rand_sky
-        add_img = clust_img + differ_img
+        ### centered on img center
+        if kk == 0:
+            f_lel = np.arange(3.2, 4.2, 0.1) * 1e-3
+        elif kk == 1:
+            f_lel = np.arange(2.4, 3.2, 0.1) * 1e-3
+        else:
+            f_lel = np.arange(4.0, 5.6, 0.2) * 1e-3
+        '''
+        ### random / cat.(ra, dec) stacking case
+        if kk == 0:
+            f_lel = np.arange(1.0, 3.0, 0.2) * 1e-3
+        elif kk == 1:
+            f_lel = np.arange(1.0, 2.6, 0.2) * 1e-3
+        else:
+            f_lel = np.arange(1.4, 4.0, 0.2) * 1e-3
+        '''
+
+        if img_id == 0:
+            with h5py.File(load + 'random_cat/stack/%s_band_center-stack_origin_imgs.h5' % band[kk], 'r') as f:
+                clust_img = np.array(f['a'])
+        if img_id == 2:
+            with h5py.File(load + 'random_cat/stack/%s_band_stack_cluster_origin_imgs.h5' % band[kk], 'r') as f:
+                clust_img = np.array(f['a'])
+
+        Rt, SBt, t_err0, t_err1, Intns_0, Intns_r_0, Intns_err_0 = SB_pro_0z(clust_img, pixel, 1, 3000, x0, y0, np.int(1.5 * bins), kk)
+        Intns_0, Intns_err_0 = Intns_0 / pixel**2, Intns_err_0 / pixel**2
+
+        plt.figure()
+        bx0 = plt.subplot(111)
+        if img_id == 0:
+            bx0.set_title('%s band stacking img [centered on frame center]' % band[kk])
+        if img_id == 1:
+            bx0.set_title('%s band stacking img [random center]' % band[kk])
+        if img_id == 2:
+            bx0.set_title('%s band stacking img [centered on catalog]' % band[kk])
+
+        clust00 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'k', ls = '-', linewidth = 1.5, label = '1 Mpc', alpha = 0.5)
+        clust01 = Circle(xy = (x0, y0), radius = 2 * Rpp, fill = False, ec = 'k', ls = '--', linewidth = 1.5, label = '2 Mpc', alpha = 0.5)
+        #tf = bx0.imshow(clust_img / pixel**2, cmap = 'Greys', origin = 'lower', vmin = 2e-3, vmax = 5e-3, ) #norm = mpl.colors.LogNorm())
+        tf = bx0.imshow(clust_img / pixel**2, cmap = 'Greys', origin = 'lower', vmin = 5e-5, vmax = 5e-3, norm = mpl.colors.LogNorm())
+        plt.colorbar(tf, ax = bx0, fraction = 0.040, pad = 0.01, label = '$ flux[nmaggy / arcsec^2] $')
+
+        kernl_img = ndimage.gaussian_filter(clust_img / pixel**2, sigma = dnoise,  mode = 'nearest')
+        tf = bx0.contour(kernl_img, origin = 'lower', cmap = 'rainbow', levels = f_lel, linewidth = 0.5, )
+        plt.clabel(tf, inline = False, fontsize = 6.5, colors = 'r', fmt = '%.4f')
+
+        bx0.add_patch(clust00)
+        bx0.add_patch(clust01)
+        bx0.legend(loc = 1, frameon = False)
+        bx0.axis('equal')
+        ## centered on img center
+        #bx0.set_xlim(x0 - np.int(2 * Rpp), x0 + np.int(2 * Rpp))
+        #bx0.set_ylim(y0 - np.int(2 * Rpp), y0 + np.int(2 * Rpp))
+        ## centered on cat.
+        bx0.set_xlim(x0 - np.int(3 * Rpp), x0 + np.int(3 * Rpp))
+        bx0.set_ylim(y0 - np.int(3 * Rpp), y0 + np.int(3 * Rpp))
+
+        bx0.set_xticks([])
+        bx0.set_yticks([])
+        bx0.set_aspect('equal', 'box')
+        plt.subplots_adjust(left = 0.1, bottom = 0.1, right = 0.8, top = 0.9, wspace = None, hspace = None)
+        if img_id == 0:
+            plt.savefig(load + 'random_cat/stack/%s_band_rand-pont_center-stack_2D_flux_origin.png' % band[kk], dpi = 300)
+        if img_id == 2:
+            plt.savefig(load + 'random_cat/stack/%s_band_rand-pont_stack_2D_flux_origin.png' % band[kk], dpi = 300)
+        plt.close()
+
+        ## SB pros.
+        plt.figure()
+        ax1 = plt.subplot(111)
+        if img_id == 0:
+            ax1.set_title('%s band SB [centered on frame center]' % band[kk] )
+        if img_id == 1:
+            ax1.set_title('%s band SB [random center]' % band[kk] )
+        if img_id == 2:
+            ax1.set_title('%s band SB [centered on catalog]' % band[kk] )
+
+        ax1.errorbar(Intns_r_0, Intns_0, yerr = Intns_err_0, xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
+            ecolor = 'r', elinewidth = 1, alpha = 0.5)
+
+        ax1.axvline(x = Angu_ref, color = 'b', linestyle = '--', label = '0.5 img width')
+        ax1.axvline(x = 1.3 * Angu_ref, color = 'b', linestyle = '-', label = '0.5 img length') ## angle radius case
+        '''
+        ### center-stacking case
+        if kk == 0:
+            ax1.set_ylim(3.0e-3, 9.0e-3)
+        elif kk == 1:
+            ax1.set_ylim(2.0e-3, 7.0e-3)
+        else:
+            ax1.set_ylim(3.0e-3, 2.0e-2)
+        '''
+        ### random / cat.(ra, dec) stacking case
+        if kk == 0:
+            ax1.set_ylim(7e-5, 4e-3)
+        elif kk == 1:
+            ax1.set_ylim(5e-5, 3e-3)
+        else:
+            ax1.set_ylim(8e-5, 6e-3)
+
+        ax1.set_yscale('log')
+        ax1.set_ylabel('$SB[nanomaggies / arcsec^2]$')
+
+        ax1.set_xlim(10, 1e3)
+        ax1.set_xlabel('$ R[arcsec] $')
+        ax1.set_xscale('log')
+
+        ax1.grid(which = 'both', axis = 'both')
+        ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
+        plt.subplots_adjust(left = 0.2, bottom = 0.1, right = 0.95, top = 0.9, wspace = None, hspace = None)
+        if img_id == 0:
+            plt.savefig(load + 'random_cat/stack/%s_band_rand-pont_center-stack_SB_origin.png' % band[kk], dpi = 300)
+        if img_id == 2:
+            plt.savefig(load + 'random_cat/stack/%s_band_rand-pont_stack_SB_origin.png' % band[kk], dpi = 300) 
+        plt.close()
+
+    return
+
+def appli_resampling_img():
+
+    img_id = 2 ## 0 : center-stack, 2 : centered on catalog, 1 : rand center (rand-stack)
+
+    x0, y0 = 2427, 1765
+    Nx = np.linspace(0, 4854, 4855)
+    Ny = np.linspace(0, 3530, 3531)
+
+    bins, R_smal, R_max = 95, 1, 3.0e3 ## for sky ICL
+    Ns = 30
+    dnoise = 30
+
+    for kk in range(rank, rank + 1):
+
+        ### centered on img center
+        if kk == 0:
+            f_lel = np.arange(3.2, 4.2, 0.1) * 1e-3
+        elif kk == 1:
+            f_lel = np.arange(2.4, 3.2, 0.1) * 1e-3
+        else:
+            f_lel = np.arange(4.0, 5.6, 0.2) * 1e-3
+        '''
+        ### random / cat.(ra, dec) stacking case
+        if kk == 0:
+            f_lel = np.arange(1.0, 3.0, 0.2) * 1e-3
+        elif kk == 1:
+            f_lel = np.arange(1.0, 2.6, 0.2) * 1e-3
+        else:
+            f_lel = np.arange(1.4, 4.0, 0.2) * 1e-3
+        '''
+        '''
+        ### sub-sample test
+        for jj in range(Ns):
+            #with h5py.File(load + 'random_cat/stack/sub_sample/%s_band_stack_%d_sub-imgs.h5' % (band[kk], jj), 'r') as f:  ## correlation
+            with h5py.File(load + 'random_cat/stack/sub_sample/%s_band_center-stack_%d_sub-imgs.h5' % (band[kk], jj), 'r') as f:
+                sub_mean = np.array(f['a'])
+            Rt, SBt, t_err0, t_err1, Intns_0, Intns_r_0, Intns_err_0 = SB_pro_0z(sub_mean, pixel, 1, 3 * Rpp, x0, y0, bins, kk)
+            Intns_0, Intns_err_0 = Intns_0 / pixel**2, Intns_err_0 / pixel**2
+
+            plt.figure()
+            bx0 = plt.subplot(111)
+            bx0.set_title('%s band %d sub-sample [centered on frame center]' % (band[kk], jj) )
+
+            clust00 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', ls = '-', alpha = 0.5,)
+            clust01 = Circle(xy = (x0, y0), radius = 2 * Rpp, fill = False, ec = 'r', ls = '--', alpha = 0.5,)
+            tf = bx0.imshow(sub_mean, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e-1, norm = mpl.colors.LogNorm())
+            plt.colorbar(tf, ax = bx0, fraction = 0.050, pad = 0.01, label = 'flux[nmaggy]')
+            bx0.add_patch(clust00)
+            bx0.add_patch(clust01)
+            bx0.axis('equal')
+            bx0.set_xlim(x0 - np.ceil(1.3 * Rpp), x0 + np.ceil(1.3 * Rpp))
+            bx0.set_ylim(y0 - np.ceil(Rpp), y0 + np.ceil(Rpp))
+            bx0.set_xticks([])
+            bx0.set_yticks([])
+            plt.savefig(load + 'random_cat/stack/sub_sample/%s_band_%d_sub-center-stack_2D.png' % (band[kk], jj), dpi = 300)
+            plt.close()
+
+            plt.figure()
+            ax1 = plt.subplot(111)
+            ax1.set_title('%s band %d sub-sample SB [centered on frame center]' % (band[kk], jj) )
+
+            ax1.errorbar(Intns_r_0, Intns_0, yerr = Intns_err_0, xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
+                ecolor = 'r', elinewidth = 1, alpha = 0.5)
+            ax1.set_ylim(1e-3, 1e-2)
+            ax1.set_yscale('log')
+            ax1.set_ylabel('$SB[nanomaggies / arcsec^2]$')
+            ax1.set_xlim(1, 1e3)
+            ax1.set_xlabel('$ R[arcsec] $')
+            ax1.set_xscale('log')
+            ax1.grid(which = 'both', axis = 'both')
+            ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
+            plt.savefig(load + 'random_cat/stack/sub_sample/%s_band_%d_sub-sample_SB.png' % (band[kk], jj), dpi = 300)
+            plt.close()
+        '''
+
+        if img_id == 0:
+            with h5py.File(load + 'random_cat/stack/%s_band_center-stack_cluster_imgs.h5' % band[kk], 'r') as f:
+            #with h5py.File(load + 'random_cat/stack/sample_test/%s_band_center-stack_imgs.h5' % band[kk], 'r') as f:
+                clust_img = np.array(f['a'])
+        if img_id == 1:
+            with h5py.File(load + 'random_cat/stack/%s_band_rand-stack_cluster_imgs.h5' % band[kk], 'r') as f:
+                clust_img = np.array(f['a'])
+        if img_id == 2:
+            with h5py.File(load + 'random_cat/stack/%s_band_stack_cluster_imgs.h5' % band[kk], 'r') as f:
+            #with h5py.File(load + 'random_cat/stack/sample_test/%s_band_stack_imgs.h5' % band[kk], 'r') as f:
+                clust_img = np.array(f['a'])
 
         ## SB measurement
         Rt, SBt, t_err0, t_err1, Intns_0, Intns_r_0, Intns_err_0 = SB_pro(clust_img, bins, R_smal, R_max, x0, y0, pixel, z_ref, kk)
         Intns_0, Intns_err_0 = Intns_0 / pixel**2, Intns_err_0 / pixel**2
 
-        R_sky, sky_ICL, sky_err0, sky_err1, Intns, Intns_r, Intns_err = SB_pro(differ_img, bins, R_smal, R_max, x0, y0, pixel, z_ref, kk)
-        Intns, Intns_err = Intns / pixel**2, Intns_err / pixel**2
+        plt.figure()
+        bx0 = plt.subplot(111)
+        if img_id == 0:
+            bx0.set_title('%s band stacking img [centered on frame center]' % band[kk])
+        if img_id == 1:
+            bx0.set_title('%s band stacking img [random center]' % band[kk])
+        if img_id == 2:
+            bx0.set_title('%s band stacking img [centered on catalog]' % band[kk])
 
-        R_add, SB_add, add_err0, add_err1, Intns_1, Intns_r_1, Intns_err_1 = SB_pro(add_img, bins, R_smal, R_max, x0, y0, pixel, z_ref, kk)
-        Intns_1, Intns_err_1 = Intns_1 / pixel**2, Intns_err_1 / pixel**2
+        clust00 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'b', ls = '-', alpha = 0.5, label = '1 Mpc')
+        clust01 = Circle(xy = (x0, y0), radius = 2 * Rpp, fill = False, ec = 'b', ls = '--', alpha = 0.5, label = '2 Mpc')
+        tf = bx0.imshow(clust_img / pixel**2, cmap = 'Greys', origin = 'lower', vmin = 2e-3, vmax = 5e-3, ) #norm = mpl.colors.LogNorm())
+        plt.colorbar(tf, ax = bx0, fraction = 0.040, pad = 0.01, label = '$ flux[nmaggy / arcsec^2] $')
 
-        ## stack imgs
-        plt.figure(figsize = (18, 6))
-        bx0 = plt.subplot(131)
-        bx1 = plt.subplot(132)
-        bx2 = plt.subplot(133)
+        kernl_img = ndimage.gaussian_filter(clust_img / pixel**2, sigma = dnoise,  mode = 'nearest')
+        tf = bx0.contour(kernl_img, origin = 'lower', cmap = 'rainbow', levels = f_lel, )
+        plt.clabel(tf, inline = False, fontsize = 6.5, colors = 'r', fmt = '%.4f')
 
-        bx0.set_title('%s band random point stack img' % band[kk])
-        clust00 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', ls = '-', alpha = 0.5,)
-        clust01 = Circle(xy = (x0, y0), radius = 2 * Rpp, fill = False, ec = 'r', ls = '--', alpha = 0.5,)
-        tf = bx0.imshow(clust_img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e0, norm = mpl.colors.LogNorm())
-        plt.colorbar(tf, ax = bx0, fraction = 0.050, pad = 0.01, label = 'flux[nmaggy]')
-        ## add contour
-        con_img = clust_img * 1.
-        kernl_img = ndimage.gaussian_filter(clust_img, sigma = dnoise,  mode = 'nearest')
-        SB_img = 22.5 - 2.5 * np.log10(kernl_img) + 2.5 * np.log10(pixel**2)
-        tg = bx0.contour(SB_img, origin = 'lower', cmap = 'rainbow', levels = SB_lel, )
-        plt.clabel(tg, inline = False, fontsize = 6.5, colors = 'k', fmt = '%.0f')
         bx0.add_patch(clust00)
         bx0.add_patch(clust01)
+        bx0.legend(loc = 1, frameon = False)
         bx0.axis('equal')
-        bx0.set_xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
-        bx0.set_ylim(y0 - 2 * Rpp, y0 + 2 * Rpp)
+
+        ## centered on cat.
+        #bx0.set_xlim(x0 - np.int(3 * Rpp), x0 + np.int(3 * Rpp))
+        #bx0.set_ylim(y0 - np.int(3 * Rpp), y0 + np.int(3 * Rpp))
+
+        ## centered on img center
+        bx0.set_xlim(x0 - np.int(1.3 * Rpp), x0 + np.int(1.3 * Rpp))
+        bx0.set_ylim(y0 - np.int(Rpp), y0 + np.int(Rpp))
+
         bx0.set_xticks([])
         bx0.set_yticks([])
-
-        bx1.set_title('random point sky difference img')
-        clust10 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', ls = '-',)
-        clust11 = Circle(xy = (x0, y0), radius = 2 * Rpp, fill = False, ec = 'r', ls = '--',)
-        tf = bx1.imshow(differ_img, origin = 'lower', cmap = 'seismic', vmin = -2e-4, vmax = 2e-4)
-        plt.colorbar(tf, ax = bx1, fraction = 0.050, pad = 0.01, label = 'flux[nmaggy]')
-        bx1.add_patch(clust10)
-        bx1.add_patch(clust11)
-        bx1.axis('equal')
-        bx1.set_xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
-        bx1.set_ylim(y0 - 2 * Rpp, y0 + 2 * Rpp)
-        bx1.set_xticks([])
-        bx1.set_yticks([])
-
-        bx2.set_title('difference + random point stack img')
-        clust20 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', ls = '-', alpha = 0.5,)
-        clust21 = Circle(xy = (x0, y0), radius = 2 * Rpp, fill = False, ec = 'r', ls = '--', alpha = 0.5,)
-        tf = bx2.imshow(differ_img + clust_img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e0, norm = mpl.colors.LogNorm())
-        plt.colorbar(tf, ax = bx2, fraction = 0.050, pad = 0.01, label = 'flux[nmaggy]')
-        ## add contour
-        con_img = differ_img + clust_img
-        kernl_img = ndimage.gaussian_filter(con_img, sigma = dnoise,  mode = 'nearest')
-        SB_img = 22.5 - 2.5 * np.log10(kernl_img) + 2.5 * np.log10(pixel**2)
-        tg = bx2.contour(SB_img, origin = 'lower', cmap = 'rainbow', levels = SB_lel, )
-        plt.clabel(tg, inline = False, fontsize = 6.5, colors = 'k', fmt = '%.0f')
-        bx2.add_patch(clust20)
-        bx2.add_patch(clust21)
-        bx2.axis('equal')
-        bx2.set_xlim(x0 - 2 * Rpp, x0 + 2 * Rpp)
-        bx2.set_ylim(y0 - 2 * Rpp, y0 + 2 * Rpp)
-        bx2.set_xticks([])
-        bx2.set_yticks([])
-
-        plt.tight_layout()
-        plt.savefig(load + 'random_cat/stack/%s_band_rand-pont_stack_view.png' % band[kk], dpi = 300) 
+        bx0.set_aspect('equal', 'box')
+        plt.subplots_adjust(left = 0.1, bottom = 0.1, right = 0.8, top = 0.9, wspace = None, hspace = None)
+        if img_id == 0:
+            plt.savefig(load + 'random_cat/stack/%s_band_rand-pont_center-stack_2D_flux.png' % band[kk], dpi = 300)
+            #plt.savefig(load + 'random_cat/stack/sample_test/%s_band_rand-pont_center-stack_2D_flux.png' % band[kk], dpi = 300)
+        if img_id == 1:
+            plt.savefig(load + 'random_cat/stack/%s_band_rand-pont_rand-stack_2D_flux.png' % band[kk], dpi = 300)
+        if img_id == 2:
+            plt.savefig(load + 'random_cat/stack/%s_band_rand-pont_stack_2D_flux.png' % band[kk], dpi = 300)
+            #plt.savefig(load + 'random_cat/stack/sample_test/%s_band_rand-pont_stack_2D_flux.png' % band[kk], dpi = 300)
         plt.close()
 
         ## SB pros.
-        plt.figure(figsize = (12, 6))
-        ax0 = plt.subplot(121)
-        ax1 = plt.subplot(122)
-
-        ax0.errorbar(Rt, SBt, yerr = [t_err0, t_err1], xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
-            ecolor = 'r', elinewidth = 1, label = 'stacking random point imgs', alpha = 0.5)
-        ax0.errorbar(R_add, SB_add, yerr = [add_err0, add_err1], xerr = None, color = 'g', marker = 'None', ls = '-', linewidth = 1, 
-            ecolor = 'g', elinewidth = 1, label = 'residual sky img + random point img', alpha = 0.5)
-        #ax0.errorbar(R_sky, sky_ICL, yerr = [sky_err0, sky_err1], xerr = None, color = 'm', marker = 'None', ls = '--', linewidth = 1, 
-        #    ecolor = 'm', elinewidth = 1, label = 'stacking residual sky imgs', alpha = 0.5)
-        #ax0.plot(R_sky, sky_ICL, color = 'm', ls = '-', alpha = 0.5, label = 'stacking residual sky imgs',)
-
-        ax0.set_xlabel('$R[kpc]$')
-        ax0.set_ylabel('$SB[mag / arcsec^2]$')
-        ax0.set_xscale('log')
-        ax0.set_ylim(28, 30)
-        ax0.set_xlim(1, 2e3)
-        ax0.legend(loc = 1, frameon = False)
-        ax0.invert_yaxis()
-        ax0.grid(which = 'both', axis = 'both')
-        ax0.tick_params(axis = 'both', which = 'both', direction = 'in')
+        plt.figure()
+        ax1 = plt.subplot(111)
+        if img_id == 0:
+            ax1.set_title('%s band SB [centered on frame center]' % band[kk] )
+        if img_id == 1:
+            ax1.set_title('%s band SB [random center]' % band[kk] )
+        if img_id == 2:
+            ax1.set_title('%s band SB [centered on catalog]' % band[kk] )
 
         ax1.errorbar(Intns_r_0, Intns_0, yerr = Intns_err_0, xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
             ecolor = 'r', elinewidth = 1, alpha = 0.5)
-        ax1.errorbar(Intns_r_1, Intns_1, yerr = Intns_err_1, xerr = None, color = 'g', marker = 'None', ls = '-', linewidth = 1, 
-            ecolor = 'g', elinewidth = 1, alpha = 0.5)
-        #ax1.errorbar(Intns_r, Intns, yerr = Intns_err, xerr = None, color = 'm', marker = 'None', ls = '--', linewidth = 1, 
-        #    ecolor = 'm', elinewidth = 1, alpha = 0.5)
-        #ax1.plot(Intns_r, Intns, color = 'm', ls = '-', alpha = 0.5, )
 
-        ax1.set_xlabel('$R[kpc]$')
-        ax1.set_ylabel('$SB[nanomaggies / arcsec^2]$')
-        ax1.set_xscale('log')
+        ax1.axvline(x = 1e3, color = 'b', linestyle = '--', label = '0.5 img width')
+        ax1.axvline(x = 1.3e3, color = 'b', linestyle = '-', label = '0.5 img length') ## physical radius case
+
+        ### centered on img center
+        if kk == 0:
+            ax1.set_ylim(3e-3, 4.5e-3)
+        elif kk == 1:
+            ax1.set_ylim(2e-3, 3.5e-3)
+        else:
+            ax1.set_ylim(3e-3, 6e-3)
+        '''
+        ### random / cat.(ra, dec) stacking case
+        if kk == 0:
+            ax1.set_ylim(4e-4, 5e-3)
+        elif kk == 1:
+            ax1.set_ylim(4e-4, 4e-3)
+        else:
+            ax1.set_ylim(9e-4, 6e-3)
         ax1.set_yscale('log')
-        ax1.set_ylim(1e-3, 1e-2)
-        ax1.set_xlim(1, 2e3)
-        ax1.grid(which = 'both', axis = 'both')
-        ax1.tick_params(axis = 'both', which = 'both', direction = 'in')        
+        '''
+        ax1.set_ylabel('$SB[nanomaggies / arcsec^2]$')
+        ax1.set_xlim(10, 3e3)
+        ax1.set_xlabel('$ R[kpc] $')
+        ax1.set_xscale('log')
 
-        plt.tight_layout()
-        plt.savefig(load + 'random_cat/stack/%s_band_rand-pont_stack_SB.png' % band[kk], dpi = 300) 
+        ax1.grid(which = 'both', axis = 'both')
+        ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
+        plt.subplots_adjust(left = 0.2, bottom = 0.1, right = 0.95, top = 0.9, wspace = None, hspace = None)
+        if img_id == 0:
+            plt.savefig(load + 'random_cat/stack/%s_band_rand-pont_center-stack_SB.png' % band[kk], dpi = 300)
+            #plt.savefig(load + 'random_cat/stack/sample_test/%s_band_rand-pont_center-stack_SB.png' % band[kk], dpi = 300)
+        if img_id == 1:
+            plt.savefig(load + 'random_cat/stack/%s_band_rand-pont_rand-stack_SB.png' % band[kk], dpi = 300)
+        if img_id == 2:
+            plt.savefig(load + 'random_cat/stack/%s_band_rand-pont_stack_SB.png' % band[kk], dpi = 300)
+            #plt.savefig(load + 'random_cat/stack/sample_test/%s_band_rand-pont_stack_SB.png' % band[kk], dpi = 300) 
         plt.close()
 
-    commd.Barrier()
+        raise
+        ##### SB profile comparison
+        if img_id == 0:
+            with h5py.File(load + 'random_cat/stack/%s_band_center-stack_cluster_imgs.h5' % band[kk], 'r') as f:
+                clust_img_0 = np.array(f['a'])
+            with h5py.File(load + 'random_cat/stack/sample_test/%s_band_center-stack_imgs.h5' % band[kk], 'r') as f:
+                clust_img_1 = np.array(f['a'])
+        if img_id == 2:
+            with h5py.File(load + 'random_cat/stack/%s_band_stack_cluster_imgs.h5' % band[kk], 'r') as f:
+                clust_img_0 = np.array(f['a'])
+            with h5py.File(load + 'random_cat/stack/sample_test/%s_band_stack_imgs.h5' % band[kk], 'r') as f:
+                clust_img_1 = np.array(f['a'])
+
+        Rt_0, SBt_0, t_err00, t_err01, Intns_0, Intns_r_0, Intns_err_0 = SB_pro(clust_img_0, bins, R_smal, R_max, x0, y0, pixel, z_ref, kk)
+        Intns_0, Intns_err_0 = Intns_0 / pixel**2, Intns_err_0 / pixel**2
+
+        Rt_1, SBt_1, t_err10, t_err11, Intns_1, Intns_r_1, Intns_err_1 = SB_pro(clust_img_1, bins, R_smal, R_max, x0, y0, pixel, z_ref, kk)
+        Intns_1, Intns_err_1 = Intns_1 / pixel**2, Intns_err_1 / pixel**2
+
+        plt.figure()
+        gs = gridspec.GridSpec(2,1, height_ratios = [3, 2])
+        ax0 = plt.subplot(gs[0])
+        ax1 = plt.subplot(gs[1])
+
+        if img_id == 0:
+            ax0.set_title('%s band SB [centered on image center]' % band[kk] )
+        if img_id == 2:
+            ax0.set_title('%s band SB [centered on catalog]' % band[kk] )
+
+        ax0.errorbar(Intns_r_0, Intns_0, yerr = Intns_err_0, xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
+            ecolor = 'r', elinewidth = 1, alpha = 0.5, label = 'total imgs')
+        ax0.errorbar(Intns_r_1, Intns_1, yerr = Intns_err_1, xerr = None, color = 'g', marker = 'None', ls = '-', linewidth = 1, 
+            ecolor = 'g', elinewidth = 1, alpha = 0.5, label = 'sub-sample imgs')
+        ax0.axvline(x = 1e3, color = 'b', linestyle = '--', label = '0.5 img width')
+        ax0.axvline(x = 1.3e3, color = 'b', linestyle = '-', label = '0.5 img length')
+        '''
+        ### centered on img center
+        if kk == 0:
+            ax0.set_ylim(3e-3, 5e-3)
+        elif kk == 1:
+            ax0.set_ylim(2e-3, 4e-3)
+        else:
+            ax0.set_ylim(3e-3, 6e-3)
+        '''
+        ### random / cat.(ra, dec) stacking case
+        if kk == 0:
+            ax0.set_ylim(4e-4, 5e-3)
+        elif kk == 1:
+            ax0.set_ylim(4e-4, 4e-3)
+        else:
+            ax0.set_ylim(9e-4, 6e-3)
+        ax0.set_yscale('log')
+
+        ax0.set_ylabel('$SB[nanomaggies / arcsec^2]$')
+        ax0.set_xlim(10, 3e3)
+        ax0.set_xlabel('$ R[kpc] $')
+        ax0.set_xscale('log')
+        ax0.grid(which = 'both', axis = 'both')
+        #ax0.legend(loc = 'upper center', frameon = False)
+        ax0.legend(loc = 'lower center', frameon = False)
+        ax0.tick_params(axis = 'both', which = 'both', direction = 'in')
+
+        ax1.errorbar(Intns_r_0, Intns_0 - Intns_1, yerr = Intns_err_0, xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
+            ecolor = 'r', elinewidth = 1, alpha = 0.5,)
+        ax1.errorbar(Intns_r_1, Intns_1 - Intns_1, yerr = Intns_err_1, xerr = None, color = 'g', marker = 'None', ls = '-', linewidth = 1, 
+            ecolor = 'g', elinewidth = 1, alpha = 0.5,)
+        ax1.axvline(x = 1e3, color = 'b', linestyle = '--', label = '0.5 img width')
+        ax1.axvline(x = 1.3e3, color = 'b', linestyle = '-', label = '0.5 img length')
+
+        ax1.set_xlim(ax0.get_xlim())
+        if kk == 1:
+            ax1.set_ylim(-0.5e-3, 0.5e-3)
+        else: 
+            ax1.set_ylim(-1e-3, 1e-3)
+
+        ax1.set_xscale('log')
+        ax1.set_xlabel('$ R[kpc] $')
+        ax1.set_ylabel('$ SB - SB_{sub-sample} $')
+        ax1.grid(which = 'both', axis = 'both')
+        ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
+        ax0.set_xticklabels([])
+
+        plt.subplots_adjust(hspace = 0.05)
+        plt.subplots_adjust(left = 0.2, bottom = 0.1, right = 0.95, top = 0.9, wspace = None, hspace = None)
+        #plt.savefig(load + 'random_cat/stack/%s_band_center-stack_SB_compare.png' % band[kk], dpi = 300)
+        plt.savefig(load + 'random_cat/stack/%s_band_stack_SB_compare.png' % band[kk], dpi = 300)
+        plt.close()
+
+        return
+
+def SB_pro_select_img():
+
+    img_id = 0 ## 0 : center-stack, 2 : centered on catalog
+
+    x0, y0 = 2427, 1765
+    Nx = np.linspace(0, 4854, 4855)
+    Ny = np.linspace(0, 3530, 3531)
+
+    bins, R_smal, R_max = 95, 1, 3.0e3 ## for sky ICL
+
+    dnoise = 30
+
+    for kk in range(rank, rank + 1):
+
+        ### centered on img center
+        if kk == 0:
+            f_lel = np.arange(2.6, 3.2, 0.1) * 1e-3
+        elif kk == 1:
+            f_lel = np.arange(2.1, 2.6, 0.1) * 1e-3
+        else:
+            f_lel = np.arange(2.5, 5.0, 0.2) * 1e-3
+        '''
+        if kk == 0:
+            f_lel = np.logspace(np.log10(5e-4), np.log10(4e-3), 11)
+        elif kk == 1:
+            f_lel = np.logspace(np.log10(4e-4), np.log10(3e-3), 11)
+        else:
+            f_lel = np.logspace(np.log10(1e-3), np.log10(1e-2), 11)
+        '''
+        if img_id == 0:
+            with h5py.File(load + 'random_cat/stack/sample_test/%s_band_center-stack_pixSB-select_imgs.h5' % band[kk], 'r') as f:
+                clust_img = np.array(f['a'])
+        if img_id == 2:
+            with h5py.File(load + 'random_cat/stack/sample_test/%s_band_stack_pixSB-select_imgs.h5' % band[kk], 'r') as f:
+                clust_img = np.array(f['a'])
+
+        ## SB measurement
+        Rt, SBt, t_err0, t_err1, Intns_0, Intns_r_0, Intns_err_0 = SB_pro(clust_img, bins, R_smal, R_max, x0, y0, pixel, z_ref, kk)
+        Intns_0, Intns_err_0 = Intns_0 / pixel**2, Intns_err_0 / pixel**2
+
+        plt.figure()
+        bx0 = plt.subplot(111)
+        if img_id == 0:
+            bx0.set_title('%s band stacking img [centered on image center]' % band[kk])
+        if img_id == 2:
+            bx0.set_title('%s band stacking img [centered on catalog]' % band[kk])
+
+        clust00 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'b', ls = '-', alpha = 0.5, label = '1 Mpc')
+        clust01 = Circle(xy = (x0, y0), radius = 2 * Rpp, fill = False, ec = 'b', ls = '--', alpha = 0.5, label = '2 Mpc')
+        tf = bx0.imshow(clust_img / pixel**2, cmap = 'Greys', origin = 'lower', vmin = 2e-3, vmax = 5e-3, ) #norm = mpl.colors.LogNorm())
+        plt.colorbar(tf, ax = bx0, fraction = 0.040, pad = 0.01, label = '$ flux[nmaggy / arcsec^2] $')
+
+        kernl_img = ndimage.gaussian_filter(clust_img / pixel**2, sigma = dnoise,  mode = 'nearest')
+        tf = bx0.contour(kernl_img, origin = 'lower', cmap = 'rainbow', levels = f_lel, )
+        plt.clabel(tf, inline = False, fontsize = 6.5, colors = 'r', fmt = '%.4f')
+
+        bx0.add_patch(clust00)
+        bx0.add_patch(clust01)
+        bx0.legend(loc = 1, frameon = False)
+        bx0.axis('equal')
+
+        ## centered on cat.
+        #bx0.set_xlim(x0 - np.int(3 * Rpp), x0 + np.int(3 * Rpp))
+        #bx0.set_ylim(y0 - np.int(3 * Rpp), y0 + np.int(3 * Rpp))
+
+        ## centered on img center
+        bx0.set_xlim(x0 - np.int(1.3 * Rpp), x0 + np.int(1.3 * Rpp))
+        bx0.set_ylim(y0 - np.int(Rpp), y0 + np.int(Rpp))
+
+        bx0.set_xticks([])
+        bx0.set_yticks([])
+        bx0.set_aspect('equal', 'box')
+        plt.subplots_adjust(left = 0.1, bottom = 0.1, right = 0.8, top = 0.9, wspace = None, hspace = None)
+        if img_id == 0:
+            plt.savefig(load + 'random_cat/stack/sample_test/%s_band_center-stack_pixSB-select_2D.png' % band[kk], dpi = 300)
+        if img_id == 2:
+            plt.savefig(load + 'random_cat/stack/sample_test/%s_band_stack_pixSB-select_2D.png' % band[kk], dpi = 300)
+        plt.close()
+
+        ## SB pros.
+        plt.figure()
+        ax1 = plt.subplot(111)
+        if img_id == 0:
+            ax1.set_title('%s band SB [centered on image center]' % band[kk] )
+        if img_id == 2:
+            ax1.set_title('%s band SB [centered on catalog]' % band[kk] )
+
+        ax1.errorbar(Intns_r_0, Intns_0, yerr = Intns_err_0, xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
+            ecolor = 'r', elinewidth = 1, alpha = 0.5)
+
+        ax1.axvline(x = 1e3, color = 'b', linestyle = '--', label = '0.5 img width')
+        ax1.axvline(x = 1.3e3, color = 'b', linestyle = '-', label = '0.5 img length') ## physical radius case
+        '''
+        ### centered on img center
+        if kk == 0:
+            ax1.set_ylim(2.0e-3, 3.5e-3)
+        elif kk == 1:
+            ax1.set_ylim(2.0e-3, 3.0e-3)
+        else:
+            ax1.set_ylim(1.0e-3, 5.0e-3)
+
+        if kk == 0:
+            ax1.set_ylim(5.0e-4, 4.0e-3)
+        elif kk == 1:
+            ax1.set_ylim(4.0e-4, 3.0e-3)
+        else:
+            ax1.set_ylim(1.0e-3, 1.0e-2)
+        ax1.set_yscale('log')
+        '''
+        ax1.set_ylabel('$SB[nanomaggies / arcsec^2]$')
+        ax1.set_xlim(10, 3e3)
+        ax1.set_xlabel('$ R[kpc] $')
+        ax1.set_xscale('log')
+
+        ax1.grid(which = 'both', axis = 'both')
+        ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
+        plt.subplots_adjust(left = 0.2, bottom = 0.1, right = 0.95, top = 0.9, wspace = None, hspace = None)
+        if img_id == 0:
+            plt.savefig(load + 'random_cat/stack/sample_test/%s_band_center-stack_pixSB-select_SB.png' % band[kk], dpi = 300)
+        if img_id == 2:
+            plt.savefig(load + 'random_cat/stack/sample_test/%s_band_stack_pixSB-select_SB.png' % band[kk], dpi = 300)
+        plt.close()
+
+    return
+
+def main():
+    #origin_img_case()
+    #appli_resampling_img()
+    SB_pro_select_img()
 
 if __name__ == "__main__" :
     main()

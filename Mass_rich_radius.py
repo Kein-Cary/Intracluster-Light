@@ -31,7 +31,7 @@ load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 home = '/mnt/ddnfs/data_users/cxkttwl/ICL/'
 band = ['r', 'g', 'i', 'u', 'z']
 
-def rich2R_2017(z, lamda):
+def rich2R_Melchior(z, lamda):
 	"""
 	Based on Melchior et al. 2017, the result r200 is the r200m (virial radius)
 	"""
@@ -51,7 +51,7 @@ def rich2R_2017(z, lamda):
 
 	return r200
 
-def rich2R_2019(z, lamda, N_dist = 501):
+def rich2R_Simet(z, lamda, N_dist = 501):
 	"""
 	Based on Simet et al. 2017, the reuslt is r200m (virial radius)
 	"""
@@ -87,7 +87,7 @@ def rich2R_2019(z, lamda, N_dist = 501):
 
 	return M200, R200
 
-def rich2R_critical_2019(z, lamda, N_dist = 501):
+def rich2R_critical(z, lamda, N_dist = 501):
 	"""
 	Based on Simet et al. 2017, the reuslt is r200, but the 200 mean 
 	a radius in which the mean density is 200 times of the critical density
@@ -135,9 +135,9 @@ def main():
 			set_array = np.array(f['a'])
 		set_ra, set_dec, set_z, set_rich = set_array[0,:], set_array[1,:], set_array[2,:], set_array[3,:]
 		if R_id == 0:
-			M_vir, R_vir = rich2R_2019(set_z, set_rich, N_dist)
+			M_vir, R_vir = rich2R_Simet(set_z, set_rich, N_dist)
 		if R_id == 1:
-			M_vir, R_vir = rich2R_critical_2019(set_z, set_rich, N_dist)
+			M_vir, R_vir = rich2R_critical(set_z, set_rich, N_dist)
 
 		for lk in range(3):
 			if lk == 0:
