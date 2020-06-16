@@ -5,16 +5,21 @@ import astroquery.sdss as asds
 import astropy.io.fits as fits
 import astropy.wcs as awc
 import scipy.stats as sts
-#import find
+
 import h5py
 import pandas as pds
+
+from mpi4py import MPI
+commd = MPI.COMM_WORLD
+rank = commd.Get_rank()
+cpus = commd.Get_size()
 
 load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 dfile = '/mnt/ddnfs/data_users/cxkttwl/ICL/redMap_random/'
 
 band = ['r', 'g', 'i', 'u', 'z']
 def rule_out():
-	data_lod = load + 'random_cat/'
+	data_lod = load + 'random_cat/cat_select/'
 	csv_1 = 'rand_Excpt_r_sample.csv'
 	csv_2 = 'rand_Excpt_g_sample.csv'
 	csv_3 = 'rand_Excpt_i_sample.csv'
@@ -36,7 +41,7 @@ def rule_out():
 					'349.251', '180.027', '350.889', '330.578', '335.233', '190.606', '4.648',   '11.867',  '143.892', '317.746', '173.912', '222.217', '346.304', 
 					'235.555', '131.818', '221.601', '145.066', '127.720', '126.262', '149.262', '184.875', '12.927',  '197.515', '160.740', '333.776', '348.484', 
 					'185.904', '10.995',  '163.198', '227.726', '173.948', '5.019',   '13.057',  '31.380',  '195.428', '162.574', '128.758', '145.811', '212.929', 
-					'354.541', '138.774', '144.353', ]
+					'354.541', '138.774', '144.353', '21.226',  ]
 
 	except_dec_r = ['4.424',  '0.985',  '33.446', '59.002', '-2.438', '23.138', '16.292', '65.096', '13.947', '19.695', '17.143', '53.204', '11.913', 
 					'13.601', '48.844', '21.608', '34.259', '2.684',  '28.421', '-1.447', '62.958', '31.617', '27.298', '42.830', '13.317', '6.493',  
@@ -55,7 +60,7 @@ def rule_out():
 					'-1.937', '19.385', '0.395',  '18.945', '28.179', '5.315',  '30.223', '11.605', '39.774', '7.060',  '63.575', '59.108', '25.367', 
 					'37.096', '25.855', '50.741', '24.235', '5.032',  '50.390', '28.177', '36.874', '-5.076', '17.330', '53.318', '4.290',  '-6.078', 
 					'-0.263', '-10.663','32.901', '33.084', '11.141', '16.320', '34.689', '25.174', '11.191', '23.423', '2.689',  '45.482', '6.189',  
-					'32.531', '6.177',  '23.190', ]
+					'32.531', '6.177',  '23.190', '23.915', ]
 
 	except_z_r = [  '0.299', '0.297', '0.275', '0.219', '0.211', '0.248', '0.258', '0.218', '0.290', '0.292', '0.248', '0.261', '0.274', 
 					'0.236', '0.260', '0.299', '0.285', '0.278', '0.276', '0.243', '0.234', '0.234', '0.298', '0.242', '0.275', '0.253', 
@@ -74,7 +79,7 @@ def rule_out():
 					'0.215', '0.216', '0.235', '0.241', '0.259', '0.275', '0.232', '0.219', '0.214', '0.210', '0.249', '0.206', '0.253', 
 					'0.263', '0.259', '0.289', '0.288', '0.229', '0.239', '0.252', '0.223', '0.258', '0.237', '0.207', '0.217', '0.253', 
 					'0.252', '0.247', '0.265', '0.244', '0.285', '0.225', '0.289', '0.250', '0.224', '0.240', '0.242', '0.282', '0.235', 
-					'0.291', '0.217', '0.216', ]
+					'0.291', '0.217', '0.216', '0.245', ]
 
 	x_ra = np.array( [ np.float(ll) for ll in except_ra_r] )
 	x_dec = np.array( [ np.float(ll) for ll in except_dec_r] )
@@ -170,7 +175,7 @@ def rule_out():
 					'227.864', '349.251', '180.027', '350.889', '330.578', '335.233', '190.606', '4.648',   '11.867',  '143.892', '317.746', '173.912', '222.217', 
 					'346.304', '226.440', '131.818', '221.601', '180.648', '26.882',  '145.066', '175.756', '197.515', '160.740', '333.776', '348.484', '185.904', 
 					'10.995',  '163.198', '227.726', '173.948', '5.019',   '13.057',  '31.380',  '195.428', '162.574', '128.758', '354.541', '242.858', '115.554', 
-					'142.116', ]
+					'142.116', '21.226',  ]
 
 	except_dec_i = ['4.424',  '0.985',  '33.446', '59.002', '-2.438', '23.138', '16.292', '65.096', '13.947', '19.695', '17.143', '53.204', '11.913', 
 					'13.601', '20.423', '31.727', '34.259', '2.684',  '8.051',  '28.421', '26.799', '28.227', '-1.447', '62.958', '31.617', '27.298', 
@@ -191,7 +196,7 @@ def rule_out():
 					'-1.706', '-1.937', '19.385', '0.395',  '18.945', '28.179', '5.315',  '30.223', '11.605', '39.774', '7.060',  '63.575', '59.108', 
 					'25.367', '20.499', '25.855', '50.741', '-0.142', '28.946', '24.235', '26.892', '17.330', '53.318', '4.290',  '-6.078', '-0.263', 
 					'-10.663','32.901', '33.084', '11.141', '16.320', '34.689', '25.174', '11.191', '23.423', '2.689',  '32.531', '56.856', '42.737', 
-					'0.989',  ]
+					'0.989',  '23.915', ]
 
 	except_z_i = [  '0.299', '0.297', '0.275', '0.219', '0.211', '0.248', '0.258', '0.218', '0.290', '0.292', '0.248', '0.261', '0.274', 
 					'0.236', '0.261', '0.276', '0.285', '0.278', '0.260', '0.276', '0.242', '0.207', '0.243', '0.234', '0.234', '0.298', 
@@ -212,7 +217,7 @@ def rule_out():
 					'0.298', '0.215', '0.216', '0.235', '0.241', '0.259', '0.275', '0.232', '0.219', '0.214', '0.210', '0.249', '0.206', 
 					'0.253', '0.252', '0.259', '0.289', '0.253', '0.201', '0.288', '0.272', '0.237', '0.207', '0.217', '0.253', '0.252', 
 					'0.247', '0.265', '0.244', '0.285', '0.225', '0.289', '0.250', '0.224', '0.240', '0.242', '0.291', '0.223', '0.283', 
-					'0.299', ]
+					'0.299', '0.245', ]
 
 	x_ra = np.array( [ np.float(ll) for ll in except_ra_i] )
 	x_dec = np.array( [ np.float(ll) for ll in except_dec_i] )
@@ -231,7 +236,7 @@ def edge_out():
 		tmp_array = np.array(f['a'])
 	ra, dec, z, rich = np.array(tmp_array[0]), np.array(tmp_array[1]), np.array(tmp_array[2]), np.array(tmp_array[3])
 	zN = len(z)
-	doc = open(load + 'random_cat/cx_cy_pix_beyond_frame.txt', 'w')
+	doc = open(load + 'random_cat/cat_select/cx_cy_pix_beyond_frame.txt', 'w')
 	for ii in range(zN):
 		ra_g, dec_g, z_g = ra[ii], dec[ii], z[ii]
 
@@ -267,7 +272,7 @@ def main():
 	#edge_out()
 
 	# center pix beyond frame imgs
-	dat_cen = pds.read_csv(load + 'random_cat/cx_cy_pix_beyond_frame.txt')
+	dat_cen = pds.read_csv(load + 'random_cat/cat_select/cx_cy_pix_beyond_frame.txt')
 	cen_ra = np.array(dat_cen.ra)
 	cen_dec = np.array(dat_cen.dec)
 	cen_z = np.array(dat_cen.z)
@@ -282,7 +287,7 @@ def main():
 
 	for kk in range(3):
 		# bad images
-		dat = pds.read_csv(load + 'random_cat/rand_Excpt_%s_sample.csv' % band[kk] )
+		dat = pds.read_csv(load + 'random_cat/cat_select/rand_Excpt_%s_sample.csv' % band[kk] )
 		excpt_ra = np.array(dat.ra)
 		excpt_dec = np.array(dat.dec)
 		excpt_z = np.array(dat.z)
@@ -323,13 +328,13 @@ def main():
 		values = [sub_ra, sub_dec, sub_z, sub_rich]
 		fill = dict(zip(keys, values))
 		data = pds.DataFrame(fill)
-		data.to_csv(load + 'random_cat/rand_%s_band_catalog.csv' % band[kk])
+		data.to_csv(load + 'random_cat/cat_select/rand_%s_band_catalog.csv' % band[kk])
 		## save the h5 files for "mpirun"
 		sub_array = np.array([sub_ra, sub_dec, sub_z, sub_rich])
-		with h5py.File(load + 'random_cat/rand_%s_band_catalog.h5' % band[kk], 'w') as f:
+		with h5py.File(load + 'random_cat/cat_select/rand_%s_band_catalog.h5' % band[kk], 'w') as f:
 			f['a'] = np.array(sub_array)
 
-		with h5py.File(load + 'random_cat/rand_%s_band_catalog.h5' % band[kk]) as f:
+		with h5py.File(load + 'random_cat/cat_select/rand_%s_band_catalog.h5' % band[kk]) as f:
 			for tt in range( len(sub_array) ):
 				f['a'][tt,:] = sub_array[tt,:]
 

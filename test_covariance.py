@@ -151,7 +151,7 @@ N_bin = 30
 #d_load = load + 'rich_sample/jackknife/'
 #r_a0, r_a1 = 1.6e3, 1.8e3 ## also for correlation matrix comparison
 d_load = load + 'rich_sample/scale_fig/R200_m/'
-bl_set = 0.75 # bl_set must be 1.0 for 'R200_c/' case
+bl_set = 0.7 # bl_set must be 1.0 for 'R200_c/' case
 
 for kk in range(rank, rank + 1):
 
@@ -172,10 +172,10 @@ for kk in range(rank, rank + 1):
 		## read the virial radius cat.
 		with h5py.File( load + 'rich_sample/jackknife/%s_band_%d_rich_R200m.h5' % (band[kk], lamda_k), 'r') as f:
 			r200_array = np.array(f['a'])
-		R200 = np.median(r200_array[0]) * bl_set
-		#R200 = np.mean(r200_array[0])
+		R200 = np.nanmedian(r200_array[0])
+		#R200 = np.nanmean(r200_array[0])
 		scale_r.append(R200)
-		r_a0, r_a1 = R200, R200 + 100.
+		r_a0, r_a1 = R200  * bl_set, R200 * bl_set + 100.
 
 		## record the process data and calculate the Jackknife varinace
 		SB_flux, R_arr = [], []
@@ -327,7 +327,7 @@ for kk in range(rank, rank + 1):
 
 	plt.figure()
 	ax = plt.subplot(111)
-	ax.set_title('$ %s \; band \; R_{200} \; scaled \; SB $' % band[kk])
+	ax.set_title('$ %s \; band \; R_{200m} \; scaled \; SB $' % band[kk])
 	"""
 	ax.errorbar(sub_R[2] / scale_r[2], sub_SB[2], yerr = [ sub_err0[2], sub_err1[2] ], xerr = None, color = 'r', marker = 'None', 
 		ls = '-', linewidth = 1, ecolor = 'r', elinewidth = 1, alpha = 0.5, label = '$ \\lambda \\geq 50 $')
@@ -343,7 +343,7 @@ for kk in range(rank, rank + 1):
 	ax.plot(sub_R[0] / scale_r[0], sub_SB[0], color = 'b', alpha = 0.5, ls = '-', label = '$ 20 \\leq \\lambda \\leq 30 $')
 	ax.fill_between(sub_R[0] / scale_r[0], y1 = sub_SB[0] - sub_err0[0], y2 = sub_SB[0] + sub_err1[0], color = 'b', alpha = 0.30,)	
 
-	ax.set_xlabel('$ R / R_{200}$')
+	ax.set_xlabel('$ R / R_{200m}$')
 	ax.set_ylabel('$SB[mag / arcsec^2]$')
 	ax.set_xscale('log')
 	ax.set_ylim(19, 34)

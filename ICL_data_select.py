@@ -1,6 +1,3 @@
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.pyplot as plt
 import numpy as np
 import astropy.constants as C
 import astropy.units as U
@@ -11,17 +8,12 @@ import changds
 #import find
 import h5py
 import pandas as pds
-# setlect model
-import handy.scatter as hsc
-from astropy.wcs import *
-import astropy.wcs as awc
-from matplotlib.patches import Circle
-from astropy.coordinates import SkyCoord
 
 load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 goal_data = aft.getdata(load + 'redmapper/redmapper_dr8_public_v6.3_catalog.fits')
 RA = np.array(goal_data.RA)
 DEC = np.array(goal_data.DEC)
+ID = np.array(goal_data.ID)
 redshift = np.array(goal_data.Z_SPEC)
 Mag_bcgs = np.array(goal_data.MODEL_MAG_R)
 Mag_err = np.array(goal_data.MODEL_MAGERR_R)
@@ -57,6 +49,7 @@ com_u_Mag_err = u_Mag_err[(redshift >= 0.2) & (redshift <= 0.3)]
 
 com_z_Mag = z_Mag_bcgs[(redshift >= 0.2) & (redshift <= 0.3)]
 com_z_Mag_err = z_Mag_err[(redshift >= 0.2) & (redshift <= 0.3)]
+com_ID = ID[(redshift >= 0.2) & (redshift <= 0.3)]
 
 band = ['r', 'g', 'i', 'u', 'z']
 zN, bN = len(com_z), len(band)
@@ -80,6 +73,7 @@ for kk in range(bN):
     sub_ra = []
     sub_dec = []
     sub_rich = []
+    sub_ID = []
     sub_r_mag, sub_r_Merr = [], []
     sub_g_mag, sub_g_Merr = [], []
     sub_i_mag, sub_i_Merr = [], []
@@ -91,6 +85,7 @@ for kk in range(bN):
         dec_g = com_dec[jj]
         z_g = com_z[jj]
         rich_g = com_rich[jj]
+        ID_g = com_ID[jj]
 
         r_mag, r_err = com_r_Mag[jj], com_r_Mag_err[jj]
         g_mag, g_err = com_g_Mag[jj], com_g_Mag_err[jj]
@@ -110,6 +105,7 @@ for kk in range(bN):
             sub_ra.append(ra_g)
             sub_dec.append(dec_g)
             sub_rich.append(rich_g)
+            sub_ID.append(ID_g)
 
             sub_r_mag.append(r_mag)
             sub_g_mag.append(g_mag)
@@ -127,6 +123,7 @@ for kk in range(bN):
     sub_ra = np.array(sub_ra)
     sub_dec = np.array(sub_dec)
     sub_rich = np.array(sub_rich)
+    sub_ID = np.array(sub_ID)
 
     sub_r_mag = np.array(sub_r_mag)
     sub_g_mag = np.array(sub_g_mag)
@@ -142,9 +139,9 @@ for kk in range(bN):
 
     ## save the csv file
     keys = ['ra', 'dec', 'z', 'rich', 'r_Mag', 'g_Mag', 'i_Mag', 'u_Mag', 'z_Mag', 
-            'r_Mag_err', 'g_Mag_err', 'i_Mag_err', 'u_Mag_err', 'z_Mag_err']
+            'r_Mag_err', 'g_Mag_err', 'i_Mag_err', 'u_Mag_err', 'z_Mag_err', 'CAT_ID']
     values = [sub_ra, sub_dec, sub_z, sub_rich, sub_r_mag, sub_g_mag, sub_i_mag, sub_u_mag, sub_z_mag,
-            sub_r_Merr, sub_g_Merr, sub_i_Merr, sub_u_Merr, sub_z_Merr]
+            sub_r_Merr, sub_g_Merr, sub_i_Merr, sub_u_Merr, sub_z_Merr, sub_ID]
     fill = dict(zip(keys, values))
     data = pds.DataFrame(fill)
     #data.to_csv(load + 'selection/%s_band_img_data_select.csv' % band[kk])
@@ -171,6 +168,7 @@ for kk in range(bN):
     com_ra = data_cat['ra']
     com_dec = data_cat['dec']
     com_rich = data_cat['rich']
+    com_id = data_cat['CAT_ID']
 
     com_r_Mag = data_cat['r_Mag']
     com_r_Mag_err = data_cat['r_Mag_err']
@@ -198,6 +196,8 @@ for kk in range(bN):
     sub_ra = []
     sub_dec = []
     sub_rich = []
+    sub_id = []
+
     sub_r_mag, sub_r_Merr = [], []
     sub_g_mag, sub_g_Merr = [], []
     sub_i_mag, sub_i_Merr = [], []
@@ -211,6 +211,7 @@ for kk in range(bN):
         dec_g = com_dec[jj]
         z_g = com_z[jj]
         rich_g = com_rich[jj]
+        id_g = com_id[jj]
 
         r_mag, r_err = com_r_Mag[jj], com_r_Mag_err[jj]
         g_mag, g_err = com_g_Mag[jj], com_g_Mag_err[jj]
@@ -226,6 +227,7 @@ for kk in range(bN):
             sub_ra.append(ra_g)
             sub_dec.append(dec_g)
             sub_rich.append(rich_g)
+            sub_id.append(id_g)
 
             sub_r_mag.append(r_mag)
             sub_g_mag.append(g_mag)
@@ -243,6 +245,7 @@ for kk in range(bN):
     sub_ra = np.array(sub_ra)
     sub_dec = np.array(sub_dec)
     sub_rich = np.array(sub_rich)
+    sub_id = np.array(sub_id)
 
     sub_r_mag = np.array(sub_r_mag)
     sub_g_mag = np.array(sub_g_mag)
@@ -258,9 +261,9 @@ for kk in range(bN):
 
     ## save the csv file
     keys = ['ra', 'dec', 'z', 'rich', 'r_Mag', 'g_Mag', 'i_Mag', 'u_Mag', 'z_Mag', 
-            'r_Mag_err', 'g_Mag_err', 'i_Mag_err', 'u_Mag_err', 'z_Mag_err']
+            'r_Mag_err', 'g_Mag_err', 'i_Mag_err', 'u_Mag_err', 'z_Mag_err', 'CAT_ID']
     values = [sub_ra, sub_dec, sub_z, sub_rich, sub_r_mag, sub_g_mag, sub_i_mag, sub_u_mag, sub_z_mag,
-            sub_r_Merr, sub_g_Merr, sub_i_Merr, sub_u_Merr, sub_z_Merr]
+            sub_r_Merr, sub_g_Merr, sub_i_Merr, sub_u_Merr, sub_z_Merr, sub_id]
     fill = dict(zip(keys, values))
     data = pds.DataFrame(fill)
     data.to_csv(load + 'selection/%s_band_sky_catalog.csv' % band[kk])

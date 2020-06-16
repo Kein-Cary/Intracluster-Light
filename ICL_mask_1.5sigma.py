@@ -119,8 +119,8 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 		p_type = np.array(source['CLASS_STAR'])
 
 		Kron = 6 * r_res # iso_radius set as 3 times rms (2.8 from size test)
-		a = Kron*A
-		b = Kron*B
+		a = Kron * A
+		b = Kron * B
 
 		mask = load + 'bright_star_dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'%(z_g, ra_g, dec_g)
 		cat = pds.read_csv(mask, skiprows = 1)

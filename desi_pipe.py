@@ -176,6 +176,8 @@ def lod_img(band_id, set_z, set_ra, set_dec):
 
 	kk = band_id
 	zN = len(set_z)
+
+	doc = open(home + 'BASS_obj/err_lis/%s_band_%d_err_stop_mask.txt' % (band[kk], rank), 'w')
 	for ll in range(zN):
 		ra_g, dec_g, z_g = set_ra[ll], set_dec[ll], set_z[ll]
 		Da_g = Test_model.angular_diameter_distance(z_g).value
@@ -224,28 +226,29 @@ def lod_img(band_id, set_z, set_ra, set_dec):
 			yn = np.r_[yn, np.array(source_1['Y_IMAGE']) - 1]
 			p_type = np.r_[p_type, np.array(source_1['CLASS_STAR'])]
 
-			Kron = 8.
+			Kron = 10.
 			a = Kron * A
 			b = Kron * B
 
 			## including the PSF sources in Tractor_cat
 			Tract = fits.open(home + 'Tractor_cat/desi_tractor-cat_ra%.3f_dec%.3f_z%.3f.fits' % (ra_g, dec_g, z_g) )
-			ra_sor = Tract[1].data.ra
-			dec_sor = Tract[1].data.dec
-			source_type = Tract[1].data.type
-			value_type = np.array([ll.astype(str) for ll in source_type])
+			ra_sor = Tract[1].data['ra']
+			dec_sor = Tract[1].data['dec']
+			source_type = Tract[1].data['type']
 			pox, poy = w.all_world2pix(ra_sor * U.deg, dec_sor * U.deg, 1)
-			FWHM_g = (Tract[1].data.psfsize_g / pixel)
 
-			## use flux / SB to select stars
-			apf_flux = Tract[1].data.apflux_g[:, 0]
+			bnd_str = 'psfsize_%s' % band[kk]
+			FWHM = (Tract[1].data[bnd_str] / pixel) ## FWHM in unit of pix-number
+
+			## use flux / SB to select stars / psf sources
+			apf_flux = Tract[1].data['apflux_r'][:, 0]
 			apf_mag = 22.5 - 2.5 * np.log10(apf_flux) + 2.5 * np.log10(np.pi * 0.5**2)
 
 			## divide sources into: point source, galaxy
-			idx_pont = value_type == 'PSF '
+			idx_pont = source_type == 'PSF'
 			pont_x, pont_y = pox[idx_pont], poy[idx_pont]
 			star_mag = apf_mag[[idx_pont]]
-			sub_FWHM = FWHM_g[[idx_pont]] / 2 ## take half value as radius
+			sub_FWHM = FWHM[[idx_pont]]
 
 			idx0 = star_mag <= 19
 			pont_x0, pont_y0 = pont_x[idx0], pont_y[idx0]
@@ -306,7 +309,10 @@ def lod_img(band_id, set_z, set_ra, set_dec):
 			plt.close()
 
 		except:
+			s = '%s, %d, %.3f, %.3f, %.3f' % (band[kk], ll, ra_g, dec_g, z_g)
+			print(s, file = doc, )
 			continue
+	doc.close()
 
 	return
 

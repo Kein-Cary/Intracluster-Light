@@ -70,8 +70,7 @@ def BCG_mag_sql(cat_z, cat_ra, cat_dec, cat_ID):
 		br = mechanize.Browser()
 		resp = br.open(url)
 		resp.info()
-		#print(data_set)
-		
+
 		br.select_form(name = "sql")
 		br['cmd'] = data_set
 		br['format'] = ['csv']

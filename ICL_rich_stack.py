@@ -40,7 +40,6 @@ def rich_divid(band_id, sub_z, sub_ra, sub_dec):
 		ra_g = sub_ra[jj]
 		dec_g = sub_dec[jj]
 		z_g = sub_z[jj]
-		Da_g = Test_model.angular_diameter_distance(z_g).value
 
 		## A mask imgs without edge pixels
 		data_A = fits.getdata(load + 'edge_cut/sample_img/Edg_cut-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
@@ -52,14 +51,19 @@ def rich_divid(band_id, sub_z, sub_ra, sub_dec):
 		la1 = np.int(y0 - yn + img_A.shape[0])
 		lb0 = np.int(x0 - xn)
 		lb1 = np.int(x0 - xn + img_A.shape[1])
-
+		'''
+		## stacking centered on image center (rule out BCG region)
+		rnx, rny = np.int(img_A.shape[1] / 2), np.int(img_A.shape[0] / 2) ## image frame center
+		la0 = np.int(y0 - rny)
+		la1 = np.int(y0 - rny + img_A.shape[0])
+		lb0 = np.int(x0 - rnx)
+		lb1 = np.int(x0 - rnx + img_A.shape[1])
+		'''
 		idx = np.isnan(img_A)
 		idv = np.where(idx == False)
-		BL = 0.
-		sub_BL_img = img_A - BL
 
-		sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + sub_BL_img[idv]
-		count_array_A[la0: la1, lb0: lb1][idv] = sub_BL_img[idv]
+		sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + img_A[idv]
+		count_array_A[la0: la1, lb0: lb1][idv] = img_A[idv]
 		id_nan = np.isnan(count_array_A)
 		id_fals = np.where(id_nan == False)
 		p_count_A[id_fals] = p_count_A[id_fals] + 1.
@@ -273,9 +277,11 @@ def main():
 				## %drich : 0rich: low richness; 1rich: mid richness; 2rich: high richness
 				with h5py.File(load + 'rich_sample/stack_A_%d_in_%s_band_%drich.h5' % (tot_N, band[kk], lamda_k), 'w') as f:
 					f['a'] = np.array(stack_img)
+				#with h5py.File(tmp + 'test/%d_rich_img-center-stack_%s_band.h5' % (lamda_k, band[kk]), 'w') as f:
+				#	f['a'] = np.array(stack_img)
 
 			commd.Barrier()
-
+	raise
 	### sky stacking
 	for kk in range( 3 ):
 

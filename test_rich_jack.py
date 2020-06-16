@@ -17,7 +17,6 @@ import subprocess as subpro
 import astropy.io.fits as fits
 
 from scipy import ndimage
-from Mass_rich_radius import rich2R
 from astropy import cosmology as apcy
 from light_measure import light_measure, light_measure_rn
 
@@ -63,7 +62,13 @@ cat_Rii = np.array([0.23,  0.68,  1.03,   1.76,   3.00,
 					4.63,  7.43,  11.42,  18.20,  28.20, 
 					44.21, 69.00, 107.81, 168.20, 263.00])
 ## the band info. of SDSS BCG pro. : 0, 1, 2, 3, 4 --> u, g, r, i, z
-
+"""
+sky image stacking include: 
+1) skg_img - np.nanmean(sky_img) [cor_id == 0] or sky_img - np.nanmedian(sky_img) [cor_id == 1]
+2) stacking the img : center on BCG (--img_1) and random center (img_2)
+3) calculating the difference img: img_1 - img_2 (this is the signal need to add back to 
+   the result of cluster image stacking)
+"""
 def rich_divid(band_id, sub_z, sub_ra, sub_dec):
 
 	stack_N = len(sub_z)
@@ -82,7 +87,6 @@ def rich_divid(band_id, sub_z, sub_ra, sub_dec):
 		ra_g = sub_ra[jj]
 		dec_g = sub_dec[jj]
 		z_g = sub_z[jj]
-		Da_g = Test_model.angular_diameter_distance(z_g).value
 
 		## A mask imgs without edge pixels
 		data_A = fits.getdata(load + 
@@ -336,6 +340,7 @@ def main():
 						f['a'] = np.array(stack_img)
 
 				commd.Barrier()
+
 	## stack sky img
 	for kk in range( 3 ):
 

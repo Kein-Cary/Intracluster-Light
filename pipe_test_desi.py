@@ -153,10 +153,10 @@ pixel = 0.454
 
 #ra_g, dec_g, z_g = 253.551, 40.922, 0.326
 #ra_g, dec_g, z_g = 155.681, 32.310, 0.293
-#ra_g, dec_g, z_g = 113.253, 39.418, 0.169
+ra_g, dec_g, z_g = 113.253, 39.418, 0.169
 
 ## img with white line
-ra_g, dec_g, z_g = 352.727, 34.169, 0.194
+#ra_g, dec_g, z_g = 352.727, 34.169, 0.194
 
 data = fits.open('/home/xkchen/mywork/ICL/code/bass_img_ra%.3f_dec%.3f_z%.3f_g_band.fits' % (ra_g, dec_g, z_g) )
 img_g = data[0].data
@@ -212,19 +212,18 @@ b = Kron * B
 
 ### tractor
 cat = fits.open('/home/xkchen/mywork/ICL/code/desi_tractor-cat_ra%.3f_dec%.3f_z%.3f.fits' % (ra_g, dec_g, z_g) )
-ra_sor = cat[1].data.ra
-dec_sor = cat[1].data.dec
-source_type = cat[1].data.type
-value_type = np.array([ll.astype(str) for ll in source_type])
+ra_sor = cat[1].data['ra']
+dec_sor = cat[1].data['dec']
+source_type = cat[1].data['type']
 pox, poy = w.all_world2pix(ra_sor * U.deg, dec_sor * U.deg, 1)
-FWHM_g = (cat[1].data.psfsize_g / pixel)
+FWHM_g = (cat[1].data['psfsize_g'] / pixel)
 
 ## use flux / SB to select stars
-apf_flux = cat[1].data.apflux_g[:, 0]
+apf_flux = cat[1].data.apflux_r[:, 0]
 apf_mag = 22.5 - 2.5 * np.log10(apf_flux) + 2.5 * np.log10(np.pi * 0.5**2)
 
 ## divide sources into: point source, galaxy
-idx_pont = value_type == 'PSF '
+idx_pont = source_type == 'PSF'
 pont_x, pont_y = pox[idx_pont], poy[idx_pont]
 star_mag = apf_mag[[idx_pont]]
 sub_FWHM = FWHM_g[[idx_pont]] / 2 ## take half value as radius
@@ -263,7 +262,7 @@ for ll in range(Numb):
 	ellip = Ellipse(xy = (xn[ll], yn[ll]), width = a[ll], height = b[ll], angle = theta[ll], fill = False, ec = 'g', ls = '-', linewidth = 0.5, alpha = 0.5,)
 	ax.add_patch(ellip)
 for ll in range(len(x_star)):
-	circl = Circle(xy = (x_star[ll], y_star[ll]), radius = r_star[ll], fill = False, ec = 'b', ls = '-', linewidth = 0.5, alpha = 0.5,)
+	circl = Circle(xy = (x_star[ll], y_star[ll]), radius = r_star[ll], fill = False, ec = 'r', ls = '-', linewidth = 0.5, alpha = 0.5,)
 	ax.add_patch(circl)
 
 ax.set_xlim(0, img_g.shape[1])

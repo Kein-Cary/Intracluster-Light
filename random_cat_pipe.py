@@ -83,6 +83,7 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 		ra_g = ra_set[q]
 		dec_g = dec_set[q]
 		try:
+
 			pro_f = dfile + 'rand_img-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (band[kk], ra_g, dec_g, z_g)
 			data_f = fits.open(pro_f)
 			img = data_f[0].data
@@ -100,7 +101,7 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 			BEV = sfd(pos)
 			Av = Rv * BEV * 0.86
 			Al = A_wave(l_wave[kk], Rv) * Av
-			img = img * 10 ** (Al / 2.5)
+			#img = img * 10 ** (Al / 2.5) ## applied extinction-corrected imgs
 
 			hdu = fits.PrimaryHDU()
 			hdu.data = img
@@ -180,7 +181,7 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 			theta = np.r_[theta, phi]
 			Numb = Numb + len(comx)
 
-			mask_A = np.ones((img.shape[0], img.shape[1]), dtype = np.float)
+			mask_path = np.ones((img.shape[0], img.shape[1]), dtype = np.float)
 			ox = np.linspace(0, img.shape[1] - 1, img.shape[1])
 			oy = np.linspace(0, img.shape[0] - 1, img.shape[0])
 			basic_coord = np.array(np.meshgrid(ox, oy))
@@ -211,28 +212,40 @@ def mask_A(band_id, z_set, ra_set, dec_set):
 				iu = np.where(jx == True)
 				iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float)
 				iv[iu] = np.nan
-				mask_A[lb0: lb1, la0: la1] = mask_A[lb0: lb1, la0: la1] * iv
+				mask_path[lb0: lb1, la0: la1] = mask_path[lb0: lb1, la0: la1] * iv
 
-			mirro_A = mask_A * img
+			mask_img = mask_path * img
 
 			hdu = fits.PrimaryHDU()
-			hdu.data = mirro_A
+			hdu.data = mask_img
 			hdu.header = head_inf
-			hdu.writeto(load + 'random_cat/mask_img/random_mask_%s_ra%.3f_dec%.3f_z%.3f.fits' % (band[kk], ra_g, dec_g, z_g), overwrite = True)
+			#hdu.writeto(load + 'random_cat/mask_img/random_mask_%s_ra%.3f_dec%.3f_z%.3f.fits' % (band[kk], ra_g, dec_g, z_g), overwrite = True)
+			hdu.writeto(load + 'random_cat/mask_no_dust/random_mask_%s_ra%.3f_dec%.3f_z%.3f.fits' % (band[kk], ra_g, dec_g, z_g), overwrite = True)
+			"""
+			data = fits.open(load + 'random_cat/mask_img/random_mask_%s_ra%.3f_dec%.3f_z%.3f.fits' % (band[kk], ra_g, dec_g, z_g))
+			mask_img = data[0].data
+			head = data[0].header
+			wcs = awc.WCS(head)
+			cx_BCG, cy_BCG = wcs.all_world2pix(ra_g * U.deg, dec_g * U.deg, 1)
+			R_ph = rad2asec / (Test_model.angular_diameter_distance(z_g).value)
+			R_p = R_ph / pixel
+
+			clo, chi = np.nanmedian(mask_img) - np.nanstd(mask_img), np.nanmedian(mask_img) + np.nanstd(mask_img)
 
 			plt.figure()
-			ax = plt.imshow(mirro_A, cmap = 'Greys', origin = 'lower', vmin = 1e-3, norm = mpl.colors.LogNorm())
+			#ax = plt.imshow(mask_img, cmap = 'Greys', origin = 'lower', vmin = 1e-3, norm = mpl.colors.LogNorm())
+			ax = plt.imshow(mask_img, cmap = 'Greys', origin = 'lower', vmin = clo, vmax = chi,)
 			plt.colorbar(ax, fraction = 0.035, pad =  0.01, label = '$flux[nmaggy]$')
 
 			hsc.circles(cx_BCG, cy_BCG, s = R_p, fc = '', ec = 'b', )
 			hsc.circles(cx_BCG, cy_BCG, s = 1.1 * R_p, fc = '', ec = 'b', ls = '--')
 			plt.scatter(cx_BCG, cy_BCG, s = 10, marker = 'X', facecolors = '', edgecolors = 'r', linewidth = 0.5, alpha = 0.5)
 			plt.title('A mask img ra%.3f dec%.3f z%.3f in %s band' % (ra_g, dec_g, z_g, band[kk] ) )
-			plt.xlim(0, mirro_A.shape[1])
-			plt.ylim(0, mirro_A.shape[0])
+			plt.xlim(0, mask_img.shape[1])
+			plt.ylim(0, mask_img.shape[0])
 			plt.savefig(home + 'fig_class/random_pont/random_mask_%s_ra%.3f_dec%.3f_z%.3f.png'%(band[kk], ra_g, dec_g, z_g), dpi = 300)
 			plt.close()
-
+			"""
 		except FileNotFoundError:
 			continue
 	return
@@ -247,7 +260,8 @@ def resamp_img(band_id, sub_z, sub_ra, sub_dec):
 		z_g = sub_z[k]
 		Da_g = Test_model.angular_diameter_distance(z_g).value
 		try:
-			data = fits.getdata(load + 'random_cat/mask_img/random_mask_%s_ra%.3f_dec%.3f_z%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+			#data = fits.getdata(load + 'random_cat/mask_img/random_mask_%s_ra%.3f_dec%.3f_z%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
+			data = fits.getdata(load + 'random_cat/mask_no_dust/random_mask_%s_ra%.3f_dec%.3f_z%.3f.fits' % (band[ii], ra_g, dec_g, z_g), header = True)
 			img = data[0]
 			cx0 = data[1]['CRPIX1']
 			cy0 = data[1]['CRPIX2']
@@ -282,8 +296,11 @@ def resamp_img(band_id, sub_z, sub_ra, sub_dec):
 			value = ['T', 32, 2, x0, y0, ix0, iy0, xn, yn, RA0, DEC0, ra_g, dec_g, z_g, pixel]
 			ff = dict(zip(keys,value))
 			fil = fits.Header(ff)
-			fits.writeto(load + 'random_cat/resample_img/rand-resamp-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % 
+			#fits.writeto(load + 'random_cat/resample_img/rand-resamp-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % 
+			#	(band[ii], ra_g, dec_g, z_g), resam, header = fil, overwrite = True)
+			fits.writeto(load + 'random_cat/resamp_no_dust/rand-resamp-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % 
 				(band[ii], ra_g, dec_g, z_g), resam, header = fil, overwrite = True)
+
 		except FileNotFoundError:
 			continue
 	return
@@ -331,22 +348,25 @@ def edge_cut(band_id, sub_z, sub_ra, sub_dec):
 def main():
 
 	Ntot = len(z)
-	"""
-	for tt in range(len(band)):
+
+	for tt in range(3):
 		m, n = divmod(Ntot, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
 		if rank == cpus - 1:
 			N_sub1 += n
 		mask_A(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
-	commd.Barrier()
 
-	for tt in range(len(band)):
+	commd.Barrier()
+	"""
+	for tt in range(3):
 		m, n = divmod(Ntot, cpus)
 		N_sub0, N_sub1 = m * rank, (rank + 1) * m
 		if rank == cpus - 1:
 			N_sub1 += n
 		resamp_img(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
+
 	commd.Barrier()
+	"""
 	"""
 	for tt in range( 3 ):
 		m, n = divmod(Ntot, cpus)
@@ -356,6 +376,6 @@ def main():
 		edge_cut(tt, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1])
 
 	commd.Barrier()
-
+	"""
 if __name__ == "__main__":
 	main()

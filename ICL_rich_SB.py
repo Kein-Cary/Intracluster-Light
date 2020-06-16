@@ -18,8 +18,8 @@ import astropy.io.fits as fits
 from scipy import ndimage
 from scipy import interpolate as interp
 from astropy import cosmology as apcy
-from light_measure import light_measure, light_measure_rn
-from Mass_rich_radius import rich2R_critical_2019
+from light_measure import light_measure, light_measure_rn, light_measure_Z0
+from Mass_rich_radius import rich2R_Simet
 
 from mpi4py import MPI
 commd = MPI.COMM_WORLD
@@ -51,7 +51,6 @@ f0 = 3631 * Jy # (erg/s)/cm^-2
 R0 = 1 # Mpc
 Angu_ref = (R0/Da_ref)*rad2asec
 Rpp = Angu_ref/pixel
-M_dot = 4.83 # the absolute magnitude of SUN
 
 load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 tmp = '/mnt/ddnfs/data_users/cxkttwl/PC/'
@@ -92,6 +91,25 @@ def SB_pro(img, R_bins, R_min, R_max, Cx, Cy, pix_size, zg, band_id):
 
     return R_out, SB_out, out_err0, out_err1, Intns, Intns_r, Intns_err
 
+def SB_pro_0z(img, pix_size, r_lim, R_pix, cx, cy, R_bins, band_id):
+    kk = band_id
+    Intns, Angl_r, Intns_err = light_measure_Z0(img, pix_size, r_lim, R_pix, cx, cy, R_bins)
+    SB = 22.5 - 2.5 * np.log10(Intns) + 2.5 * np.log10(pixel**2) + mag_add[kk]
+    flux0 = Intns + Intns_err
+    flux1 = Intns - Intns_err
+    dSB0 = 22.5 - 2.5 * np.log10(flux0) + 2.5 * np.log10(pixel**2) + mag_add[kk]
+    dSB1 = 22.5 - 2.5 * np.log10(flux1) + 2.5 * np.log10(pixel**2) + mag_add[kk]
+    err0 = SB - dSB0
+    err1 = dSB1 - SB
+    id_nan = np.isnan(SB)
+
+    SB_out, R_out, out_err0, out_err1 = SB[id_nan == False], Angl_r[id_nan == False], err0[id_nan == False], err1[id_nan == False]
+    dSB0, dSB1 = dSB0[id_nan == False], dSB1[id_nan == False]
+    idx_nan = np.isnan(dSB1)
+    out_err1[idx_nan] = 100.
+
+    return R_out, SB_out, out_err0, out_err1, Intns, Angl_r, Intns_err
+
 def sers_pro(r, mu_e, r_e, n):
     belta_n = 2 * n - 0.324
     fn = 1.086 * belta_n * ( (r/r_e)**(1/n) - 1)
@@ -99,6 +117,8 @@ def sers_pro(r, mu_e, r_e, n):
     return mu_r
 
 def main():
+    out_load = load + 'rich_sample/add_random_sample/'
+
     rich_a0, rich_a1, rich_a2 = 20, 30, 50
     ## sersic pro of Zibetti 05
     mu_e = np.array([23.87, 25.22, 23.4])
@@ -107,7 +127,9 @@ def main():
     x0, y0 = 2427, 1765 ## stacking img center pix
     bins, R_smal, R_max = 95, 1, 3.0e3 ## for sky ICL
     bin_1Mpc = 75
-    N_dist = 301
+    ## star point to measure background
+    bl_set = 0.75
+
     dnoise = 30
     SB_lel = np.arange(27, 31, 1) ## cotour c-label
 
@@ -153,12 +175,12 @@ def main():
             lis_z = set_z[idx]
             lis_rich = set_rich[idx]
 
-            M_vir, R_vir = rich2R_critical_2019(lis_z, lis_rich, N_dist)
+            M_vir, R_vir = rich2R_Simet(lis_z, lis_rich)
             R200[lamda_k] = np.nanmedian(R_vir)
 
-            bins_0 = np.int( np.ceil(bin_1Mpc * R200[lamda_k] / 1e3) )
-            R_min_0, R_max_0 = 1, R200[lamda_k] # kpc
-            R_min_1, R_max_1 = R200[lamda_k] + 100., R_max # kpc
+            bins_0 = np.int( np.ceil(bin_1Mpc * bl_set * R200[lamda_k] / 1e3) )
+            R_min_0, R_max_0 = 1, bl_set * R200[lamda_k] # kpc
+            R_min_1, R_max_1 = bl_set * R200[lamda_k] + 100., R_max # kpc
 
             if R_min_1 < R_max:
                 x_quen = np.logspace(0, np.log10(R_max_0), bins_0)
@@ -216,16 +238,65 @@ def main():
             Intns_err_1 = np.r_[Intns_err_1_0, betwn_err, Intns_err_1_1]
             Intns_1, Intns_err_1 = Intns_1 / pixel**2, Intns_err_1 / pixel**2
 
-            ## estimate the residual background
-            Resi_bl = betwn_Intns / pixel**2
-            Resi_std = betwn_err / pixel**2
-            Resi_sky = betwn_lit
-            bl_dSB0, bl_dSB1 = betwn_lit - btn_err0, betwn_lit + btn_err1
-
-            ## minus the residual background
+            #minu_bl_img = add_img - betwn_Intns
             """
-            minu_bl_img = differ_img + clust_img - Resi_bl * pixel**2
-            # case 1 : measuring based on img
+                # case 1 : measuring based on img
+                cli_R_0, cli_SB_0, cli_err0_0, cli_err1_0, Intns_2_0, Intns_r_2_0, Intns_err_2_0 = SB_pro(
+                    minu_bl_img, bins_0, R_min_0, R_max_0, x0, y0, pixel, z_ref, kk)
+                cli_R_1, cli_SB_1, cli_err0_1, cli_err1_1, Intns_2_1, Intns_r_2_1, Intns_err_2_1 = SB_pro(
+                    minu_bl_img, bins_1, R_min_1, R_max_1, x0, y0, pixel, z_ref, kk)
+                betwn_r, betwn_lit, btn_err0, btn_err1, betwn_Intns, betwn_err = betwn_SB(minu_bl_img, r_a0, r_a1, x0, y0, pixel, z_ref, kk)
+
+                cli_R = np.r_[cli_R_0, betwn_r, cli_R_1]
+                cli_SB = np.r_[cli_SB_0, betwn_lit, cli_SB_1]
+                cli_err0 = np.r_[cli_err0_0, btn_err0, cli_err0_1]
+                cli_err1 = np.r_[cli_err1_0, btn_err1, cli_err1_1]
+                Intns_2 = np.r_[Intns_2_0, betwn_Intns, Intns_2_1]
+                Intns_r_2 = np.r_[Intns_r_2_0, betwn_r, Intns_r_2_1]
+                Intns_err_2 = np.r_[Intns_err_2_0, betwn_err, Intns_err_2_1]
+                Intns_2, Intns_err_2 = Intns_2 / pixel**2, Intns_err_2 / pixel**2
+
+                # case 2 : result from SB profile deviation
+                Resi_bl = betwn_Intns / pixel**2
+                Resi_std = betwn_err / pixel**2
+                Resi_sky = betwn_lit
+
+                cli_R = Intns_r_1 * 1.
+                Intns_2 = Intns_1 - Resi_bl
+                Intns_r_2 = Intns_r_1 * 1.
+                #Intns_err_2 = Intns_err_1 * 1.
+                Intns_err_2 = np.sqrt(Intns_err_1**2 + Resi_std**2)
+
+                cli_SB = 22.5 - 2.5 * np.log10(Intns_2) + mag_add[kk]
+                cli_dSB0 = 22.5 - 2.5 * np.log10(Intns_2 + Intns_err_2) + mag_add[kk]
+                cli_dSB1 = 22.5 - 2.5 * np.log10(Intns_2 - Intns_err_2) + mag_add[kk]
+                err0 = cli_SB - cli_dSB0
+                err1 = cli_dSB1 - cli_SB
+                id_nan = np.isnan(cli_SB)
+                cli_SB, cli_R, cli_err0, cli_err1 = cli_SB[id_nan == False], cli_R[id_nan == False], err0[id_nan == False], err1[id_nan == False]
+                cli_dSB0, cli_dSB1 = cli_dSB0[id_nan == False], cli_dSB1[id_nan == False]
+                idx_nan = np.isnan(cli_dSB1)
+                cli_err1[idx_nan] = 100.
+
+                # case 3 : subtract random point SB + residual background
+                with h5py.File(load + 'random_cat/stack/%s_band_stack_cluster_imgs.h5' % band[kk], 'r') as f:
+                    rand_field = np.array(f['a'])
+
+                #pre_minu_img = add_img - rand_field
+                #betwn_r, betwn_lit, btn_err0, btn_err1, betwn_Intns, betwn_err = betwn_SB(pre_minu_img, r_a0, r_a1, x0, y0, pixel, z_ref, kk)
+                #minu_bl_img = pre_minu_img - betwn_Intns
+                minu_bl_img = add_img - rand_field
+            """
+            # case 4 : subtracted random point (pixel) SB pdf mean / median
+            #with h5py.File(load + 'random_cat/stack/%s_band_random_field_pix_SB_median_pdf.h5' % band[kk], 'r') as f:
+            with h5py.File(load + 'random_cat/stack/%s_band_random_field_pix_SB_mean_pdf.h5' % band[kk], 'r') as f:
+                dmp_array = np.array(f['a'])
+            flux_mean, num_mean = dmp_array[0], dmp_array[1]
+            dx = flux_mean[1:] - flux_mean[:-1]
+            dx = np.r_[dx[0], dx]
+            M_flux_mean = np.sum(flux_mean * num_mean * dx)
+            minu_bl_img = add_img - M_flux_mean
+
             cli_R_0, cli_SB_0, cli_err0_0, cli_err1_0, Intns_2_0, Intns_r_2_0, Intns_err_2_0 = SB_pro(
                 minu_bl_img, bins_0, R_min_0, R_max_0, x0, y0, pixel, z_ref, kk)
             cli_R_1, cli_SB_1, cli_err0_1, cli_err1_1, Intns_2_1, Intns_r_2_1, Intns_err_2_1 = SB_pro(
@@ -240,24 +311,6 @@ def main():
             Intns_r_2 = np.r_[Intns_r_2_0, betwn_r, Intns_r_2_1]
             Intns_err_2 = np.r_[Intns_err_2_0, betwn_err, Intns_err_2_1]
             Intns_2, Intns_err_2 = Intns_2 / pixel**2, Intns_err_2 / pixel**2
-            """
-            # case 2 : result from SB profile deviation
-            cli_R = Intns_r_1 * 1.
-            Intns_2 = Intns_1 - Resi_bl
-            Intns_r_2 = Intns_r_1 * 1.
-            #Intns_err_2 = Intns_err_1 * 1.
-            Intns_err_2 = np.sqrt(Intns_err_1**2 + Resi_std**2)
-
-            cli_SB = 22.5 - 2.5 * np.log10(Intns_2) + mag_add[kk]
-            cli_dSB0 = 22.5 - 2.5 * np.log10(Intns_2 + Intns_err_2) + mag_add[kk]
-            cli_dSB1 = 22.5 - 2.5 * np.log10(Intns_2 - Intns_err_2) + mag_add[kk]
-            err0 = cli_SB - cli_dSB0
-            err1 = cli_dSB1 - cli_SB
-            id_nan = np.isnan(cli_SB)
-            cli_SB, cli_R, cli_err0, cli_err1 = cli_SB[id_nan == False], cli_R[id_nan == False], err0[id_nan == False], err1[id_nan == False]
-            cli_dSB0, cli_dSB1 = cli_dSB0[id_nan == False], cli_dSB1[id_nan == False]
-            idx_nan = np.isnan(cli_dSB1)
-            cli_err1[idx_nan] = 100.
 
             ## re-calculate SB profile
             sub_pros = 22.5 - 2.5 * np.log10(Intns_2) + mag_add[kk]
@@ -289,7 +342,6 @@ def main():
             tf = bx0.imshow(clust_img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
             plt.colorbar(tf, ax = bx0, fraction = 0.042, pad = 0.01, label = 'flux[nmaggy]')
             ## add contour
-            con_img = clust_img * 1.
             kernl_img = ndimage.gaussian_filter(clust_img, sigma = dnoise,  mode = 'nearest')
             SB_img = 22.5 - 2.5 * np.log10(kernl_img) + 2.5 * np.log10(pixel**2)
             tg = bx0.contour(SB_img, origin = 'lower', cmap = 'rainbow', levels = SB_lel, )
@@ -319,11 +371,10 @@ def main():
             bx2.set_title('%s band difference + stack img' % band[kk] )
             clust20 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', ls = '-', alpha = 0.5,)
             clust21 = Circle(xy = (x0, y0), radius = 0.5 * Rpp, fill = False, ec = 'r', ls = '--', alpha = 0.5,)
-            tf = bx2.imshow(differ_img + clust_img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
+            tf = bx2.imshow(add_img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
             plt.colorbar(tf, ax = bx2, fraction = 0.042, pad = 0.01, label = 'flux[nmaggy]')
             ## add contour
-            con_img = differ_img + clust_img
-            kernl_img = ndimage.gaussian_filter(con_img, sigma = dnoise,  mode = 'nearest')
+            kernl_img = ndimage.gaussian_filter(add_img, sigma = dnoise,  mode = 'nearest')
             SB_img = 22.5 - 2.5 * np.log10(kernl_img) + 2.5 * np.log10(pixel**2)
             tg = bx2.contour(SB_img, origin = 'lower', cmap = 'rainbow', levels = SB_lel, )
             plt.clabel(tg, inline = False, fontsize = 6.5, colors = 'k', fmt = '%.0f')
@@ -340,12 +391,10 @@ def main():
             clust30 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', ls = '-', alpha = 0.5,)
             clust31 = Circle(xy = (x0, y0), radius = 0.5 * Rpp, fill = False, ec = 'r', ls = '--', alpha = 0.5,)
 
-            tf = bx3.imshow(differ_img + clust_img - Resi_bl * pixel**2, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, 
-                norm = mpl.colors.LogNorm())
+            tf = bx3.imshow(minu_bl_img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e2, norm = mpl.colors.LogNorm())
             plt.colorbar(tf, ax = bx3, fraction = 0.042, pad = 0.01, label = 'flux[nmaggy]')
             ## add contour
-            con_img = differ_img + clust_img - Resi_bl * pixel**2
-            kernl_img = ndimage.gaussian_filter(con_img, sigma = dnoise,  mode = 'nearest')
+            kernl_img = ndimage.gaussian_filter(minu_bl_img, sigma = dnoise,  mode = 'nearest')
             SB_img = 22.5 - 2.5 * np.log10(kernl_img) + 2.5 * np.log10(pixel**2)
             tg = bx3.contour(SB_img, origin = 'lower', cmap = 'rainbow', levels = SB_lel, )
             plt.clabel(tg, inline = False, fontsize = 6.5, colors = 'k', fmt = '%.0f')
@@ -360,11 +409,11 @@ def main():
 
             plt.tight_layout()
             if lamda_k == 0:
-                plt.savefig(load + 'rich_sample/low_rich_%s_band_process.png' % band[kk], dpi = 300)
+                plt.savefig(out_load + 'low_rich_%s_band_process.png' % band[kk], dpi = 300)
             elif lamda_k == 1:
-                plt.savefig(load + 'rich_sample/median_rich_%s_band_process.png' % band[kk], dpi = 300)
+                plt.savefig(out_load + 'median_rich_%s_band_process.png' % band[kk], dpi = 300)
             else:
-                plt.savefig(load + 'rich_sample/high_rich_%s_band_process.png' % band[kk], dpi = 300) 
+                plt.savefig(out_load + 'high_rich_%s_band_process.png' % band[kk], dpi = 300) 
             plt.close()
 
             plt.figure()
@@ -399,11 +448,11 @@ def main():
             cx0.tick_params(axis = 'both', which = 'both', direction = 'in')
 
             if lamda_k == 0:
-                plt.savefig(load + 'rich_sample/%s_band_low_rich_SB.png' % band[kk], dpi = 300)
+                plt.savefig(out_load + '%s_band_low_rich_SB.png' % band[kk], dpi = 300)
             elif lamda_k == 1:
-                plt.savefig(load + 'rich_sample/%s_band_median_rich_SB.png' % band[kk], dpi = 300)
+                plt.savefig(out_load + '%s_band_median_rich_SB.png' % band[kk], dpi = 300)
             else:
-                plt.savefig(load + 'rich_sample/%s_band_high_rich_SB.png' % band[kk], dpi = 300) 
+                plt.savefig(out_load + '%s_band_high_rich_SB.png' % band[kk], dpi = 300) 
             plt.close()
 
             if lamda_k == 0:
@@ -482,7 +531,7 @@ def main():
         ax0.set_xticklabels([])
 
         plt.subplots_adjust(hspace = 0.05)
-        plt.savefig(load + 'rich_sample/%s_band_SB_rich_binned.png' % band[kk], dpi = 300)
+        plt.savefig(out_load + '%s_band_SB_rich_binned.png' % band[kk], dpi = 300)
         plt.close()
 
         ## scaled with R200
@@ -506,8 +555,70 @@ def main():
         ax.grid(which = 'both', axis = 'both')
         ax.tick_params(axis = 'both', which = 'both', direction = 'in')
 
-        plt.savefig(load + 'rich_sample/%s_band_R200_scaled_SB_rich_bin.png' % band[kk], dpi = 300)
+        plt.savefig(out_load + '%s_band_R200_scaled_SB_rich_bin.png' % band[kk], dpi = 300)
         plt.close()
+    '''
+    ## stacking centered on image center
+    for kk in range(rank, rank + 1):
+        for lamda_k in range(3):
 
+            with h5py.File(tmp + 'test/%d_rich_img-center-stack_%s_band.h5' % (lamda_k, band[kk]), 'r') as f:
+                stack_img = np.array(f['a'])
+
+            ## measure SB
+            bins, R_smal, R_max = 95, 1, 3.0e3 ## for sky ICL
+            Rt, SBt, t_err0, t_err1, Intns_0, Intns_r_0, Intns_err_0 = SB_pro_0z(stack_img, pixel, 1, 3 * Rpp, x0, y0, bins, kk)
+            Intns_0, Intns_err_0 = Intns_0 / pixel**2, Intns_err_0 / pixel**2
+
+            plt.figure()
+            bx0 = plt.subplot(111)
+            bx0.set_title('%s band %d rich sample [centered on image center]' % (band[kk], lamda_k) )
+
+            clust00 = Circle(xy = (x0, y0), radius = Rpp, fill = False, ec = 'r', ls = '-', alpha = 0.5,)
+            clust01 = Circle(xy = (x0, y0), radius = 2 * Rpp, fill = False, ec = 'r', ls = '--', alpha = 0.5,)
+            tf = bx0.imshow(stack_img, cmap = 'Greys', origin = 'lower', vmin = 1e-5, vmax = 1e-1, norm = mpl.colors.LogNorm())
+            plt.colorbar(tf, ax = bx0, fraction = 0.050, pad = 0.01, label = 'flux[nmaggy]')
+            bx0.add_patch(clust00)
+            bx0.add_patch(clust01)
+            bx0.axis('equal')
+            bx0.set_xlim(x0 - np.ceil(1.3 * Rpp), x0 + np.ceil(1.3 * Rpp))
+            bx0.set_ylim(y0 - np.ceil(Rpp), y0 + np.ceil(Rpp))
+            bx0.set_xticks([])
+            bx0.set_yticks([])
+            plt.savefig(tmp + 'test/%s_band_%d_sub-center-stack_2D.png' % (band[kk], lamda_k), dpi = 300)
+            plt.close()
+
+            plt.figure(figsize = (12, 6))
+            ax0 = plt.subplot(121)
+            ax1 = plt.subplot(122)
+            ax0.set_title('%s band %d rich sample SB [centered on image center]' % (band[kk], lamda_k) )
+
+            ax0.errorbar(Rt, SBt, yerr = [t_err0, t_err1], xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
+                ecolor = 'r', elinewidth = 1, label = 'stacking random point imgs', alpha = 0.5)
+            ax0.set_ylim(27, 29)
+            ax0.set_ylabel('$SB[mag / arcsec^2]$')
+            ax0.set_xlim(1, 1e3)
+            ax0.set_xlabel('$ R[arcsec] $')
+            ax0.set_xscale('log')
+            ax0.legend(loc = 1, frameon = False)
+            ax0.invert_yaxis()
+            ax0.grid(which = 'both', axis = 'both')
+            ax0.tick_params(axis = 'both', which = 'both', direction = 'in')
+
+            ax1.errorbar(Intns_r_0, Intns_0, yerr = Intns_err_0, xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
+                ecolor = 'r', elinewidth = 1, alpha = 0.5)
+            ax1.set_ylim(1e-3, 1e-2)
+            ax1.set_yscale('log')
+            ax1.set_ylabel('$SB[nanomaggies / arcsec^2]$')
+            ax1.set_xlim(1, 1e3)
+            ax1.set_xlabel('$ R[arcsec] $')
+            ax1.set_xscale('log')
+            ax1.grid(which = 'both', axis = 'both')
+            ax1.tick_params(axis = 'both', which = 'both', direction = 'in')
+
+            plt.tight_layout()
+            plt.savefig(tmp + 'test/%s_band_%d_rich-sample_SB.png' % (band[kk], lamda_k), dpi = 300) 
+            plt.close()
+    '''
 if __name__ == "__main__":
     main()

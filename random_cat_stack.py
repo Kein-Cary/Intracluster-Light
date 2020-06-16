@@ -48,14 +48,13 @@ Da_ref = Test_model.angular_diameter_distance(z_ref).value
 Jy = 10**(-23) # (erg/s)/cm^2
 f0 = 3631 * Jy # (erg/s)/cm^-2
 R0 = 1 # Mpc
-Angu_ref = (R0/Da_ref)*rad2asec
-Rpp = Angu_ref/pixel
+Angu_ref = (R0 / Da_ref) * rad2asec
+Rpp = Angu_ref / pixel
 
 home = '/mnt/ddnfs/data_users/cxkttwl/ICL/'
 load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
 tmp = '/mnt/ddnfs/data_users/cxkttwl/PC/'
 band = ['r', 'g', 'i', 'u', 'z']
-mag_add = np.array([0, 0, 0, -0.04, 0.02])
 
 def rand_pont(band_id, sub_z, sub_ra, sub_dec):
 
@@ -75,24 +74,14 @@ def rand_pont(band_id, sub_z, sub_ra, sub_dec):
         ra_g = sub_ra[jj]
         dec_g = sub_dec[jj]
         z_g = sub_z[jj]
-        Da_g = Test_model.angular_diameter_distance(z_g).value
-        angle_r = R0 * rad2asec / Da_g
-        r_pix = angle_r / pixel
 
-        ## after pix-resampling img
-        data_A = fits.open(load + 'random_cat/edge_cut_img/rand_pont_Edg_cut-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
-        img_A = data_A[0].data
-        xn = data_A[0].header['CENTER_X']
-        yn = data_A[0].header['CENTER_Y']
-        '''
-        ## just adding masking img
-        data_A = fits.open(load + 'random_cat/mask_img/random_mask_%s_ra%.3f_dec%.3f_z%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
+        data_A = fits.open(load + 'random_cat/mask_no_dust/random_mask_%s_ra%.3f_dec%.3f_z%.3f.fits' % (band[kk], ra_g, dec_g, z_g)) ## just masking
+
         img_A = data_A[0].data
         head = data_A[0].header
         wcs_lis = awc.WCS(head)
         xn, yn = wcs_lis.all_world2pix(ra_g * U.deg, dec_g * U.deg, 1)
-        '''
-        '''
+
         # centered on cat.(ra, dec)
         la0 = np.int(y0 - yn)
         la1 = np.int(y0 - yn + img_A.shape[0])
@@ -105,17 +94,16 @@ def rand_pont(band_id, sub_z, sub_ra, sub_dec):
         la1 = np.int(y0 - rny + img_A.shape[0])
         lb0 = np.int(x0 - rnx)
         lb1 = np.int(x0 - rnx + img_A.shape[1])
-
+        '''
         idx = np.isnan(img_A)
         idv = np.where(idx == False)
 
         sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + img_A[idv]
-
         count_array_A[la0: la1, lb0: lb1][idv] = img_A[idv]
         id_nan = np.isnan(count_array_A)
         id_fals = np.where(id_nan == False)
         p_count_A[id_fals] = p_count_A[id_fals] + 1.
-        count_array_A[la0: la1, lb0: lb1][idx] = np.nan
+        count_array_A[la0: la1, lb0: lb1][idv] = np.nan
         id_nm += 1.
 
     p_count_A[0, 0] = id_nm
@@ -126,7 +114,7 @@ def rand_pont(band_id, sub_z, sub_ra, sub_dec):
 
     return
 
-def sky_stack_img_center(band_id, sub_z, sub_ra, sub_dec):
+def sky_stack(band_id, sub_z, sub_ra, sub_dec):
     stack_N = len(sub_z)
     kk = np.int(band_id)
 
@@ -143,18 +131,32 @@ def sky_stack_img_center(band_id, sub_z, sub_ra, sub_dec):
         ra_g = sub_ra[jj]
         dec_g = sub_dec[jj]
         z_g = sub_z[jj]
-
-        ## sky-select sample
+        '''
+        #### after pix-resampling sky imgs
         data = fits.open(load + 'random_cat/sky_edge-cut_img/rand_Edg_cut-sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
         img = data[0].data
         cx, cy = data[0].header['CENTER_X'], data[0].header['CENTER_Y']
+        '''
+        data = fits.open(load + 'random_cat/sky_img/rand_sky-ra%.3f-dec%.3f-z%.3f-%s-band.fits' % (ra_g, dec_g, z_g, band[kk]) )
+        img = data[0].data
+        head = data[0].header
+        wcs_lis = awc.WCS(head)
+        cx, cy = wcs_lis.all_world2pix(ra_g * U.deg, dec_g * U.deg, 1)
 
-        rnx, rny = np.int(img.shape[1] / 2), np.int(img.shape[0] / 2) ## image frame center
+        ## catalog (ra, dec)
+        la0 = np.int(y0 - cy)
+        la1 = np.int(y0 - cy + img.shape[0])
+        lb0 = np.int(x0 - cx)
+        lb1 = np.int(x0 - cx + img.shape[1])
+        '''
+        ## image frame center / random center
+        #rnx, rny = np.random.choice(img.shape[1], 1, replace = False), np.random.choice(img.shape[0], 1, replace = False)
+        rnx, rny = np.int(img.shape[1] / 2), np.int(img.shape[0] / 2)
         la0 = np.int(y0 - rny)
         la1 = np.int(y0 - rny + img.shape[0])
         lb0 = np.int(x0 - rnx)
         lb1 = np.int(x0 - rnx + img.shape[1])
-
+        '''
         idx = np.isnan(img)
         idv = np.where(idx == False)
 
@@ -170,114 +172,7 @@ def sky_stack_img_center(band_id, sub_z, sub_ra, sub_dec):
     with h5py.File(tmp + 'sky_sum_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
         f['a'] = np.array(sum_array)
     with h5py.File(tmp + 'sky_sum_pcount_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
-        f['a'] = np.array(p_count)    
-    return
-
-def sky_stack_BCG(band_id, sub_z, sub_ra, sub_dec):
-
-    stack_N = len(sub_z)
-    kk = np.int(band_id)
-
-    x0, y0 = 2427, 1765
-    Nx = np.linspace(0, 4854, 4855)
-    Ny = np.linspace(0, 3530, 3531)
-
-    sum_array = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-    count_array = np.ones((len(Ny), len(Nx)), dtype = np.float) * np.nan
-    p_count = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-
-    id_nm = 0
-    for jj in range(stack_N):
-        ra_g = sub_ra[jj]
-        dec_g = sub_dec[jj]
-        z_g = sub_z[jj]
-
-        ## sky-select sample
-        data = fits.open(load + 'random_cat/sky_edge-cut_img/rand_Edg_cut-sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
-        img = data[0].data
-        cx, cy = data[0].header['CENTER_X'], data[0].header['CENTER_Y']
-
-        la0 = np.int(y0 - cy)
-        la1 = np.int(y0 - cy + img.shape[0])
-        lb0 = np.int(x0 - cx)
-        lb1 = np.int(x0 - cx + img.shape[1])
-
-        idx = np.isnan(img)
-        idv = np.where(idx == False)
-
-        #img_add = img - np.nanmean(img)
-        img_add = img - np.nanmedian(img)
-
-        sum_array[la0: la1, lb0: lb1][idv] = sum_array[la0:la1, lb0:lb1][idv] + img_add[idv]
-        count_array[la0: la1, lb0: lb1][idv] = img_add[idv]
-        id_nan = np.isnan(count_array)
-        id_fals = np.where(id_nan == False)
-        p_count[id_fals] = p_count[id_fals] + 1
-        count_array[la0: la1, lb0: lb1][idv] = np.nan
-        id_nm += 1.
-
-    p_count[0, 0] = id_nm
-    with h5py.File(tmp + 'sky_sum_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
-        f['a'] = np.array(sum_array)
-    with h5py.File(tmp + 'sky_sum_pcount_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
         f['a'] = np.array(p_count)
-
-    return
-
-def sky_stack_rndm(band_id, sub_z, sub_ra, sub_dec):
-
-    stack_N = len(sub_z)
-    kk = np.int(band_id)
-
-    x0, y0 = 2427, 1765
-    Nx = np.linspace(0, 4854, 4855)
-    Ny = np.linspace(0, 3530, 3531)
-
-    ## random center as comparison
-    rndm_sum = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-    rndm_count = np.zeros((len(Ny), len(Nx)), dtype = np.float) * np.nan
-    rndm_pcont = np.zeros((len(Ny), len(Nx)), dtype = np.float)
-    n_add = 0.
-
-    for jj in range(stack_N):
-        ra_g = sub_ra[jj]
-        dec_g = sub_dec[jj]
-        z_g = sub_z[jj]
-
-        ## sky-select sample
-        data = fits.open(load + 'random_cat/sky_edge-cut_img/rand_Edg_cut-sky-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band[kk], ra_g, dec_g, z_g) )
-        img = data[0].data
-        cx, cy = data[0].header['CENTER_X'], data[0].header['CENTER_Y']
-        ## the random center test
-        rnx, rny = np.random.choice(img.shape[1], 1, replace = False), np.random.choice(img.shape[0], 1, replace = False) ## random center
-
-        la0 = np.int(y0 - rny)
-        la1 = np.int(y0 - rny + img.shape[0])
-        lb0 = np.int(x0 - rnx)
-        lb1 = np.int(x0 - rnx + img.shape[1])
-
-        idx = np.isnan(img)
-        idv = np.where(idx == False)
-
-        #img_add = img - np.nanmean(img)
-        img_add = img - np.nanmedian(img)
-
-        rndm_sum[la0:la1, lb0:lb1][idv] = rndm_sum[la0:la1, lb0:lb1][idv] + img_add[idv]
-        rndm_count[la0:la1, lb0:lb1][idv] = img_add[idv]
-        id_nan = np.isnan(rndm_count)
-        id_fals = np.where(id_nan == False)
-        rndm_pcont[id_fals] = rndm_pcont[id_fals] + 1
-        rndm_count[la0:la1, lb0:lb1][idv] = np.nan
-
-        n_add += 1.
-
-    rndm_pcont[0, 0] = n_add
-    ## save the random center data
-    with h5py.File(tmp + 'rndm_sum_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
-        f['a'] = np.array(rndm_sum)
-    with h5py.File(tmp + 'rndm_sum_pcount_%d_in_%s_band.h5' % (rank, band[kk]), 'w') as f:
-        f['a'] = np.array(rndm_pcont)
-
     return
 
 def binned_img_flux():
@@ -379,25 +274,13 @@ def main():
     Ny = np.linspace(0, 3530, 3531)
 
     ## stack cluster
-    for kk in range(3):
-        ### pix SB pro. select imgs
-        with h5py.File(load + 'random_cat/rand_%s_band_pixSB-select_cat.h5' % band[kk], 'r') as f:
-            tmp_array = np.array(f['a'])
-        ra, dec, z = np.array(tmp_array[0]), np.array(tmp_array[1]), np.array(tmp_array[2])
+    for kk in range( 1 ):
 
-        '''        
-        with h5py.File(load + 'random_cat/rand_%s_band_catalog.h5' % (band[kk]), 'r') as f:
+        with h5py.File(load + 'random_cat/cat_select/rand_%s_band_catalog.h5' % (band[kk]), 'r') as f:
             tmp_array = np.array(f['a'])
         ra, dec, z, rich = np.array(tmp_array[0]), np.array(tmp_array[1]), np.array(tmp_array[2]), np.array(tmp_array[3])
         zN = len(z)
 
-        ## select part of imgs
-        n_step = zN // N_bin
-        id_arr = np.linspace(0, zN - 1, zN)
-        id_arr = id_arr.astype(int)
-        tt0 = np.int(7 * n_step)
-        set_z, set_ra, set_dec = z[:tt0], ra[:tt0], dec[:tt0]
-        '''
         set_z, set_ra, set_dec = z, ra, dec
 
         DN = len(set_z)
@@ -428,20 +311,6 @@ def main():
                 p_add_count[ivx] = p_add_count[ivx] + p_count[ivx]
                 tot_N += p_count[0, 0]
 
-                ## sub-stacking img
-                sub_mean = sum_img / p_count
-                id_zero = sub_mean == 0.
-                id_inf = np.isinf(sub_mean)
-                sub_mean[id_zero] = np.nan
-                sub_mean[id_inf] = np.nan
-
-                #with h5py.File(load + 'random_cat/stack/sub_sample/%s_band_stack_%d_sub-imgs.h5' % (band[kk], pp), 'w') as f:
-                #    f['a'] = np.array(sub_mean)
-                #with h5py.File(load + 'random_cat/stack/sub_sample/%s_band_rand-stack_%d_sub-imgs.h5' % (band[kk], pp), 'w') as f:
-                #    f['a'] = np.array(sub_mean)
-                #with h5py.File(load + 'random_cat/stack/sub_sample/%s_band_center-stack_%d_sub-imgs.h5' % (band[kk], pp), 'w') as f:
-                #    f['a'] = np.array(sub_mean)
-
             ## save the stack image
             tot_N = np.int(tot_N)
             id_zero = p_add_count == 0
@@ -451,32 +320,31 @@ def main():
             where_are_inf = np.isinf(stack_img)
             stack_img[where_are_inf] = np.nan
 
-            ### centered on the (ra, dec) in catalog
+            #### centered on the (ra, dec) in catalog (_stack_)
+            #### centered on the image center (_center-stack_)
+
+            ## after resampling imgs
             #with h5py.File(load + 'random_cat/stack/%s_band_stack_cluster_imgs.h5' % band[kk], 'w') as f:
             #    f['a'] = np.array(stack_img)
-            #with h5py.File(load + 'random_cat/stack/%s_band_stack_cluster_origin_imgs.h5' % band[kk], 'w') as f:
-            #    f['a'] = np.array(stack_img)
-
-            ### centered on the image frame center
             #with h5py.File(load + 'random_cat/stack/%s_band_center-stack_cluster_imgs.h5' % band[kk], 'w') as f:
             #    f['a'] = np.array(stack_img)
-            #with h5py.File(load + 'random_cat/stack/%s_band_center-stack_origin_imgs.h5' % band[kk], 'w') as f:
-            #    f['a'] = np.array(stack_img)
 
-            ### random center stacking
-            #with h5py.File(load + 'random_cat/stack/%s_band_rand-stack_cluster_imgs.h5' % band[kk], 'w') as f:
-            #    f['a'] = np.array(stack_img)
-
-            ### test smaple bias
+            ## test smaple bias
             #with h5py.File(load + 'random_cat/stack/sample_test/%s_band_center-stack_imgs.h5' % band[kk], 'w') as f:
             #    f['a'] = np.array(stack_img)
             #with h5py.File(load + 'random_cat/stack/sample_test/%s_band_stack_imgs.h5' % band[kk], 'w') as f:
             #    f['a'] = np.array(stack_img)
 
-            ### pix SB pro. select sample
-            with h5py.File(load + 'random_cat/stack/sample_test/%s_band_center-stack_pixSB-select_imgs.h5' % band[kk], 'w') as f:
+            ## Extinction-corrected + masking imgs
+            #with h5py.File(load + 'random_cat/angle_stack/%s_band_stack_cluster_Extinction-corrected-mask.h5' % band[kk], 'w') as f:
+            #    f['a'] = np.array(stack_img)
+            #with h5py.File(load + 'random_cat/angle_stack/%s_band_center-stack_Extinction-corrected-mask.h5' % band[kk], 'w') as f:
+            #    f['a'] = np.array(stack_img)
+
+            ## imgs without Extinction correction
+            with h5py.File(load + 'random_cat/angle_stack/%s_band_stack_mask-only_imgs.h5' % band[kk], 'w') as f:
                 f['a'] = np.array(stack_img)
-            #with h5py.File(load + 'random_cat/stack/sample_test/%s_band_stack_pixSB-select_imgs.h5' % band[kk], 'w') as f:
+            #with h5py.File(load + 'random_cat/angle_stack/%s_band_center-stack_mask-only_imgs.h5' % band[kk], 'w') as f:
             #    f['a'] = np.array(stack_img)
 
         commd.Barrier()
@@ -484,7 +352,7 @@ def main():
     ## stack sky
     for kk in range( 3 ):
 
-        with h5py.File(load + 'random_cat/rand_%s_band_catalog.h5' % (band[kk]), 'r') as f:
+        with h5py.File(load + 'random_cat/cat_select/rand_%s_band_catalog.h5' % (band[kk]), 'r') as f:
             tmp_array = np.array(f['a'])
         ra, dec, z, rich = np.array(tmp_array[0]), np.array(tmp_array[1]), np.array(tmp_array[2]), np.array(tmp_array[3])
         zN = len(z)
@@ -496,8 +364,7 @@ def main():
         N_sub0, N_sub1 = m * rank, (rank + 1) * m
         if rank == cpus - 1:
             N_sub1 += n
-        #sky_stack_BCG(kk, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
-        sky_stack_img_center(kk, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
+        sky_stack(kk, set_z[N_sub0 :N_sub1], set_ra[N_sub0 :N_sub1], set_dec[N_sub0 :N_sub1])
         commd.Barrier()
 
         ## combine all of the sub-stack imgs
@@ -527,13 +394,10 @@ def main():
             stack_img[id_inf] = np.nan
 
             ### sky img stacking
-            with h5py.File(load + 'random_cat/stack/%s_band_center-stack_sky_imgs.h5' % band[kk], 'w') as f:
-                f['a'] = np.array(stack_img)
-
-            #with h5py.File(load + 'random_cat/stack/sky-mean-sub_%s_band_img.h5' % band[kk], 'w') as f:
+            #with h5py.File(load + 'random_cat/angle_stack/%s_band_center-stack_sky_imgs.h5' % band[kk], 'w') as f:
             #    f['a'] = np.array(stack_img)
-            #with h5py.File(load + 'random_cat/stack/sky-median-sub_%s_band_img.h5' % band[kk], 'w') as f:
-            #   f['a'] = np.array(stack_img)
+            with h5py.File(load + 'random_cat/angle_stack/%s_band_stack_sky_imgs.h5' % band[kk], 'w') as f:
+                f['a'] = np.array(stack_img)
 
         commd.Barrier()
 

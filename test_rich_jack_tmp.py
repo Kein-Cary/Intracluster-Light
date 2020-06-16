@@ -126,12 +126,13 @@ def SB_result():
 	# calculate the cat_Rii at z = 0.25 in physical unit (kpc)
 	ref_Rii = Da_ref * cat_Rii * 10**3 / rad2asec # in unit kpc
 
-	d_load = load + 'rich_sample/scale_fig/'
+	d_load = load + 'rich_sample/scale_fig/R200_m/'
 
 	bins, R_smal, R_max = 95, 1, 3.0e3 ## for sky ICL
 	x0, y0 = 2427, 1765
 
 	bin_1Mpc = 75
+	bl_set = 0.7
 	Nx = np.linspace(0, 4854, 4855)
 	Ny = np.linspace(0, 3530, 3531)
 
@@ -139,23 +140,23 @@ def SB_result():
 
 		for lamda_k in range(3):
 
-			with h5py.File( load + 'rich_sample/jackknife/%s_band_%d_rich_R200.h5' % (band[kk], lamda_k), 'r') as f:
+			with h5py.File( load + 'rich_sample/jackknife/%s_band_%d_rich_R200m.h5' % (band[kk], lamda_k), 'r') as f:
 				dmp_array = np.array(f['a'])
 			R200 = dmp_array[0]
 			R_vir = np.median(R200)
 			#R_vir = np.mean(R200)
 			bins_0 = np.int( np.ceil(bin_1Mpc * R_vir / 1e3) )
-			R_min_0, R_max_0 = 1, R_vir # kpc
-			R_min_1, R_max_1 = R_vir + 100., R_max # kpc
+			R_min_0, R_max_0 = 1, bl_set * R_vir # kpc
+			R_min_1, R_max_1 = bl_set * R_vir + 100., R_max # kpc
 
-			if R_vir + 100. < R_max:
+			if R_min_1 < R_max:
 				x_quen = np.logspace(0, np.log10(R_max_0), bins_0)
 				d_step = np.log10(x_quen[-1]) - np.log10(x_quen[-2])
-				bins_1 = len( np.arange(np.log10(R_vir + 100.), np.log10(R_max), d_step) )
+				bins_1 = len( np.arange(np.log10(R_min_1), np.log10(R_max), d_step) )
 			else:
 				bins_1 = 0
 
-			r_a0, r_a1 = R_vir, R_vir + 100.
+			r_a0, r_a1 = R_max_0, R_min_1
 
 			## calculate the mean result of those sub-stack
 			m_BCG_img = np.zeros((len(Ny), len(Nx)), dtype = np.float)
@@ -620,7 +621,7 @@ def SB_result():
 			ax.grid(which = 'major', axis = 'both')
 			ax.tick_params(axis = 'both', which = 'both', direction = 'in')
 
-			subax = fig.add_axes([0.2, 0.2, 0.3, 0.3])
+			subax = fig.add_axes([0.2, 0.15, 0.3, 0.25])
 			subax.errorbar(Stack_R, Stack_SB, yerr = jk_Stack_err, xerr = None, color = 'r', marker = 'None', ls = '-', linewidth = 1, 
 				ecolor = 'r', elinewidth = 1, alpha = 0.5)
 			subax.errorbar(Add_R, Add_SB, yerr = jk_Add_err, xerr = None, color = 'g', marker = 'None', ls = '-', linewidth = 1, 
@@ -629,14 +630,14 @@ def SB_result():
 				ecolor = 'm', elinewidth = 1, alpha = 0.5,)
 			subax.plot(sky_R, m_sky_SB, color = 'c', ls = '-', linewidth = 1, alpha = 0.5)
 
-			subax.set_xlim(4e2, 1.5e3)
+			subax.set_xlim(1e3, 3e3)
 			subax.set_xscale('log')
 			if kk == 0:
-				subax.set_ylim(3e-3, 7e-3)
+				subax.set_ylim(3e-3, 1e-2)
 			if kk == 1:
-				subax.set_ylim(3e-3, 5e-3)
+				subax.set_ylim(2e-3, 7e-3)
 			if kk == 2:
-				subax.set_ylim(4e-3, 1e-2)
+				subax.set_ylim(2e-3, 2e-2)
 			subax.set_yscale('log')
 			subax.grid(which = 'both', axis = 'both')
 			subax.tick_params(axis = 'both', which = 'both', direction = 'in', labelsize = 5.)
@@ -679,7 +680,7 @@ def SB_result():
 			ax.grid(which = 'major', axis = 'both')
 			ax.tick_params(axis = 'both', which = 'both', direction = 'in')
 
-			subax = fig.add_axes([0.2, 0.2, 0.3, 0.3])
+			subax = fig.add_axes([0.2, 0.15, 0.3, 0.25])
 			subax.errorbar(jk_Stack_R, jk_Stack_SB, yerr = [jk_Stack_err0, jk_Stack_err1], xerr = None, color = 'r', marker = 'None', 
 				ls = '-', linewidth = 1, ecolor = 'r', elinewidth = 1, alpha = 0.5)
 			subax.errorbar(jk_add_R, jk_add_SB, yerr = [jk_add_err0, jk_add_err1], xerr = None, color = 'g', marker = 'None', ls = '-', 
@@ -689,14 +690,14 @@ def SB_result():
 			subax.plot(jk_sky_R, jk_sky_SB, color = 'c', ls = '-', linewidth = 1, alpha = 0.5)
 			subax.plot(m_BCG_r, m_BCG_SB, color = 'k', ls = '-', linewidth = 1, alpha = 0.5)
 
-			subax.set_xlim(4e2, 1.5e3)
+			subax.set_xlim(1e3, 3e3)
 			subax.set_xscale('log')
 			if kk == 0:
-				subax.set_ylim(28.0, 28.6)
+				subax.set_ylim(27.5, 28.7)
 			if kk == 1:
-				subax.set_ylim(28.4, 28.8)
+				subax.set_ylim(28.0, 29.0)
 			if kk == 2:
-				subax.set_ylim(27.4, 28.5)
+				subax.set_ylim(27.0, 29.0)
 			subax.invert_yaxis()
 			subax.grid(which = 'both', axis = 'both')
 			subax.tick_params(axis = 'both', which = 'both', direction = 'in', labelsize = 5.)
