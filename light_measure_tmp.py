@@ -108,7 +108,10 @@ def light_measure_pn(data, Nbin, R_small, R_max, cx, cy, psize, z0, pn):
 			id_nan = np.isnan(tmpf)
 			id_fals = id_nan == False
 			Tmpf = tmpf[id_fals]
-			intens_err[k] = np.nanstd(tmpf) / np.sqrt(len(Tmpf) - 1)
+
+			#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
+			RMS = np.std(Tmpf)
+			intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
 
 	intens[intens == 0] = np.nan
 	Intns = intens * 1
@@ -221,7 +224,10 @@ def light_measure_Z0(data, pix_size, r_lim, R_pix, cx, cy, bins):
 			id_nan = np.isnan(tmpf)
 			id_fals = id_nan == False
 			Tmpf = tmpf[id_fals]
-			intens_err[k] = np.nanstd(tmpf) / np.sqrt(len(Tmpf) - 1)
+
+			#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
+			RMS = np.std(Tmpf)
+			intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
 
 	intens[intens == 0] = np.nan
 	Intns = intens * 1
@@ -284,7 +290,10 @@ def light_measure_rn_Z0(data, R_low, R_up, cx, cy, pix_size, z0):
 	id_nan = np.isnan(tmpf)
 	id_fals = id_nan == False
 	Tmpf = tmpf[id_fals]
-	Intns_err = np.nanstd(tmpf) / np.sqrt(len(Tmpf) - 1)
+
+	#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
+	RMS = np.std(Tmpf)
+	Intns_err = RMS / np.sqrt(len(Tmpf) - 1)
 
 	Intns_r = (0.5 * (R_low + R_up) ) * pix_size
 
