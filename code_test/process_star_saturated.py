@@ -99,7 +99,7 @@ N_biny = 30
 #k_r = np.array([10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80]) ## general adjust
 #k_r = np.array([10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60]) ## for normal stars
 k_r = np.array([30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200]) ## for saturated stars
-"""
+
 for kk in range( len(k_r) ):
 
 	param_A = 'default_mask_A.sex'
@@ -157,7 +157,7 @@ for kk in range( len(k_r) ):
 	lr_iso = np.array([np.max(set_A[:,ll]) for ll in range(set_A.shape[1]) ])
 	sr_iso = np.array([np.max(set_B[:,ll]) for ll in range(set_B.shape[1]) ])
 
-	# normal stars
+	### normal stars
 	tau = k_r[kk] / 2
 
 	iq = lln >= 2 ## at lest observed in 2 band
@@ -171,7 +171,7 @@ for kk in range( len(k_r) ):
 	sub_B0 = sr_iso[ic] * 20
 	sub_chi0 = set_chi[ic]
 
-	# saturated source(may not stars)
+	### saturated source(may not stars)
 	xa = ['SATURATED' in qq for qq in xt]
 	xv = np.array(xa)
 	idx = xv == True
@@ -188,7 +188,7 @@ for kk in range( len(k_r) ):
 	Lr = np.r_[ sub_A0[sub_A0 > 0], sub_A2[sub_A2 > 0] ]
 	Sr = np.r_[ sub_B0[sub_A0 > 0], sub_B2[sub_A2 > 0] ]
 	phi = np.r_[ sub_chi0[sub_A0 > 0], sub_chi2[sub_A2 > 0] ]
-	'''
+
 	plt.figure()
 	ax = plt.subplot(111)
 	ax.set_title('source location')
@@ -196,18 +196,18 @@ for kk in range( len(k_r) ):
 
 	for mm in range( len(sub_x0) ):
 		ellips = Ellipse(xy = (sub_x0[mm], sub_y0[mm]), width = sub_A0[mm], height = sub_B0[mm], angle = sub_chi0[mm], fill = False, 
-			ec = 'g', ls = '-', alpha = 0.5,)
+			ec = 'g', ls = '-', lw = 0.5, alpha = 0.5,)
 		ax.add_patch(ellips)
 
 	for mm in range( len(sub_x2) ):
 		ellips = Ellipse(xy = (sub_x2[mm], sub_y2[mm]), width = sub_A2[mm], height = sub_B2[mm], angle = sub_chi2[mm], fill = False, 
-			ec = 'r', ls = '-', alpha = 0.5,)
+			ec = 'r', ls = '-', lw = 0.5, alpha = 0.5,)
 		ax.add_patch(ellips)
 	ax.set_xlim(-200, img.shape[1] + 200)
 	ax.set_ylim(-200, img.shape[0] + 200)
 	plt.savefig('source_location.png', dpi = 300)
-	plt.show()
-	'''
+	plt.close()
+
 	cx = np.r_[cx, comx]
 	cy = np.r_[cy, comy]
 	a = np.r_[a, Lr]
@@ -380,7 +380,7 @@ for kk in range( len(k_r) ):
 		f['flux'] = np.array(flux_in)
 
 raise
-"""
+
 ############## test for the flux hist
 def gau_func(x, mu, sigma):
 	return sts.norm.pdf(x, mu, sigma)
