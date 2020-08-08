@@ -1,7 +1,4 @@
 import numpy as np
-import astropy.constants as C
-import astropy.units as U
-import astroquery.sdss as asds
 import astropy.io.fits as fits
 import scipy.stats as sts
 
@@ -213,7 +210,18 @@ def main():
 
 	dat_clus = pds.read_csv(clu_file)
 	z, ra, dec, rich = np.array(dat_clus.z), np.array(dat_clus.ra), np.array(dat_clus.dec), np.array(dat_clus.rich)
-	set_z, set_ra, set_dec, set_rich = z[2613: 2814], ra[2613: 2814], dec[2613: 2814], rich[2613: 2814]
+
+	### select 1000 for test
+	Nt = 1000
+	#np.random.seed(1)
+	tt0 = np.random.choice( len(z), size = Nt, replace = False)
+	set_z, set_ra, set_dec, set_rich = z[tt0], ra[tt0], dec[tt0], rich[tt0]
+
+	keys = ['ra', 'dec', 'z', 'rich', 'order']
+	values = [set_ra, set_dec, set_z, set_rich, tt0]
+	fill = dict(zip(keys, values))
+	data = pds.DataFrame(fill)
+	data.to_csv('clust-1000-select_cat.csv')
 
 	dat_rnd = pds.read_csv(rnd_file)
 	rnd_z, rnd_ra, rnd_dec = np.array(dat_rnd.z), np.array(dat_rnd.ra), np.array(dat_rnd.dec)
@@ -223,7 +231,10 @@ def main():
 	import matplotlib.pyplot as plt
 	import scipy.stats as sts
 
-	clus_cont, edg_rich, edg_z = sts.binned_statistic_2d(set_rich, set_z, set_z, statistic = 'count', bins = [5, 6],)[:3]
+	#bins_rich = np.logspace(np.log10(np.min(set_rich)), np.log10(np.max(set_rich)), 25)
+	bins_rich = np.linspace(np.min(set_rich), np.max(set_rich), 25)
+	bins_z = np.linspace(set_z.min(), set_z.max(), 35)
+	clus_cont, edg_rich, edg_z = sts.binned_statistic_2d(set_rich, set_z, set_z, statistic = 'count', bins = [bins_rich, bins_z],)[:3]
 	clus_cont = clus_cont.astype(int)
 
 	targ_z, targ_ra, targ_dec, targ_rich = np.array([0]), np.array([0]), np.array([0]), np.array([0])
@@ -238,13 +249,15 @@ def main():
 				idv = idx & idy
 				sub_z, sub_ra, sub_dec, sub_rich = rnd_z[idv], rnd_ra[idv], rnd_dec[idv], rnd_rich[idv]
 
-				np.random.seed(1)
-				tt0 = np.random.choice( len(sub_z), size = clus_cont[kk,ll], replace = False)
+				if len(sub_z) < clus_cont[kk,ll]:
+					tt_order = np.random.choice( len(sub_z), size = len(sub_z), replace = False)
+				else:
+					tt_order = np.random.choice( len(sub_z), size = clus_cont[kk,ll], replace = False)
 
-				targ_z = np.r_[targ_z, sub_z[tt0] ]
-				targ_ra = np.r_[targ_ra, sub_ra[tt0] ]
-				targ_dec = np.r_[targ_dec, sub_dec[tt0] ]
-				targ_rich = np.r_[targ_rich, sub_rich[tt0] ]
+				targ_z = np.r_[targ_z, sub_z[tt_order] ]
+				targ_ra = np.r_[targ_ra, sub_ra[tt_order] ]
+				targ_dec = np.r_[targ_dec, sub_dec[tt_order] ]
+				targ_rich = np.r_[targ_rich, sub_rich[tt_order] ]
 
 	targ_z = targ_z[1:]
 	targ_ra = targ_ra[1:]
@@ -255,7 +268,7 @@ def main():
 	values = [targ_ra, targ_dec, targ_z, targ_rich]
 	fill = dict(zip(keys, values))
 	data = pds.DataFrame(fill)
-	data.to_csv('random_sub-13-match_cat.csv')
+	data.to_csv('random_clus-1000-match_cat.csv')
 
 	plt.figure()
 	plt.plot(set_z, set_rich, 'bs', alpha = 0.5, label = 'cluster')
@@ -264,6 +277,25 @@ def main():
 	plt.ylabel('$ \\lambda $')
 	plt.legend(loc = 2, frameon = False)
 	plt.savefig('compare.png', dpi = 300)
+	plt.close()
+
+	plt.figure()
+	plt.hist(set_z, bins = 30, alpha = 0.5, color = 'r', density = True, label = 'cluster img')
+	plt.hist(targ_z, bins = 30, alpha = 0.5, color = 'b', density = True, label = 'random img')
+	plt.xlabel('z')
+	plt.ylabel('PDF')
+	plt.legend(loc = 1, frameon = False)
+	plt.savefig('z_compare.png', dpi = 300)
+	plt.close()
+
+	plt.figure()
+	plt.hist(set_rich, bins = 25, alpha = 0.5, color = 'r', density = True, label = 'cluster img')
+	plt.hist(targ_rich, bins = 25, alpha = 0.5, color = 'b', density = True, label = 'random img')
+	plt.xlabel('$ \\lambda $')
+	plt.ylabel('PDF')
+	plt.yscale('log')
+	plt.legend(loc = 1, frameon = False)
+	plt.savefig('lambda_compare.png', dpi = 300)
 	plt.close()
 
 	raise

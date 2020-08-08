@@ -33,20 +33,22 @@ def sky_build_func(d_file, z_set, ra_set, dec_set, band, out_file):
 		hdu = fits.PrimaryHDU()
 		hdu.data = sky_bl
 		hdu.header = data[0].header
-		hdu.writeto(out_file + 'sky-%s-band-ra%.3f-dec%.3f-z%.3f.fits' % (band, ra_g, dec_g, z_g,), overwrite = True)
+		hdu.writeto(out_file % (ra_g, dec_g, z_g, band), overwrite = True)
 
 	return
 
 def main():
+	home = '/media/xkchen/My Passport/data/SDSS/'
 
-	dat = pds.read_csv('/home/xkchen/mywork/ICL/r_band_sky_catalog.csv')
-	ra, dec, z = dat.ra, dat.dec, dat.z
-	Nz = 10
-	set_ra, set_dec, set_z = ra[:10], dec[:10], z[:10]
-	d_file = '/home/xkchen/mywork/ICL/data/sdss_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
-	out_file = '/home/xkchen/mywork/ICL/data/tmp_img/source_find/'
+	dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/random_clus-1000-match_cat.csv')
+	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
+	d_file = home + 'redMap_random/rand_img-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
+	out_file = '/media/xkchen/My Passport/data/SDSS/random_cat/sky_img/random_sky-ra%.3f-dec%.3f-z%.3f-%s-band.fits'
+
 	band = 'r'
 	sky_build_func(d_file, set_z, set_ra, set_dec, band, out_file)
+
+	raise
 
 if __name__ == "__main__":
 	main()

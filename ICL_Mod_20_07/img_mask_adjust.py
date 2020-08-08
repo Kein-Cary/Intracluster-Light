@@ -10,8 +10,15 @@ import astropy.units as U
 import astropy.constants as C
 from astropy import cosmology as apcy
 
-def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, stack_info = None, pixel = 0.396,):
+from groups import groups_find_func
+
+def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, stack_info = None, pixel = 0.396,):
 	"""
+	after img masking, use this function to detection "light" region, which
+	mainly due to nearby brightstars, for SDSS case: taking the brightness of
+	img center region as a normal brightness (mu, with scatter sigma), and rule out all the sub-patches
+	whose mean pixel flux is larger than mu + 3.5 * sigma
+	------------
 	d_file : path where image data saved (include file-name structure:
 	'/xxx/xxx/xxx.xxx')
 	cat_file : path where photometric data saved, the same structure as d_file
@@ -75,6 +82,8 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 		set_mag = np.array(cat['r'])
 		OBJ = np.array(cat['type'])
 		xt = cat['Column1']
+		flags = [str(qq) for qq in xt]
+
 		x, y = wcs_lis.all_world2pix(set_ra * U.deg, set_dec * U.deg, 1)
 
 		set_A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) / pixel
@@ -98,7 +107,7 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 		sub_chi0 = set_chi[ic]
 
 		# saturated source(may not stars)
-		xa = ['SATURATED' in qq for qq in xt]
+		xa = ['SATURATED' in qq for qq in flags]
 		xv = np.array(xa)
 		idx = xv == True
 		ipx = (idx)
@@ -109,11 +118,11 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 		sub_B2 = sr_iso[ipx] * 75
 		sub_chi2 = set_chi[ipx]
 
-		comx = np.r_[sub_x0[sub_A0 > 0], sub_x2[sub_A2 > 0]]
-		comy = np.r_[sub_y0[sub_A0 > 0], sub_y2[sub_A2 > 0]]
-		Lr = np.r_[sub_A0[sub_A0 > 0], sub_A2[sub_A2 > 0]]
-		Sr = np.r_[sub_B0[sub_A0 > 0], sub_B2[sub_A2 > 0]]
-		phi = np.r_[sub_chi0[sub_A0 > 0], sub_chi2[sub_A2 > 0]]
+		comx = np.r_[sub_x0[sub_A0 > 0], sub_x2[sub_A2 > 0] ]
+		comy = np.r_[sub_y0[sub_A0 > 0], sub_y2[sub_A2 > 0] ]
+		Lr = np.r_[sub_A0[sub_A0 > 0], sub_A2[sub_A2 > 0] ]
+		Sr = np.r_[sub_B0[sub_A0 > 0], sub_B2[sub_A2 > 0] ]
+		phi = np.r_[sub_chi0[sub_A0 > 0], sub_chi2[sub_A2 > 0] ]
 
 		tot_cx = np.r_[cx, comx]
 		tot_cy = np.r_[cy, comy]
@@ -157,11 +166,11 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 
 		mask_img = mask_path * img
 
+		## add back the BCG region
 		if bcg_mask == 0:
-			## add back the BCG region
 			tdr = np.sqrt((xn - cx)**2 + (yn - cy)**2)
 			idx = tdr == np.min(tdr)
-			lr = A[idx] * 2.5
+			lr = A[idx] * 2.5 # 2.5 R_Kron
 
 			set_r = np.int(np.ceil(1.0 * lr))
 			la0 = np.max( [np.int(cx[idx] - set_r), 0])
@@ -193,24 +202,33 @@ def main():
 	load = '/media/xkchen/My Passport/data/SDSS/'
 
 	## cluster
-	with h5py.File(load + 'mpi_h5/r_band_sky_catalog.h5', 'r') as f:
-		set_array = np.array(f['a'])
-	ra, dec, z = set_array[0,:], set_array[1,:], set_array[2,:]
+	#with h5py.File(load + 'mpi_h5/r_band_sky_catalog.h5', 'r') as f:
+	#	set_array = np.array(f['a'])
+	#ra, dec, z = set_array[0,:], set_array[1,:], set_array[2,:]
+
+	dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/clust-1000-select_cat.csv')
+	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 
 	d_file = home + 'wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
 	cat_file = '/home/xkchen/mywork/ICL/data/star_dr12_reload/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
+	#cat_file = '/home/xkchen/mywork/ICL/data/tmp_img/tmp_stars/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' ### with larger query region
+
 	out_file0 = '/home/xkchen/mywork/ICL/data/tmp_img/source_find/cluster_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
 	out_file1 = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
 
 	bcg_mask = 1
 	band = 'r'
-	stack_info = 'cluster_BCG_img-position.csv'
-	mask_func(d_file, cat_file, z, ra, dec, band, out_file0, out_file1, bcg_mask, stack_info)
+	stack_info = 'clust-1000-select_cat_bcg-pos.csv'
+	adjust_mask_func(d_file, cat_file, set_z, set_ra, set_dec, band, out_file0, out_file1, bcg_mask, stack_info)
+
 
 	## random
-	with h5py.File(load + 'random_cat/cat_select/rand_r_band_catalog.h5', 'r') as f:
-		tmp_array = np.array(f['a'])
-	ra, dec, z = np.array(tmp_array[0]), np.array(tmp_array[1]), np.array(tmp_array[2])
+	#with h5py.File(load + 'random_cat/cat_select/rand_r_band_catalog.h5', 'r') as f:
+	#	tmp_array = np.array(f['a'])
+	#ra, dec, z = np.array(tmp_array[0]), np.array(tmp_array[1]), np.array(tmp_array[2])
+
+	dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/random_clus-1000-match_cat.csv')
+	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 
 	d_file = home + 'redMap_random/rand_img-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
 	cat_file = home + 'random_cat/star_cat/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
@@ -219,8 +237,117 @@ def main():
 
 	bcg_mask = 1
 	band = 'r'
-	stack_info = 'random_BCG_img-position.csv'
-	mask_func(d_file, cat_file, z, ra, dec, band, out_file0, out_file1, bcg_mask, stack_info)
+	stack_info = 'random_clus_1000-match_bcg-pos.csv'
+	adjust_mask_func(d_file, cat_file, set_z, set_ra, set_dec, band, out_file0, out_file1, bcg_mask, stack_info)
 
 if __name__ == "__main__":
 	main()
+
+"""
+#### delete part
+		## grid the masked img and rule out those 'too bright' region
+		N_step = 100
+		ca0, ca1 = np.int(img.shape[0] / 2), np.int(img.shape[1] / 2)
+		cen_D = 500
+		flux_cen = mask_img[ca0 - cen_D: ca0 + cen_D, ca1 - cen_D: ca1 + cen_D]
+
+		cen_lx = np.arange(0, 2 * cen_D + 100, N_step)
+		cen_ly = np.arange(0, 2 * cen_D + 100, N_step)
+
+		sub_pock_pix = np.zeros( (len(cen_ly) - 1, len(cen_lx) - 1), dtype = np.float)
+		sub_pock_flux = np.zeros( (len(cen_ly) - 1, len(cen_lx) - 1), dtype = np.float)
+		for nn in range( len(cen_ly) - 1 ):
+			for tt in range( len(cen_lx) - 1 ):
+				sub_flux = flux_cen[ cen_ly[nn]: cen_ly[nn+1], cen_lx[tt]: cen_lx[tt+1] ]
+				id_nn = np.isnan(sub_flux)
+				sub_pock_flux[nn,tt] = np.nanmean(sub_flux)
+				sub_pock_pix[nn,tt] = len(sub_flux[id_nn == False])
+
+		id_Nzero = sub_pock_pix > 100
+		mu = np.nanmean( sub_pock_flux[id_Nzero] )
+		sigm = np.nanstd( sub_pock_flux[id_Nzero] )
+
+		ly = np.arange(0, img.shape[0], N_step)
+		ly = np.r_[ly, img.shape[0] - N_step, img.shape[0] ]
+		lx = np.arange(0, img.shape[1], N_step)
+		lx = np.r_[lx, img.shape[1] - N_step, img.shape[1] ]
+
+		patch_mean = np.zeros( (len(ly) - 1, len(lx) - 1), dtype = np.float )
+		patch_pix = np.zeros( (len(ly) - 1, len(lx) - 1), dtype = np.float )
+		for nn in range( len(ly) - 1 ):
+			for tt in range( len(lx) - 1 ):
+				if nn == len(ly) - 3:
+					nn += 1
+				if tt == len(lx) - 3:
+					tt += 1
+				sub_flux = mask_img[ly[nn]: ly[nn + 1], lx[tt]: lx[tt+1]]
+				id_nn = np.isnan(sub_flux)
+				patch_mean[nn,tt] = np.mean( sub_flux[id_nn == False] )
+				patch_pix[nn,tt] = len( sub_flux[id_nn == False] )
+
+		id_zeros = patch_pix == 0.
+		patch_pix[id_zeros] = np.nan
+		patch_mean[id_zeros] = np.nan
+		over_sb = (patch_mean - mu) / sigm
+
+		## regulate the 'over_sb' and (ly,lx) for region selection
+		over_sb = np.delete(over_sb, -2, axis = 0)
+		over_sb = np.delete(over_sb, -2, axis = 1)
+		lx = np.delete(lx, -3)
+		lx = np.delete(lx, -1)
+		ly = np.delete(ly, -3)
+		ly = np.delete(ly, -1)
+
+		## rule out regions with mean flux brighter then X-sigma of the centeral mean value,
+		## and also those region need to at least include 5 (or more) subpatches
+		lim_sb = 5.5
+		copy_arr = over_sb.copy()
+		idnn = np.isnan(over_sb)
+		copy_arr[idnn] = 100
+		source_n, coord_x, coord_y = groups_find_func(copy_arr, lim_sb)
+
+		lo_xs = lx[ [np.min( ll ) for ll in coord_x] ]
+		hi_xs = lx[ [np.max( ll ) for ll in coord_x] ]
+		lo_ys = ly[ [np.min( ll ) for ll in coord_y] ]
+		hi_ys = ly[ [np.max( ll ) for ll in coord_y] ]
+
+		idux = (lo_xs <= 500) | (2000 - hi_xs <= 500)
+		iduy = (lo_ys <= 500) | (1400 - hi_ys <= 500)
+		idu = idux | iduy
+
+		idv = np.array(source_n) >= 5
+
+		id_pat = idu & idv
+		id_True = np.where(id_pat == True)[0]
+
+		for qq in range( len(id_True) ):
+
+			sub_edgx = np.array( lx[ coord_x[ id_True[qq] ] ] )
+			sub_edgy = np.array( ly[ coord_y[ id_True[qq] ] ] )
+
+			for mm in range( source_n[ id_True[qq] ] ):
+
+				a0, a1 = sub_edgx[mm], sub_edgx[mm] + N_step
+				b0, b1 = sub_edgy[mm], sub_edgy[mm] + N_step
+
+				mask_img[b0: b1, a0: a1] = np.nan
+
+		'''
+		id_mean = over_sb >= 5.5
+		id_pat = id_mean
+
+		if np.sum(id_pat) > 0:
+			idv = np.where(id_pat == True)
+			for tt in range( np.sum(id_pat) ):
+
+				xi, yi = lx[ idv[1][tt] ], ly[ idv[0][tt] ]
+
+				da0, da1 = xi, 2000 - xi
+				db0, db1 = yi, 1400 - yi
+
+				ida = (da0 <= 400) | (da1 <= 500)
+				idb = (db0 <= 400) | (db1 <= 500)
+				if (ida | idb):
+					mask_img[yi: yi + N_step, xi: xi + N_step] = np.nan
+		'''
+"""
