@@ -27,6 +27,7 @@ Omega_lambda = 1.-Omega_m
 Omega_k = 1.- (Omega_lambda + Omega_m)
 DH = vc/H0
 
+### dimming effect correction
 def flux_recal(data, z0, zref):
 	"""
 	this function is used to rescale the pixel flux of sample images to reference redshift
@@ -39,6 +40,7 @@ def flux_recal(data, z0, zref):
 	flux = obs * (1 + z0)**4 * Da0**2 / ((1 + z1)**4 * Da1**2)
 	return flux
 
+### surface brightness profile measurement
 def light_measure(data, Nbin, R_small, R_max, cx, cy, pix_size, z0):
 	"""
 	data: data used to measure (2D-array)
@@ -96,7 +98,7 @@ def light_measure(data, Nbin, R_small, R_max, cx, cy, pix_size, z0):
 			samp_chi = chi[ir]
 
 			tot_flux = np.nanmean(samp_flux)
-			tot_area = pix_size**2
+
 			intens[k] = tot_flux
 			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
 
@@ -243,7 +245,7 @@ def light_measure_Z0(data, pix_size, r_lim, R_pix, cx, cy, bins):
 			samp_flux = data[ir]
 			samp_chi = chi[ir]
 			tot_flux = np.nanmean(samp_flux)
-			tot_area = pix_size**2
+
 			intens[k] = tot_flux
 			Angl_r[k] = 0.5 * (r_iner + r_out) * pix_size
 
@@ -277,6 +279,269 @@ def light_measure_Z0(data, pix_size, r_lim, R_pix, cx, cy, bins):
 	Angl_r[Angl_r == 0] = np.nan
 
 	return Intns, Angl_r, Intns_err
+
+### surface brightness profile measurement (weight version)
+def light_measure_Z0_weit(data, weit_data, pix_size, r_lim, R_pix, cx, cy, bins):
+	"""
+	This part use for measuring surface brightness(SB) of objs those redshift 
+		is too small or is zero. ie. the sky brightness.
+	data : the image use to measure SB profile
+	pix_size : pixel size, in unit of "arcsec"
+	r_lim : the smallest radius of SB profile
+	R_pix : the radius of objs in unit of pixel number
+	cx, cy : the central position of objs in the image frame
+	weit_data : the weight array for surface brightness profile measurement, it's must be 
+	the same size as the 'data' array
+	"""
+
+	Nx = data.shape[1]
+	Ny = data.shape[0]
+	x0 = np.linspace(0, Nx-1, Nx)
+	y0 = np.linspace(0, Ny-1, Ny)
+	pix_id = np.array(np.meshgrid(x0,y0))
+
+	theta = np.arctan2((pix_id[1,:] - cy), (pix_id[0,:] - cx))
+	chi = theta * 180 / np.pi
+	# radius in unit of pixel number
+	rbin = np.logspace(np.log10(r_lim), np.log10(R_pix), bins)
+
+	intens = np.zeros(len(rbin), dtype = np.float)
+	intens_err = np.zeros(len(rbin), dtype = np.float)
+	Angl_r = np.zeros(len(rbin), dtype = np.float)
+
+	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
+		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
+
+	for k in range(len(rbin) - 1):
+		cdr = rbin[k + 1] - rbin[k]
+		d_phi = (cdr / ( 0.5 * (rbin[k] + rbin[k + 1]) ) ) * 180 / np.pi
+		N_phi = np.int(360 / d_phi) + 1
+		phi = np.linspace(0, 360, N_phi)
+		phi = phi - 180
+
+		ir = (dr >= rbin[k]) & (dr < rbin[k + 1])
+
+		bool_sum = np.sum(ir)
+
+		r_iner = rbin[k]
+		r_out = rbin[k + 1]
+
+		if bool_sum == 0:
+			intens[k] = np.nan
+			intens_err[k] = np.nan
+			Angl_r[k] = 0.5 * (r_iner + r_out) * pix_size
+
+		else:
+			weit_arr = weit_data[ir]
+
+			samp_flux = data[ir]
+			samp_chi = chi[ir]
+
+			tot_flux = np.nansum(samp_flux * weit_arr) / np.nansum(weit_arr)
+
+			intens[k] = tot_flux
+			Angl_r[k] = 0.5 * (r_iner + r_out) * pix_size
+
+			tmpf = []
+			for tt in range(len(phi) - 1):
+				iv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt+1])
+
+				set_samp = samp_flux[iv]
+				set_weit = weit_arr[iv]
+
+				ttf = np.nansum(set_samp * set_weit) / np.nansum(set_weit)
+				tmpf.append(ttf)
+
+			# rms of flux
+			tmpf = np.array(tmpf)
+			id_inf = np.isnan(tmpf)
+			tmpf[id_inf] = np.nan
+			id_zero = tmpf == 0
+			tmpf[id_zero] = np.nan
+			id_nan = np.isnan(tmpf)
+			id_fals = id_nan == False
+			Tmpf = tmpf[id_fals]
+
+			#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
+			RMS = np.std(Tmpf)
+			intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+
+	intens[intens == 0] = np.nan
+	Intns = intens * 1
+
+	intens_err[intens_err == 0] = np.nan
+	Intns_err = intens_err * 1
+
+	Angl_r[Angl_r == 0] = np.nan
+
+	return Intns, Angl_r, Intns_err
+
+def light_measure_rn_weit(data, weit_data, R_low, R_up, cx, cy, pix_size, z0):
+	"""
+	use to get the surface brightness for given radius
+	data : data used to measure brightness (2D-array)
+	R_low, R_up : the low_limit and up_limit of the given radius (in unit of "kpc")
+	cx, cy : the center location / the reference point of the radius
+	pix_size : the pixel size in unit of arcsec
+	z0 : the redshift of the data
+	weit_data : the weight array for surface brightness profile measurement, it's must be 
+	the same size as the 'data' array
+	"""
+	Da0 = Test_model.angular_diameter_distance(z0).value
+	R_pix_low = (R_low * 1e-3 * rad2arcsec / Da0) / pix_size
+	R_pix_up = (R_up * 1e-3 * rad2arcsec / Da0) / pix_size
+
+	Nx = data.shape[1]
+	Ny = data.shape[0]
+	x0 = np.linspace(0, Nx-1, Nx)
+	y0 = np.linspace(0, Ny-1, Ny)
+	pix_id = np.array(np.meshgrid(x0,y0))
+
+	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
+		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
+	idu = (dr >= R_pix_low) & (dr <= R_pix_up)
+
+	theta = np.arctan2((pix_id[1,:] - cy), (pix_id[0,:] - cx))
+	chi = theta * 180 / np.pi
+
+	samp_chi = chi[idu]
+	samp_flux = data[idu]
+	weit_arr = weit_data[idu]
+	Intns = np.nansum( samp_flux * weit_arr ) / np.nansum( weit_arr )
+
+	cdr = R_up - R_low
+	d_phi = ( cdr / (0.5 * (R_low + R_up) ) ) * 180 / np.pi
+	N_phi = np.int(360 / d_phi) + 1
+	phi = np.linspace(0, 360, N_phi)
+	phi = phi - 180.
+
+	tmpf = []
+	for tt in range(len(phi) - 1):
+		idv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt + 1])
+
+		set_samp = samp_flux[idv]
+		set_weit = weit_arr[idv]
+
+		ttf = np.nansum(set_samp * set_weit) / np.nansum( set_weit )
+		tmpf.append(ttf)
+
+	# rms of flux
+	tmpf = np.array(tmpf)
+	id_inf = np.isnan(tmpf)
+	tmpf[id_inf] = np.nan
+	id_zero = tmpf == 0
+	tmpf[id_zero] = np.nan
+
+	id_nan = np.isnan(tmpf)
+	id_fals = id_nan == False
+	Tmpf = tmpf[id_fals]
+	#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
+	RMS = np.std(Tmpf)
+	Intns_err = RMS / np.sqrt(len(Tmpf) - 1)
+
+	Intns_r = (0.5 * (R_low + R_up) )
+
+	return Intns_r, Intns, Intns_err
+
+def light_measure_weit(data, weit_data, Nbin, R_small, R_max, cx, cy, pix_size, z0):
+	"""
+	data: data used to measure (2D-array)
+	Nbin: number of bins will devide
+	Rp: radius in unit pixel number
+	cx, cy: cluster central position in image frame (in inuit pixel)
+	pix_size: pixel size
+	z : the redshift of data
+	weit_data : the weight array for surface brightness profile measurement, it's must be 
+	the same size as the 'data' array
+	"""
+	Da0 = Test_model.angular_diameter_distance(z0).value
+	Nx = data.shape[1]
+	Ny = data.shape[0]
+	x0 = np.linspace(0, Nx-1, Nx)
+	y0 = np.linspace(0, Ny-1, Ny)
+	pix_id = np.array(np.meshgrid(x0,y0))
+
+	theta = np.arctan2((pix_id[1,:]-cy), (pix_id[0,:]-cx))
+	chi = theta * 180 / np.pi
+
+	divi_r = np.logspace(np.log10(R_small), np.log10(R_max), Nbin)
+	r = (divi_r * 1e-3 * rad2arcsec / Da0) / pix_size
+	ia = r <= 1. # smaller than 1 pixel
+	ib = r[ia]
+	ic = len(ib)
+	rbin = r[ic:]
+	set_r = divi_r[ic:]
+
+	intens = np.zeros(len(r) - ic, dtype = np.float)
+	intens_r = np.zeros(len(r) - ic, dtype = np.float)
+	intens_err = np.zeros(len(r) - ic, dtype = np.float)
+
+	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
+		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
+
+	for k in range(len(rbin) - 1):
+		cdr = rbin[k + 1] - rbin[k]
+		d_phi = (cdr / ( 0.5 * (rbin[k] + rbin[k + 1]) ) ) * 180 / np.pi
+		N_phi = np.int(360 / d_phi) + 1
+		phi = np.linspace(0, 360, N_phi)
+		phi = phi - 180
+
+		ir = (dr >= rbin[k]) & (dr < rbin[k + 1])
+		bool_sum = np.sum(ir)
+
+		r_iner = set_r[k] ## useing radius in unit of kpc
+		r_out = set_r[k + 1]
+
+		if bool_sum == 0:
+			intens[k] = np.nan
+			intens_err[k] = np.nan
+			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
+
+		else:
+			weit_arr = weit_data[ir]
+
+			samp_flux = data[ir]
+			samp_chi = chi[ir]
+			tot_flux = np.nansum(samp_flux * weit_arr) / np.nansum(weit_arr)
+
+			intens[k] = tot_flux
+			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
+
+			tmpf = []
+			for tt in range(len(phi) - 1):
+
+				iv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt+1])
+
+				set_samp = samp_flux[iv]
+				set_weit = weit_arr[iv]
+
+				ttf = np.nansum(set_samp * set_weit) / np.nansum(set_weit)
+				tmpf.append(ttf)
+
+			# rms of flux
+			tmpf = np.array(tmpf)
+			id_inf = np.isnan(tmpf)
+			tmpf[id_inf] = np.nan
+			id_zero = tmpf == 0
+			tmpf[id_zero] = np.nan
+
+			id_nan = np.isnan(tmpf)
+			id_fals = id_nan == False
+			Tmpf = tmpf[id_fals]
+			#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
+			RMS = np.std(Tmpf)
+			intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+
+	intens[intens == 0] = np.nan
+	Intns = intens * 1
+
+	intens_r[intens_r == 0] = np.nan
+	Intns_r = intens_r * 1
+	
+	intens_err[intens_err == 0] = np.nan
+	Intns_err = intens_err * 1
+
+	return Intns, Intns_r, Intns_err
 
 @vectorize
 def sigmamc(r, Mc, c):

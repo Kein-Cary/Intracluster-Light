@@ -25,7 +25,7 @@ Da_ref = Test_model.angular_diameter_distance(z_ref).value
 # constant
 rad2asec = U.rad.to(U.arcsec)
 
-def resamp_func(d_file, z_set, ra_set, dec_set, band, out_file, pixel = 0.396):
+def resamp_func(d_file, z_set, ra_set, dec_set, band, out_file, stack_info = None, pixel = 0.396,):
 	"""
 	d_file : path where save the masked data (include file-name structure:'/xxx/xxx/xxx.xxx')
 	z_set, ra_set, dec_set : ra, dec, z of will be resampled imgs
@@ -34,6 +34,7 @@ def resamp_func(d_file, z_set, ra_set, dec_set, band, out_file, pixel = 0.396):
 	pixel : pixel scale, in unit 'arcsec' (default is 0.396)
 	"""
 	zn = len(z_set)
+	bcg_x, bcg_y = [], []
 
 	for k in range(zn):
 		ra_g = ra_set[k]
@@ -69,6 +70,10 @@ def resamp_func(d_file, z_set, ra_set, dec_set, band, out_file, pixel = 0.396):
 
 		xn = np.int(xn)
 		yn = np.int(yn)
+
+		bcg_x.append(xn)
+		bcg_y.append(yn)
+
 		x0 = resam.shape[1]
 		y0 = resam.shape[0]
 
@@ -77,7 +82,17 @@ def resamp_func(d_file, z_set, ra_set, dec_set, band, out_file, pixel = 0.396):
 		value = ['T', 32, 2, x0, y0, ix0, iy0, xn, yn, RA0, DEC0, ra_g, dec_g, z_g, pixel]
 		ff = dict(zip(keys,value))
 		fil = fits.Header(ff)
-		fits.writeto(out_file + 'resamp-%s-ra%.3f-dec%.3f-redshift%.3f.fits' % (band, ra_g, dec_g, z_g), out_data, header = fil, overwrite = True)
+		fits.writeto(out_file % (band, ra_g, dec_g, z_g), out_data, header = fil, overwrite = True)
+
+	bcg_x = np.array(bcg_x)
+	bcg_y = np.array(bcg_y)
+
+	if stack_info != None:
+		keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y']
+		values = [ra_set, dec_set, z_set, bcg_x, bcg_y]
+		fill = dict(zip(keys, values))
+		data = pds.DataFrame(fill)
+		data.to_csv(stack_info)
 
 	return
 
@@ -88,10 +103,11 @@ def main():
 	Nz = 10
 	set_ra, set_dec, set_z = ra[:10], dec[:10], z[:10]
 
-	out_file = '/home/xkchen/mywork/ICL/data/tmp_img/source_find/'
+	out_file = '/home/xkchen/mywork/ICL/data/tmp_img/source_find/resamp-%s-ra%.3f-dec%.3f-redshift%.3f.fits'
 	d_file = '/home/xkchen/mywork/ICL/data/tmp_img/source_find/mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
 	band = 'r'
-	resamp_func(d_file, set_z, set_ra, set_dec, band, out_file)
+	stack_info = 'r_band_sky-cat_BCG-pos.csv'
+	resamp_func(d_file, set_z, set_ra, set_dec, band, out_file, stack_info,)
 
 if __name__ == "__main__":
 	main()

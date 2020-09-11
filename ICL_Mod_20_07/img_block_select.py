@@ -59,9 +59,9 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 		mu = np.nanmean( sub_pock_flux[id_Nzero] )
 		sigm = np.nanstd( sub_pock_flux[id_Nzero] )
 
-		ly = np.arange(0, 1489, N_step)
+		ly = np.arange(0, img.shape[0], N_step)
 		ly = np.r_[ly, img.shape[0] - N_step, img.shape[0] ]
-		lx = np.arange(0, 2048, N_step)
+		lx = np.arange(0, img.shape[1], N_step)
 		lx = np.r_[lx, img.shape[1] - N_step, img.shape[1] ]
 		patch_mean = np.zeros( (len(ly) - 1, len(lx) - 1), dtype = np.float )
 		patch_pix = np.zeros( (len(ly) - 1, len(lx) - 1), dtype = np.float )
@@ -89,7 +89,7 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 		ly = np.delete(ly, -1)
 
 		##### img selection
-		lim_sb = 6.1
+		lim_sb = 5.5
 		### first select
 		identi = over_sb > lim_sb
 
@@ -116,8 +116,8 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 			iduy = (lo_ys <= 500) | (1400 - hi_ys <= 500)
 			idu = idux | iduy
 
-			### select groups with block number larger or equal to 4
-			idv_s = np.array(source_n) >= 4
+			### select groups with block number larger or equal to 3
+			idv_s = (np.array(source_n) >= 3)
 			id_pat_s = idu & idv_s
 
 			if np.sum(id_pat_s) < 1:
@@ -132,17 +132,22 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 				loop_N = np.sum(id_pat_s)
 				pur_N = np.zeros(loop_N, dtype = np.int)
 				pur_mask = np.zeros(loop_N, dtype = np.int)
-				devi_grd = np.zeros(loop_N, dtype = np.int)
+				pur_outlier = np.zeros(loop_N, dtype = np.int)
+
 				for ll in range( loop_N ):
 					id_group = id_True[ll]
 					tot_pont = source_n[ id_group ]
 					tmp_arr = copy_arr[ coord_y[ id_group ], coord_x[ id_group ] ]
 					id_out = tmp_arr == 100.
+					id_2_bright = tmp_arr > 9.5
+
 					pur_N[ll] = tot_pont - np.sum(id_out)
 					pur_mask[ll] = np.sum(id_out)
 
+					pur_outlier[ll] = np.sum(id_2_bright) * ( np.sum(id_out) == 0)
+
 				## at least 2 blocks have mean value above the lim_sb and close to a big mask region
-				idnum = (pur_N >= 2) & (pur_mask >= 2)
+				idnum = ( (pur_N >= 2) & (pur_mask >= 1) ) | (pur_outlier >= 1)
 
 				if np.sum(idnum) >= 1:
 					bad_ra.append(ra_g)
@@ -152,9 +157,9 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 					bad_bcgy.append(yn)
 
 				else:
-
-					### search for larger groups
-					idv = np.array(source_n) >= 6
+					## search for larger groups
+					# each group include 5 patches at least
+					idv = np.array(source_n) >= 5
 					id_pat = idu & idv
 
 					if np.sum(id_pat) < 1:
@@ -191,7 +196,7 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 							bad_z.append(z_g)
 							bad_bcgx.append(xn)
 							bad_bcgy.append(yn)
-	### 'bad' imgs						
+	### 'bad' imgs
 	x_ra = np.array( bad_ra )
 	x_dec = np.array( bad_dec )
 	x_z = np.array( bad_z )
@@ -217,31 +222,29 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 	return
 
 def main():
+
 	import time
 
 	band = ['r', 'g', 'i']
 	home = '/media/xkchen/My Passport/data/SDSS/'
 
-	t0 = time.time()
-	##### select un-clear biased img
-	dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/clust-1000-select_cat.csv')
+	##### cluster imgs
+	dat = pds.read_csv('cluster_tot-r-band_norm-img_cat.csv')
 	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
+	d_file = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
+	rule_file = 'tot_clust_rule-out_cat.csv'
+	remain_file = 'tot_clust_remain_cat.csv'
+	diffuse_identi_func(band[0], set_ra, set_dec, set_z, d_file, rule_file, remain_file,)
 
-	d_file = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
-	rule_file = 'clust-1000-select_rule-out_test.csv'
-	remain_file = 'clust-1000-select_remain_test.csv'
-	diffuse_identi_func(band[0], set_ra, set_dec, set_z, d_file, rule_file, remain_file)
-	t1 = time.time() - t0
-	print(t1)
+	print('cluster finished!')
 
 	##### random imgs
-	dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/random_clus-1000-match_cat.csv')
+	dat = pds.read_csv('random_tot-r-band_norm-img_cat.csv')
 	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
-
-	d_file = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
-	rule_file = 'random_clus-1000-match_rule-out_test.csv'
-	remain_file = 'random_clus-1000-match_remain_test.csv'
-	diffuse_identi_func(band[0], set_ra, set_dec, set_z, d_file, rule_file, remain_file)
+	d_file = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
+	rule_file = 'tot_random_rule-out_cat.csv'
+	remain_file = 'tot_random_remain_cat.csv'
+	diffuse_identi_func(band[0], set_ra, set_dec, set_z, d_file, rule_file, remain_file,)
 
 	raise
 

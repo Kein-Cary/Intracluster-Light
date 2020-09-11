@@ -19,7 +19,7 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 	band: band of image data, 'str' type
 	out_file0 : save sources information
 	out_file1 : save the masking data
-	bcg_mask : 0 : keep BCGs; 1 : BCGs will be masked
+	bcg_mask : 0 -- mask all sources except BCGs; 1 : BCGs also will be masked
 	pixel : pixel scale, in unit 'arcsec' (default is 0.396)
 	stack_info : path to save the information of stacking (ra, dec, z, img_x, img_y)
 	including file-name: '/xxx/xxx/xxx.xxx'
@@ -75,6 +75,8 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 		set_mag = np.array(cat['r'])
 		OBJ = np.array(cat['type'])
 		xt = cat['Column1']
+		flags = [str(qq) for qq in xt]
+
 		x, y = wcs_lis.all_world2pix(set_ra * U.deg, set_dec * U.deg, 1)
 
 		set_A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) / pixel
@@ -98,7 +100,7 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 		sub_chi0 = set_chi[ic]
 
 		# saturated source(may not stars)
-		xa = ['SATURATED' in qq for qq in xt]
+		xa = ['SATURATED' in qq for qq in flags]
 		xv = np.array(xa)
 		idx = xv == True
 		ipx = (idx)
@@ -192,35 +194,37 @@ def main():
 	home = '/media/xkchen/My Passport/data/SDSS/'
 	load = '/media/xkchen/My Passport/data/SDSS/'
 
-	## cluster
-	with h5py.File(load + 'mpi_h5/r_band_sky_catalog.h5', 'r') as f:
-		set_array = np.array(f['a'])
-	ra, dec, z = set_array[0,:], set_array[1,:], set_array[2,:]
+	### cluster
+	dat = pds.read_csv('/home/xkchen/mywork/ICL/r_band_sky_catalog.csv')
+	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 
 	d_file = home + 'wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
-	cat_file = '/home/xkchen/mywork/ICL/data/star_dr12_reload/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
+	cat_file = '/home/xkchen/mywork/ICL/data/corrected_star_cat/dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
+
 	out_file0 = '/home/xkchen/mywork/ICL/data/tmp_img/source_find/cluster_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
-	out_file1 = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
+	out_file1 = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
 
 	bcg_mask = 1
 	band = 'r'
-	stack_info = 'cluster_BCG_img-position.csv'
-	mask_func(d_file, cat_file, z, ra, dec, band, out_file0, out_file1, bcg_mask, stack_info)
+	stack_info = 'cluster_r_band_BCG_pos.csv'
+	mask_func(d_file, cat_file, set_z, set_ra, set_dec, band, out_file0, out_file1, bcg_mask, stack_info,)
 
-	## random
-	with h5py.File(load + 'random_cat/cat_select/rand_r_band_catalog.h5', 'r') as f:
-		tmp_array = np.array(f['a'])
-	ra, dec, z = np.array(tmp_array[0]), np.array(tmp_array[1]), np.array(tmp_array[2])
+	### random
+	dat = pds.read_csv('/home/xkchen/mywork/ICL/rand_r_band_catalog.csv')
+	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 
 	d_file = home + 'redMap_random/rand_img-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
-	cat_file = home + 'random_cat/star_cat/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
+	cat_file = '/home/xkchen/mywork/ICL/data/corrected_star_cat/random/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
+
 	out_file0 = '/home/xkchen/mywork/ICL/data/tmp_img/source_find/random_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
-	out_file1 = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
+	out_file1 = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
 
 	bcg_mask = 1
 	band = 'r'
-	stack_info = 'random_BCG_img-position.csv'
-	mask_func(d_file, cat_file, z, ra, dec, band, out_file0, out_file1, bcg_mask, stack_info)
+	stack_info = 'random_r_band_BCG_pos.csv'
+	mask_func(d_file, cat_file, set_z, set_ra, set_dec, band, out_file0, out_file1, bcg_mask, stack_info,)
+
+	raise
 
 if __name__ == "__main__":
 	main()

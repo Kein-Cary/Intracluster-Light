@@ -3,41 +3,35 @@ import numpy as np
 import pandas as pds
 import astropy.io.fits as fits
 
-def sky_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, img_x, img_y, id_cen, id_mean, rms_file = None, pix_con_file = None):
+def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, img_x, img_y, id_cen, N_edg, rms_file = None, pix_con_file = None):
 	"""
 	d_file : path where save the masked data (include file-name structure:'/xxx/xxx/xxx.xxx')
 	z_set, ra_set, dec_set : ra, dec, z of will be resampled imgs
 	band : the band of imgs, 'str' type
 	out_file : path where to save the resampling img (include file-name structure:'/xxx/xxx/xxx.xxx')
 	img_x, img_y : BCG position (in image coordinate)
-
 	id_cen : 0 - stacking by centering on BCGs, 1 - stacking by centering on img center
-	for sky imgs, id_cen can be 2 -- means 'random center stacking'
-	for id_cen = 2 case, img_x, img_y is random position of the img frame coordinate, they may be BCGs' location,
-	maybe not.
-
-	id_mean : 0, 1, 2.  0 - img_add = img; 
-	1 - img_add = img - np.mean(img); 2 - img_add = img - np.median(img)
-
 	rms_file : stacking img pixel variance 
 	pix_con_file : the pixel counts in each stacking img pixel
+	N_edg : the width of the edge region, pixels in this region will be set as 
+			'no flux' contribution pixels (ie. set as np.nan)
 	"""
 	stack_N = len(z_set)
 
-	if id_cen == 1:
-		x0, y0 = 1024, 744
-		Nx = np.linspace(0, 2047, 2048)
-		Ny = np.linspace(0, 1488, 1489)
+	if id_cen == 0:
+		x0, y0 = 2427, 1765
+		Nx = np.linspace(0, 4854, 4855)
+		Ny = np.linspace(0, 3530, 3531)
 
 		sum_array_A = np.zeros((len(Ny), len(Nx)), dtype = np.float32)
 		count_array_A = np.ones((len(Ny), len(Nx)), dtype = np.float32) * np.nan
 		p_count_A = np.zeros((len(Ny), len(Nx)), dtype = np.float32)
 		pix_f2 = np.zeros((len(Ny), len(Nx)), dtype = np.float32)
 
-	if id_cen != 1:
-		x0, y0 = 2427, 1765
-		Nx = np.linspace(0, 4854, 4855)
-		Ny = np.linspace(0, 3530, 3531)
+	if id_cen == 1:
+		x0, y0 = 1024, 744
+		Nx = np.linspace(0, 2047, 2048)
+		Ny = np.linspace(0, 1488, 1489)
 
 		sum_array_A = np.zeros((len(Ny), len(Nx)), dtype = np.float32)
 		count_array_A = np.ones((len(Ny), len(Nx)), dtype = np.float32) * np.nan
@@ -62,10 +56,16 @@ def sky_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, img_x, img_y,
 		else:
 			yn = np.int(img_y[jj])
 
-		file = d_file % (ra_g, dec_g, z_g, band)
+		file = d_file % (band, ra_g, dec_g, z_g)
 		data_A = fits.open( file )
 		img_A = data_A[0].data
 		head = data_A[0].header
+
+		## mask the edge region with N_edg
+		img_A[:N_edg, :] = np.nan
+		img_A[-N_edg:, :] = np.nan
+		img_A[:, :N_edg] = np.nan
+		img_A[:, -N_edg:] = np.nan
 
 		if id_cen == 0:
 			la0 = np.int(y0 - yn)
@@ -80,29 +80,14 @@ def sky_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, img_x, img_y,
 			lb0 = np.int(x0 - rnx)
 			lb1 = np.int(x0 - rnx + img_A.shape[1])
 
-		if id_cen == 2:
-			#rnx, rny = np.random.choice(img_A.shape[1], 1, replace = False), np.random.choice(img_A.shape[0], 1, replace = False)
-			rnx, rny = img_x[jj], img_y[jj] ## img_x, img_y maybe not the 'real' BCG position
-			la0 = np.int(y0 - rny)
-			la1 = np.int(y0 - rny + img_A.shape[0])
-			lb0 = np.int(x0 - rnx)
-			lb1 = np.int(x0 - rnx + img_A.shape[1])
-
-		if id_mean == 0:
-			img_add = img_A - 0.
-		if id_mean == 1:
-			img_add = img_A - np.nanmean(img_A)
-		if id_mean == 2:
-			img_add = img_A - np.nanmedian(img_A)
-
 		idx = np.isnan(img_A)
 		idv = np.where(idx == False)
 
-		sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + img_add[idv]
-		count_array_A[la0: la1, lb0: lb1][idv] = img_add[idv]
+		sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + img_A[idv]
+		count_array_A[la0: la1, lb0: lb1][idv] = img_A[idv]
 
 		## tmp array for rms
-		pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + img_add[idv]**2
+		pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + img_A[idv]**2
 
 		id_nan = np.isnan(count_array_A)
 		id_fals = np.where(id_nan == False)
@@ -135,19 +120,3 @@ def sky_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, img_x, img_y,
 
 	return
 
-def main():
-
-	dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/random_clus-1000-match_cat.csv')
-	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
-
-	d_file = '/media/xkchen/My Passport/data/SDSS/random_cat/sky_img/random_sky-ra%.3f-dec%.3f-z%.3f-%s-band.fits'
-	out_file = '/home/xkchen/Downloads/test_imgs/random_sky_stack-test.h5'
-	band = 'r'
-	id_mean = 0
-	id_cen = 2
-	clus_x = np.ones(10, dtype = np.float32)
-	clus_y = np.ones(10, dtype = np.float32)
-	sky_stack_func(d_file, out_file, set_z, set_ra, set_dec, band, clus_x, clus_y, id_cen, id_mean)
-
-if __name__ == "__main__":
-	main()

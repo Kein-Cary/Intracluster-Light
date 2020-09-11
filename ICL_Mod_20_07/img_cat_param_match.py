@@ -193,35 +193,24 @@ def main():
 	"""
 	### random img
 	cat_file = '/home/xkchen/mywork/ICL/data/redmapper/redmapper_dr8_public_v6.3_randoms.fits'
-	out_file = '/home/xkchen/Downloads/test_imgs/tot_random_norm_sample_cat-match.csv'
-	dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/tot_random_norm_sample.csv')
+	out_file = '/home/xkchen/tmp/00_tot_select/tot_random_norm_sample_cat-match.csv'
+	dat = pds.read_csv('/home/xkchen/tmp/00_tot_select/tot_random_remain_cat.csv')
 	ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 	random_match_func(ra, dec, z, cat_file, out_file)
 
 	### cluster img
 	cat_file = '/home/xkchen/mywork/ICL/data/redmapper/redmapper_dr8_public_v6.3_catalog.fits'
-	out_file = '/home/xkchen/Downloads/test_imgs/tot_cluster_norm_sample_cat-match.csv'
-	dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/tot_cluster_norm_sample.csv')
+	out_file = '/home/xkchen/tmp/00_tot_select/tot_cluster_norm_sample_cat-match.csv'
+	dat = pds.read_csv('/home/xkchen/tmp/00_tot_select/tot_clust_remain_cat.csv')
 	ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 	match_func(ra, dec, z, cat_file, out_file)
 	"""
-	rnd_file = '/home/xkchen/Downloads/test_imgs/tot_random_norm_sample_cat-match.csv'
-	clu_file = '/home/xkchen/Downloads/test_imgs/tot_cluster_norm_sample_cat-match.csv'
+
+	rnd_file = '/home/xkchen/tmp/00_tot_select/tot_random_norm_sample_cat-match.csv'
+	clu_file = '/home/xkchen/tmp/00_tot_select/tot_cluster_norm_sample_cat-match.csv'
 
 	dat_clus = pds.read_csv(clu_file)
 	z, ra, dec, rich = np.array(dat_clus.z), np.array(dat_clus.ra), np.array(dat_clus.dec), np.array(dat_clus.rich)
-
-	### select 1000 for test
-	Nt = 1000
-	#np.random.seed(1)
-	tt0 = np.random.choice( len(z), size = Nt, replace = False)
-	set_z, set_ra, set_dec, set_rich = z[tt0], ra[tt0], dec[tt0], rich[tt0]
-
-	keys = ['ra', 'dec', 'z', 'rich', 'order']
-	values = [set_ra, set_dec, set_z, set_rich, tt0]
-	fill = dict(zip(keys, values))
-	data = pds.DataFrame(fill)
-	data.to_csv('clust-1000-select_cat.csv')
 
 	dat_rnd = pds.read_csv(rnd_file)
 	rnd_z, rnd_ra, rnd_dec = np.array(dat_rnd.z), np.array(dat_rnd.ra), np.array(dat_rnd.dec)
@@ -231,10 +220,10 @@ def main():
 	import matplotlib.pyplot as plt
 	import scipy.stats as sts
 
-	#bins_rich = np.logspace(np.log10(np.min(set_rich)), np.log10(np.max(set_rich)), 25)
-	bins_rich = np.linspace(np.min(set_rich), np.max(set_rich), 25)
-	bins_z = np.linspace(set_z.min(), set_z.max(), 35)
-	clus_cont, edg_rich, edg_z = sts.binned_statistic_2d(set_rich, set_z, set_z, statistic = 'count', bins = [bins_rich, bins_z],)[:3]
+	#bins_rich = np.logspace(np.log10(np.min(rich)), np.log10(np.max(rich)), 35)
+	bins_rich = np.linspace(np.min(rich), np.max(rich), 20)
+	bins_z = np.linspace(z.min(), z.max(), 25)
+	clus_cont, edg_rich, edg_z = sts.binned_statistic_2d(rich, z, rich, statistic = 'count', bins = [bins_rich, bins_z],)[:3]
 	clus_cont = clus_cont.astype(int)
 
 	targ_z, targ_ra, targ_dec, targ_rich = np.array([0]), np.array([0]), np.array([0]), np.array([0])
@@ -244,8 +233,8 @@ def main():
 			if clus_cont[kk, ll] == 0:
 				continue
 			else:
-				idy = (rnd_rich >= edg_rich[kk]) & (rnd_rich <= edg_rich[kk+1] )
-				idx = (rnd_z >= edg_z[ll]) & (rnd_z <= edg_z[ll+1] )
+				idy = (rnd_rich >= edg_rich[kk]) * (rnd_rich <= edg_rich[kk+1] )
+				idx = (rnd_z >= edg_z[ll]) * (rnd_z <= edg_z[ll+1] )
 				idv = idx & idy
 				sub_z, sub_ra, sub_dec, sub_rich = rnd_z[idv], rnd_ra[idv], rnd_dec[idv], rnd_rich[idv]
 
@@ -268,10 +257,10 @@ def main():
 	values = [targ_ra, targ_dec, targ_z, targ_rich]
 	fill = dict(zip(keys, values))
 	data = pds.DataFrame(fill)
-	data.to_csv('random_clus-1000-match_cat.csv')
+	data.to_csv('random_clus_tot_match_cat.csv')
 
 	plt.figure()
-	plt.plot(set_z, set_rich, 'bs', alpha = 0.5, label = 'cluster')
+	plt.plot(z, rich, 'bs', alpha = 0.5, label = 'cluster')
 	plt.plot(targ_z, targ_rich, 'ro', alpha = 0.5, label = 'random')
 	plt.xlabel('$ z $')
 	plt.ylabel('$ \\lambda $')
@@ -280,7 +269,7 @@ def main():
 	plt.close()
 
 	plt.figure()
-	plt.hist(set_z, bins = 30, alpha = 0.5, color = 'r', density = True, label = 'cluster img')
+	plt.hist(z, bins = 30, alpha = 0.5, color = 'r', density = True, label = 'cluster img')
 	plt.hist(targ_z, bins = 30, alpha = 0.5, color = 'b', density = True, label = 'random img')
 	plt.xlabel('z')
 	plt.ylabel('PDF')
@@ -289,8 +278,8 @@ def main():
 	plt.close()
 
 	plt.figure()
-	plt.hist(set_rich, bins = 25, alpha = 0.5, color = 'r', density = True, label = 'cluster img')
-	plt.hist(targ_rich, bins = 25, alpha = 0.5, color = 'b', density = True, label = 'random img')
+	plt.hist(rich, bins = 25, alpha = 0.5, color = 'r', density = False, label = 'cluster img')
+	plt.hist(targ_rich, bins = 25, alpha = 0.5, color = 'b', density = False, label = 'random img')
 	plt.xlabel('$ \\lambda $')
 	plt.ylabel('PDF')
 	plt.yscale('log')
