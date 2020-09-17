@@ -41,11 +41,12 @@ def flux_recal(data, z0, zref):
 	return flux
 
 ### surface brightness profile measurement
-def light_measure(data, Nbin, R_small, R_max, cx, cy, pix_size, z0):
+def light_measure(data, Nbin, R_min, R_max, cx, cy, pix_size, z0):
 	"""
 	data: data used to measure (2D-array)
 	Nbin: number of bins will devide
-	Rp: radius in unit pixel number
+	R_min : the smallest radius bin edge (in unit of kpc)
+	R_max : the largest radius bin edge (in unit of kpc)
 	cx, cy: cluster central position in image frame (in inuit pixel)
 	pix_size: pixel size
 	z : the redshift of data
@@ -60,7 +61,7 @@ def light_measure(data, Nbin, R_small, R_max, cx, cy, pix_size, z0):
 	theta = np.arctan2((pix_id[1,:]-cy), (pix_id[0,:]-cx))
 	chi = theta * 180 / np.pi
 
-	divi_r = np.logspace(np.log10(R_small), np.log10(R_max), Nbin)
+	divi_r = np.logspace(np.log10(R_min), np.log10(R_max), Nbin)
 	r = (divi_r * 1e-3 * rad2arcsec / Da0) / pix_size
 	ia = r <= 1. # smaller than 1 pixel
 	ib = r[ia]
@@ -201,14 +202,14 @@ def light_measure_rn(data, R_low, R_up, cx, cy, pix_size, z0):
 
 	return Intns_r, Intns, Intns_err
 
-def light_measure_Z0(data, pix_size, r_lim, R_pix, cx, cy, bins):
+def light_measure_Z0(data, pix_size, R_min, R_max, cx, cy, bins):
 	"""
 	This part use for measuring surface brightness(SB) of objs those redshift 
 		is too small or is zero. ie. the sky brightness.
 	data : the image use to measure SB profile
 	pix_size : pixel size, in unit of "arcsec"
-	r_lim : the smallest radius of SB profile
-	R_pix : the radius of objs in unit of pixel number
+	R_min : the smallest radius bin edge (in unit of pixel)
+	R_max : the largest radius bin edge (in unit of pixel)
 	cx, cy : the central position of objs in the image frame
 	"""
 	Nx = data.shape[1]
@@ -220,7 +221,7 @@ def light_measure_Z0(data, pix_size, r_lim, R_pix, cx, cy, bins):
 	theta = np.arctan2((pix_id[1,:] - cy), (pix_id[0,:] - cx))
 	chi = theta * 180 / np.pi
 	# radius in unit of pixel number
-	rbin = np.logspace(np.log10(r_lim), np.log10(R_pix), bins)
+	rbin = np.logspace(np.log10(R_min), np.log10(R_max), bins)
 
 	intens = np.zeros(len(rbin), dtype = np.float)
 	intens_err = np.zeros(len(rbin), dtype = np.float)
@@ -290,19 +291,17 @@ def light_measure_Z0(data, pix_size, r_lim, R_pix, cx, cy, bins):
 	return Intns, Angl_r, Intns_err
 
 ### surface brightness profile measurement (weight version)
-def light_measure_Z0_weit(data, weit_data, pix_size, r_lim, R_pix, cx, cy, bins):
+def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 	"""
 	This part use for measuring surface brightness(SB) of objs those redshift 
 		is too small or is zero. ie. the sky brightness.
 	data : the image use to measure SB profile
 	pix_size : pixel size, in unit of "arcsec"
-	r_lim : the smallest radius of SB profile
-	R_pix : the radius of objs in unit of pixel number
 	cx, cy : the central position of objs in the image frame
 	weit_data : the weight array for surface brightness profile measurement, it's must be 
 	the same size as the 'data' array
+	R_bins : radius bin edges for SB measurement, in unit of pixel
 	"""
-
 	Nx = data.shape[1]
 	Ny = data.shape[0]
 	x0 = np.linspace(0, Nx-1, Nx)
@@ -312,11 +311,13 @@ def light_measure_Z0_weit(data, weit_data, pix_size, r_lim, R_pix, cx, cy, bins)
 	theta = np.arctan2((pix_id[1,:] - cy), (pix_id[0,:] - cx))
 	chi = theta * 180 / np.pi
 	# radius in unit of pixel number
-	rbin = np.logspace(np.log10(r_lim), np.log10(R_pix), bins)
+	rbin = R_bins
 
 	intens = np.zeros(len(rbin), dtype = np.float)
 	intens_err = np.zeros(len(rbin), dtype = np.float)
 	Angl_r = np.zeros(len(rbin), dtype = np.float)
+	N_pix = np.zeros(len(rbin), dtype = np.float)
+	nsum_ratio = np.zeros(len(rbin), dtype = np.float)
 
 	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
 		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
@@ -328,7 +329,7 @@ def light_measure_Z0_weit(data, weit_data, pix_size, r_lim, R_pix, cx, cy, bins)
 		phi = np.linspace(0, 360, N_phi)
 		phi = phi - 180
 
-		ir = (dr >= rbin[k]) & (dr < rbin[k + 1])
+		ir = (dr >= rbin[k]) * (dr < rbin[k + 1])
 
 		bool_sum = np.sum(ir)
 
@@ -336,17 +337,17 @@ def light_measure_Z0_weit(data, weit_data, pix_size, r_lim, R_pix, cx, cy, bins)
 		r_out = rbin[k + 1]
 
 		if bool_sum == 0:
-			intens[k] = np.nan
-			intens_err[k] = np.nan
 			Angl_r[k] = 0.5 * (r_iner + r_out) * pix_size
 
 		else:
 			weit_arr = weit_data[ir]
-
 			samp_flux = data[ir]
 			samp_chi = chi[ir]
 
 			tot_flux = np.nansum(samp_flux * weit_arr) / np.nansum(weit_arr)
+			idnn = np.isnan( samp_flux )
+			N_pix[k] = np.sum( idnn == False )
+			nsum_ratio[k] = np.nansum(weit_arr) / np.sum( idnn == False )
 
 			intens[k] = tot_flux
 			Angl_r[k] = 0.5 * (r_iner + r_out) * pix_size
@@ -378,15 +379,15 @@ def light_measure_Z0_weit(data, weit_data, pix_size, r_lim, R_pix, cx, cy, bins)
 			else:
 				intens_err[k] = RMS
 
-	intens[intens == 0] = np.nan
-	Intns = intens * 1
+	idzo = N_pix < 1
 
-	intens_err[intens_err == 0] = np.nan
-	Intns_err = intens_err * 1
+	Intns = intens.copy()
+	Intns[idzo] = 0.
+	Intns_err = intens_err.copy()
+	Intns_err[idzo] = 0.
+	nsum_ratio[idzo] = 0.
 
-	Angl_r[Angl_r == 0] = np.nan
-
-	return Intns, Angl_r, Intns_err
+	return Intns, Angl_r, Intns_err, N_pix, nsum_ratio
 
 def light_measure_rn_weit(data, weit_data, R_low, R_up, cx, cy, pix_size, z0):
 	"""
@@ -421,6 +422,10 @@ def light_measure_rn_weit(data, weit_data, R_low, R_up, cx, cy, pix_size, z0):
 	weit_arr = weit_data[idu]
 	Intns = np.nansum( samp_flux * weit_arr ) / np.nansum( weit_arr )
 
+	id_nn = np.isnan(samp_flux)
+	N_pix = np.sum( id_nn == False )
+	nsum_ratio = np.nansum(weit_arr) / np.sum( id_nn == False )
+
 	cdr = R_up - R_low
 	d_phi = ( cdr / (0.5 * (R_low + R_up) ) ) * 180 / np.pi
 	N_phi = np.int(360 / d_phi) + 1
@@ -447,7 +452,7 @@ def light_measure_rn_weit(data, weit_data, R_low, R_up, cx, cy, pix_size, z0):
 	id_nan = np.isnan(tmpf)
 	id_fals = id_nan == False
 	Tmpf = tmpf[id_fals]
-	#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
+
 	RMS = np.std(Tmpf)
 	if len(Tmpf) > 1:
 		Intns_err = RMS / np.sqrt(len(Tmpf) - 1)
@@ -456,13 +461,13 @@ def light_measure_rn_weit(data, weit_data, R_low, R_up, cx, cy, pix_size, z0):
 
 	Intns_r = (0.5 * (R_low + R_up) )
 
-	return Intns_r, Intns, Intns_err
+	return Intns_r, Intns, Intns_err, N_pix, nsum_ratio
 
-def light_measure_weit(data, weit_data, Nbin, R_small, R_max, cx, cy, pix_size, z0):
+def light_measure_weit(data, weit_data, R_bins, cx, cy, pix_size, z0):
 	"""
 	data: data used to measure (2D-array)
 	Nbin: number of bins will devide
-	Rp: radius in unit pixel number
+	R_bins : radius bin edges for SB measurement, in unit of kpc
 	cx, cy: cluster central position in image frame (in inuit pixel)
 	pix_size: pixel size
 	z : the redshift of data
@@ -479,17 +484,15 @@ def light_measure_weit(data, weit_data, Nbin, R_small, R_max, cx, cy, pix_size, 
 	theta = np.arctan2((pix_id[1,:]-cy), (pix_id[0,:]-cx))
 	chi = theta * 180 / np.pi
 
-	divi_r = np.logspace(np.log10(R_small), np.log10(R_max), Nbin)
-	r = (divi_r * 1e-3 * rad2arcsec / Da0) / pix_size
-	ia = r <= 1. # smaller than 1 pixel
-	ib = r[ia]
-	ic = len(ib)
-	rbin = r[ic:]
-	set_r = divi_r[ic:]
+	rbin = R_bins # have been divided bins, in unit of pixels
+	set_r = rbin * pix_size * Da0 * 1e3 / rad2arcsec # in unit of kpc
 
-	intens = np.zeros(len(r) - ic, dtype = np.float)
-	intens_r = np.zeros(len(r) - ic, dtype = np.float)
-	intens_err = np.zeros(len(r) - ic, dtype = np.float)
+	intens = np.zeros(len(rbin), dtype = np.float)
+	intens_r = np.zeros(len(rbin), dtype = np.float)
+	intens_err = np.zeros(len(rbin), dtype = np.float)
+
+	N_pix = np.zeros(len(rbin), dtype = np.float)
+	nsum_ratio = np.zeros(len(rbin), dtype = np.float)
 
 	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
 		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
@@ -508,8 +511,6 @@ def light_measure_weit(data, weit_data, Nbin, R_small, R_max, cx, cy, pix_size, 
 		r_out = set_r[k + 1]
 
 		if bool_sum == 0:
-			intens[k] = np.nan
-			intens_err[k] = np.nan
 			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
 
 		else:
@@ -518,6 +519,10 @@ def light_measure_weit(data, weit_data, Nbin, R_small, R_max, cx, cy, pix_size, 
 			samp_flux = data[ir]
 			samp_chi = chi[ir]
 			tot_flux = np.nansum(samp_flux * weit_arr) / np.nansum(weit_arr)
+
+			idnn = np.isnan( samp_flux )
+			N_pix[k] = np.sum( idnn == False )
+			nsum_ratio[k] = np.nansum(weit_arr) / np.sum( idnn == False )			
 
 			intens[k] = tot_flux
 			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
@@ -550,16 +555,17 @@ def light_measure_weit(data, weit_data, Nbin, R_small, R_max, cx, cy, pix_size, 
 			else:
 				intens_err[k] = RMS
 
-	intens[intens == 0] = np.nan
-	Intns = intens * 1
+	idzo = N_pix < 1
 
-	intens_r[intens_r == 0] = np.nan
-	Intns_r = intens_r * 1
-	
-	intens_err[intens_err == 0] = np.nan
-	Intns_err = intens_err * 1
+	Intns = intens.copy()
+	Intns[idzo] = 0.
+	Intns_err = intens_err.copy()
+	Intns_err[idzo] = 0.
 
-	return Intns, Intns_r, Intns_err
+	Intns_r = intens_r.copy()
+	nsum_ratio[idzo] = 0.
+
+	return Intns, Intns_r, Intns_err, N_pix, nsum_ratio
 
 @vectorize
 def sigmamc(r, Mc, c):

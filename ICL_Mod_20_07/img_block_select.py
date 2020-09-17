@@ -10,7 +10,7 @@ import astropy.units as U
 import astropy.constants as C
 from groups import groups_find_func
 
-def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, remain_file,):
+def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, remain_file, thres_S0, thres_S1, sigm_lim,):
 	"""
 	band : observation band
 	set_ra, set_dec, set_z : smaples need to find out-liers
@@ -19,6 +19,10 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 	{out-put file : XXX.csv
 	rule_out_file : the file name of out-put catalogue for exclude imgs (not include in stacking)
 	remain_file : the file name of out-put catalogue for stacking imgs (stacking imgs) }
+
+	thres_S0, thres_S1, sigm_lim : condition for selection, thres_S0, thres_S1 are block number limit, 
+	and sigm_lim is brightness limit.
+
 	"""
 	bad_ra, bad_dec, bad_z, bad_bcgx, bad_bcgy = [], [], [], [], []
 	norm_ra, norm_dec, norm_z, norm_bcgx, norm_bcgy = [], [], [], [], []
@@ -89,7 +93,9 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 		ly = np.delete(ly, -1)
 
 		##### img selection
-		lim_sb = 5.5
+		#lim_sb = 5.3 # 6.1, 6, 5.5,
+		lim_sb = sigm_lim
+
 		### first select
 		identi = over_sb > lim_sb
 
@@ -117,7 +123,7 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 			idu = idux | iduy
 
 			### select groups with block number larger or equal to 3
-			idv_s = (np.array(source_n) >= 3)
+			idv_s = (np.array(source_n) >= thres_S0)
 			id_pat_s = idu & idv_s
 
 			if np.sum(id_pat_s) < 1:
@@ -128,6 +134,9 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 				norm_bcgy.append(yn)
 
 			else:
+				id_vs_pri = (np.array(source_n) <= thres_S1)
+				id_pat_s = idu & (idv_s & id_vs_pri)
+
 				id_True = np.where(id_pat_s == True)[0]
 				loop_N = np.sum(id_pat_s)
 				pur_N = np.zeros(loop_N, dtype = np.int)
@@ -139,7 +148,7 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 					tot_pont = source_n[ id_group ]
 					tmp_arr = copy_arr[ coord_y[ id_group ], coord_x[ id_group ] ]
 					id_out = tmp_arr == 100.
-					id_2_bright = tmp_arr > 9.5
+					id_2_bright = tmp_arr > 8.0 # 9.5 ## groups must have a 'to bright region'
 
 					pur_N[ll] = tot_pont - np.sum(id_out)
 					pur_mask[ll] = np.sum(id_out)
@@ -147,7 +156,7 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 					pur_outlier[ll] = np.sum(id_2_bright) * ( np.sum(id_out) == 0)
 
 				## at least 2 blocks have mean value above the lim_sb and close to a big mask region
-				idnum = ( (pur_N >= 2) & (pur_mask >= 1) ) | (pur_outlier >= 1)
+				idnum = ( (pur_N >= 1) & (pur_mask >= 1) ) | (pur_outlier >= 1)
 
 				if np.sum(idnum) >= 1:
 					bad_ra.append(ra_g)
@@ -159,7 +168,7 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 				else:
 					## search for larger groups
 					# each group include 5 patches at least
-					idv = np.array(source_n) >= 5
+					idv = np.array(source_n) >= thres_S1
 					id_pat = idu & idv
 
 					if np.sum(id_pat) < 1:
@@ -225,28 +234,67 @@ def main():
 
 	import time
 
+	from mpi4py import MPI
+	commd = MPI.COMM_WORLD
+	rank = commd.Get_rank()
+	cpus = commd.Get_size()
+
 	band = ['r', 'g', 'i']
-	home = '/media/xkchen/My Passport/data/SDSS/'
+
+	#home = '/media/xkchen/My Passport/data/SDSS/'
+	home = '/home/xkchen/data/SDSS/'
+
+	#thres_S0, thres_S1 = 3, 5
+	#sigma = np.array([3.5, 4, 4.5, 5, 5.5, 6,]) ## sigma as limit
+
+	thres_S0 = np.array([2, 3, 4]) ## block number as limit
+	thres_S1 = 5
+	sigma = 3.5 # 4
+
+	#m, n = divmod( len(sigma), cpus)
+	m, n = divmod( len(thres_S0), cpus)
+
+	N_sub0, N_sub1 = m * rank, (rank + 1) * m
+	if rank == cpus - 1:
+		N_sub1 += n
 
 	##### cluster imgs
-	dat = pds.read_csv('cluster_tot-r-band_norm-img_cat.csv')
+	dat = pds.read_csv(home + 'selection/tmp/cluster_tot-r-band_norm-img_cat.csv')
 	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 	d_file = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
-	rule_file = 'tot_clust_rule-out_cat.csv'
-	remain_file = 'tot_clust_remain_cat.csv'
-	diffuse_identi_func(band[0], set_ra, set_dec, set_z, d_file, rule_file, remain_file,)
+
+	'''
+	## sigma as limit
+	rule_file = home + 'selection/tmp/tot_clust_rule-out_cat_%.1f-sigma.csv' % (sigma[N_sub0: N_sub1][0])
+	remain_file = home + 'selection/tmp/tot_clust_remain_cat_%.1f-sigma.csv' % (sigma[N_sub0: N_sub1][0])
+	diffuse_identi_func(band[0], set_ra, set_dec, set_z, d_file, rule_file, remain_file, thres_S0, 
+		thres_S1, sigma[N_sub0: N_sub1][0],)
+	'''
+	## block number as limit
+	rule_file = home + 'selection/tmp/tot_clust_rule-out_cat_%d-patch_%.1f-sigm.csv' % (thres_S0[N_sub0: N_sub1][0], sigma)
+	remain_file = home + 'selection/tmp/tot_clust_remain_cat_%d-patch_%.1f-sigm.csv' % (thres_S0[N_sub0: N_sub1][0], sigma)
+	diffuse_identi_func(band[0], set_ra, set_dec, set_z, d_file, rule_file, remain_file, thres_S0[N_sub0: N_sub1][0], thres_S1, sigma,)
 
 	print('cluster finished!')
-
+	"""
 	##### random imgs
-	dat = pds.read_csv('random_tot-r-band_norm-img_cat.csv')
+	dat = pds.read_csv(home + 'selection/tmp/random_tot-r-band_norm-img_cat.csv')
 	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
-	d_file = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
-	rule_file = 'tot_random_rule-out_cat.csv'
-	remain_file = 'tot_random_remain_cat.csv'
-	diffuse_identi_func(band[0], set_ra, set_dec, set_z, d_file, rule_file, remain_file,)
+	d_file = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'	
+	''''
+	## sigma as limit
+	rule_file = home + 'selection/tmp/tot_random_rule-out_cat_%.1f-sigma.csv' % (sigma[N_sub0: N_sub1][0])
+	remain_file = home + 'selection/tmp/tot_random_remain_cat_%.1f-sigma.csv' % (sigma[N_sub0: N_sub1][0])
+	diffuse_identi_func(band[0], set_ra, set_dec, set_z, d_file, rule_file, remain_file, thres_S0, 
+		thres_S1, sigma[N_sub0: N_sub1][0],)
+	'''
+	## block number as limit
+	rule_file = home + 'selection/tmp/tot_random_rule-out_cat_%d-patch_4-sigm.csv' % (thres_S0[N_sub0: N_sub1][0] )
+	remain_file = home + 'selection/tmp/tot_random_remain_cat_%d-patch_4-sigm.csv' % (thres_S0[N_sub0: N_sub1][0] )
+	diffuse_identi_func(band[0], set_ra, set_dec, set_z, d_file, rule_file, remain_file, thres_S0[N_sub0: N_sub1][0], thres_S1, sigma,)
 
-	raise
+	print('random finished!')
+	"""
 
 if __name__ == "__main__":
 	main()
