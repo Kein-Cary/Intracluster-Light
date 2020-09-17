@@ -121,7 +121,10 @@ def light_measure(data, Nbin, R_small, R_max, cx, cy, pix_size, z0):
 			Tmpf = tmpf[id_fals]
 			#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
 			RMS = np.std(Tmpf)
-			intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+			if len(Tmpf) > 1:
+				intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+			else:
+				intens_err[k] = RMS
 
 	intens[intens == 0] = np.nan
 	Intns = intens * 1
@@ -189,7 +192,10 @@ def light_measure_rn(data, R_low, R_up, cx, cy, pix_size, z0):
 	Tmpf = tmpf[id_fals]
 	#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
 	RMS = np.std(Tmpf)
-	Intns_err = RMS / np.sqrt(len(Tmpf) - 1)
+	if len(Tmpf) > 1:
+		Intns_err = RMS / np.sqrt(len(Tmpf) - 1)
+	else:
+		Intns_err = RMS
 
 	Intns_r = (0.5 * (R_low + R_up) )
 
@@ -268,7 +274,10 @@ def light_measure_Z0(data, pix_size, r_lim, R_pix, cx, cy, bins):
 			Tmpf = tmpf[id_fals]
 			#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
 			RMS = np.std(Tmpf)
-			intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+			if len(Tmpf) > 1:
+				intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+			else:
+				intens_err[k] = RMS
 
 	intens[intens == 0] = np.nan
 	Intns = intens * 1
@@ -364,7 +373,10 @@ def light_measure_Z0_weit(data, weit_data, pix_size, r_lim, R_pix, cx, cy, bins)
 
 			#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
 			RMS = np.std(Tmpf)
-			intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+			if len(Tmpf) > 1:
+				intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+			else:
+				intens_err[k] = RMS
 
 	intens[intens == 0] = np.nan
 	Intns = intens * 1
@@ -437,7 +449,10 @@ def light_measure_rn_weit(data, weit_data, R_low, R_up, cx, cy, pix_size, z0):
 	Tmpf = tmpf[id_fals]
 	#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
 	RMS = np.std(Tmpf)
-	Intns_err = RMS / np.sqrt(len(Tmpf) - 1)
+	if len(Tmpf) > 1:
+		Intns_err = RMS / np.sqrt(len(Tmpf) - 1)
+	else:
+		Intns_err = RMS
 
 	Intns_r = (0.5 * (R_low + R_up) )
 
@@ -530,7 +545,10 @@ def light_measure_weit(data, weit_data, Nbin, R_small, R_max, cx, cy, pix_size, 
 			Tmpf = tmpf[id_fals]
 			#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
 			RMS = np.std(Tmpf)
-			intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+			if len(Tmpf) > 1:
+				intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+			else:
+				intens_err[k] = RMS
 
 	intens[intens == 0] = np.nan
 	Intns = intens * 1
