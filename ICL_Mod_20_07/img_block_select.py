@@ -63,19 +63,23 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 		mu = np.nanmean( sub_pock_flux[id_Nzero] )
 		sigm = np.nanstd( sub_pock_flux[id_Nzero] )
 
-		ly = np.arange(0, img.shape[0], N_step)
-		ly = np.r_[ly, img.shape[0] - N_step, img.shape[0] ]
-		lx = np.arange(0, img.shape[1], N_step)
-		lx = np.r_[lx, img.shape[1] - N_step, img.shape[1] ]
-		patch_mean = np.zeros( (len(ly) - 1, len(lx) - 1), dtype = np.float )
-		patch_pix = np.zeros( (len(ly) - 1, len(lx) - 1), dtype = np.float )
-		for nn in range( len(ly) - 1 ):
-			for tt in range( len(lx) - 1 ):
-				if nn == len(ly) - 3:
-					nn += 1
-				if tt == len(lx) - 3:
-					tt += 1
-				sub_flux = remain_img[ly[nn]: ly[nn + 1], lx[tt]: lx[tt+1]]
+		## mu, and deviation for sub-patches
+		ly = np.arange(0, img.shape[0], N_stepy)
+		ly = np.r_[ly, img.shape[0] - N_stepy, img.shape[0] ]
+		lx = np.arange(0, img.shape[1], N_stepx)
+		lx = np.r_[lx, img.shape[1] - N_stepx, img.shape[1] ]
+
+		lx = np.delete(lx, -1)
+		lx = np.delete(lx, -2)
+		ly = np.delete(ly, -1)
+		ly = np.delete(ly, -2)
+
+		patch_mean = np.zeros( (len(ly), len(lx) ), dtype = np.float )
+		patch_pix = np.zeros( (len(ly), len(lx) ), dtype = np.float )
+		for nn in range( len(ly) ):
+			for tt in range( len(lx) ):
+
+				sub_flux = remain_img[ly[nn]: ly[nn] + N_stepy, lx[tt]: lx[tt] + N_stepx]
 				id_nn = np.isnan(sub_flux)
 				patch_mean[nn,tt] = np.mean( sub_flux[id_nn == False] )
 				patch_pix[nn,tt] = len( sub_flux[id_nn == False] )
@@ -84,13 +88,6 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 		patch_pix[id_zeros] = np.nan
 		patch_mean[id_zeros] = np.nan
 		over_sb = (patch_mean - mu) / sigm
-
-		over_sb = np.delete(over_sb, -2, axis = 0)
-		over_sb = np.delete(over_sb, -2, axis = 1)
-		lx = np.delete(lx, -3)
-		lx = np.delete(lx, -1)
-		ly = np.delete(ly, -3)
-		ly = np.delete(ly, -1)
 
 		##### img selection
 		#lim_sb = 5.3 # 6.1, 6, 5.5,

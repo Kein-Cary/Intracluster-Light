@@ -27,6 +27,11 @@ Omega_lambda = 1.-Omega_m
 Omega_k = 1.- (Omega_lambda + Omega_m)
 DH = vc/H0
 
+# band information of SDSS
+band = ['r', 'g', 'i', 'u', 'z']
+l_wave = np.array([6166, 4686, 7480, 3551, 8932])
+mag_add = np.array([0, 0, 0, -0.04, 0.02])
+
 ### dimming effect correction
 def flux_recal(data, z0, zref):
 	"""
@@ -39,6 +44,56 @@ def flux_recal(data, z0, zref):
 	Da1 = Test_model.angular_diameter_distance(z1).value
 	flux = obs * (1 + z0)**4 * Da0**2 / ((1 + z1)**4 * Da1**2)
 	return flux
+
+### jackknife SB 
+def jack_SB_func(SB_array, R_array, band_id, N_sample,):
+	"""
+	stacking profile based on surface brightness,
+	SB_array : list of surface brightness profile, in unit of " nanomaggies / arcsec^2 "
+	SB_array, R_array : list type
+	band_id : int type, for SB correction
+	N_sample : number of sub-samples
+	"""
+	dx_r = np.array(R_array)
+	dy_sb = np.array(SB_array)
+
+	n_r = dx_r.shape[1]
+	Len = np.zeros( n_r, dtype = np.float32)
+	for nn in range( n_r ):
+		tmp_I = dy_sb[:,nn]
+		idnn = np.isnan(tmp_I)
+		Len[nn] = N_sample - np.sum(idnn)
+
+	Stack_R = np.nanmean(dx_r, axis = 0)
+	Stack_SB = np.nanmean(dy_sb, axis = 0)
+	std_Stack_SB = np.nanstd(dy_sb, axis = 0)
+
+	### limit the radius bin contribution at least 1/3 * N_sample
+	id_one = Len > 1
+	Stack_R = Stack_R[ id_one ]
+	Stack_SB = Stack_SB[ id_one ]
+	std_Stack_SB = std_Stack_SB[ id_one ]
+	N_img = Len[ id_one ]
+	jk_Stack_err = np.sqrt(N_img - 1) * std_Stack_SB
+
+	id_min = N_img >= np.int(N_sample / 3)
+	lim_r = Stack_R[id_min]
+	lim_R = np.nanmax(lim_r)
+
+	## change flux to magnitude
+	jk_Stack_SB = 22.5 - 2.5 * np.log10(Stack_SB) + mag_add[band_id]
+	dSB0 = 22.5 - 2.5 * np.log10(Stack_SB + jk_Stack_err) + mag_add[band_id]
+	dSB1 = 22.5 - 2.5 * np.log10(Stack_SB - jk_Stack_err) + mag_add[band_id]
+	err0 = jk_Stack_SB - dSB0
+	err1 = dSB1 - jk_Stack_SB
+	id_nan = np.isnan(jk_Stack_SB)
+	jk_Stack_SB, jk_Stack_R = jk_Stack_SB[id_nan == False], Stack_R[id_nan == False]
+	jk_Stack_err0, jk_Stack_err1 = err0[id_nan == False], err1[id_nan == False]
+	dSB0, dSB1 = dSB0[id_nan == False], dSB1[id_nan == False]
+	idx_nan = np.isnan(dSB1)
+	jk_Stack_err1[idx_nan] = 100.
+
+	return jk_Stack_SB, jk_Stack_R, jk_Stack_err0, jk_Stack_err1, Stack_R, Stack_SB, jk_Stack_err, lim_R
 
 ### surface brightness profile measurement
 def light_measure(data, Nbin, R_min, R_max, cx, cy, pix_size, z0):
