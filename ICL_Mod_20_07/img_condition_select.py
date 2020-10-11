@@ -323,7 +323,7 @@ def main():
 	dat = pds.read_csv('/home/xkchen/mywork/ICL/r_band_sky_catalog.csv')
 	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 
-	cat_file = '/home/xkchen/mywork/ICL/data/tmp_img/source_find/cluster_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
+	cat_file = '/home/xkchen/mywork/ICL/data/source_find/cluster_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
 	data_file = home + 'wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
 
 	rule_file = 'cluster_tot-r-band_bad-img_cat.csv'
@@ -336,7 +336,7 @@ def main():
 	dat = pds.read_csv('/home/xkchen/mywork/ICL/rand_r_band_catalog.csv')
 	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 
-	cat_file = '/home/xkchen/mywork/ICL/data/tmp_img/source_find/random_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
+	cat_file = '/home/xkchen/mywork/ICL/data/source_find/random_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
 	data_file = home + 'redMap_random/rand_img-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
 
 	rule_file = 'random_tot-r-band_bad-img_cat.csv'

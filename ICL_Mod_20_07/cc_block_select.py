@@ -10,7 +10,7 @@ import astropy.units as U
 import astropy.constants as C
 from groups import groups_find_func
 
-def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, remain_file, thres_S0, thres_S1, sigm_lim, 
+def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, remain_file, thres_S0, thres_S1, sigm_lim,
 	mu_sigm_file, id_single = True,):
 	"""
 	band : observation band
@@ -71,8 +71,8 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 			## use sample mean and scatter
 			samp_dat = pds.read_csv(mu_sigm_file)
 			img_mu, img_sigma = np.array(samp_dat.cen_mu), np.array(samp_dat.cen_sigma)
-			mu = np.mean(img_mu)
-			sigm = np.mean(img_sigma)
+			mu = 3 * np.median(img_mu) - 2 * np.mean(img_mu) # np.mean(img_mu) # 
+			sigm = 3 * np.median(img_sigma) - 2 * np.mean(img_sigma) # np.mean(img_sigma) # 
 
 		## mu, and deviation for sub-patches
 		ly = np.arange(0, img.shape[0], N_step)
@@ -149,22 +149,18 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 				loop_N = np.sum(id_pat_s)
 				pur_N = np.zeros(loop_N, dtype = np.int)
 				pur_mask = np.zeros(loop_N, dtype = np.int)
-				pur_outlier = np.zeros(loop_N, dtype = np.int)
 
 				for ll in range( loop_N ):
 					id_group = id_True[ll]
 					tot_pont = source_n[ id_group ]
 					tmp_arr = copy_arr[ coord_y[ id_group ], coord_x[ id_group ] ]
 					id_out = tmp_arr == 100.
-					id_2_bright = tmp_arr > 8.0 # 9.5 ## groups must have a 'to bright region'
 
 					pur_N[ll] = tot_pont - np.sum(id_out)
 					pur_mask[ll] = np.sum(id_out)
 
-					pur_outlier[ll] = np.sum(id_2_bright) * ( np.sum(id_out) == 0)
-
-				## at least 2 blocks have mean value above the lim_sb and close to a big mask region
-				idnum = ( (pur_N >= 1) & (pur_mask >= 1) ) | (pur_outlier >= 1)
+				## at least 1 blocks have mean value above the lim_sb,(except mask region)
+				idnum = pur_N >= 1
 
 				if np.sum(idnum) >= 1:
 					bad_ra.append(ra_g)
@@ -175,7 +171,6 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 
 				else:
 					## search for larger groups
-					# each group include 5 patches at least
 					idv = np.array(source_n) >= thres_S1
 					id_pat = idu & idv
 
@@ -249,55 +244,46 @@ def main():
 
 	band = ['r', 'g', 'i']
 
-	home = '/media/xkchen/My Passport/data/SDSS/'
 	#home = '/home/xkchen/data/SDSS/'
+	home = '/media/xkchen/My Passport/data/SDSS/'
 
 	thres_S0, thres_S1 = 3, 5
 	sigma = np.array([3.5, 4, 4.5, 5, 5.5, 6,]) ## sigma as limit
-	'''
-	thres_S0 = np.array([2, 3, 4]) ## block number as limit
-	thres_S1 = 5
-	sigma = 3.5 # 4
-	'''
+
 	m, n = divmod( len(sigma), cpus)
-	#m, n = divmod( len(thres_S0), cpus)
 	N_sub0, N_sub1 = m * rank, (rank + 1) * m
 	if rank == cpus - 1:
 		N_sub1 += n
 
+	mu_sigm_file = '/home/xkchen/mywork/ICL/code/SEX/result/img_3100_mean_sigm.csv'
+
 	##### cluster imgs
-	dat = pds.read_csv(home + 'selection/tmp/cluster_tot-r-band_norm-img_cat.csv')
+	#dat = pds.read_csv(home + 'selection/tmp/cluster_tot-r-band_norm-img_cat.csv')
+	dat = pds.read_csv('/home/xkchen/tmp/02_tot_test_change_1_selection/cluster_tot-r-band_norm-img_cat.csv')
 	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 	d_file = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
 
 	## sigma as limit
-	rule_file = home + 'selection/tmp/tot_clust_rule-out_cat_%.1f-sigma.csv' % (sigma[N_sub0: N_sub1][0])
-	remain_file = home + 'selection/tmp/tot_clust_remain_cat_%.1f-sigma.csv' % (sigma[N_sub0: N_sub1][0])
+	#rule_file = home + 'selection/tmp/CC_tot_clust_rule-out_cat_%.1f-sigma.csv' % (sigma[N_sub0: N_sub1][0])
+	#remain_file = home + 'selection/tmp/CC_tot_clust_remain_cat_%.1f-sigma.csv' % (sigma[N_sub0: N_sub1][0])
+	rule_file = 'CC_tot_clust_rule-out_cat_%.1f-sigma.csv' % (sigma[N_sub0: N_sub1][0])
+	remain_file = 'CC_tot_clust_remain_cat_%.1f-sigma.csv' % (sigma[N_sub0: N_sub1][0])
+
 	diffuse_identi_func(band[0], set_ra, set_dec, set_z, d_file, rule_file, remain_file, thres_S0, 
-		thres_S1, sigma[N_sub0: N_sub1][0],)
-	'''
-	## block number as limit
-	rule_file = home + 'selection/tmp/tot_clust_rule-out_cat_%d-patch_%.1f-sigm.csv' % (thres_S0[N_sub0: N_sub1][0], sigma)
-	remain_file = home + 'selection/tmp/tot_clust_remain_cat_%d-patch_%.1f-sigm.csv' % (thres_S0[N_sub0: N_sub1][0], sigma)
-	diffuse_identi_func(band[0], set_ra, set_dec, set_z, d_file, rule_file, remain_file, thres_S0[N_sub0: N_sub1][0], thres_S1, sigma,)
-	'''
+		thres_S1, sigma[N_sub0: N_sub1][0], mu_sigm_file, id_single = False,)
+
 	print('cluster finished!')
 	"""
 	##### random imgs
 	dat = pds.read_csv(home + 'selection/tmp/random_tot-r-band_norm-img_cat.csv')
 	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
-	d_file = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'	
-	''''
+	d_file = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
+
 	## sigma as limit
-	rule_file = home + 'selection/tmp/tot_random_rule-out_cat_%.1f-sigma.csv' % (sigma[N_sub0: N_sub1][0])
-	remain_file = home + 'selection/tmp/tot_random_remain_cat_%.1f-sigma.csv' % (sigma[N_sub0: N_sub1][0])
+	rule_file = home + 'selection/tmp/CC_tot_random_rule-out_cat_%.1f-sigma.csv' % (sigma[N_sub0: N_sub1][0])
+	remain_file = home + 'selection/tmp/CC_tot_random_remain_cat_%.1f-sigma.csv' % (sigma[N_sub0: N_sub1][0])
 	diffuse_identi_func(band[0], set_ra, set_dec, set_z, d_file, rule_file, remain_file, thres_S0, 
 		thres_S1, sigma[N_sub0: N_sub1][0],)
-	'''
-	## block number as limit
-	rule_file = home + 'selection/tmp/tot_random_rule-out_cat_%d-patch_4-sigm.csv' % (thres_S0[N_sub0: N_sub1][0] )
-	remain_file = home + 'selection/tmp/tot_random_remain_cat_%d-patch_4-sigm.csv' % (thres_S0[N_sub0: N_sub1][0] )
-	diffuse_identi_func(band[0], set_ra, set_dec, set_z, d_file, rule_file, remain_file, thres_S0[N_sub0: N_sub1][0], thres_S1, sigma,)
 
 	print('random finished!')
 	"""

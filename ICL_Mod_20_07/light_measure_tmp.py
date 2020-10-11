@@ -298,6 +298,7 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 			samp_chi = chi[ir]
 
 			tot_flux = np.nansum(samp_flux * weit_arr) / np.nansum(weit_arr)
+
 			idnn = np.isnan( samp_flux )
 			N_pix[k] = np.sum( idnn == False )
 			nsum_ratio[k] = np.nansum(weit_arr) / np.sum( idnn == False )

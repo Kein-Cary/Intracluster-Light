@@ -100,7 +100,7 @@ def mask_clust(band_id, z_set, ra_set, dec_set):
 		set_mag = np.array(cat['r'])
 		OBJ = np.array(cat['type'])
 		xt = cat['Column1']
-		tau = 10 * r_res		
+		tau = 10 * r_res
 		set_A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
 		set_B = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) * tau / pixel
 		set_chi = np.zeros(set_A.shape[1], dtype = np.float)

@@ -48,22 +48,7 @@ l_wave = np.array([6166, 4686, 7480, 3551, 8932])
 mag_add = np.array([0, 0, 0, -0.04, 0.02])
 
 #####################
-def medi_stack_img(N_sample, data_file, out_file):
-
-	tt_img = []
-	for nn in range(N_sample):
-		with h5py.File(data_file % nn, 'r') as f:
-			tmp_img = np.array(f['a'])
-		tt_img.append(tmp_img)
-
-	tt_img = np.array(tt_img)
-	medi_img = np.nanmedian(tt_img, axis = 0)
-	with h5py.File(out_file, 'w') as f:
-		f['a'] = np.array(medi_img)
-
-	return
-
-def aveg_stack_img(N_sample, data_file, out_file):
+def aveg_stack_img(N_sample, data_file, out_file,):
 
 	tt = 0
 	with h5py.File(data_file % (tt), 'r') as f:
