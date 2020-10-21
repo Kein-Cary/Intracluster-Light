@@ -68,7 +68,7 @@ def jack_SB_func(SB_array, R_array, band_id, N_sample,):
 	Stack_SB = np.nanmean(dy_sb, axis = 0)
 	std_Stack_SB = np.nanstd(dy_sb, axis = 0)
 
-	### limit the radius bin contribution at least 1/3 * N_sample
+	### only calculate r bins in which sub-sample number larger than one
 	id_one = Len > 1
 	Stack_R = Stack_R[ id_one ]
 	Stack_SB = Stack_SB[ id_one ]
@@ -76,6 +76,7 @@ def jack_SB_func(SB_array, R_array, band_id, N_sample,):
 	N_img = Len[ id_one ]
 	jk_Stack_err = np.sqrt(N_img - 1) * std_Stack_SB
 
+	### limit the radius bin contribution at least 1/3 * N_sample
 	id_min = N_img >= np.int(N_sample / 3)
 	lim_r = Stack_R[id_min]
 	lim_R = np.nanmax(lim_r)
@@ -94,6 +95,94 @@ def jack_SB_func(SB_array, R_array, band_id, N_sample,):
 	jk_Stack_err1[idx_nan] = 100.
 
 	return jk_Stack_SB, jk_Stack_R, jk_Stack_err0, jk_Stack_err1, Stack_R, Stack_SB, jk_Stack_err, lim_R
+
+### img grid
+def cc_grid_img(img_data, N_stepx, N_stepy):
+
+	binx = img_data.shape[1] // N_stepx ## bin number along 2 axis
+	biny = img_data.shape[0] // N_stepy
+
+	beyon_x = img_data.shape[1] - binx * N_stepx ## for edge pixels divid
+	beyon_y = img_data.shape[0] - biny * N_stepy
+
+	odd_x = np.ceil(beyon_x / binx)
+	odd_y = np.ceil(beyon_y / biny)
+
+	n_odd_x = beyon_x // odd_x
+	n_odd_y = beyon_y // odd_y
+
+	d_odd_x = beyon_x - odd_x * n_odd_x
+	d_odd_y = beyon_y - odd_y * n_odd_y
+
+	# get the bin width
+	wid_x = np.zeros(binx, dtype = np.float32)
+	wid_y = np.zeros(biny, dtype = np.float32)
+	for kk in range(binx):
+		if kk == n_odd_x :
+			wid_x[kk] = N_stepx + d_odd_x
+		elif kk < n_odd_x :
+			wid_x[kk] = N_stepx + odd_x
+		else:
+			wid_x[kk] = N_stepx
+
+	for kk in range(biny):
+		if kk == n_odd_y :
+			wid_y[kk] = N_stepy + d_odd_y
+		elif kk < n_odd_y :
+			wid_y[kk] = N_stepy + odd_y
+		else:
+			wid_y[kk] = N_stepy
+
+	# get the bin edge
+	lx = np.zeros(binx + 1, dtype = np.int32)
+	ly = np.zeros(biny + 1, dtype = np.int32)
+	for kk in range(binx):
+		lx[kk + 1] = lx[kk] + wid_x[kk]
+	for kk in range(biny):
+		ly[kk + 1] = ly[kk] + wid_y[kk]
+
+	patch_mean = np.zeros( (biny, binx), dtype = np.float )
+	patch_pix = np.zeros( (biny, binx), dtype = np.float )
+	patch_S0 = np.zeros( (biny, binx), dtype = np.float )
+	patch_Var = np.zeros( (biny, binx), dtype = np.float )
+	for nn in range( biny ):
+		for tt in range( binx ):
+
+			sub_flux = img_data[ly[nn]: ly[nn + 1], lx[tt]: lx[tt + 1] ]
+			id_nn = np.isnan(sub_flux)
+
+			patch_mean[nn,tt] = np.mean( sub_flux[id_nn == False] )
+			patch_pix[nn,tt] = len( sub_flux[id_nn == False] )
+			patch_Var[nn,tt] = np.std( sub_flux[id_nn == False] )
+			patch_S0[nn,tt] = (ly[nn + 1] - ly[nn]) * (lx[tt + 1] - lx[tt])
+
+	return patch_mean, patch_pix, patch_Var, patch_S0, lx, ly
+
+def grid_img(img_data, N_stepx, N_stepy):
+
+	ly = np.arange(0, img_data.shape[0], N_stepy)
+	ly = np.r_[ly, img_data.shape[0] - N_stepy, img_data.shape[0] ]
+	lx = np.arange(0, img_data.shape[1], N_stepx)
+	lx = np.r_[lx, img_data.shape[1] - N_stepx, img_data.shape[1] ]
+
+	lx = np.delete(lx, -1)
+	lx = np.delete(lx, -2)
+	ly = np.delete(ly, -1)
+	ly = np.delete(ly, -2)
+
+	patch_mean = np.zeros( (len(ly), len(lx) ), dtype = np.float )
+	patch_pix = np.zeros( (len(ly), len(lx) ), dtype = np.float )
+	patch_Var = np.zeros( (len(ly), len(lx) ), dtype = np.float )
+	for nn in range( len(ly) ):
+		for tt in range( len(lx) ):
+
+			sub_flux = img_data[ly[nn]: ly[nn] + N_stepy, lx[tt]: lx[tt] + N_stepx]
+			id_nn = np.isnan(sub_flux)
+			patch_mean[nn,tt] = np.mean( sub_flux[id_nn == False] )
+			patch_pix[nn,tt] = len( sub_flux[id_nn == False] )
+			patch_Var[nn,tt] = np.std( sub_flux[id_nn == False] )
+
+	return patch_mean, patch_pix, patch_Var
 
 ### surface brightness profile measurement
 def light_measure(data, Nbin, R_min, R_max, cx, cy, pix_size, z0):
@@ -516,7 +605,7 @@ def light_measure_rn_weit(data, weit_data, R_low, R_up, cx, cy, pix_size, z0):
 
 	Intns_r = (0.5 * (R_low + R_up) )
 
-	return Intns_r, Intns, Intns_err, N_pix, nsum_ratio
+	return Intns, Intns_r, Intns_err, N_pix, nsum_ratio
 
 def light_measure_weit(data, weit_data, R_bins, cx, cy, pix_size, z0):
 	"""
@@ -622,6 +711,7 @@ def light_measure_weit(data, weit_data, R_bins, cx, cy, pix_size, z0):
 
 	return Intns, Intns_r, Intns_err, N_pix, nsum_ratio
 
+### surface mass density (based on NFW)
 @vectorize
 def sigmamc(r, Mc, c):
 	"""

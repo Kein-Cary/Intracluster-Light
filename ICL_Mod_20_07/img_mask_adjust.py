@@ -12,7 +12,8 @@ from astropy import cosmology as apcy
 
 from groups import groups_find_func
 
-def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, out_file, bcg_mask, extra_cat, stack_info = None, pixel = 0.396,):
+def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, out_file, bcg_mask, extra_cat, alter_fac, 
+	stack_info = None, pixel = 0.396,):
 	"""
 	after img masking, use this function to detection "light" region, which
 	mainly due to nearby brightstars, for SDSS case: taking the brightness of
@@ -33,8 +34,6 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 	extra_cat : extral catalog for masking adjust
 	"""
 	Nz = len(z_set)
-	param_A = 'default_mask_A.sex'
-	out_param = 'default_mask_A.param'
 	bcg_x, bcg_y = [], []
 
 	for q in range(Nz):
@@ -63,7 +62,7 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 		Kron = 16
 		a = Kron * A
 		b = Kron * B
-
+		'''
 		##### selected gal_cat source
 		gal_dat = pds.read_csv(extra_cat % (ra_g, dec_g, z_g), )
 		gcat_x, gcat_y = np.array(gal_dat.imgx), np.array(gal_dat.imgy)
@@ -71,7 +70,7 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 		gcat_a = np.ones( len(gcat_x) ) * np.nanmean( a ) * 7.0
 		gcat_b = np.ones( len(gcat_x) ) * np.nanmean( a ) * 7.0 # use a circle to mask
 		gcat_chi = np.ones( len(gcat_x) ) * 0.
-
+		'''
 		## stars
 		mask = cat_file % (z_g, ra_g, dec_g)
 		cat = pds.read_csv(mask, skiprows = 1)
@@ -100,8 +99,8 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 		ic = (ie & ig & iq)
 		sub_x0 = x[ic]
 		sub_y0 = y[ic]
-		sub_A0 = lr_iso[ic] * 30
-		sub_B0 = sr_iso[ic] * 30
+		sub_A0 = lr_iso[ic] * alter_fac #30
+		sub_B0 = sr_iso[ic] * alter_fac #30
 		sub_chi0 = set_chi[ic]
 
 		# saturated source(may not stars)
@@ -122,12 +121,12 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 		Sr = np.r_[sub_B0[sub_A0 > 0], sub_B2[sub_A2 > 0] ]
 		phi = np.r_[sub_chi0[sub_A0 > 0], sub_chi2[sub_A2 > 0] ]
 
-		tot_cx = np.r_[cx, comx, gcat_x]
-		tot_cy = np.r_[cy, comy, gcat_y]
-		tot_a = np.r_[a, Lr, gcat_a]
-		tot_b = np.r_[b, Sr, gcat_b]
-		tot_theta = np.r_[theta, phi, gcat_chi]
-		tot_Numb = Numb + len(comx) + len(gcat_x)
+		tot_cx = np.r_[cx, comx, ] #gcat_x]
+		tot_cy = np.r_[cy, comy, ] #gcat_y]
+		tot_a = np.r_[a, Lr, ] #gcat_a]
+		tot_b = np.r_[b, Sr, ] #gcat_b]
+		tot_theta = np.r_[theta, phi, ] #gcat_chi]
+		tot_Numb = Numb + len(comx)# + len(gcat_x)
 
 		mask_path = np.ones((img.shape[0], img.shape[1]), dtype = np.float32)
 		ox = np.linspace(0, img.shape[1] - 1, img.shape[1])
@@ -199,50 +198,49 @@ def main():
 	home = '/media/xkchen/My Passport/data/SDSS/'
 	load = '/media/xkchen/My Passport/data/SDSS/'
 
-	## cluster
-	#with h5py.File(load + 'mpi_h5/r_band_sky_catalog.h5', 'r') as f:
-	#	set_array = np.array(f['a'])
-	#ra, dec, z = set_array[0,:], set_array[1,:], set_array[2,:]
+	size_arr = np.array([5, 10, 15, 20, 25])
+	for mm in range(5):
+		## cluster
+		#test_1000-to-250_cat-match.csv') A-type
+		dat = pds.read_csv('/home/xkchen/mywork/ICL/code/SEX/result/test_1000-to-98_cat.csv')
+		set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 
-	dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/clust-1000-select_cat.csv')
-	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
+		d_file = home + 'wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
 
-	d_file = home + 'wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
+		cat_file = '/home/xkchen/mywork/ICL/data/star_dr12_reload/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
+		gal_file = '/home/xkchen/mywork/ICL/data/source_find/cluster_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
 
-	cat_file = '/home/xkchen/mywork/ICL/data/star_dr12_reload/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
-	#cat_file = '/home/xkchen/mywork/ICL/data/tmp_img/tmp_stars/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' ### with larger query region
-	gal_file = '/home/xkchen/mywork/ICL/data/tmp_img/source_find/cluster_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
+		out_file = home + '20_10_test/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_' + '%d-FWHM-ov2.fits' % (size_arr[mm])
 
-	#out_file = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
-	out_file = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_add-photo-G.fits'
+		bcg_mask = 1
+		band = 'r'
+		extra_cat = '/home/xkchen/mywork/ICL/data/source_find/clus_photo-G_match_ra%.3f_dec%.3f_z%.3f.csv'
+		adjust_mask_func(d_file, cat_file, set_z, set_ra, set_dec, band, gal_file, out_file, bcg_mask, extra_cat, size_arr[mm],)
+	raise
 
-	bcg_mask = 1
-	band = 'r'
-	stack_info = 'clust-1000-select_cat_bcg-pos.csv'
-	extra_cat = '/home/xkchen/mywork/ICL/data/tmp_img/source_find/clus_photo-G_match_ra%.3f_dec%.3f_z%.3f.csv'
-	adjust_mask_func(d_file, cat_file, set_z, set_ra, set_dec, band, gal_file, out_file, bcg_mask, extra_cat, stack_info,)
+	"""
+		## random
+		#with h5py.File(load + 'random_cat/cat_select/rand_r_band_catalog.h5', 'r') as f:
+		#	tmp_array = np.array(f['a'])
+		#ra, dec, z = np.array(tmp_array[0]), np.array(tmp_array[1]), np.array(tmp_array[2])
 
+		dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/random_clus-1000-match_cat.csv')
+		set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 
-	## random
-	#with h5py.File(load + 'random_cat/cat_select/rand_r_band_catalog.h5', 'r') as f:
-	#	tmp_array = np.array(f['a'])
-	#ra, dec, z = np.array(tmp_array[0]), np.array(tmp_array[1]), np.array(tmp_array[2])
+		d_file = home + 'redMap_random/rand_img-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
+		cat_file = home + 'random_cat/star_cat/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
+		gal_file = '/home/xkchen/mywork/ICL/data/source_find/random_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
 
-	dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/random_clus-1000-match_cat.csv')
-	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
+		#out_file = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
+		out_file = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f_add-photo-G.fits'
 
-	d_file = home + 'redMap_random/rand_img-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
-	cat_file = home + 'random_cat/star_cat/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
-	gal_file = '/home/xkchen/mywork/ICL/data/tmp_img/source_find/random_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
-
-	#out_file = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
-	out_file = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f_add-photo-G.fits'
-
-	bcg_mask = 1
-	band = 'r'
-	stack_info = 'random_clus_1000-match_bcg-pos.csv'
-	extra_cat = '/home/xkchen/mywork/ICL/data/tmp_img/source_find/photo-G_match_ra%.3f_dec%.3f_z%.3f.csv'
-	adjust_mask_func(d_file, cat_file, set_z, set_ra, set_dec, band, gal_file, out_file, bcg_mask, extra_cat, stack_info,)
+		bcg_mask = 1
+		band = 'r'
+		stack_info = 'random_clus_1000-match_bcg-pos.csv'
+		extra_cat = '/home/xkchen/mywork/ICL/data/source_find/photo-G_match_ra%.3f_dec%.3f_z%.3f.csv'
+		adjust_mask_func(d_file, cat_file, set_z, set_ra, set_dec, band, gal_file, out_file, bcg_mask, extra_cat, stack_info,)
+	"""
 
 if __name__ == "__main__":
 	main()
+

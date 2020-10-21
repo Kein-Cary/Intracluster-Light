@@ -262,8 +262,6 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 
 	theta = np.arctan2((pix_id[1,:] - cy), (pix_id[0,:] - cx))
 	chi = theta * 180 / np.pi
-	# radius in unit of pixel number
-	#rbin = np.logspace(np.log10(r_lim), np.log10(R_pix), bins)
 	rbin = R_bins
 
 	intens = np.zeros(len(rbin), dtype = np.float)
@@ -298,6 +296,7 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 			samp_chi = chi[ir]
 
 			tot_flux = np.nansum(samp_flux * weit_arr) / np.nansum(weit_arr)
+
 			idnn = np.isnan( samp_flux )
 			N_pix[k] = np.sum( idnn == False )
 			nsum_ratio[k] = np.nansum(weit_arr) / np.sum( idnn == False )
@@ -325,7 +324,6 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 			id_fals = id_nan == False
 			Tmpf = tmpf[id_fals]
 
-			#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
 			RMS = np.std(Tmpf)
 			if len(Tmpf) > 1:
 				intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)

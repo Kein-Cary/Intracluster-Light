@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pds
 import astropy.io.fits as fits
 
-def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, img_x, img_y, id_cen, N_edg, rms_file = None, pix_con_file = None):
+def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, img_x, img_y, id_cen, N_edg, rms_file = None, pix_con_file = None, id_mean = 0,):
 	"""
 	d_file : path where save the masked data (include file-name structure:'/xxx/xxx/xxx.xxx')
 	z_set, ra_set, dec_set : ra, dec, z of will be resampled imgs
@@ -15,23 +15,33 @@ def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, img_x, img_y,
 	pix_con_file : the pixel counts in each stacking img pixel
 	N_edg : the width of the edge region, pixels in this region will be set as 
 			'no flux' contribution pixels (ie. set as np.nan)
+
+	for sky img case :
+
+	id_cen : 0 - stacking by centering on BCGs, 1 - stacking by centering on img center
+	for sky imgs, id_cen can be 2 -- means 'random center stacking'
+	for id_cen = 2 case, img_x, img_y is random position of the img frame coordinate, they may be BCGs' location,
+	maybe not.(in this case, need to creat a list of "fake BCG position")
+
+	id_mean : 0, 1, 2.  0 - img_add = img; 
+	1 - img_add = img - np.mean(img); 2 - img_add = img - np.median(img); Default is id_mean = 0
 	"""
 	stack_N = len(z_set)
 
-	if id_cen == 0:
-		x0, y0 = 2427, 1765
-		Nx = np.linspace(0, 4854, 4855)
-		Ny = np.linspace(0, 3530, 3531)
+	if id_cen == 1:
+		x0, y0 = 1024, 744
+		Nx = np.linspace(0, 2047, 2048)
+		Ny = np.linspace(0, 1488, 1489)
 
 		sum_array_A = np.zeros((len(Ny), len(Nx)), dtype = np.float32)
 		count_array_A = np.ones((len(Ny), len(Nx)), dtype = np.float32) * np.nan
 		p_count_A = np.zeros((len(Ny), len(Nx)), dtype = np.float32)
 		pix_f2 = np.zeros((len(Ny), len(Nx)), dtype = np.float32)
 
-	if id_cen == 1:
-		x0, y0 = 1024, 744
-		Nx = np.linspace(0, 2047, 2048)
-		Ny = np.linspace(0, 1488, 1489)
+	if id_cen != 1:
+		x0, y0 = 2427, 1765
+		Nx = np.linspace(0, 4854, 4855)
+		Ny = np.linspace(0, 3530, 3531)
 
 		sum_array_A = np.zeros((len(Ny), len(Nx)), dtype = np.float32)
 		count_array_A = np.ones((len(Ny), len(Nx)), dtype = np.float32) * np.nan
@@ -80,14 +90,29 @@ def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, img_x, img_y,
 			lb0 = np.int(x0 - rnx)
 			lb1 = np.int(x0 - rnx + img_A.shape[1])
 
+		## for sky img stacking
+		if id_cen == 2:
+			rnx, rny = img_x[jj], img_y[jj]
+			la0 = np.int(y0 - rny)
+			la1 = np.int(y0 - rny + img_A.shape[0])
+			lb0 = np.int(x0 - rnx)
+			lb1 = np.int(x0 - rnx + img_A.shape[1])
+
+		if id_mean == 0:
+			img_add = img_A - 0.
+		if id_mean == 1:
+			img_add = img_A - np.nanmean(img_A)
+		if id_mean == 2:
+			img_add = img_A - np.nanmedian(img_A)
+
 		idx = np.isnan(img_A)
 		idv = np.where(idx == False)
 
-		sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + img_A[idv]
-		count_array_A[la0: la1, lb0: lb1][idv] = img_A[idv]
+		sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + img_add[idv]
+		count_array_A[la0: la1, lb0: lb1][idv] = img_add[idv]
 
 		## tmp array for rms
-		pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + img_A[idv]**2
+		pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + img_add[idv]**2
 
 		id_nan = np.isnan(count_array_A)
 		id_fals = np.where(id_nan == False)

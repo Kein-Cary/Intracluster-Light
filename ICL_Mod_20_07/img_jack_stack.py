@@ -13,9 +13,9 @@ from scipy import ndimage
 from astropy import cosmology as apcy
 
 from img_stack import stack_func
-from img_sky_stack import sky_stack_func
 from img_edg_cut_stack import cut_stack_func
-from light_measure import light_measure_Z0_weit
+
+from light_measure import light_measure_Z0_weit, light_measure_weit
 from light_measure import jack_SB_func
 
 from mpi4py import MPI
@@ -115,11 +115,13 @@ def jack_samp_stack(d_file, id_set, out_file):
 	return
 
 def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y, img_file, band, sub_img,
-	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,):
+	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
+	id_cut = False, N_edg = None, id_Z0 = True, z_ref = None,):
 	"""
 	combining jackknife stacking process, and 
 	save : sub-sample (sub-jack-sample) stacking image, pixel conunt array, surface brightness profiles
 	id_cen : 0 - stacking by centering on BCGs, 1 - stacking by centering on img center
+
 	N_bin : number of jackknife sample
 	n_rbins : the number of radius bins (int type)
 
@@ -138,6 +140,13 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 	jack_SB_file : file name of the final jackknife stacking SB profile ('/xxx/xxx/xxx.xxx')
 	jack_img : mean of the jackknife stacking img ('/xxx/xxx/xxx.xxx')
 	jack_cont_arr : mean of the pixel count array ('/xxx/xxx/xxx.xxx')
+
+	id_cut : id_cut == True, cut img edge pixels before stacking, id_cut == False, just stacking original size imgs
+	N_edg : the cut region width, in unit of pixel, only applied when id_cut == True, pixels in this region will be set as 
+			'no flux' contribution pixels (ie. set as np.nan)
+	
+	id_Z0 : stacking imgs on observation coordinate (id_Z0 = True) 
+			or not (id_Z0 = False, give radius in physical unit, kpc), default is True
 	"""
 	lis_ra, lis_dec, lis_z = cat_ra, cat_dec, cat_z
 	lis_x, lis_y = img_x, img_y
@@ -164,8 +173,12 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 		sub_img_file = sub_img % nn
 		sub_cont_file = sub_pix_cont % nn
 
-		stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[0], set_x, set_y, id_cen, 
-			rms_file = None, pix_con_file = sub_cont_file,)
+		if id_cut == False:
+			stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[0], set_x, set_y, id_cen, 
+				rms_file = None, pix_con_file = sub_cont_file,)
+		if id_cut == True:
+			cut_stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[0], set_x, set_y, id_cen, N_edg, 
+				rms_file = None, pix_con_file = sub_cont_file,)
 
 	for nn in range(N_bin):
 
@@ -221,9 +234,15 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 			tmp_cont = np.array(f['a'])
 
 		xn, yn = np.int(tmp_img.shape[1] / 2), np.int(tmp_img.shape[0] / 2)
-		Intns, Angl_r, Intns_err, npix, nratio = light_measure_Z0_weit(tmp_img, tmp_cont, pixel, xn, yn, r_bins_0)
-		sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
-		r_arr = Angl_r
+
+		if id_Z0 == True:
+			Intns, Angl_r, Intns_err, npix, nratio = light_measure_Z0_weit(tmp_img, tmp_cont, pixel, xn, yn, r_bins_0)
+			sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
+			r_arr = Angl_r
+		else:
+			Intns, phy_r, Intns_err, npix, nratio = light_measure_weit(tmp_img, tmp_cont, r_bins_0, xn, yn, pixel, z_ref,)
+			sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
+			r_arr = phy_r
 
 		with h5py.File(sub_sb % nn, 'w') as f:
 			f['r'] = np.array(r_arr)
@@ -240,9 +259,15 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 			sub_jk_cont = np.array(f['a'])
 
 		xn, yn = np.int(sub_jk_img.shape[1] / 2), np.int(sub_jk_img.shape[0] / 2)
-		Intns, Angl_r, Intns_err, npix, nratio = light_measure_Z0_weit(sub_jk_img, sub_jk_cont, pixel, xn, yn, r_bins_1)
-		sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
-		r_arr = Angl_r
+
+		if id_Z0 == True:
+			Intns, Angl_r, Intns_err, npix, nratio = light_measure_Z0_weit(sub_jk_img, sub_jk_cont, pixel, xn, yn, r_bins_1)
+			sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
+			r_arr = Angl_r
+		else:
+			Intns, phy_r, Intns_err, npix, nratio = light_measure_weit(sub_jk_img, sub_jk_cont, r_bins_1, xn, yn, pixel, z_ref,)
+			sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
+			r_arr = phy_r
 
 		with h5py.File(J_sub_sb % nn, 'w') as f:
 			f['r'] = np.array(r_arr)

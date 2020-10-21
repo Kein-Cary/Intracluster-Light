@@ -201,7 +201,7 @@ def main():
 	d_file = home + 'wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
 	cat_file = '/home/xkchen/mywork/ICL/data/corrected_star_cat/dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
 
-	out_file0 = '/home/xkchen/mywork/ICL/data/tmp_img/source_find/cluster_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
+	out_file0 = '/home/xkchen/mywork/ICL/data/source_find/cluster_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
 	out_file1 = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
 
 	bcg_mask = 1
@@ -216,7 +216,7 @@ def main():
 	d_file = home + 'redMap_random/rand_img-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
 	cat_file = '/home/xkchen/mywork/ICL/data/corrected_star_cat/random/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
 
-	out_file0 = '/home/xkchen/mywork/ICL/data/tmp_img/source_find/random_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
+	out_file0 = '/home/xkchen/mywork/ICL/data/source_find/random_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
 	out_file1 = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
 
 	bcg_mask = 1
