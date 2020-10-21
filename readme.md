@@ -1,4 +1,8 @@
 # Repository for Intracluster light
-## mainly include: code and some result
+## mainly include: codes and results (for test or pipeline process)
 ## PS: Those files named with 'test' or 'tmp' are temporary and 
-## not included in the final pipeline calculation.
+## not included in the final pipeline calculation.(now all these file are
+## collected in 'code_test').
+## (After 2020.7.) except data access, the majority of pipeline are list 
+## in ICL_Mod_20_07.
+
