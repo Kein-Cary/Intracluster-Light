@@ -12,6 +12,7 @@ import astropy.units as U
 import astropy.constants as C
 from astropy import cosmology as apcy
 from astropy.coordinates import SkyCoord
+
 from img_stack import stack_func
 from img_sky_stack import sky_stack_func
 from img_edg_cut_stack import cut_stack_func
@@ -42,10 +43,88 @@ home = '/media/xkchen/My Passport/data/SDSS/'
 load = '/media/xkchen/My Passport/data/SDSS/'
 
 ################## test jackknife stacking code.
-dat = pds.read_csv('/home/xkchen/mywork/ICL/code/SEX/result/test_1000-to-250_cat.csv')
-#dat = pds.read_csv('/home/xkchen/mywork/ICL/code/SEX/result/test_1000-to-98_cat.csv')
+## stacking imgs at reference redshift
+dat = pds.read_csv('test_1000-to-AB_resamp_BCG-pos.csv')
 ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
+
+set_ra = ra[:250]
+set_dec = dec[:250]
+set_z = z[:250]
+set_x, set_y = clus_x[:250], clus_y[:250]
+
+id_cen = 0
+n_rbins = 100
+N_bin = 25
+
+size_arr = np.array([5, 30])
+'''
+for mm in range(2):
+	if mm == 0:
+		d_file = home + '20_10_test/resamp-%s-ra%.3f-dec%.3f-redshift%.3f.fits'
+	if mm == 1:
+		d_file = home + 'tmp_stack/pix_resample/resamp-%s-ra%.3f-dec%.3f-redshift%.3f.fits'
+
+	sub_img = load + '20_10_test/jack_test/A_clust_BCG-stack_sub-%d_img' + '_%d-FWHM-ov2_z-ref.h5' % (size_arr[mm])
+	sub_pix_cont = load + '20_10_test/jack_test/A_clust_BCG-stack_sub-%d_pix-cont' + '_%d-FWHM-ov2_z-ref.h5' % (size_arr[mm])
+	sub_sb = load + '20_10_test/jack_test/A_clust_BCG-stack_sub-%d_SB-pro' + '_%d-FWHM-ov2_z-ref.h5' % (size_arr[mm])
+
+	J_sub_img = load + '20_10_test/jack_test/A_clust_BCG-stack_jack-sub-%d_img' + '_%d-FWHM-ov2_z-ref.h5' % (size_arr[mm])
+	J_sub_pix_cont = load + '20_10_test/jack_test/A_clust_BCG-stack_jack-sub-%d_pix-cont' + '_%d-FWHM-ov2_z-ref.h5' % (size_arr[mm])
+	J_sub_sb = load + '20_10_test/jack_test/A_clust_BCG-stack_jack-sub-%d_SB-pro' + '_%d-FWHM-ov2_z-ref.h5' % (size_arr[mm])
+
+	jack_SB_file = load + '20_10_test/jack_test/A_clust_BCG-stack_Mean_jack_SB-pro' + '_%d-FWHM-ov2_z-ref.h5' % (size_arr[mm])
+	jack_img = load + '20_10_test/jack_test/A_clust_BCG-stack_Mean_jack_img' + '_%d-FWHM-ov2_z-ref.h5' % (size_arr[mm])
+	jack_cont_arr = load + '20_10_test/jack_test/A_clust_BCG-stack_Mean_jack_pix-cont' + '_%d-FWHM-ov2_z-ref.h5' % (size_arr[mm])
+
+	#jack_main_func(id_cen, N_bin, n_rbins, ra, dec, z, clus_x, clus_y, d_file, band[0], sub_img,
+	#	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
+	#	id_cut = False, N_edg = None, id_Z0 = False, z_ref = 0.25,)
+
+	jack_main_func(id_cen, N_bin, n_rbins, set_ra, set_dec, set_z, set_x, set_y, d_file, band[0], sub_img,
+		sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
+		id_cut = False, N_edg = None, id_Z0 = False, z_ref = 0.25,)
+'''
+print('obs. finish!')
+'''
+load = '/home/xkchen/mywork/ICL/data/tmp_img/'
+d_file = load + 'resamp_mock/resamp-%s-ra%.3f-dec%.3f-redshift%.3f.fits'
+
+sub_img = load + 'stack_mock/mock-A_BCG-stack_sub-%d_img_z-ref.h5'
+sub_pix_cont = load + 'stack_mock/mock-A_BCG-stack_sub-%d_pix-cont_z-ref.h5'
+sub_sb = load + 'stack_mock/mock-A_BCG-stack_sub-%d_SB-pro_z-ref.h5'
+
+J_sub_img = load + 'stack_mock/mock-A_BCG-stack_jack-sub-%d_img_z-ref.h5'
+J_sub_pix_cont = load + 'stack_mock/mock-A_BCG-stack_jack-sub-%d_pix-cont_z-ref.h5'
+J_sub_sb = load + 'stack_mock/mock-A_BCG-stack_jack-sub-%d_SB-pro_z-ref.h5'
+
+jack_SB_file = load + 'stack_mock/mock-A_BCG-stack_Mean_jack_SB-pro_z-ref.h5'
+jack_img = load + 'stack_mock/mock-A_BCG-stack_Mean_jack_img_z-ref.h5'
+jack_cont_arr = load + 'stack_mock/mock-A_BCG-stack_Mean_jack_pix-cont_z-ref.h5'
+
+z_ref = 0.254 # mean of the z
+
+jack_main_func(id_cen, N_bin, n_rbins, set_ra, set_dec, set_z, set_x, set_y, d_file, band[0], sub_img,
+	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
+	id_cut = False, N_edg = None, id_Z0 = False, z_ref = 0.254,)
+'''
+print('mock finish!')
+
+'''
+## test for star masking size
+dat = pds.read_csv('/home/xkchen/mywork/ICL/code/SEX/result/test_1000-to-250_cat.csv')
+ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
+clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
+
+Bdat = pds.read_csv('/home/xkchen/mywork/ICL/code/SEX/result/test_1000-to-98_cat.csv')
+Bra, Bdec, Bz = np.array(Bdat.ra), np.array(Bdat.dec), np.array(Bdat.z)
+Bclus_x, Bclus_y = np.array(Bdat.bcg_x), np.array(Bdat.bcg_y)
+
+ra = np.r_[ ra, Bra ]
+dec = np.r_[ dec, Bdec ]
+z = np.r_[ z, Bz ]
+clus_x = np.r_[ clus_x, Bclus_x ]
+clus_y = np.r_[ clus_y, Bclus_y ]
 
 size_arr = np.array([5, 10, 15, 20, 25])
 for mm in range(5):
@@ -55,327 +134,226 @@ for mm in range(5):
 	N_bin = 30
 	d_file = home + '20_10_test/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_' + '%d-FWHM-ov2.fits' % (size_arr[mm])
 
-	sub_img = load + '20_10_test/jack_test/clust_BCG-stack_sub-%d_img' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
-	sub_pix_cont = load + '20_10_test/jack_test/clust_BCG-stack_sub-%d_pix-cont' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
-	sub_sb = load + '20_10_test/jack_test/clust_BCG-stack_sub-%d_SB-pro' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+	sub_img = load + '20_10_test/jack_test/AB_clust_BCG-stack_sub-%d_img' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+	sub_pix_cont = load + '20_10_test/jack_test/AB_clust_BCG-stack_sub-%d_pix-cont' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+	sub_sb = load + '20_10_test/jack_test/AB_clust_BCG-stack_sub-%d_SB-pro' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
 
-	J_sub_img = load + '20_10_test/jack_test/clust_BCG-stack_jack-sub-%d_img' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
-	J_sub_pix_cont = load + '20_10_test/jack_test/clust_BCG-stack_jack-sub-%d_pix-cont' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
-	J_sub_sb = load + '20_10_test/jack_test/clust_BCG-stack_jack-sub-%d_SB-pro' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+	J_sub_img = load + '20_10_test/jack_test/AB_clust_BCG-stack_jack-sub-%d_img' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+	J_sub_pix_cont = load + '20_10_test/jack_test/AB_clust_BCG-stack_jack-sub-%d_pix-cont' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+	J_sub_sb = load + '20_10_test/jack_test/AB_clust_BCG-stack_jack-sub-%d_SB-pro' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
 
-	jack_SB_file = load + '20_10_test/jack_test/clust_BCG-stack_Mean_jack_SB-pro' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
-	jack_img = load + '20_10_test/jack_test/clust_BCG-stack_Mean_jack_img' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
-	jack_cont_arr = load + '20_10_test/jack_test/clust_BCG-stack_Mean_jack_pix-cont' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+	jack_SB_file = load + '20_10_test/jack_test/AB_clust_BCG-stack_Mean_jack_SB-pro' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+	jack_img = load + '20_10_test/jack_test/AB_clust_BCG-stack_Mean_jack_img' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+	jack_cont_arr = load + '20_10_test/jack_test/AB_clust_BCG-stack_Mean_jack_pix-cont' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
 
 	jack_main_func(id_cen, N_bin, n_rbins, ra, dec, z, clus_x, clus_y, d_file, band[0], sub_img,
 		sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,)
 
+print('start point!')
+id_cen = 0
+n_rbins = 110
+N_bin = 30
+d_file = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits' ## 30 (FWHM/2) case
+
+sub_img = load + '20_10_test/jack_test/AB_clust_BCG-stack_sub-%d_img_30-FWHM-ov2.h5'
+sub_pix_cont = load + '20_10_test/jack_test/AB_clust_BCG-stack_sub-%d_pix-cont_30-FWHM-ov2.h5'
+sub_sb = load + '20_10_test/jack_test/AB_clust_BCG-stack_sub-%d_SB-pro_30-FWHM-ov2.h5'
+
+J_sub_img = load + '20_10_test/jack_test/AB_clust_BCG-stack_jack-sub-%d_img_30-FWHM-ov2.h5'
+J_sub_pix_cont = load + '20_10_test/jack_test/AB_clust_BCG-stack_jack-sub-%d_pix-cont_30-FWHM-ov2.h5'
+J_sub_sb = load + '20_10_test/jack_test/AB_clust_BCG-stack_jack-sub-%d_SB-pro_30-FWHM-ov2.h5'
+
+jack_SB_file = load + '20_10_test/jack_test/AB_clust_BCG-stack_Mean_jack_SB-pro_30-FWHM-ov2.h5'
+jack_img = load + '20_10_test/jack_test/AB_clust_BCG-stack_Mean_jack_img_30-FWHM-ov2.h5'
+jack_cont_arr = load + '20_10_test/jack_test/AB_clust_BCG-stack_Mean_jack_pix-cont_30-FWHM-ov2.h5'
+
+jack_main_func(id_cen, N_bin, n_rbins, ra, dec, z, clus_x, clus_y, d_file, band[0], sub_img,
+	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,)
+raise
+'''
+'''
+## 30 (FWHM/2) case, cut img edge pixels test
+id_cen = 0
+n_rbins = 110
+N_bin = 30
+d_file = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
+
+dat = pds.read_csv('/home/xkchen/mywork/ICL/code/SEX/result/test_1000-to-250_cat.csv')
+ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
+clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
+
+N_cut = np.array([200, 500])
+
+for ll in range(3):
+
+	sub_img = load + '20_10_test/jack_test/A_clust_BCG-stack_sub-%d_img_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+	sub_pix_cont = load + '20_10_test/jack_test/A_clust_BCG-stack_sub-%d_pix-cont_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+	sub_sb = load + '20_10_test/jack_test/A_clust_BCG-stack_sub-%d_SB-pro_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+
+	J_sub_img = load + '20_10_test/jack_test/A_clust_BCG-stack_jack-sub-%d_img_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+	J_sub_pix_cont = load + '20_10_test/jack_test/A_clust_BCG-stack_jack-sub-%d_pix-cont_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+	J_sub_sb = load + '20_10_test/jack_test/A_clust_BCG-stack_jack-sub-%d_SB-pro_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+
+	jack_SB_file = load + '20_10_test/jack_test/A_clust_BCG-stack_Mean_jack_SB-pro_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+	jack_img = load + '20_10_test/jack_test/A_clust_BCG-stack_Mean_jack_img_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+	jack_cont_arr = load + '20_10_test/jack_test/A_clust_BCG-stack_Mean_jack_pix-cont_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+
+	jack_main_func(id_cen, N_bin, n_rbins, ra, dec, z, clus_x, clus_y, d_file, band[0], sub_img,
+		sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
+		id_cut = True, N_edg = N_cut[ll],)
+raise
+'''
+
+##### decals imgs
+print('DECaLS')
+
+dat = pds.read_csv('/home/xkchen/mywork/ICL/code/SEX/result/test_1000-to-250_cat.csv')
+ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
+clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
+
+id_cen = 0
+n_rbins = 110
+N_bin = 30
+
+d_file = '/media/xkchen/My Passport/data/BASS/A_250_mask/ap_sdss_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
+#d_file = '/media/xkchen/My Passport/data/BASS/A_250_mask/comb_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
+
+sub_img = load + '20_10_test/jack_test/decals_A-250_BCG-stack_sub-%d_img.h5'
+sub_pix_cont = load + '20_10_test/jack_test/decals_A-250_BCG-stack_sub-%d_pix-cont.h5'
+sub_sb = load + '20_10_test/jack_test/decals_A-250_BCG-stack_sub-%d_SB-pro.h5'
+'''
+J_sub_img = load + '20_10_test/jack_test/decals_A-250_BCG-stack_jack-sub-%d_img.h5'
+J_sub_pix_cont = load + '20_10_test/jack_test/decals_A-250_BCG-stack_jack-sub-%d_pix-cont.h5'
+J_sub_sb = load + '20_10_test/jack_test/decals_A-250_BCG-stack_jack-sub-%d_SB-pro.h5'
+
+jack_SB_file = load + '20_10_test/jack_test/decals_A-250_BCG-stack_Mean_jack_SB-pro.h5'
+jack_img = load + '20_10_test/jack_test/decals_A-250_BCG-stack_Mean_jack_img.h5'
+jack_cont_arr = load + '20_10_test/jack_test/decals_A-250_BCG-stack_Mean_jack_pix-cont.h5'
+'''
+J_sub_img = load + '20_10_test/jack_test/decals_A-250_BCG-stack_jack-sub-%d_img_sdss-mask.h5'
+J_sub_pix_cont = load + '20_10_test/jack_test/decals_A-250_BCG-stack_jack-sub-%d_pix-cont_sdss-mask.h5'
+J_sub_sb = load + '20_10_test/jack_test/decals_A-250_BCG-stack_jack-sub-%d_SB-pro_sdss-mask.h5'
+
+jack_SB_file = load + '20_10_test/jack_test/decals_A-250_BCG-stack_Mean_jack_SB-pro_sdss-mask.h5'
+jack_img = load + '20_10_test/jack_test/decals_A-250_BCG-stack_Mean_jack_img_sdss-mask.h5'
+jack_cont_arr = load + '20_10_test/jack_test/decals_A-250_BCG-stack_Mean_jack_pix-cont_sdss-mask.h5'
+
+jack_main_func(id_cen, N_bin, n_rbins, ra, dec, z, clus_x, clus_y, d_file, band[0], sub_img,
+	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,)
+
 raise
 
-"""
-################## test edge pixel out
-#dat = pds.read_csv('/home/xkchen/Downloads/new_1000_test/clust_test-1000_remain_cat.csv')
-dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/re_clust-1000-select_remain_test.csv')
-#dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/clust-1000-select_remain_test.csv')
-ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
-clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
+def cov_MX_func(radius, pros, id_jack = True,):
 
-cat_brit = pds.read_csv('/home/xkchen/tmp/00_tot_select/cluster_to_bright_cat.csv')
-set_ra, set_dec, set_z = np.array(cat_brit.ra), np.array(cat_brit.dec), np.array(cat_brit.z)
-out_ra = ['%.3f' % ll for ll in set_ra]
-out_dec = ['%.3f' % ll for ll in set_dec]
+	flux_array = np.array(pros)
+	r_array = np.array(radius)
+	Nt = len(flux_array)
 
-lis_ra, lis_dec, lis_z = [], [], []
-lis_x, lis_y = [], []
-for ll in range( len(z) ):
-	identi = ('%.3f' % ra[ll] in out_ra) & ('%.3f' % dec[ll] in out_dec)
-	if identi == True:
-		continue
+	r_min, r_max = 0, np.nanmax(r_array)
+	for ll in range(Nt):
+		idnn = np.isnan( flux_array[ll] )
+		lim_in_r = r_array[ll][ idnn == False]
+		r_min = np.max([ r_min, np.min(lim_in_r) ])
+		r_max = np.min([ r_max, np.max(lim_in_r) ])
+
+	SB_value = []
+	R_value = []
+	for ll in range(Nt):
+		idux = (r_array[ll] >= r_min) & (r_array[ll] <= r_max)
+		set_flux = flux_array[ll][ idux ]
+		set_r = r_array[ll][ idux ]
+		SB_value.append( set_flux )
+		R_value.append( set_r )
+
+	SB_value = np.array(SB_value)
+	R_value = np.array(R_value)
+	R_mean = np.nanmean(R_value, axis = 0)
+
+	mean_lit = np.nanmean(SB_value, axis = 0)
+	std_lit = np.nanstd(SB_value, axis = 0)
+	nx, ny = SB_value.shape[1], SB_value.shape[0]
+
+	cov_tt = np.zeros((nx, nx), dtype = np.float)
+	cor_tt = np.zeros((nx, nx), dtype = np.float)
+
+	for qq in range(nx):
+		for tt in range(nx):
+			cov_tt[qq, tt] = np.sum( (SB_value[:,qq] - mean_lit[qq]) * (SB_value[:,tt] - mean_lit[tt]) ) / ny
+
+	for qq in range(nx):
+		for tt in range(nx):
+			cor_tt[qq, tt] = cov_tt[qq, tt] / (std_lit[qq] * std_lit[tt])
+	if id_jack == True:
+		cov_MX = cov_tt * (ny - 1.) ## jackknife factor
 	else:
-		lis_ra.append( ra[ll] )
-		lis_dec.append( dec[ll] )
-		lis_z.append( z[ll] )
-		lis_x.append( clus_x[ll] )
-		lis_y.append( clus_y[ll] )
+		cov_MX = cov_tt * 1.
+	cor_MX = cor_tt * 1.
 
-lis_ra = np.array(lis_ra)
-lis_dec = np.array(lis_dec)
-lis_z = np.array(lis_z)
-lis_x = np.array(lis_x)
-lis_y = np.array(lis_y)
+	return R_mean, cov_MX, cor_MX
 
-N_edg = 500 # 500, 200
+## covariance & correlation
+#load = '/media/xkchen/My Passport/data/SDSS/'
+#J_sub_sb = load + '20_10_test/jack_test/clust_BCG-stack_jack-sub-%d_SB-pro_30-FWHM-ov2.h5'
+#J_sub_sb = load + '20_10_test/jack_test/A_clust_BCG-stack_jack-sub-%d_SB-pro_30-FWHM-ov2_z-ref.h5'
 
-d_file = '/media/xkchen/My Passport/data/SDSS/tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
-#d_file = '/media/xkchen/My Passport/data/SDSS/tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
+load = '/home/xkchen/mywork/ICL/data/tmp_img/'
+#J_sub_sb = load + 'stack_mock/mock-A_BCG-stack_jack-sub-%d_SB-pro.h5'
+J_sub_sb = load + 'stack_mock/mock-A_BCG-stack_jack-sub-%d_SB-pro_z-ref.h5'
 
-id_cen = 0
+tt_r, tt_sb = [], []
 
-out_file = '/home/xkchen/Downloads/new_1000_test/clust_test-1000_BCG-stack_N_edg-%d_correct.h5' % ( N_edg )
-rms_file = '/home/xkchen/Downloads/new_1000_test/clust_test-1000_BCG-stack_var_N_edg-%d_correct.h5' % ( N_edg )
-cont_file = '/home/xkchen/Downloads/new_1000_test/clust_test-1000_BCG-stack_pix-cont_N_edg-%d_correct.h5' % ( N_edg )
+for mm in range(25):#30):
+	with h5py.File(J_sub_sb % mm, 'r') as f:
+		r_arr = np.array(f['r'])
+		sb_arr = np.array(f['sb'])
+		nratio = np.array(f['nratio'])
+		npix = np.array(f['npix'])
 
-#out_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_BCG-stack_N_edg-%d_correct.h5' % ( N_edg ) # _N_edg-%d.h5' % ( N_edg )
-#rms_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_BCG-stack_var_N_edg-%d_correct.h5' % ( N_edg ) # _N_edg-%d.h5' % ( N_edg ) 
-#cont_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_BCG-stack_pix-cont_N_edg-%d_correct.h5' % ( N_edg ) # _N_edg-%d.h5' % ( N_edg )
-#cut_stack_func(d_file, out_file, z, ra, dec, band[0], clus_x, clus_y, id_cen, N_edg, rms_file, cont_file,)
-cut_stack_func(d_file, out_file, lis_z, lis_ra, lis_dec, band[0], lis_x, lis_y, id_cen, N_edg, rms_file, cont_file)
+	idnun = npix < 1.
+	r_arr[idnun] = np.nan
+	sb_arr[idnun] = np.nan
 
+	tt_r.append(r_arr)
+	tt_sb.append(sb_arr)
 
-#dat = pds.read_csv('/home/xkchen/Downloads/new_1000_test/random_clus-1000-match_remain_cat.csv')
-dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/re_random_clus-1000-match_remain_test.csv')
-#dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/random_clus-1000-match_remain_test.csv')
-ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
-clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
+R_mean, cov_Mx, cor_Mx = cov_MX_func(tt_r, tt_sb,)
 
-cat_brit = pds.read_csv('/home/xkchen/tmp/00_tot_select/random_to_bright_cat.csv')
-set_ra, set_dec, set_z = np.array(cat_brit.ra), np.array(cat_brit.dec), np.array(cat_brit.z)
-out_ra = ['%.3f' % ll for ll in set_ra]
-out_dec = ['%.3f' % ll for ll in set_dec]
+fig = plt.figure( figsize = (13.12, 4.8) )
+ax0 = fig.add_axes([0.05, 0.09, 0.40, 0.85])
+ax1 = fig.add_axes([0.55, 0.09, 0.40, 0.85])
 
-lis_ra, lis_dec, lis_z = [], [], []
-lis_x, lis_y = [], []
-for ll in range( len(z) ):
-	identi = ('%.3f' % ra[ll] in out_ra) & ('%.3f' % dec[ll] in out_dec)
-	if identi == True:
-		continue
-	else:
-		lis_ra.append( ra[ll] )
-		lis_dec.append( dec[ll] )
-		lis_z.append( z[ll] )
-		lis_x.append( clus_x[ll] )
-		lis_y.append( clus_y[ll] )
+#ticks = [0, 20, 40, 60, 65,]
+#ticks = [0, 10, 20, 30, 40, 50, 55]
+ticks = [0, 20, 40, 60, 65, 70, 80]
 
-lis_ra = np.array(lis_ra)
-lis_dec = np.array(lis_dec)
-lis_z = np.array(lis_z)
-lis_x = np.array(lis_x)
-lis_y = np.array(lis_y)
+ax0.set_title('Covariance Matrix')
+tf = ax0.imshow(cov_Mx, origin = 'lower', cmap = 'rainbow', vmin = 1e-8, vmax = 2e-3, norm = mpl.colors.LogNorm(),)
+cbr = plt.colorbar(tf, ax = ax0, fraction = 0.040, pad = 0.01, label = '$ [nanomaggies \, / \, arcsec^2]^2 $')
+ax0.set_xticks(ticks)
+ax0.set_xticklabels([],)
+ax0.set_yticks(ticks)
+ax0.set_yticklabels(['%.1f' % ll for ll in R_mean[ticks] ])
+ax0.set_xlabel('R [kpc]')
+ax0.set_ylabel('R [kpc]')
 
-d_file = '/media/xkchen/My Passport/data/SDSS/tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
-#d_file = '/media/xkchen/My Passport/data/SDSS/tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
+ax1.set_title('Correlation Matrix')
+tg = ax1.imshow(cor_Mx, origin = 'lower', cmap = 'seismic', vmin = -1, vmax = 1,)
+plt.colorbar(tg, ax = ax1, fraction = 0.040, pad = 0.01,)
+ax1.set_xticks(ticks)
+ax1.set_xticklabels([],)
+ax1.set_yticks(ticks)
+ax1.set_yticklabels(['%.1f' % ll for ll in R_mean[ticks] ])
+'''
+ax1.set_xlabel('R [arcsec]')
+ax1.set_ylabel('R [arcsec]')
+'''
+ax1.set_xlabel('R [kpc]')
+ax1.set_ylabel('R [kpc]')
 
-id_cen = 0
+plt.subplots_adjust(left = 0.05, right = 0.95,)
+plt.savefig('cov_Mx_test.png', dpi = 300)
+plt.close()
 
-out_file = '/home/xkchen/Downloads/new_1000_test/random_test-1000_BCG-stack_N_edg-%d_correct.h5' % ( N_edg )
-rms_file = '/home/xkchen/Downloads/new_1000_test/random_test-1000_BCG-stack_var_N_edg-%d_correct.h5' % ( N_edg )
-cont_file = '/home/xkchen/Downloads/new_1000_test/random_test-1000_BCG-stack_pix-cont_N_edg-%d_correct.h5' % ( N_edg )
-
-#out_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_BCG-stack_N_edg-%d_correct.h5' % ( N_edg ) # _N_edg-%d.h5' % ( N_edg )
-#rms_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_BCG-stack_var_N_edg-%d_correct.h5' % ( N_edg ) # _N_edg-%d.h5' % ( N_edg )
-#cont_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_BCG-stack_pix-cont_N_edg-%d_correct.h5' % ( N_edg ) # _N_edg-%d.h5' % ( N_edg )
-#cut_stack_func(d_file, out_file, z, ra, dec, band[0], clus_x, clus_y, id_cen, N_edg, rms_file, cont_file,)
-cut_stack_func(d_file, out_file, lis_z, lis_ra, lis_dec, band[0], lis_x, lis_y, id_cen, N_edg, rms_file, cont_file)
 
 raise
-"""
-################## part 1
-dat = pds.read_csv('/home/xkchen/tmp/00_tot_select/tot_clust_remain_cat.csv')
-## test-1000
-#dat = pds.read_csv('/home/xkchen/Downloads/new_1000_test/clust_test-1000_remain_cat.csv')
-#dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/re_clust-1000-select_remain_test.csv')
-#dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/clust-1000-select_remain_test.csv')
-ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
-clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
 
-cat_brit = pds.read_csv('/home/xkchen/tmp/00_tot_select/cluster_to_bright_cat.csv')
-set_ra, set_dec, set_z = np.array(cat_brit.ra), np.array(cat_brit.dec), np.array(cat_brit.z)
-
-out_ra = ['%.3f' % ll for ll in set_ra]
-out_dec = ['%.3f' % ll for ll in set_dec]
-
-lis_ra, lis_dec, lis_z = [], [], []
-lis_x, lis_y = [], []
-for ll in range( len(z) ):
-	identi = ('%.3f' % ra[ll] in out_ra) & ('%.3f' % dec[ll] in out_dec)
-	if identi == True:
-		continue
-	else:
-		lis_ra.append( ra[ll] )
-		lis_dec.append( dec[ll] )
-		lis_z.append( z[ll] )
-		lis_x.append( clus_x[ll] )
-		lis_y.append( clus_y[ll] )
-
-lis_ra = np.array(lis_ra)
-lis_dec = np.array(lis_dec)
-lis_z = np.array(lis_z)
-lis_x = np.array(lis_x)
-lis_y = np.array(lis_y)
-
-d_file = '/media/xkchen/My Passport/data/SDSS/tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
-#d_file = '/media/xkchen/My Passport/data/SDSS/tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
-#d_file = '/media/xkchen/My Passport/data/SDSS/tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_add-photo-G.fits'
-'''
-id_cen = 1 # center-stacking
-out_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_center-stack_test-train_correct.h5' # _add-photo-G.h5'# _test-train.h5' #
-rms_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_center-stack_var-train_correct.h5' # _add-photo-G.h5'# _var-train.h5' #
-cont_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_center-stack_pix-cont-train_correct.h5' # _add-photo-G.h5'# _pix-cont-train.h5' #
-stack_func(d_file, out_file, lis_z, lis_ra, lis_dec, band[0], lis_x, lis_y, id_cen, rms_file, cont_file)
-'''
-
-id_cen = 0 # BCG-stacking
-
-out_file = '/media/xkchen/My Passport/data/SDSS/tmp_stack/jack/clust_tot_BCG-stack_correct.h5'
-rms_file = '/media/xkchen/My Passport/data/SDSS/tmp_stack/jack/clust_tot_BCG-stack_var_correct.h5' #
-cont_file = '/media/xkchen/My Passport/data/SDSS/tmp_stack/jack/clust_tot_BCG-stack_pix-cont_correct.h5' #
-
-#out_file = '/home/xkchen/Downloads/new_1000_test/clust_test-1000_BCG-stack_test-train_correct.h5'
-#rms_file = '/home/xkchen/Downloads/new_1000_test/clust_test-1000_BCG-stack_var-train_correct.h5'
-#cont_file = '/home/xkchen/Downloads/new_1000_test/clust_test-1000_BCG-stack_pix-cont-train_correct.h5'
-
-#out_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_BCG-stack_test-train_correct.h5' # _add-photo-G.h5'# _test-train.h5' #
-#rms_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_BCG-stack_var-train_correct.h5' # _add-photo-G.h5'# _var-train.h5' #
-#cont_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_BCG-stack_pix-cont-train_correct.h5' # _add-photo-G.h5'# _pix-cont-train.h5' #
-stack_func(d_file, out_file, lis_z, lis_ra, lis_dec, band[0], lis_x, lis_y, id_cen, rms_file, cont_file)
-raise
-
-"""
-### stacking sky img
-d_file = '/media/xkchen/My Passport/data/SDSS/sky/origin_sky/sky-ra%.3f-dec%.3f-z%.3f-%s-band.fits'
-
-id_mean = 0 # stacking sky-img
-id_cen = 0 # 1
-out_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_stack_sky-train.h5'#center-stack_sky-train.h5'
-rms_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_stack_sky_var-train.h5'#center-stack_sky_var-train.h5'
-cont_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_stack_sky_pix-cont-train.h5'#center-stack_sky_pix-cont-train.h5'
-sky_stack_func(d_file, out_file, z, ra, dec, band[0], clus_x, clus_y, id_cen, id_mean, rms_file, cont_file)
-
-id_mean = 2 # stacking sky-img minus np.median(sky-img)
-id_cen = 0
-out_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_BCG-stack_sky-train.h5'
-rms_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_BCG-stack_sky_var-train.h5'
-cont_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_BCG-stack_sky_pix-cont-train.h5'
-sky_stack_func(d_file, out_file, z, ra, dec, band[0], clus_x, clus_y, id_cen, id_mean, rms_file, cont_file)
-
-'''
-rnx = np.zeros((10, len(z)), dtype = np.float)
-rny = np.zeros((10, len(z)), dtype = np.float)
-for nn in range(10):
-	tmpx = np.random.choice(2048, len(z), replace = True)
-	tmpy = np.random.choice(1489, len(z), replace = True)
-	rnx[nn,:] = tmpx + 0.
-	rny[nn,:] = tmpy + 0.
-with h5py.File('/home/xkchen/Downloads/test_imgs/clust_test-1000_rand-img_pos-x.h5', 'w') as f:
-	f['a'] = np.array(rnx)
-with h5py.File('/home/xkchen/Downloads/test_imgs/clust_test-1000_rand-img_pos-y.h5', 'w') as f:
-	f['a'] = np.array(rny)
-'''
-with h5py.File('/home/xkchen/Downloads/test_imgs/clust_test-1000_rand-img_pos-x.h5', 'r') as f:
-	rnx = np.array(f['a'])
-with h5py.File('/home/xkchen/Downloads/test_imgs/clust_test-1000_rand-img_pos-y.h5', 'r') as f:
-	rny = np.array(f['a'])
-
-for nn in range( 10 ):
-	tmpx = rnx[nn,:]
-	tmpy = rny[nn,:]
-
-	id_cen = 2
-	out_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_rand-stack_sky-train_%d.h5' % nn
-	rms_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_rand-stack_sky_var-train_%d.h5' % nn
-	cont_file = '/home/xkchen/Downloads/test_imgs/clust_test-1000_rand-stack_sky_pix-cont-train_%d.h5' % nn
-	sky_stack_func(d_file, out_file, z, ra, dec, band[0], tmpx, tmpy, id_cen, id_mean, rms_file, cont_file)
-"""
-
-dat = pds.read_csv('/home/xkchen/tmp/00_tot_select/tot_random_remain_cat.csv')
-
-#dat = pds.read_csv('/home/xkchen/Downloads/new_1000_test/random_clus-1000-match_remain_cat.csv')
-#dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/re_random_clus-1000-match_remain_test.csv')
-#dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/random_clus-1000-match_remain_test.csv')
-ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
-clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
-
-cat_brit = pds.read_csv('/home/xkchen/tmp/00_tot_select/random_to_bright_cat.csv')
-set_ra, set_dec, set_z = np.array(cat_brit.ra), np.array(cat_brit.dec), np.array(cat_brit.z)
-
-out_ra = ['%.3f' % ll for ll in set_ra]
-out_dec = ['%.3f' % ll for ll in set_dec]
-
-lis_ra, lis_dec, lis_z = [], [], []
-lis_x, lis_y = [], []
-for ll in range( len(z) ):
-	identi = ('%.3f' % ra[ll] in out_ra) & ('%.3f' % dec[ll] in out_dec)
-	if identi == True:
-		continue
-	else:
-		lis_ra.append( ra[ll] )
-		lis_dec.append( dec[ll] )
-		lis_z.append( z[ll] )
-		lis_x.append( clus_x[ll] )
-		lis_y.append( clus_y[ll] )
-
-lis_ra = np.array(lis_ra)
-lis_dec = np.array(lis_dec)
-lis_z = np.array(lis_z)
-lis_x = np.array(lis_x)
-lis_y = np.array(lis_y)
-
-d_file = '/media/xkchen/My Passport/data/SDSS/tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
-#d_file = '/media/xkchen/My Passport/data/SDSS/tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
-#d_file = '/media/xkchen/My Passport/data/SDSS/tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f_add-photo-G.fits'
-'''
-id_cen = 1 # center-stacking
-out_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_center-stack_test-train_correct.h5' # _add-photo-G.h5'# _test-train.h5' #
-rms_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_center-stack_var-train_correct.h5' # _add-photo-G.h5'# _var-train.h5' #
-cont_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_center-stack_pix-cont-train_correct.h5' # _add-photo-G.h5'# _pix-cont-train.h5' #
-stack_func(d_file, out_file, lis_z, lis_ra, lis_dec, band[0], lis_x, lis_y, id_cen, rms_file, cont_file)
-'''
-id_cen = 0 # BCG-stacking
-out_file = '/media/xkchen/My Passport/data/SDSS/tmp_stack/jack/random_tot_BCG-stack_correct.h5'
-rms_file = '/media/xkchen/My Passport/data/SDSS/tmp_stack/jack/random_tot_BCG-stack_var_correct.h5'
-cont_file = '/media/xkchen/My Passport/data/SDSS/tmp_stack/jack/random_tot_BCG-stack_pix-cont_correct.h5'
-
-#out_file = '/home/xkchen/Downloads/new_1000_test/random_test-1000_BCG-stack_test-train_correct.h5'
-#rms_file = '/home/xkchen/Downloads/new_1000_test/random_test-1000_BCG-stack_Var-train_correct.h5'
-#cont_file = '/home/xkchen/Downloads/new_1000_test/random_test-1000_BCG-stack_pix-cont-train_correct.h5'
-
-#out_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_BCG-stack_test-train_correct.h5' # _add-photo-G.h5'# _test-train.h5'
-#rms_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_BCG-stack_Var-train_correct.h5' # _add-photo-G.h5'# _Var-train.h5'
-#cont_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_BCG-stack_pix-cont-train_correct.h5' # _add-photo-G.h5'# _pix-cont-train.h5'
-stack_func(d_file, out_file, lis_z, lis_ra, lis_dec, band[0], lis_x, lis_y, id_cen, rms_file, cont_file)
-
-"""
-### stacking sky img
-d_file = '/media/xkchen/My Passport/data/SDSS/random_cat/sky_img/random_sky-ra%.3f-dec%.3f-z%.3f-%s-band.fits'
-
-id_mean = 0 # stacking sky-img
-id_cen = 0 # 1
-out_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_stack_sky-train.h5'#center-stack_sky-train.h5'
-rms_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_stack_sky_var-train.h5'#center-stack_sky_var-train.h5'
-cont_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_stack_sky_pix-cont-train.h5'#center-stack_sky_pix-cont-train.h5'
-sky_stack_func(d_file, out_file, z, ra, dec, band[0], clus_x, clus_y, id_cen, id_mean, rms_file, cont_file)
-
-id_mean = 2 # stacking sky-img minus np.median(sky-img)
-id_cen = 0
-out_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_BCG-stack_sky-train.h5'
-rms_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_BCG-stack_sky_var-train.h5'
-cont_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_BCG-stack_sky_pix-cont-train.h5'
-sky_stack_func(d_file, out_file, z, ra, dec, band[0], clus_x, clus_y, id_cen, id_mean, rms_file, cont_file)
-'''
-rnx = np.zeros((10, len(z)), dtype = np.float)
-rny = np.zeros((10, len(z)), dtype = np.float)
-for nn in range(10):
-	tmpx = np.random.choice(2048, len(z), replace = True)
-	tmpy = np.random.choice(1489, len(z), replace = True)
-	rnx[nn,:] = tmpx + 0.
-	rny[nn,:] = tmpy + 0.
-with h5py.File('/home/xkchen/Downloads/test_imgs/random_test-1000_rand-img_pos-x.h5', 'w') as f:
-	f['a'] = np.array(rnx)
-with h5py.File('/home/xkchen/Downloads/test_imgs/random_test-1000_rand-img_pos-y.h5', 'w') as f:
-	f['a'] = np.array(rny)
-'''
-with h5py.File('/home/xkchen/Downloads/test_imgs/random_test-1000_rand-img_pos-x.h5', 'r') as f:
-	rnx = np.array(f['a'])
-with h5py.File('/home/xkchen/Downloads/test_imgs/random_test-1000_rand-img_pos-y.h5', 'r') as f:
-	rny = np.array(f['a'])
-
-for nn in range( 10 ):
-	tmpx = rnx[nn,:]
-	tmpy = rny[nn,:]
-
-	id_cen = 2
-	out_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_rand-stack_sky-train_%d.h5' % nn
-	rms_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_rand-stack_sky_var-train_%d.h5' % nn
-	cont_file = '/home/xkchen/Downloads/test_imgs/random_test-1000_rand-stack_sky_pix-cont-train_%d.h5' % nn
-	sky_stack_func(d_file, out_file, z, ra, dec, band[0], tmpx, tmpy, id_cen, id_mean, rms_file, cont_file)
-"""

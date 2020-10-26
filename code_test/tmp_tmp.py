@@ -212,7 +212,7 @@ def cc_grid_img(img_data, N_stepx, N_stepy):
 band = ['r', 'g', 'i']
 home = '/media/xkchen/My Passport/data/SDSS/'
 
-### (mu, sigma) based on single img 
+### (mu, sigma) based on single img
 #dat = pds.read_csv('result/test_1000-to-250_rule-out_cat_3.5-sigma.csv')
 #dat = pds.read_csv('result/test_1000-to-459_remain_cat_3.5-sigma.csv')
 ### (mu, sigma) based on sample imgs
@@ -238,7 +238,7 @@ for kk in range( 10, 20 ):#len(lis_z) ):
 	img = data[0].data
 	head = data[0].header
 	wcs_lis = awc.WCS(head)
-	xn, yn = wcs_lis.all_world2pix(ra_g * U.deg, dec_g * U.deg, 1)##???
+	xn, yn = wcs_lis.all_world2pix(ra_g * U.deg, dec_g * U.deg, 1)
 	'''
 		hdu = fits.PrimaryHDU()
 		hdu.data = img

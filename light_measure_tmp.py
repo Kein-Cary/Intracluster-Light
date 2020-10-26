@@ -57,7 +57,7 @@ def angu_area(s0, z0, zref):
 	Da1 = Test_model.angular_diameter_distance(z1).value
 	angu_S = s0*Da0**2/Da1**2
 	return angu_S
-######### error test
+######### error test (for bins number and angle section number)
 def light_measure_pn(data, Nbin, R_small, R_max, cx, cy, psize, z0, pn):
 
 	Da0 = Test_model.angular_diameter_distance(z0).value
@@ -252,7 +252,7 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 	cx, cy : the central position of objs in the image frame
 	weit_data : the weight array for surface brightness profile measurement, it's must be 
 	the same size as the 'data' array
-	R_bins : radius bins for SB measurement, in unit of pixel
+	R_bins : radius bin edges for SB measurement, in unit of pixel
 	"""
 	Nx = data.shape[1]
 	Ny = data.shape[0]
@@ -262,6 +262,7 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 
 	theta = np.arctan2((pix_id[1,:] - cy), (pix_id[0,:] - cx))
 	chi = theta * 180 / np.pi
+	# radius in unit of pixel number
 	rbin = R_bins
 
 	intens = np.zeros(len(rbin), dtype = np.float)
@@ -296,7 +297,6 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 			samp_chi = chi[ir]
 
 			tot_flux = np.nansum(samp_flux * weit_arr) / np.nansum(weit_arr)
-
 			idnn = np.isnan( samp_flux )
 			N_pix[k] = np.sum( idnn == False )
 			nsum_ratio[k] = np.nansum(weit_arr) / np.sum( idnn == False )
@@ -324,6 +324,7 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 			id_fals = id_nan == False
 			Tmpf = tmpf[id_fals]
 
+			#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
 			RMS = np.std(Tmpf)
 			if len(Tmpf) > 1:
 				intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
@@ -339,4 +340,5 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 	nsum_ratio[idzo] = 0.
 
 	return Intns, Angl_r, Intns_err, N_pix, nsum_ratio
+
 
