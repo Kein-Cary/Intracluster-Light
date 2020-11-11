@@ -289,8 +289,8 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 		r_out = rbin[k + 1]
 
 		if bool_sum == 0:
-			Angl_r[k] = 0.5 * (r_iner + r_out) * pix_size
-
+			#Angl_r[k] = 0.5 * (r_iner + r_out) * pix_size
+			Angl_r[k] = 0.
 		else:
 			weit_arr = weit_data[ir]
 			samp_flux = data[ir]
@@ -302,7 +302,10 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 			nsum_ratio[k] = np.nansum(weit_arr) / np.sum( idnn == False )
 
 			intens[k] = tot_flux
-			Angl_r[k] = 0.5 * (r_iner + r_out) * pix_size
+			#Angl_r[k] = 0.5 * (r_iner + r_out) * pix_size
+
+			sub_dr = dr[ir]
+			Angl_r[k] = (np.nansum(sub_dr * weit_arr) / np.nansum(weit_arr) ) * pix_size
 
 			tmpf = []
 			for tt in range(len(phi) - 1):
@@ -340,5 +343,4 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 	nsum_ratio[idzo] = 0.
 
 	return Intns, Angl_r, Intns_err, N_pix, nsum_ratio
-
 

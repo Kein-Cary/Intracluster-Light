@@ -155,6 +155,7 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 	n_step = zN // N_bin
 	id_arr = np.linspace(0, zN - 1, zN)
 	id_arr = id_arr.astype(int)
+
 	## img stacking
 	for nn in range(N_bin):
 
@@ -240,7 +241,7 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 			sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
 			r_arr = Angl_r
 		else:
-			Intns, phy_r, Intns_err, npix, nratio = light_measure_weit(tmp_img, tmp_cont, r_bins_0, xn, yn, pixel, z_ref,)
+			Intns, phy_r, Intns_err, npix, nratio = light_measure_weit(tmp_img, tmp_cont, pixel, xn, yn, z_ref, r_bins_0)
 			sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
 			r_arr = phy_r
 
@@ -265,7 +266,7 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 			sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
 			r_arr = Angl_r
 		else:
-			Intns, phy_r, Intns_err, npix, nratio = light_measure_weit(sub_jk_img, sub_jk_cont, r_bins_1, xn, yn, pixel, z_ref,)
+			Intns, phy_r, Intns_err, npix, nratio = light_measure_weit(sub_jk_img, sub_jk_cont, pixel, xn, yn, z_ref, r_bins_1)
 			sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
 			r_arr = phy_r
 

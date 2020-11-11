@@ -4,12 +4,12 @@ import astropy.units as U
 import astroquery.sdss as asds
 import astropy.io.fits as aft
 import scipy.stats as sts
-import changds
-#import find
+
 import h5py
 import pandas as pds
 
 load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
+
 goal_data = aft.getdata(load + 'redmapper/redmapper_dr8_public_v6.3_catalog.fits')
 RA = np.array(goal_data.RA)
 DEC = np.array(goal_data.DEC)

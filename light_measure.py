@@ -235,10 +235,80 @@ def grid_img(img_data, N_stepx, N_stepy):
 
 ### surface brightness profile measurement (weight version)
 ###		[set weit_data as ones array for no weight case]
+def light_measure_rn_Z0_weit(data, weit_data, pix_size, cx, cy, R_low, R_up):
+	"""
+	use for measuring surface brightness(SB) profile in angle coordinate,
+		directly measure SB profile from observation img.
+	data : the image use to measure SB profile
+	pix_size : pixel size, in unit of "arcsec"
+	cx, cy : the central position of objs in the image frame
+	weit_data : the weight array for surface brightness profile measurement, it's must be 
+	the same size as the 'data' array
+	R_low, R_up : the lower and uper limitation for given radius bin, in unit of pixel number
+	"""
+	Nx = data.shape[1]
+	Ny = data.shape[0]
+	x0 = np.linspace(0, Nx-1, Nx)
+	y0 = np.linspace(0, Ny-1, Ny)
+	pix_id = np.array(np.meshgrid(x0,y0))
+
+	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
+		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
+	idu = (dr >= R_low) & (dr <= R_up)
+
+	theta = np.arctan2((pix_id[1,:] - cy), (pix_id[0,:] - cx))
+	chi = theta * 180 / np.pi
+
+	samp_chi = chi[idu]
+	samp_flux = data[idu]
+	weit_arr = weit_data[idu]
+	Intns = np.nansum( samp_flux * weit_arr ) / np.nansum( weit_arr )
+
+	id_nn = np.isnan(samp_flux)
+	N_pix = np.sum( id_nn == False )
+	nsum_ratio = np.nansum(weit_arr) / np.sum( id_nn == False )
+
+	cdr = R_up - R_low
+	d_phi = ( cdr / (0.5 * (R_low + R_up) ) ) * 180 / np.pi
+	N_phi = np.int(360 / d_phi) + 1
+	phi = np.linspace(0, 360, N_phi)
+	phi = phi - 180.
+
+	tmpf = []
+	for tt in range(len(phi) - 1):
+		idv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt + 1])
+
+		set_samp = samp_flux[idv]
+		set_weit = weit_arr[idv]
+
+		ttf = np.nansum(set_samp * set_weit) / np.nansum( set_weit )
+		tmpf.append(ttf)
+
+	# rms of flux
+	tmpf = np.array(tmpf)
+	id_inf = np.isnan(tmpf)
+	tmpf[id_inf] = np.nan
+	id_zero = tmpf == 0
+	tmpf[id_zero] = np.nan
+
+	id_nan = np.isnan(tmpf)
+	id_fals = id_nan == False
+	Tmpf = tmpf[id_fals]
+
+	RMS = np.std(Tmpf)
+	if len(Tmpf) > 1:
+		Intns_err = RMS / np.sqrt(len(Tmpf) - 1)
+	else:
+		Intns_err = RMS
+
+	Angl_r = (0.5 * (R_low + R_up) ) * pix_size
+
+	return Intns, Angl_r, Intns_err, N_pix, nsum_ratio
+
 def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 	"""
-	This part use for measuring surface brightness(SB) of objs those redshift 
-		is too small or is zero. ie. the sky brightness.
+	use for measuring surface brightness(SB) profile in angle coordinate,
+		directly measure SB profile from observation img.
 	data : the image use to measure SB profile
 	pix_size : pixel size, in unit of "arcsec"
 	cx, cy : the central position of objs in the image frame
@@ -333,7 +403,7 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 
 	return Intns, Angl_r, Intns_err, N_pix, nsum_ratio
 
-def light_measure_rn_weit(data, weit_data, R_low, R_up, cx, cy, pix_size, z0):
+def light_measure_rn_weit(data, weit_data, pix_size, cx, cy, z0, R_low, R_up):
 	"""
 	use to get the surface brightness for given radius
 	data : data used to measure brightness (2D-array)
@@ -407,7 +477,7 @@ def light_measure_rn_weit(data, weit_data, R_low, R_up, cx, cy, pix_size, z0):
 
 	return Intns, Intns_r, Intns_err, N_pix, nsum_ratio
 
-def light_measure_weit(data, weit_data, R_bins, cx, cy, pix_size, z0):
+def light_measure_weit(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 	"""
 	data: data used to measure (2D-array)
 	Nbin: number of bins will devide
