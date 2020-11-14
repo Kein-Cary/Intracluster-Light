@@ -8,10 +8,12 @@ import astropy.io.fits as fits
 import scipy.stats as sts
 import astropy.units as U
 import astropy.constants as C
+## from pipeline
 from groups import groups_find_func
+from light_measure import cc_grid_img, grid_img
 
 def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, remain_file, thres_S0, thres_S1, sigm_lim, 
-	mu_sigm_file, id_single = True,):
+	mu_sigm_file, id_single = True, id_mode = False,):
 	"""
 	band : observation band
 	set_ra, set_dec, set_z : smaples need to find out-liers
@@ -27,6 +29,10 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 					  False : select imgs based on sample imgs Mode(mu_cen, sigma_cen), or mean(mu_cen, sigma_cen)
 	( mode(x) = 3 * median(x) - 2 * mean(x) )
 	mu_sigm_file : file name which saved the (mu_cen, sigma_cen) of given img sample ('/XXX/XXX/XXX.csv')
+
+	id_single : True -- select imgs based on single img 2D flux histogram;
+				False -- select imgs based on average img 2D flux histogram of given img sample
+	id_mode : for selecting imgs based on img sample properties,
 	"""
 	bad_ra, bad_dec, bad_z, bad_bcgx, bad_bcgy = [], [], [], [], []
 	norm_ra, norm_dec, norm_z, norm_bcgx, norm_bcgy = [], [], [], [], []
@@ -48,19 +54,7 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 		flux_cen = remain_img[ca0 - cen_D: ca0 + cen_D, ca1 - cen_D: ca1 + cen_D]
 
 		N_step = 200
-
-		cen_lx = np.arange(0, 1100, N_step)
-		cen_ly = np.arange(0, 1100, N_step)
-		nl0, nl1 = len(cen_ly), len(cen_lx)
-
-		sub_pock_pix = np.zeros((nl0 - 1, nl1 - 1), dtype = np.float)
-		sub_pock_flux = np.zeros((nl0 - 1, nl1 - 1), dtype = np.float)
-		for nn in range(nl0 - 1):
-			for tt in range(nl1 - 1):
-				sub_flux = flux_cen[ cen_ly[nn]: cen_ly[nn+1], cen_lx[tt]: cen_lx[tt+1] ]
-				id_nn = np.isnan(sub_flux)
-				sub_pock_flux[nn,tt] = np.nanmean(sub_flux)
-				sub_pock_pix[nn,tt] = len(sub_flux[id_nn == False])
+		sub_pock_flux, sub_pock_pix = grid_img(flux_cen, N_step, N_step)[:2]
 
 		## mu, sigma of center region
 		if id_single == True:
@@ -70,30 +64,19 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 		else:
 			## use sample mean and scatter
 			samp_dat = pds.read_csv(mu_sigm_file)
-			img_mu, img_sigma = np.array(samp_dat.cen_mu), np.array(samp_dat.cen_sigma)
-			mu = np.mean(img_mu)
-			sigm = np.mean(img_sigma)
+			img_mu, img_sigma = np.array(samp_dat['img_mu']), np.array(samp_dat['img_sigma'])
 
-		## mu, and deviation for sub-patches
-		ly = np.arange(0, img.shape[0], N_step)
-		ly = np.r_[ly, img.shape[0] - N_step, img.shape[0] ]
-		lx = np.arange(0, img.shape[1], N_step)
-		lx = np.r_[lx, img.shape[1] - N_step, img.shape[1] ]
+			if id_mode == True:
+				mu = 3 * np.median(img_mu) - 2 * np.mean(img_mu)
+				sigm = 3 * np.median(img_sigma) - 2 * np.mean(img_sigma)
+			else:
+				mu = np.mean(img_mu)
+				sigm = np.mean(img_sigma)
 
-		lx = np.delete(lx, -1)
-		lx = np.delete(lx, -2)
-		ly = np.delete(ly, -1)
-		ly = np.delete(ly, -2)
-
-		patch_mean = np.zeros( (len(ly), len(lx) ), dtype = np.float )
-		patch_pix = np.zeros( (len(ly), len(lx) ), dtype = np.float )
-		for nn in range( len(ly) ):
-			for tt in range( len(lx) ):
-
-				sub_flux = remain_img[ly[nn]: ly[nn] + N_step, lx[tt]: lx[tt] + N_step]
-				id_nn = np.isnan(sub_flux)
-				patch_mean[nn,tt] = np.mean( sub_flux[id_nn == False] )
-				patch_pix[nn,tt] = len( sub_flux[id_nn == False] )
+		patch_grd = cc_grid_img(remain_img, N_step, N_step)
+		patch_mean = patch_grd[0]
+		patch_pix = patch_grd[1]
+		lx, ly = patch_grd[-2], patch_grd[-1]
 
 		id_zeros = patch_pix == 0.
 		patch_pix[id_zeros] = np.nan

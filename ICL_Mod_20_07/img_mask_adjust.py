@@ -198,48 +198,38 @@ def main():
 	home = '/media/xkchen/My Passport/data/SDSS/'
 	load = '/media/xkchen/My Passport/data/SDSS/'
 
-	size_arr = np.array([5, 10, 15, 20, 25])
-	for mm in range(5):
-		## cluster
-		#test_1000-to-250_cat-match.csv') A-type
-		dat = pds.read_csv('/home/xkchen/mywork/ICL/code/SEX/result/test_1000-to-98_cat.csv')
-		set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
+	n_main = np.array([250, 98, 193, 459]) ## norm star mask size = 30 * (FWHM / 2)
+	ra, dec, z = np.array([]), np.array([]), np.array([])
+	img_x, img_y = np.array([]), np.array([])
+
+	for mm in range( 4 ):
+
+		dat = pds.read_csv('SEX/result/select_based_on_A250/Bro_mode-select_1000-to-%d_remain_cat_4.0-sigma.csv' % n_main[mm], )
+
+		ra = np.r_[ ra, np.array( dat.ra) ]
+		dec = np.r_[ dec, np.array( dat.dec) ]
+		z = np.r_[ z, np.array( dat.z) ]
+		img_x = np.r_[ img_x, np.array( dat.bcg_x) ]
+		img_y = np.r_[ img_y, np.array( dat.bcg_y) ]
+
+	size_arr = np.array([5, 10, 20])
+
+	for mm in range( 3 ):
 
 		d_file = home + 'wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
 
-		cat_file = '/home/xkchen/mywork/ICL/data/star_dr12_reload/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
+		cat_file = '/home/xkchen/mywork/ICL/data/corrected_star_cat/dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
 		gal_file = '/home/xkchen/mywork/ICL/data/source_find/cluster_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
 
-		out_file = home + '20_10_test/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_' + '%d-FWHM-ov2.fits' % (size_arr[mm])
+		out_file = home + '20_10_test/mask/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_' + '%d-FWHM-ov2.fits' % (size_arr[mm])
 
 		bcg_mask = 1
 		band = 'r'
 		extra_cat = '/home/xkchen/mywork/ICL/data/source_find/clus_photo-G_match_ra%.3f_dec%.3f_z%.3f.csv'
-		adjust_mask_func(d_file, cat_file, set_z, set_ra, set_dec, band, gal_file, out_file, bcg_mask, extra_cat, size_arr[mm],)
+
+		adjust_mask_func(d_file, cat_file, z, ra, dec, band, gal_file, out_file, bcg_mask, extra_cat, size_arr[mm],)
+
 	raise
-
-	"""
-		## random
-		#with h5py.File(load + 'random_cat/cat_select/rand_r_band_catalog.h5', 'r') as f:
-		#	tmp_array = np.array(f['a'])
-		#ra, dec, z = np.array(tmp_array[0]), np.array(tmp_array[1]), np.array(tmp_array[2])
-
-		dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/random_clus-1000-match_cat.csv')
-		set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
-
-		d_file = home + 'redMap_random/rand_img-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
-		cat_file = home + 'random_cat/star_cat/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
-		gal_file = '/home/xkchen/mywork/ICL/data/source_find/random_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
-
-		#out_file = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
-		out_file = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f_add-photo-G.fits'
-
-		bcg_mask = 1
-		band = 'r'
-		stack_info = 'random_clus_1000-match_bcg-pos.csv'
-		extra_cat = '/home/xkchen/mywork/ICL/data/source_find/photo-G_match_ra%.3f_dec%.3f_z%.3f.csv'
-		adjust_mask_func(d_file, cat_file, set_z, set_ra, set_dec, band, gal_file, out_file, bcg_mask, extra_cat, stack_info,)
-	"""
 
 if __name__ == "__main__":
 	main()

@@ -107,7 +107,8 @@ def resamp_func(d_file, z_set, ra_set, dec_set, img_x, img_y, band, out_file, z_
 def main():
 
 	home = '/media/xkchen/My Passport/data/SDSS/'
-
+	"""
+	##### obs. data (test for test-1000, A,B sub-sample)
 	dat = pds.read_csv('/home/xkchen/mywork/ICL/code/SEX/result/test_1000-to-250_cat.csv')
 	ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 	clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
@@ -121,27 +122,50 @@ def main():
 	z = np.r_[ z, Bz ]
 	clus_x = np.r_[ clus_x, Bclus_x ]
 	clus_y = np.r_[ clus_y, Bclus_y ]
-	'''
+
 	## 5 * (FWHM / 2) for normal stars
 	d_file = home + '20_10_test/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_5-FWHM-ov2.fits'
 	out_file = home + '20_10_test/resamp-%s-ra%.3f-dec%.3f-redshift%.3f.fits'
-	'''
+	"""
+
+	##### test for "Bro-mode-select" sample
+	n_main = np.array([250, 98, 193, 459])
+	ra, dec, z = np.array([]), np.array([]), np.array([])
+	img_x, img_y = np.array([]), np.array([])
+
+	for mm in range( 4 ):
+
+		dat = pds.read_csv('SEX/result/select_based_on_A250/Bro_mode-select_1000-to-%d_remain_cat_4.0-sigma.csv' % n_main[mm], )
+
+		ra = np.r_[ ra, np.array( dat.ra) ]
+		dec = np.r_[ dec, np.array( dat.dec) ]
+		z = np.r_[ z, np.array( dat.z) ]
+		img_x = np.r_[ img_x, np.array( dat.bcg_x) ]
+		img_y = np.r_[ img_y, np.array( dat.bcg_y) ]
 	'''
 	## 30 * (FWHM / 2) for normal stars
 	d_file = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
 	out_file = home + 'tmp_stack/pix_resample/resamp-%s-ra%.3f-dec%.3f-redshift%.3f.fits'
 
-	stack_info = 'test_1000-to-AB_resamp_BCG-pos.csv'
-	resamp_func(d_file, z, ra, dec, clus_x, clus_y, band, out_file, z_ref, stack_info, id_dimm = True,)
-	'''
-	## mock imgs (for A,B sub samples) [ 30 * (FWHM / 2) for normal stars ]
-	load = '/home/xkchen/mywork/ICL/data/tmp_img/'
-	d_file = load + 'mock_img/mock-%s-ra%.3f-dec%.3f-redshift%.3f.fits'
-	out_file = load + 'resamp_mock/resamp-%s-ra%.3f-dec%.3f-redshift%.3f.fits'
-
-	z_ref = 0.25
+	stack_info = 'T1000_Bro-mode-select_resamp_BCG-pos.csv'
 	band = 'r'
-	resamp_func(d_file, z, ra, dec, clus_x, clus_y, band, out_file, z_ref,)
+	z_ref = 0.25
+	resamp_func(d_file, z, ra, dec, img_x, img_y, band, out_file, z_ref, stack_info, id_dimm = True,)
+	'''
+	## (5, 10, 20) * (FWHM / 2) for normal stars
+	size_arr = np.array([5, 10, 20])
+
+	for mm in range( 3 ):
+
+		band = 'r'
+		z_ref = 0.25
+
+		d_file = home + '20_10_test/mask/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_' + '%d-FWHM-ov2.fits' % (size_arr[mm])
+		out_file = home + '20_10_test/pix_resamp/resamp-%s-ra%.3f-dec%.3f-redshift%.3f_' + '%d-FWHM-ov2.fits' % (size_arr[mm])
+
+		resamp_func(d_file, z, ra, dec, img_x, img_y, band, out_file, z_ref, id_dimm = True,)
+
+	raise
 
 if __name__ == "__main__":
 	main()

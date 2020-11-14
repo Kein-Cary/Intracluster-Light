@@ -10,19 +10,14 @@ import astropy.units as U
 import astropy.constants as C
 from astropy import cosmology as apcy
 
-def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, stack_info = None, pixel = 0.396,):
+def source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file, stack_info = None,):
 	"""
 	d_file : path where image data saved (include file-name structure:
 	'/xxx/xxx/xxx.xxx')
 	cat_file : path where photometric data saved, the same structure as d_file
 	set_ra, set_dec, set_z : ra, dec, z of will be masked imgs
 	band: band of image data, 'str' type
-	out_file0 : save sources information
-	out_file1 : save the masking data
-	bcg_mask : 0 -- mask all sources except BCGs; 1 : BCGs also will be masked
-	pixel : pixel scale, in unit 'arcsec' (default is 0.396)
-	stack_info : path to save the information of stacking (ra, dec, z, img_x, img_y)
-	including file-name: '/xxx/xxx/xxx.xxx'
+	out_file : save sources information (detected by SExTractor)
 	"""
 	Nz = len(z_set)
 	param_A = 'default_mask_A.sex'
@@ -48,13 +43,61 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 		hdu.header = head
 		hdu.writeto('tmp.fits', overwrite = True)
 
-		out_cat = out_file0 % (band, ra_g, dec_g, z_g)
+		out_cat = out_file % (band, ra_g, dec_g, z_g)
 		file_source = 'tmp.fits'
 		cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s' % (param_A, out_cat, out_param)
 		a = subpro.Popen(cmd, shell = True)
 		a.wait()
 
-		source = asc.read(out_cat)
+		pass
+
+	if stack_info != None:
+		keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y']
+		values = [ra_set, dec_set, z_set, bcg_x, bcg_y]
+		fill = dict(zip(keys, values))
+		data = pds.DataFrame(fill)
+		data.to_csv(stack_info)
+
+	return
+
+def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, stack_info = None, pixel = 0.396,):
+	"""
+	d_file : path where image data saved (include file-name structure:
+	'/xxx/xxx/xxx.xxx')
+	cat_file : path where photometric data saved, the same structure as d_file
+	set_ra, set_dec, set_z : ra, dec, z of will be masked imgs
+	band: band of image data, 'str' type
+	out_file0 : save sources information
+	out_file1 : save the masking data
+	bcg_mask : 0 -- mask all sources except BCGs; 1 : BCGs also will be masked
+	pixel : pixel scale, in unit 'arcsec' (default is 0.396)
+	stack_info : path to save the information of stacking (ra, dec, z, img_x, img_y)
+	including file-name: '/xxx/xxx/xxx.xxx'
+	"""
+	Nz = len(z_set)
+	param_A = 'default_mask_A.sex'
+	out_param = 'default_mask_A.param'
+	bcg_x, bcg_y = [], []
+
+	## source detection
+	source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file0, stack_info,)
+
+	## masking
+	for q in range(Nz):
+		z_g = z_set[q]
+		ra_g = ra_set[q]
+		dec_g = dec_set[q]
+
+		file = d_file % (band, ra_g, dec_g, z_g)
+		data = fits.open(file)
+		img = data[0].data
+		head = data[0].header
+		wcs_lis = awc.WCS(head)
+		xn, yn = wcs_lis.all_world2pix(ra_g * U.deg, dec_g * U.deg, 1)
+		bcg_x.append(xn)
+		bcg_y.append(yn)
+
+		source = asc.read(out_file0 % (band, ra_g, dec_g, z_g), )
 		Numb = np.array(source['NUMBER'][-1])
 		A = np.array(source['A_IMAGE'])
 		B = np.array(source['B_IMAGE'])
@@ -190,7 +233,7 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 	return
 
 def main():
-
+	'''
 	home = '/media/xkchen/My Passport/data/SDSS/'
 	load = '/media/xkchen/My Passport/data/SDSS/'
 
@@ -208,23 +251,21 @@ def main():
 	band = 'r'
 	stack_info = 'cluster_r_band_BCG_pos.csv'
 	mask_func(d_file, cat_file, set_z, set_ra, set_dec, band, out_file0, out_file1, bcg_mask, stack_info,)
+	'''
+	### LRG imgs
+	load = '/home/xkchen/mywork/ICL/data/'
+	dat = pds.read_csv('A250_LRG_ref-coord_cat.csv')
+	ra, dec, z = np.array(dat['bcg_ra']), np.array(dat['bcg_dec']), np.array(dat['bcg_z'])
 
-	### random
-	dat = pds.read_csv('/home/xkchen/mywork/ICL/rand_r_band_catalog.csv')
-	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
+	d_file = load + 'tmp_img/A250_LRG_match/SDSS_LRG-img-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
+	out_file = load + 'tmp_img/LRG_stars/Galax_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
 
-	d_file = home + 'redMap_random/rand_img-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
-	cat_file = '/home/xkchen/mywork/ICL/data/corrected_star_cat/random/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
-
-	out_file0 = '/home/xkchen/mywork/ICL/data/source_find/random_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
-	out_file1 = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
-
-	bcg_mask = 1
 	band = 'r'
-	stack_info = 'random_r_band_BCG_pos.csv'
-	mask_func(d_file, cat_file, set_z, set_ra, set_dec, band, out_file0, out_file1, bcg_mask, stack_info,)
+	stack_info = 'A250_LRG-img-pos.csv'
+	source_detect_func(d_file, z, ra, dec, band, out_file, stack_info,)
 
 	raise
 
 if __name__ == "__main__":
 	main()
+

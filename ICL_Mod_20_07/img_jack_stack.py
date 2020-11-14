@@ -14,14 +14,9 @@ from astropy import cosmology as apcy
 
 from img_stack import stack_func
 from img_edg_cut_stack import cut_stack_func
-
 from light_measure import light_measure_Z0_weit, light_measure_weit
 from light_measure import jack_SB_func
-
-from mpi4py import MPI
-commd = MPI.COMM_WORLD
-rank = commd.Get_rank()
-cpus = commd.Get_size()
+from light_measure import light_measure_rn_Z0_weit, light_measure_rn_weit
 
 ### constants transform
 kpc2cm = U.kpc.to(U.cm)
@@ -41,7 +36,7 @@ Omega_m = Test_model.Om0
 Omega_lambda = 1.-Omega_m
 Omega_k = 1.- (Omega_lambda + Omega_m)
 
-### observation params
+### observation params (for SDSS case)
 pixel = 0.396
 band = ['r', 'g', 'i', 'u', 'z']
 l_wave = np.array([6166, 4686, 7480, 3551, 8932])
@@ -114,9 +109,267 @@ def jack_samp_stack(d_file, id_set, out_file):
 
 	return
 
+def SB_pros_func(flux_img, pix_cont_img, sb_file, N_img, n_rbins, id_Z0, z_ref):
+	# get the R_max for SB measurement, and R_max will be applied to all subsample
+	# (also, can be re-measured based on the stacking imgs)
+
+	lim_r = 0
+
+	for nn in range( N_img ):
+
+		with h5py.File( flux_img % nn, 'r') as f:
+			tmp_img = np.array(f['a'])
+		xn, yn = np.int(tmp_img.shape[1] / 2), np.int(tmp_img.shape[0] / 2)
+
+		id_nn = np.isnan(tmp_img)
+		eff_y, eff_x = np.where(id_nn == False)
+		dR = np.sqrt((eff_y - yn)**2 + (eff_x - xn)**2)
+		dR_max = np.int( dR.max() ) + 1
+		lim_r = np.max( [lim_r, dR_max] )
+
+	r_bins = np.logspace(0, np.log10(lim_r), n_rbins)
+
+	for nn in range( N_img ):
+
+		with h5py.File( flux_img % nn, 'r') as f:
+			tmp_img = np.array(f['a'])
+
+		with h5py.File( pix_cont_img % nn, 'r') as f:
+			tmp_cont = np.array(f['a'])
+
+		xn, yn = np.int( tmp_img.shape[1] / 2), np.int( tmp_img.shape[0] / 2)
+
+		if id_Z0 == True:
+			Intns, Angl_r, Intns_err, npix, nratio = light_measure_Z0_weit( tmp_img, tmp_cont, pixel, xn, yn, r_bins)
+			sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
+			r_arr = Angl_r
+		else:
+			Intns, phy_r, Intns_err, npix, nratio = light_measure_weit( tmp_img, tmp_cont, pixel, xn, yn, z_ref, r_bins)
+			sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
+			r_arr = phy_r
+
+		with h5py.File( sb_file % nn, 'w') as f:
+			f['r'] = np.array(r_arr)
+			f['sb'] = np.array(sb_arr)
+			f['sb_err'] = np.array(sb_err_arr)
+			f['nratio'] = np.array(nratio)
+			f['npix'] = np.array(npix)
+
+	return
+
+
+def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbins, N_bin, SN_lim,):
+
+	### stacking in angle coordinate
+
+	lim_r = 0
+
+	for nn in range( N_bin ):
+		with h5py.File(J_sub_img % nn, 'r') as f:
+			sub_jk_img = np.array(f['a'])
+
+		xn, yn = np.int(sub_jk_img.shape[1] / 2), np.int(sub_jk_img.shape[0] / 2)
+		id_nn = np.isnan(sub_jk_img)
+		eff_y, eff_x = np.where(id_nn == False)
+		dR = np.sqrt((eff_y - yn)**2 + (eff_x - xn)**2)
+		dR_max = np.int( dR.max() ) + 1
+		lim_r = np.max([lim_r, dR_max])
+
+	r_bins = np.logspace(0, np.log10(lim_r), n_rbins)
+	r_angl = r_bins * pixel
+
+	for nn in range( N_bin ):
+
+		with h5py.File(J_sub_img % nn, 'r') as f:
+			tmp_img = np.array(f['a'])
+		with h5py.File(J_sub_pix_cont % nn, 'r') as f:
+			tmp_cont = np.array(f['a'])
+
+		xn, yn = np.int(tmp_img.shape[1] / 2), np.int(tmp_img.shape[0] / 2)
+
+		Intns, Intns_r, Intns_err, npix, nratio = light_measure_Z0_weit(tmp_img, tmp_cont, pixel, xn, yn, r_bins)
+		sb_arr, sb_err = Intns / pixel**2, Intns_err / pixel**2
+
+		r_arr = Intns_r.copy()
+
+		id_sn = nratio >= np.nanmax(nratio) / SN_lim ## limitation on S/N
+		id_npix = npix >= 1.
+
+		r_arr[id_npix == False] = np.nan
+		sb_arr[id_npix == False] = np.nan
+		sb_err[id_npix == False] = np.nan
+		try:
+			id_R = r_arr > 200 ## arcsec
+			cri_R = r_arr[ id_R & (id_sn == False) ]
+
+			id_bin = r_angl < cri_R[0]
+			id_dex = np.sum(id_bin) - 1
+		except IndexError:
+			cri_R = np.array([600]) # arcsec
+			id_bin = r_angl < cri_R[0]
+			id_dex = np.sum(id_bin) - 1
+
+		edg_R_low = r_bins[id_dex]
+		edg_R_up = r_bins[ -1 ]
+
+		edg_R_bin = np.linspace(edg_R_low, edg_R_up, 5) #30)
+
+		## out-region as one bin
+		Intns, Intns_r, Intns_err, npix, nratio = light_measure_rn_Z0_weit(tmp_img, tmp_cont, pixel, xn, yn, edg_R_low, edg_R_up)
+		## linear bins
+		#Intns, Intns_r, Intns_err, npix, nratio = light_measure_Z0_weit(tmp_img, tmp_cont, pixel, xn, yn, edg_R_bin)
+
+		edg_sb, edg_sb_err = Intns / pixel**2, Intns_err / pixel**2
+		edg_R = Intns_r.copy()
+
+		id_edg = r_arr >= cri_R[0]
+		r_arr[id_edg] = np.nan
+		sb_arr[id_edg] = np.nan
+		sb_err[id_edg] = np.nan
+
+		r_arr = np.r_[r_arr, edg_R ]
+		sb_arr = np.r_[sb_arr, edg_sb ]
+		sb_err = np.r_[sb_err, edg_sb_err ]
+
+		with h5py.File(alter_sub_sb % nn, 'w') as f:
+			f['r'] = np.array(r_arr)
+			f['sb'] = np.array(sb_arr)
+			f['sb_err'] = np.array(sb_err)
+
+	tmp_sb = []
+	tmp_r = []
+	for nn in range( N_bin ):
+
+		with h5py.File(alter_sub_sb % nn, 'r') as f:
+			r_arr = np.array(f['r'])
+			sb_arr = np.array(f['sb'])
+			sb_err = np.array(f['sb_err'])
+
+			tmp_sb.append(sb_arr)
+			tmp_r.append(r_arr)
+
+	## only save the sb result in unit " nanomaggies / arcsec^2 "
+	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, 0, 30,)[4:]
+
+	with h5py.File(alter_jk_sb, 'w') as f:
+		f['r'] = np.array(tt_jk_R)
+		f['sb'] = np.array(tt_jk_SB)
+		f['sb_err'] = np.array(tt_jk_err)
+
+	return
+
+def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbins, N_bin, SN_lim, z_ref):
+
+	### stacking in angle coordinate
+
+	lim_r = 0
+
+	for nn in range( N_bin ):
+		with h5py.File(J_sub_img % nn, 'r') as f:
+			sub_jk_img = np.array(f['a'])
+
+		xn, yn = np.int(sub_jk_img.shape[1] / 2), np.int(sub_jk_img.shape[0] / 2)
+		id_nn = np.isnan(sub_jk_img)
+		eff_y, eff_x = np.where(id_nn == False)
+		dR = np.sqrt((eff_y - yn)**2 + (eff_x - xn)**2)
+		dR_max = np.int( dR.max() ) + 1
+		lim_r = np.max([lim_r, dR_max])
+
+	r_bins = np.logspace(0, np.log10(lim_r), n_rbins)
+	r_angl = r_bins * pixel
+
+	Da_ref = Test_model.angular_diameter_distance(z_ref).value
+	phy_r = Da_ref * 1e3 * r_angl / rad2asec
+
+	for nn in range( N_bin ):
+
+		with h5py.File(J_sub_img % nn, 'r') as f:
+			tmp_img = np.array(f['a'])
+		with h5py.File(J_sub_pix_cont % nn, 'r') as f:
+			tmp_cont = np.array(f['a'])
+
+		xn, yn = np.int(tmp_img.shape[1] / 2), np.int(tmp_img.shape[0] / 2)
+
+		Intns, Intns_r, Intns_err, npix, nratio = light_measure_weit(tmp_img, tmp_cont, pixel, xn, yn, z_ref, r_bins)
+		sb_arr, sb_err = Intns / pixel**2, Intns_err / pixel**2
+		r_arr = Intns_r.copy()
+
+		id_npix = npix >= 1.
+		r_arr[id_npix == False] = np.nan
+		sb_arr[id_npix == False] = np.nan
+		sb_err[id_npix == False] = np.nan
+
+		id_sn = nratio >= np.nanmax(nratio) / SN_lim ## limitation on S/N
+
+		try:
+			id_R = r_arr > 500 # kpc
+			cri_R = r_arr[ id_R & (id_sn == False) ]
+
+			id_bin = phy_r < cri_R[0]
+			id_dex = np.sum(id_bin) - 1
+
+		except IndexError:
+			cri_R = np.array([2000]) # kpc
+			id_bin = phy_r < cri_R[0]
+			id_dex = np.sum(id_bin) - 1
+
+		edg_R_low = r_bins[id_dex]
+		edg_R_up = r_bins[ -1 ]
+
+		phy_edg_R_low = phy_r[id_dex]
+		phy_edg_R_up = phy_r[ -1 ]
+
+		edg_R_bin = np.linspace(edg_R_low, edg_R_up, 5) #30)
+
+		Intns, Intns_r, Intns_err, npix, nratio = light_measure_rn_weit(tmp_img, tmp_cont, pixel, xn, yn, z_ref, phy_edg_R_low, phy_edg_R_up)
+		#Intns, Intns_r, Intns_err, npix, nratio = light_measure_weit(tmp_img, tmp_cont, pixel, xn, yn, z_ref, edg_R_bin)
+
+		edg_sb, edg_sb_err = Intns / pixel**2, Intns_err / pixel**2
+		edg_R = Intns_r.copy()
+
+		id_edg = r_arr >= cri_R[0]
+		r_arr[id_edg] = np.nan
+		sb_arr[id_edg] = np.nan
+		sb_err[id_edg] = np.nan
+
+		r_arr = np.r_[r_arr, edg_R ]
+		sb_arr = np.r_[sb_arr, edg_sb ]
+		sb_err = np.r_[sb_err, edg_sb_err ]
+
+		with h5py.File(alter_sub_sb % nn, 'w') as f:
+			f['r'] = np.array(r_arr)
+			f['sb'] = np.array(sb_arr)
+			f['sb_err'] = np.array(sb_err)
+
+	tmp_sb = []
+	tmp_r = []
+	for nn in range( N_bin ):
+
+		with h5py.File(alter_sub_sb % nn, 'r') as f:
+			r_arr = np.array(f['r'])
+			sb_arr = np.array(f['sb'])
+			sb_err = np.array(f['sb_err'])
+
+			tmp_sb.append(sb_arr)
+			tmp_r.append(r_arr)
+
+	## only save the sb result in unit " nanomaggies / arcsec^2 "
+	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, 0, 30,)[4:]
+
+	with h5py.File(alter_jk_sb, 'w') as f:
+		f['r'] = np.array(tt_jk_R)
+		f['sb'] = np.array(tt_jk_SB)
+		f['sb_err'] = np.array(tt_jk_err)
+
+	return
+
+
 def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y, img_file, band, sub_img,
 	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
-	id_cut = False, N_edg = None, id_Z0 = True, z_ref = None,):
+	id_cut = False, N_edg = None, 
+	id_Z0 = True, z_ref = None, 
+	id_S2N = False, S2N = None, 
+	id_sub = True,):
 	"""
 	combining jackknife stacking process, and 
 	save : sub-sample (sub-jack-sample) stacking image, pixel conunt array, surface brightness profiles
@@ -145,8 +398,14 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 	N_edg : the cut region width, in unit of pixel, only applied when id_cut == True, pixels in this region will be set as 
 			'no flux' contribution pixels (ie. set as np.nan)
 	
-	id_Z0 : stacking imgs on observation coordinate (id_Z0 = True) 
+	id_Z0 : stacking imgs on observation coordinate (id_Z0 = True, and reference redshift is z_ref) 
 			or not (id_Z0 = False, give radius in physical unit, kpc), default is True
+	
+	id_S2N, S2N :  if set S/N limitation for SB profile measure or not, Default is False (no limitation applied).
+					if id_S2N = True, then measure the SB profile, and in region where S/N is lower than S2N with be 
+					treated as only one radius bins.
+
+	id_sub : measure and save the SB profiles for sub-samples of not, default is True
 	"""
 	lis_ra, lis_dec, lis_z = cat_ra, cat_dec, cat_z
 	lis_x, lis_y = img_x, img_y
@@ -198,84 +457,47 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 		jack_samp_stack(d_file, jack_id, jack_cont_file)
 
 	## SB measurement
-	# get the R_max for SB measurement, and R_max will be applied to all subsample
-	# (also, can be re-measured based on the stacking imgs)
-	lim_r0 = 0
-	lim_r1 = 0
-	for nn in range( N_bin ):
+	if id_sub == True:
+		## sub-samples
+		SB_pros_func(sub_img, sub_pix_cont, sub_sb, N_bin, n_rbins, id_Z0, z_ref)
 
-		with h5py.File(sub_img % nn, 'r') as f:
-			tmp_img = np.array(f['a'])
-		xn, yn = np.int(tmp_img.shape[1] / 2), np.int(tmp_img.shape[0] / 2)
-		id_nn = np.isnan(tmp_img)
-		eff_y, eff_x = np.where(id_nn == False)
-		dR = np.sqrt((eff_y - yn)**2 + (eff_x - xn)**2)
-		dR_max = np.int( dR.max() ) + 1
-		lim_r0 = np.max([lim_r0, dR_max])
+	if id_S2N == False:	
+		## jackknife sub-samples
+		SB_pros_func(J_sub_img, J_sub_pix_cont, J_sub_sb, N_bin, n_rbins, id_Z0, z_ref)
 
-		with h5py.File(J_sub_img % nn, 'r') as f:
-			sub_jk_img = np.array(f['a'])
-		xn, yn = np.int(sub_jk_img.shape[1] / 2), np.int(sub_jk_img.shape[0] / 2)
-		id_nn = np.isnan(sub_jk_img)
-		eff_y, eff_x = np.where(id_nn == False)
-		dR = np.sqrt((eff_y - yn)**2 + (eff_x - xn)**2)
-		dR_max = np.int( dR.max() ) + 1
-		lim_r1 = np.max([lim_r1, dR_max])
+		## final jackknife SB profile
+		tmp_sb = []
+		tmp_r = []
+		for nn in range( N_bin ):
+			with h5py.File(J_sub_sb % nn, 'r') as f:
+				r_arr = np.array(f['r'])[:-1]
+				sb_arr = np.array(f['sb'])[:-1]
+				sb_err = np.array(f['sb_err'])[:-1]
+				npix = np.array(f['npix'])[:-1]
+				nratio = np.array(f['nratio'])[:-1]
 
-	r_bins_0 = np.logspace(0, np.log10(lim_r0), n_rbins)
-	r_bins_1 = np.logspace(0, np.log10(lim_r1), n_rbins)
+			idvx = npix < 1.
+			sb_arr[idvx] = np.nan
+			r_arr[idvx] = np.nan
 
-	for nn in range(N_bin):
+			tmp_sb.append(sb_arr)
+			tmp_r.append(r_arr)
 
-		# individual samples
-		with h5py.File(sub_img % nn, 'r') as f:
-			tmp_img = np.array(f['a'])
+		## only save the sb result in unit " nanomaggies / arcsec^2 "
+		tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, 0, N_bin)[4:]
+		sb_lim_r = np.ones( len(tt_jk_R) ) * lim_R
 
-		with h5py.File(sub_pix_cont % nn, 'r') as f:
-			tmp_cont = np.array(f['a'])
+		with h5py.File(jack_SB_file, 'w') as f:
+			f['r'] = np.array(tt_jk_R)
+			f['sb'] = np.array(tt_jk_SB)
+			f['sb_err'] = np.array(tt_jk_err)
+			f['lim_r'] = np.array(sb_lim_r)
 
-		xn, yn = np.int(tmp_img.shape[1] / 2), np.int(tmp_img.shape[0] / 2)
-
+	else:
 		if id_Z0 == True:
-			Intns, Angl_r, Intns_err, npix, nratio = light_measure_Z0_weit(tmp_img, tmp_cont, pixel, xn, yn, r_bins_0)
-			sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
-			r_arr = Angl_r
+			lim_SB_pros_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N,)
 		else:
-			Intns, phy_r, Intns_err, npix, nratio = light_measure_weit(tmp_img, tmp_cont, pixel, xn, yn, z_ref, r_bins_0)
-			sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
-			r_arr = phy_r
-
-		with h5py.File(sub_sb % nn, 'w') as f:
-			f['r'] = np.array(r_arr)
-			f['sb'] = np.array(sb_arr)
-			f['sb_err'] = np.array(sb_err_arr)
-			f['nratio'] = np.array(nratio)
-			f['npix'] = np.array(npix)
-
-		# jack sub-sample
-		with h5py.File(J_sub_img % nn, 'r') as f:
-			sub_jk_img = np.array(f['a'])
-
-		with h5py.File(J_sub_pix_cont % nn, 'r') as f:
-			sub_jk_cont = np.array(f['a'])
-
-		xn, yn = np.int(sub_jk_img.shape[1] / 2), np.int(sub_jk_img.shape[0] / 2)
-
-		if id_Z0 == True:
-			Intns, Angl_r, Intns_err, npix, nratio = light_measure_Z0_weit(sub_jk_img, sub_jk_cont, pixel, xn, yn, r_bins_1)
-			sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
-			r_arr = Angl_r
-		else:
-			Intns, phy_r, Intns_err, npix, nratio = light_measure_weit(sub_jk_img, sub_jk_cont, pixel, xn, yn, z_ref, r_bins_1)
-			sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
-			r_arr = phy_r
-
-		with h5py.File(J_sub_sb % nn, 'w') as f:
-			f['r'] = np.array(r_arr)
-			f['sb'] = np.array(sb_arr)
-			f['sb_err'] = np.array(sb_err_arr)
-			f['nratio'] = np.array(nratio)
-			f['npix'] = np.array(npix)
+			zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N, z_ref)
 
 	## calculate the jackknife SB profile and mean of jackknife stacking imgs
 	d_file = J_sub_img
@@ -286,32 +508,5 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 	out_file = jack_cont_arr
 	aveg_stack_img(N_bin, d_file, out_file)
 
-	## final jackknife SB profile
-	tmp_sb = []
-	tmp_r = []
-	for nn in range( N_bin ):
-		with h5py.File(J_sub_sb % nn, 'r') as f:
-			r_arr = np.array(f['r'])[:-1]
-			sb_arr = np.array(f['sb'])[:-1]
-			sb_err = np.array(f['sb_err'])[:-1]
-			npix = np.array(f['npix'])[:-1]
-			nratio = np.array(f['nratio'])[:-1]
-
-			idvx = npix < 1.
-			sb_arr[idvx] = np.nan
-			r_arr[idvx] = np.nan
-
-			tmp_sb.append(sb_arr)
-			tmp_r.append(r_arr)
-
-	## only save the sb result in unit " nanomaggies / arcsec^2 "
-	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, 0, N_bin)[4:]
-	sb_lim_r = np.ones( len(tt_jk_R) ) * lim_R
-
-	with h5py.File(jack_SB_file, 'w') as f:
-		f['r'] = np.array(tt_jk_R)
-		f['sb'] = np.array(tt_jk_SB)
-		f['sb_err'] = np.array(tt_jk_err)
-		f['lim_r'] = np.array(sb_lim_r)
-
 	return
+

@@ -320,7 +320,7 @@ def main():
 
 	t0 = time.time()
 
-	dat = pds.read_csv('/home/xkchen/mywork/ICL/r_band_sky_catalog.csv')
+	dat = pds.read_csv('/home/xkchen/mywork/ICL/data/cat_select/r_band_sky_catalog.csv')
 	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 
 	cat_file = '/home/xkchen/mywork/ICL/data/source_find/cluster_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
@@ -333,7 +333,7 @@ def main():
 	t1 = time.time() - t0
 	print(t1)
 
-	dat = pds.read_csv('/home/xkchen/mywork/ICL/rand_r_band_catalog.csv')
+	dat = pds.read_csv('/home/xkchen/mywork/ICL/data/cat_select/rand_r_band_catalog.csv')
 	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 
 	cat_file = '/home/xkchen/mywork/ICL/data/source_find/random_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'

@@ -4,7 +4,7 @@ import numpy as np
 import astropy.io.fits as fits
 
 import mechanize
-import pandas as pd 
+import pandas as pds
 from io import StringIO
 
 import astropy.units as U
@@ -24,45 +24,109 @@ pixel = 0.396
 
 ###
 url = 'http://skyserver.sdss.org/dr12/en/tools/search/sql.aspx'
-load = '/media/xkchen/My Passport/data/SDSS/'
-#load = '/home/xkchen/mywork/ICL/data/'
 
 r_select = 0.42 ## 1.5 * diagonal line length
-#r_select = 0.167 # centered at BCG, radius = 10 arcmin (1515.15 pixel)
 
-def sdss_sql(z_set, ra_set, dec_set):
+def sdss_sql_star(z_set, ra_set, dec_set, ref_ra, ref_dec, out_file,):
+
 	Nz = len(z_set)
 	for q in range(Nz):
-		time = z_set[q]
-		ra = ra_set[q]
-		dec = dec_set[q]
-		set_r = r_select
-		c_ra0 = str(ra - set_r)
-		c_dec0 = str(dec - set_r)
-		c_ra1 = str(ra + set_r)
-		c_dec1 = str(dec + set_r)
 
-		data_set = """
-		SELECT ALL
-			p.ra,p.dec,p.u,p.g,p.r,p.i,p.z,p.type,  
-			p.psffwhm_u, p.psffwhm_g, p.psffwhm_r, p.psffwhm_i, p.psffwhm_z,
-			p.petroR90_u, p.petroR90_g, p.petroR90_r, p.petroR90_i, p.petroR90_z,
+		z_g = z_set[q]
+		ra_g = ra_set[q]
+		dec_g = dec_set[q]
 
-			p.deVRad_u, p.deVRad_g, p.deVRad_r, p.deVRad_i, p.deVRad_z,
-			p.deVAB_u, p.deVAB_g, p.deVAB_r, p.deVAB_i, p.deVAB_z,
-			p.deVPhi_u, p.deVPhi_g, p.deVPhi_r, p.deVPhi_i, p.deVPhi_z,
+		cen_ra = ref_ra[q]
+		cen_dec = ref_dec[q]
 
-			p.expRad_u, p.expRad_g, p.expRad_r, p.expRad_i, p.expRad_z,
-			p.expAB_u, p.expAB_g, p.expAB_r, p.expAB_i, p.expAB_z,
-			p.expPhi_u, p.expPhi_g, p.expPhi_r, p.expPhi_i, p.expPhi_z,
-			p.flags, dbo.fPhotoFlagsN(p.flags)
-		FROM PhotoObj AS p
-		WHERE
-			p.ra BETWEEN %s AND %s
-			AND p.dec BETWEEN %s AND %s
-			AND (p.type = 6 OR (p.flags & dbo.fPhotoFlags('SATURATED')) > 0)
-		ORDER by p.r
-		""" % (c_ra0, c_ra1, c_dec0, c_dec1)
+		c_ra0 = cen_ra - r_select
+		c_dec0 = cen_dec - r_select
+		c_ra1 = cen_ra + r_select
+		c_dec1 = cen_dec + r_select
+
+		if ra_g + r_select > 360:
+
+			l_ra_0 = ra_g
+			l_ra_1 = 0
+
+			r_ra_0 = 360
+			r_ra_1 = r_select - (360 - ra_g)
+
+			data_set = """
+			SELECT ALL
+				p.ra, p.dec, p.u, p.g, p.r, p.i, p.z, p.type,  
+				p.psffwhm_u, p.psffwhm_g, p.psffwhm_r, p.psffwhm_i, p.psffwhm_z,
+				p.petroR90_u, p.petroR90_g, p.petroR90_r, p.petroR90_i, p.petroR90_z,
+
+				p.deVRad_u, p.deVRad_g, p.deVRad_r, p.deVRad_i, p.deVRad_z,
+				p.deVAB_u, p.deVAB_g, p.deVAB_r, p.deVAB_i, p.deVAB_z,
+				p.deVPhi_u, p.deVPhi_g, p.deVPhi_r, p.deVPhi_i, p.deVPhi_z,
+
+				p.expRad_u, p.expRad_g, p.expRad_r, p.expRad_i, p.expRad_z,
+				p.expAB_u, p.expAB_g, p.expAB_r, p.expAB_i, p.expAB_z,
+				p.expPhi_u, p.expPhi_g, p.expPhi_r, p.expPhi_i, p.expPhi_z,
+				p.flags, dbo.fPhotoFlagsN(p.flags)
+			FROM PhotoObj AS p
+			WHERE
+				( (p.ra BETWEEN %.5f AND %.5f) OR (p.ra BETWEEN %.5f AND %.5f) )
+				AND ( p.dec BETWEEN %.5f AND %.5f )
+				AND ( p.type = 6 OR (p.flags & dbo.fPhotoFlags('SATURATED')) > 0 )
+			ORDER by p.r
+			""" % (l_ra_0, r_ra_0, l_ra_1, r_ra_1, c_dec0, c_dec1)
+
+		elif ra_g - r_select < 0:
+
+			l_ra_0 = 0
+			l_ra_1 = 360 + (ra_g - r_select)
+
+			r_ra_0 = ra_g
+			r_ra_1 = 360
+
+			data_set = """
+			SELECT ALL
+				p.ra, p.dec, p.u, p.g, p.r, p.i, p.z, p.type,  
+				p.psffwhm_u, p.psffwhm_g, p.psffwhm_r, p.psffwhm_i, p.psffwhm_z,
+				p.petroR90_u, p.petroR90_g, p.petroR90_r, p.petroR90_i, p.petroR90_z,
+
+				p.deVRad_u, p.deVRad_g, p.deVRad_r, p.deVRad_i, p.deVRad_z,
+				p.deVAB_u, p.deVAB_g, p.deVAB_r, p.deVAB_i, p.deVAB_z,
+				p.deVPhi_u, p.deVPhi_g, p.deVPhi_r, p.deVPhi_i, p.deVPhi_z,
+
+				p.expRad_u, p.expRad_g, p.expRad_r, p.expRad_i, p.expRad_z,
+				p.expAB_u, p.expAB_g, p.expAB_r, p.expAB_i, p.expAB_z,
+				p.expPhi_u, p.expPhi_g, p.expPhi_r, p.expPhi_i, p.expPhi_z,
+				p.flags, dbo.fPhotoFlagsN(p.flags)
+			FROM PhotoObj AS p
+			WHERE
+				( (p.ra BETWEEN %.5f AND %.5f) OR (p.ra BETWEEN %.5f AND %.5f) )
+				AND ( p.dec BETWEEN %.5f AND %.5f )
+				AND ( p.type = 6 OR (p.flags & dbo.fPhotoFlags('SATURATED')) > 0 )
+			ORDER by p.r
+			""" % (l_ra_0, r_ra_0, l_ra_1, r_ra_1, c_dec0, c_dec1)
+
+		else:
+
+			data_set = """
+			SELECT ALL
+				p.ra, p.dec, p.u, p.g, p.r, p.i, p.z, p.type,  
+				p.psffwhm_u, p.psffwhm_g, p.psffwhm_r, p.psffwhm_i, p.psffwhm_z,
+				p.petroR90_u, p.petroR90_g, p.petroR90_r, p.petroR90_i, p.petroR90_z,
+
+				p.deVRad_u, p.deVRad_g, p.deVRad_r, p.deVRad_i, p.deVRad_z,
+				p.deVAB_u, p.deVAB_g, p.deVAB_r, p.deVAB_i, p.deVAB_z,
+				p.deVPhi_u, p.deVPhi_g, p.deVPhi_r, p.deVPhi_i, p.deVPhi_z,
+
+				p.expRad_u, p.expRad_g, p.expRad_r, p.expRad_i, p.expRad_z,
+				p.expAB_u, p.expAB_g, p.expAB_r, p.expAB_i, p.expAB_z,
+				p.expPhi_u, p.expPhi_g, p.expPhi_r, p.expPhi_i, p.expPhi_z,
+				p.flags, dbo.fPhotoFlagsN(p.flags)
+			FROM PhotoObj AS p
+			WHERE
+				p.ra BETWEEN %.5f AND %.5f
+				AND p.dec BETWEEN %.5f AND %.5f
+				AND (p.type = 6 OR (p.flags & dbo.fPhotoFlags('SATURATED')) > 0)
+			ORDER by p.r
+			""" % (c_ra0, c_ra1, c_dec0, c_dec1)
 
 		br = mechanize.Browser()
 		resp = br.open(url)
@@ -73,86 +137,184 @@ def sdss_sql(z_set, ra_set, dec_set):
 		br['format'] = ['csv']
 		response = br.submit()
 		s = str(response.get_data(), encoding = 'utf-8')
-		#doc = open(load + 'star_dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'%(time, ra, dec), 'w') ## spec_z cat.
-		doc = open(load + 'random_cat/star_cat/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'%(time, ra, dec), 'w') ## random cat.
+		doc = open( out_file % (z_g, ra_g, dec_g), 'w')
 		print(s, file = doc)
 		doc.close()
 
 	return
 
-'''
-## spec_z sample
-with h5py.File(load + 'mpi_h5/sample_catalog.h5', 'r') as f:
-	catalogue = np.array(f['a'])
-z = catalogue[0]
-Ra = catalogue[1]
-Dec = catalogue[2]
-'''
-## redMapper random catalogue
-with h5py.File(load + 'mpi_h5/redMapper_rand_cat.h5', 'r') as f:
-	cat_array = np.array(f['a'])
-Ra = cat_array[0]
-Dec = cat_array[1]
-z = cat_array[2]
-Nz = len(z)
-#sdss_sql(z, Ra, Dec)
+def sdss_sql_galaxy(set_ra, set_dec, set_z, ref_ra, ref_dec, out_file,):
 
-no_match = []
+	Nz = len(set_z)
+	for q in range(Nz):
 
-for q in range( 2091, Nz ):
-	z_g = z[q]
-	ra_g = Ra[q]
-	dec_g = Dec[q]
-	set_r = r_select
-	c_ra0 = str(ra_g - set_r)
-	c_dec0 = str(dec_g - set_r)
-	c_ra1 = str(ra_g + set_r)
-	c_dec1 = str(dec_g + set_r)
+		z_g = set_z[q]
+		ra_g = set_ra[q]
+		dec_g = set_dec[q]
 
-	data_set = """
-	SELECT ALL
-		p.ra,p.dec,p.u,p.g,p.r,p.i,p.z,p.type,  
-		p.psffwhm_u, p.psffwhm_g, p.psffwhm_r, p.psffwhm_i, p.psffwhm_z,
-		p.petroR90_u, p.petroR90_g, p.petroR90_r, p.petroR90_i, p.petroR90_z,
+		c_ra0 = ref_ra[q] - r_select
+		c_dec0 = ref_dec[q] - r_select
+		c_ra1 = ref_ra[q] + r_select
+		c_dec1 = ref_dec[q] + r_select
 
-		p.deVRad_u, p.deVRad_g, p.deVRad_r, p.deVRad_i, p.deVRad_z,
-		p.deVAB_u, p.deVAB_g, p.deVAB_r, p.deVAB_i, p.deVAB_z,
-		p.deVPhi_u, p.deVPhi_g, p.deVPhi_r, p.deVPhi_i, p.deVPhi_z,
+		if ra_g + r_select > 360:
 
-		p.expRad_u, p.expRad_g, p.expRad_r, p.expRad_i, p.expRad_z,
-		p.expAB_u, p.expAB_g, p.expAB_r, p.expAB_i, p.expAB_z,
-		p.expPhi_u, p.expPhi_g, p.expPhi_r, p.expPhi_i, p.expPhi_z,
-		p.flags, dbo.fPhotoFlagsN(p.flags)
-	FROM PhotoObj AS p
-	WHERE
-		p.ra BETWEEN %s AND %s
-		AND p.dec BETWEEN %s AND %s
-		AND (p.type = 6 OR (p.flags & dbo.fPhotoFlags('SATURATED')) > 0)
-	ORDER by p.r
-	""" % (c_ra0, c_ra1, c_dec0, c_dec1)
+			l_ra_0 = ra_g
+			l_ra_1 = 0
 
-	br = mechanize.Browser()
-	resp = br.open(url)
-	resp.info()
+			r_ra_0 = 360
+			r_ra_1 = r_select - (360 - ra_g)
 
-	br.select_form(name = "sql")
-	br['cmd'] = data_set
-	br['format'] = ['csv']
-	response = br.submit()
-	s = str(response.get_data(), encoding = 'utf-8')
-	#doc = open(load + 'star_dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'%(z_g, ra_g, dec_g), 'w') ## spec_z cat.
-	doc = open(load + 'random_cat/star_cat/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'%(z_g, ra_g, dec_g), 'w') ## random cat.
-	print(s, file = doc)
-	doc.close()
+			data_set = """
+			SELECT ALL
+				p.ra,p.dec,p.g,p.r,p.i,p.type,
 
-	try:
-		cat = pd.read_csv(load + 'random_cat/star_cat/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'%(z_g, ra_g, dec_g), skiprows = 1)
-		try_ra = np.array(cat.ra)
-	except:
-		no_match.append('%d, %.3f,%.3f,%.3f' % (q, ra_g, dec_g, z_g) )
+				p.deVRad_u, p.deVRad_g, p.deVRad_r, p.deVRad_i, p.deVRad_z,
+				p.deVAB_u, p.deVAB_g, p.deVAB_r, p.deVAB_i, p.deVAB_z,
+				p.deVPhi_u, p.deVPhi_g, p.deVPhi_r, p.deVPhi_i, p.deVPhi_z,
 
-doc = open('No_source_match_sample_random.txt', 'w')
-for ll in range(len(no_match)):
-	subx = no_match[ll]
-	print(subx, file = doc)
-doc.close()
+				p.expRad_u, p.expRad_g, p.expRad_r, p.expRad_i, p.expRad_z,
+				p.expAB_u, p.expAB_g, p.expAB_r, p.expAB_i, p.expAB_z,
+				p.expPhi_u, p.expPhi_g, p.expPhi_r, p.expPhi_i, p.expPhi_z
+
+			FROM PhotoObjAll AS p
+			WHERE
+				( (p.ra BETWEEN %.5f AND %.5f) OR (p.ra BETWEEN %.5f AND %.5f) )
+				AND ( p.dec BETWEEN %.5f AND %.5f )
+				AND ( p.type = 3 )
+
+				AND ( p.mode = 1 )
+				AND ( p.clean = 1 )
+				AND ( p.flags & cast(8800388251650 as bigint) = 0 )
+				AND ( p.cModelMag_i - p.extinction_i BETWEEN 0 and 21.0 )
+				AND ( p.cModelMagErr_i BETWEEN 0 and 0.1 )
+
+				--AND ((p.flags & 0x10000000) != 0)
+				--AND ((flags & 0x800a0) = 0)
+				--AND (((flags & 0x400000000000) = 0) OR (psfmagerr_r <= 0.2))
+				--AND (((flags & 0x100000000000) = 0) OR (flags & 0x1000) = 0)
+			""" % (l_ra_0, r_ra_0, l_ra_1, r_ra_1, c_dec0, c_dec1)		
+
+		elif ra_g - r_select < 0:
+
+			l_ra_0 = 0
+			l_ra_1 = 360 + (ra_g - r_select)
+
+			r_ra_0 = ra_g
+			r_ra_1 = 360
+
+			data_set = """
+			SELECT ALL
+				p.ra,p.dec,p.g,p.r,p.i,p.type,
+
+				p.deVRad_u, p.deVRad_g, p.deVRad_r, p.deVRad_i, p.deVRad_z,
+				p.deVAB_u, p.deVAB_g, p.deVAB_r, p.deVAB_i, p.deVAB_z,
+				p.deVPhi_u, p.deVPhi_g, p.deVPhi_r, p.deVPhi_i, p.deVPhi_z,
+
+				p.expRad_u, p.expRad_g, p.expRad_r, p.expRad_i, p.expRad_z,
+				p.expAB_u, p.expAB_g, p.expAB_r, p.expAB_i, p.expAB_z,
+				p.expPhi_u, p.expPhi_g, p.expPhi_r, p.expPhi_i, p.expPhi_z
+
+			FROM PhotoObjAll AS p
+			WHERE
+				( (p.ra BETWEEN %.5f AND %.5f) OR (p.ra BETWEEN %.5f AND %.5f) )
+				AND ( p.dec BETWEEN %.5f AND %.5f )
+				AND ( p.type = 3 )
+
+				AND ( p.mode = 1 )
+				AND ( p.clean = 1 )
+				AND ( p.flags & cast(8800388251650 as bigint) = 0 )
+				AND ( p.cModelMag_i - p.extinction_i BETWEEN 0 AND 21.0 )
+				AND ( p.cModelMagErr_i BETWEEN 0 AND 0.1 )
+
+				--AND ((p.flags & 0x10000000) != 0)
+				--AND ((flags & 0x800a0) = 0)
+				--AND (((flags & 0x400000000000) = 0) OR (psfmagerr_r <= 0.2))
+				--AND (((flags & 0x100000000000) = 0) OR (flags & 0x1000) = 0)
+			""" % (l_ra_0, r_ra_0, l_ra_1, r_ra_1, c_dec0, c_dec1)
+
+		else:
+
+			data_set = """
+			SELECT ALL
+				p.ra,p.dec,p.g,p.r,p.i,p.type,
+
+				p.deVRad_u, p.deVRad_g, p.deVRad_r, p.deVRad_i, p.deVRad_z,
+				p.deVAB_u, p.deVAB_g, p.deVAB_r, p.deVAB_i, p.deVAB_z,
+				p.deVPhi_u, p.deVPhi_g, p.deVPhi_r, p.deVPhi_i, p.deVPhi_z,
+
+				p.expRad_u, p.expRad_g, p.expRad_r, p.expRad_i, p.expRad_z,
+				p.expAB_u, p.expAB_g, p.expAB_r, p.expAB_i, p.expAB_z,
+				p.expPhi_u, p.expPhi_g, p.expPhi_r, p.expPhi_i, p.expPhi_z
+
+			FROM PhotoObjAll AS p
+			WHERE
+					( p.ra BETWEEN %.5f AND %.5f )
+				AND ( p.dec BETWEEN %.5f AND %.5f )
+				AND ( p.type = 3 )
+
+				AND ( p.mode = 1 )
+				AND ( p.clean = 1 )
+				AND ( p.flags & cast(8800388251650 as bigint) = 0 )
+				AND ( p.cModelMag_i - p.extinction_i BETWEEN 0 AND 21.0 )
+				AND ( p.cModelMagErr_i BETWEEN 0 AND 0.1 )
+
+				--AND ((p.flags & 0x10000000) != 0)
+				--AND ((flags & 0x800a0) = 0)
+				--AND (((flags & 0x400000000000) = 0) OR (psfmagerr_r <= 0.2))
+				--AND (((flags & 0x100000000000) = 0) OR (flags & 0x1000) = 0)
+			""" % (c_ra0, c_ra1, c_dec0, c_dec1)
+
+		br = mechanize.Browser()
+		resp = br.open(url)
+		resp.info()
+
+		br.select_form(name = "sql")
+		br['cmd'] = data_set
+		br['format'] = ['csv']
+		response = br.submit()
+		s = str(response.get_data(), encoding = 'utf-8')
+		doc = open(out_file % (z_g, ra_g, dec_g), 'w')
+		print(s, file = doc)
+		doc.close()
+
+	return
+
+load = '/home/xkchen/mywork/ICL/data/'
+
+dat = pds.read_csv(load + 'redmapper/SDSS_spec-sample_sql_cat.csv')
+ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
+ref_ra, ref_dec = np.array(dat.ref_ra), np.array(dat.ref_dec)
+
+out_file = load + 'tmp_img/source_find/Galax_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
+tN = 20
+sdss_sql_galaxy(ra[:tN], dec[:tN], z[:tN], ref_ra[:tN], ref_dec[:tN], out_file,)
+
+### test-1000
+test_dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/clust-1000-select_remain_test.csv')
+tt_ra, tt_dec, tt_z = np.array(test_dat.ra), np.array(test_dat.dec), np.array(test_dat.z)
+
+identi_ra = ['%.3f' % ll for ll in tt_ra[:20] ]
+identi_dec = ['%.3f' % ll for ll in tt_dec[:20] ]
+
+##### use 20 imgs cat. for test
+lis_ra, lis_dec, lis_z, lis_ref_ra, lis_ref_dec = [], [], [], [], []
+for ll in range( len(z) ):
+	ra_i, dec_i = ra[ll], dec[ll]
+	id_in = ('%.3f' % ra_i in identi_ra) & ('%.3f' % dec_i in identi_dec)
+
+	if id_in == True:
+		lis_ra.append(ra_i)
+		lis_dec.append(dec_i)
+		lis_z.append(z[ll])
+		lis_ref_ra.append(ref_ra[ll])
+		lis_ref_dec.append(ref_dec[ll])
+
+lis_ra = np.array(lis_ra)
+lis_dec = np.array(lis_dec)
+lis_z = np.array(lis_z)
+lis_ref_ra = np.array(lis_ref_ra)
+lis_ref_dec = np.array(lis_ref_dec)
+
+out_file = load + 'tmp_img/source_find/Galax_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
+sdss_sql_galaxy(lis_ra, lis_dec, lis_z, lis_ref_ra, lis_ref_dec, out_file,)
