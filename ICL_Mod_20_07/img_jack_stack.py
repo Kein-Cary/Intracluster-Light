@@ -158,7 +158,8 @@ def SB_pros_func(flux_img, pix_cont_img, sb_file, N_img, n_rbins, id_Z0, z_ref):
 	return
 
 
-def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbins, N_bin, SN_lim,):
+def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbins, N_bin, SN_lim, 
+	edg_bins = None,):
 
 	### stacking in angle coordinate
 
@@ -212,12 +213,13 @@ def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbi
 		edg_R_low = r_bins[id_dex]
 		edg_R_up = r_bins[ -1 ]
 
-		edg_R_bin = np.linspace(edg_R_low, edg_R_up, 5) #30)
-
-		## out-region as one bin
-		Intns, Intns_r, Intns_err, npix, nratio = light_measure_rn_Z0_weit(tmp_img, tmp_cont, pixel, xn, yn, edg_R_low, edg_R_up)
-		## linear bins
-		#Intns, Intns_r, Intns_err, npix, nratio = light_measure_Z0_weit(tmp_img, tmp_cont, pixel, xn, yn, edg_R_bin)
+		if edg_bins is not None:
+			## linear bins
+			edg_R_bin = np.linspace(edg_R_low, edg_R_up, edg_bins,)
+			Intns, Intns_r, Intns_err, npix, nratio = light_measure_Z0_weit(tmp_img, tmp_cont, pixel, xn, yn, edg_R_bin)
+		else:
+			## out-region as one bin
+			Intns, Intns_r, Intns_err, npix, nratio = light_measure_rn_Z0_weit(tmp_img, tmp_cont, pixel, xn, yn, edg_R_low, edg_R_up)
 
 		edg_sb, edg_sb_err = Intns / pixel**2, Intns_err / pixel**2
 		edg_R = Intns_r.copy()
@@ -258,7 +260,8 @@ def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbi
 
 	return
 
-def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbins, N_bin, SN_lim, z_ref):
+def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbins, N_bin, SN_lim, z_ref,
+	edg_bins = None,):
 
 	### stacking in angle coordinate
 
@@ -319,10 +322,12 @@ def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb
 		phy_edg_R_low = phy_r[id_dex]
 		phy_edg_R_up = phy_r[ -1 ]
 
-		edg_R_bin = np.linspace(edg_R_low, edg_R_up, 5) #30)
-
-		Intns, Intns_r, Intns_err, npix, nratio = light_measure_rn_weit(tmp_img, tmp_cont, pixel, xn, yn, z_ref, phy_edg_R_low, phy_edg_R_up)
-		#Intns, Intns_r, Intns_err, npix, nratio = light_measure_weit(tmp_img, tmp_cont, pixel, xn, yn, z_ref, edg_R_bin)
+		if edg_bins is not None:
+			edg_R_bin = np.linspace(edg_R_low, edg_R_up, edg_bins,)
+			Intns, Intns_r, Intns_err, npix, nratio = light_measure_weit(tmp_img, tmp_cont, pixel, xn, yn, z_ref, edg_R_bin)
+		else:
+			Intns, Intns_r, Intns_err, npix, nratio = light_measure_rn_weit(
+				tmp_img, tmp_cont, pixel, xn, yn, z_ref, phy_edg_R_low, phy_edg_R_up)			
 
 		edg_sb, edg_sb_err = Intns / pixel**2, Intns_err / pixel**2
 		edg_R = Intns_r.copy()

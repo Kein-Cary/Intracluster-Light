@@ -12,8 +12,8 @@ from astropy import cosmology as apcy
 
 from groups import groups_find_func
 
-def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, out_file, bcg_mask, extra_cat, alter_fac, 
-	stack_info = None, pixel = 0.396,):
+def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, out_file, bcg_mask, extra_cat, alter_fac = None, 
+	alt_bright_R = None, alt_G_size = None, stack_info = None, pixel = 0.396,):
 	"""
 	after img masking, use this function to detection "light" region, which
 	mainly due to nearby brightstars, for SDSS case: taking the brightness of
@@ -31,7 +31,11 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 	pixel : pixel scale, in unit 'arcsec' (default is 0.396)
 	stack_info : path to save the information of stacking (ra, dec, z, img_x, img_y)
 	including file-name: '/xxx/xxx/xxx.xxx'
-	extra_cat : extral catalog for masking adjust
+
+	extra_cat : extral galaxy catalog for masking adjust
+	alter_fac : size adjust for normal stars
+	alt_bright_R : size adjust for bright stars (also for saturated sources)
+	alt_G_size : size adjust for galaxy-like sources
 	"""
 	Nz = len(z_set)
 	bcg_x, bcg_y = [], []
@@ -59,7 +63,10 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 		cy = np.array(source['Y_IMAGE']) - 1
 		p_type = np.array(source['CLASS_STAR'])
 
-		Kron = 16
+		if alt_G_size is not None:
+			Kron = alt_G_size + 0.
+		else:
+			Kron = 16
 		a = Kron * A
 		b = Kron * B
 		'''
@@ -99,8 +106,12 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 		ic = (ie & ig & iq)
 		sub_x0 = x[ic]
 		sub_y0 = y[ic]
-		sub_A0 = lr_iso[ic] * alter_fac #30
-		sub_B0 = sr_iso[ic] * alter_fac #30
+		if alter_fac is not None:
+			sub_A0 = lr_iso[ic] * alter_fac
+			sub_B0 = sr_iso[ic] * alter_fac
+		else:
+			sub_A0 = lr_iso[ic] * 30
+			sub_B0 = sr_iso[ic] * 30
 		sub_chi0 = set_chi[ic]
 
 		# saturated source(may not stars)
@@ -111,8 +122,13 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 
 		sub_x2 = x[ipx]
 		sub_y2 = y[ipx]
-		sub_A2 = lr_iso[ipx] * 75
-		sub_B2 = sr_iso[ipx] * 75
+
+		if alt_bright_R is not None:
+			sub_A2 = lr_iso[ipx] * alt_bright_R
+			sub_B2 = sr_iso[ipx] * alt_bright_R			
+		else:
+			sub_A2 = lr_iso[ipx] * 75
+			sub_B2 = sr_iso[ipx] * 75
 		sub_chi2 = set_chi[ipx]
 
 		comx = np.r_[sub_x0[sub_A0 > 0], sub_x2[sub_A2 > 0] ]
@@ -195,39 +211,52 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 
 def main():
 
-	home = '/media/xkchen/My Passport/data/SDSS/'
-	load = '/media/xkchen/My Passport/data/SDSS/'
+	from mpi4py import MPI
+	commd = MPI.COMM_WORLD
+	rank = commd.Get_rank()
+	cpus = commd.Get_size()
 
-	n_main = np.array([250, 98, 193, 459]) ## norm star mask size = 30 * (FWHM / 2)
-	ra, dec, z = np.array([]), np.array([]), np.array([])
-	img_x, img_y = np.array([]), np.array([])
+	home = '/home/xkchen/data/SDSS/'
+	load = '/home/xkchen/data/SDSS/'
 
-	for mm in range( 4 ):
+	dat = pds.read_csv('/home/xkchen/fig_tmp/test_1000_no_select.csv')
+	ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
+	clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
 
-		dat = pds.read_csv('SEX/result/select_based_on_A250/Bro_mode-select_1000-to-%d_remain_cat_4.0-sigma.csv' % n_main[mm], )
+	zN = len( z )
+	m, n = divmod(zN, cpus)
+	N_sub0, N_sub1 = m * rank, (rank + 1) * m
+	if rank == cpus - 1:
+		N_sub1 += n
 
-		ra = np.r_[ ra, np.array( dat.ra) ]
-		dec = np.r_[ dec, np.array( dat.dec) ]
-		z = np.r_[ z, np.array( dat.z) ]
-		img_x = np.r_[ img_x, np.array( dat.bcg_x) ]
-		img_y = np.r_[ img_y, np.array( dat.bcg_y) ]
+	d_file = home + 'wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
 
-	size_arr = np.array([5, 10, 20])
+	cat_file = home + 'corrected_star_cat/dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
+	gal_file = home + 'source_detect_cat/cluster_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
+	extra_cat = home + 'source_detect_cat/clus_photo-G_match_ra%.3f_dec%.3f_z%.3f.csv'
 
-	for mm in range( 3 ):
+	bcg_mask = 1
+	band = 'r'
+	'''
+	### masking test for normal stars.
+	size_arr = np.array([10, 20])
 
-		d_file = home + 'wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
+	for mm in range( 2 ):
 
-		cat_file = '/home/xkchen/mywork/ICL/data/corrected_star_cat/dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
-		gal_file = '/home/xkchen/mywork/ICL/data/source_find/cluster_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
+		out_file = '/home/xkchen/fig_tmp/norm_mask/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_' + '%d-FWHM-ov2.fits' % (size_arr[mm])
 
-		out_file = home + '20_10_test/mask/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_' + '%d-FWHM-ov2.fits' % (size_arr[mm])
+		adjust_mask_func(d_file, cat_file, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1], 
+			band, gal_file, out_file, bcg_mask, extra_cat, size_arr[mm],)
+	'''
+	### masking test for bright stars
+	size_arr = np.array([25, 50])
 
-		bcg_mask = 1
-		band = 'r'
-		extra_cat = '/home/xkchen/mywork/ICL/data/source_find/clus_photo-G_match_ra%.3f_dec%.3f_z%.3f.csv'
+	for mm in range( 2 ):
 
-		adjust_mask_func(d_file, cat_file, z, ra, dec, band, gal_file, out_file, bcg_mask, extra_cat, size_arr[mm],)
+		out_file = '/home/xkchen/fig_tmp/bright_mask/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_' + '%d-FWHM-ov2_bri-star.fits' % (size_arr[mm])
+
+		adjust_mask_func(d_file, cat_file, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1], 
+			band, gal_file, out_file, bcg_mask, extra_cat, alter_fac = None, alt_bright_R = size_arr[mm],)
 
 	raise
 
