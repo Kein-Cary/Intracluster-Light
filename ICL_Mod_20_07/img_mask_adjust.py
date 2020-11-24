@@ -179,18 +179,73 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 
 		mask_img = mask_path * img
 
-		## add back the BCG region
+		### add BCG region back
 		if bcg_mask == 0:
+
+			copy_mask = np.ones((img.shape[0], img.shape[1]), dtype = np.float32)
 			tdr = np.sqrt((xn - cx)**2 + (yn - cy)**2)
 			idx = tdr == np.min(tdr)
-			lr = A[idx] * 2.5 # 2.5 R_Kron
+			id_bcg = np.where(idx)[0][0]
+
+			for k in range( Numb ):
+				xc = cx[k]
+				yc = cy[k]
+
+				lr = A[k] * 3
+				sr = B[k] * 3
+
+				chi = theta[k] * np.pi / 180
+
+				if k == id_bcg:
+					continue
+				else:
+					set_r = np.int(np.ceil(1.0 * lr))
+					la0 = np.max( [np.int(xc - set_r), 0])
+					la1 = np.min( [np.int(xc + set_r + 1), img.shape[1] ] )
+					lb0 = np.max( [np.int(yc - set_r), 0] ) 
+					lb1 = np.min( [np.int(yc + set_r + 1), img.shape[0] ] )
+
+					df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.cos(chi) + (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.sin(chi)
+					df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.cos(chi) - (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.sin(chi)
+					fr = df1**2 / lr**2 + df2**2 / sr**2
+					jx = fr <= 1
+
+					iu = np.where(jx == True)
+					iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float32)
+					iv[iu] = np.nan
+					copy_mask[lb0: lb1, la0: la1] = copy_mask[lb0: lb1, la0: la1] * iv
+
+			copy_imgs = copy_mask * img
+
+			tdr = np.sqrt((xn - cx)**2 + (yn - cy)**2)
+			idx = tdr == np.min(tdr)
+			lr = A[idx] * 8
+			sr = B[idx] * 8
+
+			targ_x = cx[idx]
+			targ_y = cy[idx]
+			targ_chi = theta[idx] * np.pi / 180
 
 			set_r = np.int(np.ceil(1.0 * lr))
-			la0 = np.max( [np.int(cx[idx] - set_r), 0])
-			la1 = np.min( [np.int(cx[idx] + set_r +1), img.shape[1] ] )
-			lb0 = np.max( [np.int(cy[idx] - set_r), 0] )
-			lb1 = np.min( [np.int(cy[idx] + set_r +1), img.shape[0] ] )
-			mask_img[lb0: lb1, la0: la1] = img[lb0: lb1, la0: la1]
+			la0 = np.max( [np.int(targ_x - set_r), 0])
+			la1 = np.min( [np.int(targ_x + set_r +1), img.shape[1] ] )
+			lb0 = np.max( [np.int(targ_y - set_r), 0] )
+			lb1 = np.min( [np.int(targ_y + set_r +1), img.shape[0] ] )
+
+			df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - targ_x)* np.cos(targ_chi) + (basic_coord[1,:][lb0: lb1, la0: la1] - targ_y)* np.sin(targ_chi)
+			df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - targ_y)* np.cos(targ_chi) - (basic_coord[0,:][lb0: lb1, la0: la1] - targ_x)* np.sin(targ_chi)
+			fr = df1**2 / lr**2 + df2**2 / sr**2
+			jx = fr <= 1
+
+			iu = np.where(jx == False)
+			iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float32)
+			iv[iu] = np.nan
+
+			dpt_img = copy_imgs[lb0: lb1, la0: la1]
+			dpt_img = dpt_img * iv
+
+			#mask_img[lb0: lb1, la0: la1] = dpt_img
+			mask_img[lb0: lb1, la0: la1] = copy_imgs[lb0: lb1, la0: la1]
 
 		hdu = fits.PrimaryHDU()
 		hdu.data = mask_img
@@ -219,6 +274,7 @@ def main():
 	home = '/home/xkchen/data/SDSS/'
 	load = '/home/xkchen/data/SDSS/'
 
+	### test-1000 sample (r band)
 	dat = pds.read_csv('/home/xkchen/fig_tmp/test_1000_no_select.csv')
 	ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 	clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)

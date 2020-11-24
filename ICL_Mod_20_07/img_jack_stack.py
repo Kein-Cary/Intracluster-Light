@@ -374,7 +374,7 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 	id_cut = False, N_edg = None, 
 	id_Z0 = True, z_ref = None, 
 	id_S2N = False, S2N = None, 
-	id_sub = True,):
+	id_sub = True, edg_bins = None,):
 	"""
 	combining jackknife stacking process, and 
 	save : sub-sample (sub-jack-sample) stacking image, pixel conunt array, surface brightness profiles
@@ -500,9 +500,9 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 
 	else:
 		if id_Z0 == True:
-			lim_SB_pros_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N,)
+			lim_SB_pros_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N, edg_bins,)
 		else:
-			zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N, z_ref)
+			zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N, z_ref, edg_bins,)
 
 	## calculate the jackknife SB profile and mean of jackknife stacking imgs
 	d_file = J_sub_img

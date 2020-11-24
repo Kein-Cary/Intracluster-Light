@@ -49,7 +49,7 @@ def source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file, stack_inf
 		a = subpro.Popen(cmd, shell = True)
 		a.wait()
 
-		pass
+		continue
 
 	if stack_info != None:
 		keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y']
@@ -80,7 +80,7 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 	bcg_x, bcg_y = [], []
 
 	## source detection
-	source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file0, stack_info,)
+	#source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file0, stack_info,)
 
 	## masking
 	for q in range(Nz):
@@ -202,18 +202,73 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 
 		mask_img = mask_path * img
 
+		### add BCG region back
 		if bcg_mask == 0:
-			## add back the BCG region
+
+			copy_mask = np.ones((img.shape[0], img.shape[1]), dtype = np.float32)
 			tdr = np.sqrt((xn - cx)**2 + (yn - cy)**2)
 			idx = tdr == np.min(tdr)
-			lr = A[idx] * 2.5
+			id_bcg = np.where(idx)[0][0]
+
+			for k in range( Numb ):
+				xc = cx[k]
+				yc = cy[k]
+
+				lr = A[k] * 3
+				sr = B[k] * 3
+
+				chi = theta[k] * np.pi / 180
+
+				if k == id_bcg:
+					continue
+				else:
+					set_r = np.int(np.ceil(1.0 * lr))
+					la0 = np.max( [np.int(xc - set_r), 0])
+					la1 = np.min( [np.int(xc + set_r + 1), img.shape[1] ] )
+					lb0 = np.max( [np.int(yc - set_r), 0] ) 
+					lb1 = np.min( [np.int(yc + set_r + 1), img.shape[0] ] )
+
+					df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.cos(chi) + (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.sin(chi)
+					df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.cos(chi) - (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.sin(chi)
+					fr = df1**2 / lr**2 + df2**2 / sr**2
+					jx = fr <= 1
+
+					iu = np.where(jx == True)
+					iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float32)
+					iv[iu] = np.nan
+					copy_mask[lb0: lb1, la0: la1] = copy_mask[lb0: lb1, la0: la1] * iv
+
+			copy_imgs = copy_mask * img
+
+			tdr = np.sqrt((xn - cx)**2 + (yn - cy)**2)
+			idx = tdr == np.min(tdr)
+			lr = A[idx] * 8
+			sr = B[idx] * 8
+
+			targ_x = cx[idx]
+			targ_y = cy[idx]
+			targ_chi = theta[idx] * np.pi / 180
 
 			set_r = np.int(np.ceil(1.0 * lr))
-			la0 = np.max( [np.int(cx[idx] - set_r), 0])
-			la1 = np.min( [np.int(cx[idx] + set_r +1), img.shape[1] ] )
-			lb0 = np.max( [np.int(cy[idx] - set_r), 0] )
-			lb1 = np.min( [np.int(cy[idx] + set_r +1), img.shape[0] ] )
-			mask_img[lb0: lb1, la0: la1] = img[lb0: lb1, la0: la1]
+			la0 = np.max( [np.int(targ_x - set_r), 0])
+			la1 = np.min( [np.int(targ_x + set_r +1), img.shape[1] ] )
+			lb0 = np.max( [np.int(targ_y - set_r), 0] )
+			lb1 = np.min( [np.int(targ_y + set_r +1), img.shape[0] ] )
+
+			df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - targ_x)* np.cos(targ_chi) + (basic_coord[1,:][lb0: lb1, la0: la1] - targ_y)* np.sin(targ_chi)
+			df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - targ_y)* np.cos(targ_chi) - (basic_coord[0,:][lb0: lb1, la0: la1] - targ_x)* np.sin(targ_chi)
+			fr = df1**2 / lr**2 + df2**2 / sr**2
+			jx = fr <= 1
+
+			iu = np.where(jx == False)
+			iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float32)
+			iv[iu] = np.nan
+
+			dpt_img = copy_imgs[lb0: lb1, la0: la1]
+			dpt_img = dpt_img * iv
+
+			#mask_img[lb0: lb1, la0: la1] = dpt_img
+			mask_img[lb0: lb1, la0: la1] = copy_imgs[lb0: lb1, la0: la1]
 
 		hdu = fits.PrimaryHDU()
 		hdu.data = mask_img
@@ -233,7 +288,7 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 	return
 
 def main():
-	'''
+
 	home = '/media/xkchen/My Passport/data/SDSS/'
 	load = '/media/xkchen/My Passport/data/SDSS/'
 
@@ -251,18 +306,6 @@ def main():
 	band = 'r'
 	stack_info = 'cluster_r_band_BCG_pos.csv'
 	mask_func(d_file, cat_file, set_z, set_ra, set_dec, band, out_file0, out_file1, bcg_mask, stack_info,)
-	'''
-	### LRG imgs
-	load = '/home/xkchen/mywork/ICL/data/'
-	dat = pds.read_csv('A250_LRG_ref-coord_cat.csv')
-	ra, dec, z = np.array(dat['bcg_ra']), np.array(dat['bcg_dec']), np.array(dat['bcg_z'])
-
-	d_file = load + 'tmp_img/A250_LRG_match/SDSS_LRG-img-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
-	out_file = load + 'tmp_img/LRG_stars/Galax_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
-
-	band = 'r'
-	stack_info = 'A250_LRG-img-pos.csv'
-	source_detect_func(d_file, z, ra, dec, band, out_file, stack_info,)
 
 	raise
 
