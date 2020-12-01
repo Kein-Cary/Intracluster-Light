@@ -60,7 +60,7 @@ def source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file, stack_inf
 
 	return
 
-def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, stack_info = None, pixel = 0.396,):
+def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, stack_info = None, pixel = 0.396, source_det = True,):
 	"""
 	d_file : path where image data saved (include file-name structure:
 	'/xxx/xxx/xxx.xxx')
@@ -80,7 +80,8 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 	bcg_x, bcg_y = [], []
 
 	## source detection
-	#source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file0, stack_info,)
+	if source_det == True:
+		source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file0, stack_info,)
 
 	## masking
 	for q in range(Nz):

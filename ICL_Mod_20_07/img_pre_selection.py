@@ -21,15 +21,35 @@ from scipy.optimize import curve_fit
 from scipy.stats import binned_statistic as binned
 from astropy import cosmology as apcy
 
-## my-module
 from fig_out_module import cc_grid_img
 
+## cosmology model
+Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
+H0 = Test_model.H0.value
+h = H0/100
+Omega_m = Test_model.Om0
+Omega_lambda = 1.-Omega_m
+Omega_k = 1.- (Omega_lambda + Omega_m)
 
+## constant
+rad2asec = U.rad.to(U.arcsec)
+
+#**************************#
 def gau_func(x, mu, sigma):
 	return sts.norm.pdf(x, mu, sigma)
 
-def get_cat(star_cat, gal_cat, pixel, wcs_lis):
-
+def get_cat(star_cat, gal_cat, pixel, wcs_lis, norm_star_r = 30, brit_star_r = 75, galax_r = 16,):
+	"""
+	for given catalogs of sources, pointing the image position, and show the mask size.
+	pixel : pixel scale (unit -- arcsec)
+	star_cat, gal_cat : stars and galaxies of imgs,
+	wcs_lis : the World Coordinate System (saved in .fits file header)
+	norm_star_r : masking size applied on normal stars (norm_star_r * (FWHM / 2) )
+	brit_star_r : masking size applied on bright stars (brit_star_r * (FWHM / 2) )
+	galax_r : masking size applied on galaxies (here is all of the sources detected by Source Extractor),
+				( (galax_r / 2) * R_kron )
+	(default value have been set for SDSS imgs)
+	"""
 	## read source catalog
 	cat = pds.read_csv(star_cat, skiprows = 1)
 	set_ra = np.array(cat['ra'])
@@ -39,7 +59,7 @@ def get_cat(star_cat, gal_cat, pixel, wcs_lis):
 	xt = cat['Column1']
 	flags = [str(qq) for qq in xt]
 
-	x, y = wcs_lis.all_world2pix(set_ra * U.deg, set_dec * U.deg, 1)
+	x, y = wcs_lis.all_world2pix(set_ra * U.deg, set_dec * U.deg, 0)
 
 	set_A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) / pixel
 	set_B = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) / pixel
@@ -57,8 +77,9 @@ def get_cat(star_cat, gal_cat, pixel, wcs_lis):
 	ic = (ie & ig & iq)
 	sub_x0 = x[ic]
 	sub_y0 = y[ic]
-	sub_A0 = lr_iso[ic] * 30
-	sub_B0 = sr_iso[ic] * 30
+
+	sub_A0 = lr_iso[ic] * norm_star_r
+	sub_B0 = sr_iso[ic] * norm_star_r
 	sub_chi0 = set_chi[ic]
 
 	# saturated source(may not stars)
@@ -69,8 +90,9 @@ def get_cat(star_cat, gal_cat, pixel, wcs_lis):
 
 	sub_x2 = x[ipx]
 	sub_y2 = y[ipx]
-	sub_A2 = lr_iso[ipx] * 75
-	sub_B2 = sr_iso[ipx] * 75
+
+	sub_A2 = lr_iso[ipx] * brit_star_r
+	sub_B2 = sr_iso[ipx] * brit_star_r
 	sub_chi2 = set_chi[ipx]
 
 	comx = np.r_[sub_x0[sub_A0 > 0], sub_x2[sub_A2 > 0]]
@@ -87,7 +109,7 @@ def get_cat(star_cat, gal_cat, pixel, wcs_lis):
 	cx = np.array(source['X_IMAGE']) - 1
 	cy = np.array(source['Y_IMAGE']) - 1
 
-	Kron = 16
+	Kron = galax_r
 	a = Kron * A
 	b = Kron * B
 
@@ -100,12 +122,107 @@ def get_cat(star_cat, gal_cat, pixel, wcs_lis):
 
 	return tot_Numb, tot_cx, tot_cy, tot_a, tot_b, tot_theta
 
+def get_mu_sigma_(cat_file, ref_cat, out_put, ):
+
+	dat = pds.read_csv( cat_file )
+	ra, dec, z = np.array( dat['ra'] ), np.array( dat['dec'] ), np.array( dat['z'] )
+	tt_ra = ['%.5f' % ll for ll in ra]
+	tt_dec = ['%.5f' % ll for ll in dec]
+
+	samp_dat = pds.read_csv( ref_cat )
+	tmp_ra, tmp_dec, tmp_z = np.array( samp_dat['ra'] ), np.array( samp_dat['dec'] ), np.array( samp_dat['z'] )
+	tmp_mu, tmp_sigm = np.array(samp_dat['img_mu']), np.array(samp_dat['img_sigma'])
+	tmp_cen_mu, tmp_cen_sigm = np.array(samp_dat['cen_mu']), np.array(samp_dat['cen_sigma'])
+	tmp_imgx, tmp_imgy = np.array(samp_dat['bcg_x']), np.array(samp_dat['bcg_y'])
+	N_samp = len( tmp_z )
+
+	cen_mu, cen_sigm = [], []
+	img_mu, img_sigm = [], []
+	dd_ra, dd_dec, dd_z = [], [], []
+	dd_imgx, dd_imgy = [], []
+
+	for kk in range( N_samp ):
+
+		if ('%.5f' % tmp_ra[kk] in tt_ra) & ('%.5f' % tmp_dec[kk] in tt_dec):
+
+			dd_ra.append( tmp_ra[kk])
+			dd_dec.append( tmp_dec[kk])
+			dd_z.append( tmp_z[kk])
+			dd_imgx.append( tmp_imgx[kk])
+			dd_imgy.append( tmp_imgy[kk])
+
+			cen_mu.append( tmp_cen_mu[kk])
+			cen_sigm.append( tmp_cen_sigm[kk])
+			img_mu.append( tmp_mu[kk])
+			img_sigm.append( tmp_sigm[kk])
+		else:
+			continue
+
+	cen_sigm = np.array(cen_sigm)
+	cen_mu = np.array(cen_mu)
+	img_mu = np.array(img_mu)
+	img_sigm = np.array(img_sigm)
+
+	dd_ra = np.array( dd_ra )
+	dd_dec = np.array( dd_dec )
+	dd_z = np.array( dd_z )
+	dd_imgx = np.array( dd_imgx )
+	dd_imgy = np.array( dd_imgy )
+
+	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y', 'cen_mu', 'cen_sigma', 'img_mu', 'img_sigma',]
+	values = [dd_ra, dd_dec, dd_z, dd_imgx, dd_imgy, cen_mu, cen_sigm, img_mu, img_sigm]
+	fill = dict(zip(keys, values))
+	data = pds.DataFrame(fill)
+	data.to_csv( out_put )
+
+	return
+
+def cat_match_func(ra_list, dec_list, cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, sf_len, id_choice = True,):
+	"""
+	id_choice : if it's True, then those imgs in given list will be used,
+				if it's False, then those imgs in given list will be rule out
+	cat_imgx, cat_imgy : BCG location in image frame
+	"""
+	lis_ra, lis_dec, lis_z = [], [], []
+	lis_x, lis_y = [], []
+
+	com_s = '%.' + '%df' % sf_len
+
+	if id_choice == True:
+		for kk in range( len(cat_ra) ):
+			if ( com_s % cat_ra[kk] in ra_list) * (com_s % cat_dec[kk] in dec_list):
+				lis_ra.append(cat_ra[kk])
+				lis_dec.append(cat_dec[kk])
+				lis_z.append(cat_z[kk])
+				lis_x.append(cat_imgx[kk])
+				lis_y.append(cat_imgy[kk])
+			else:
+				continue
+	else:
+		for kk in range( len(cat_ra) ):
+			if ( com_s % cat_ra[kk] in ra_list) * ( com_s % cat_dec[kk] in dec_list):
+				continue
+			else:
+				lis_ra.append(cat_ra[kk])
+				lis_dec.append(cat_dec[kk])
+				lis_z.append(cat_z[kk])
+				lis_x.append(cat_imgx[kk])
+				lis_y.append(cat_imgy[kk])
+
+	match_ra = np.array(lis_ra)
+	match_dec = np.array(lis_dec)
+	match_z = np.array(lis_z)
+	match_x = np.array(lis_x)
+	match_y = np.array(lis_y)
+
+	return match_ra, match_dec, match_z, match_x, match_y
+
 def map_mu_sigma_func(cat_file, img_file, band, L_cen, N_step, out_file,):
 	"""
 	cat_file : img catalog, including : ra, dec, z, bcg location in image frame.(.csv files)
 	img_file : imgs will be analysis, have applied masking ('XX/XX/xx.fits')
 	L_cen : half length of centeral region box
-	N_step : grid size 
+	N_step : grid size.
 	out_file : out-put file.(.csv files)
 	band : filter imformation (eg. r, g, i, u, z), str type
 	"""
@@ -185,9 +302,216 @@ def map_mu_sigma_func(cat_file, img_file, band, L_cen, N_step, out_file,):
 
 	return
 
-def hist_analysis_func():
+def hist_analysis_func(cat_file, img_file, mask_img_file, band, star_cat, gal_cat, out_imgs, pix_scale, N_step,):
+	"""
+	cat_file : cluster catalog (.csv file, including path information)
+	img_file : imgs have no mask
+	mask_img_file : imgs have been masked
+	band : band (ie. 'g', 'r', 'i',), str type
+	star_cat : star catalog. (.txt or .csv file, including path information)
+	gal_cat : source catalog in image region (builded by Source Extractor, .cat file, including path information)
+	out_imgs : ouput of figs,(.png or .pdf files, including path information)
+	pix_scale : pixel size of CCD, in unit of 'arcsec'
+	N_step : grid size for img division.
+	"""
+	### cat and select
+	dat = pds.read_csv( cat_file )
+	ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
+	clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
+
+	Da = Test_model.angular_diameter_distance( z ).value
+
+	N_samp = len( z )
+	pixel = pix_scale * 1.
+
+	Angu_l = ( 1 / Da ) * rad2asec
+	R_pix = Angu_l / pixel
+
+	cen_sigm, cen_mu = [], []
+	img_mu, img_sigm = [], []
+	### overview on img structure
+	for kk in range( N_samp ):
+
+		ra_g, dec_g, z_g = ra[kk], dec[kk], z[kk]
+		# original img
+		data = fits.open( img_file % (band, ra_g, dec_g, z_g),)
+		img = data[0].data
+		head = data[0].header
+		wcs_lis = awc.WCS(head)
+		xn, yn = clus_x[kk], clus_y[kk]
+
+		# mask imgs
+		res_data = fits.open( mask_img_file % (band, ra_g, dec_g, z_g),)
+		remain_img = res_data[0].data
+
+		# grid img (for selecting flare, saturated region...)
+		block_m, block_pix, block_Var, block_S0, x_edgs, y_edgs = cc_grid_img(remain_img, N_step, N_step)
+
+		idzo = block_pix < 1.
+		pix_eta = block_pix / block_S0
+		idnn = np.isnan(pix_eta)
+		pix_eta[idnn] = 0.
+		idnul = pix_eta < 5e-2
+		block_m[idnul] = 0.
+
+		img_mu.append( np.nanmean( block_m[idnul == False] ) )
+		img_sigm.append( np.nanstd( block_m[idnul == False] ) )
+
+		idnn = np.isnan(remain_img)
+		bin_flux = remain_img[idnn == False]
+		bin_di = np.linspace(bin_flux.min(), bin_flux.max(), 51) / pixel**2
+
+		pix_n, edgs = binned(bin_flux / pixel**2, bin_flux / pixel**2, statistic = 'count', bins = bin_di)[:2]
+		pdf_pix = (pix_n / np.sum(pix_n) ) / (edgs[1] - edgs[0])
+		pdf_err = (np.sqrt(pix_n) / np.sum(pix_n) ) / (edgs[1] - edgs[0])
+		x_cen = 0.5 * ( edgs[1:] + edgs[:-1])
+
+		idu = pix_n != 0.
+		use_obs = pix_n[idu]
+		use_err = np.sqrt(use_obs)
+		use_x = x_cen[idu]
+		popt, pcov = curve_fit(gau_func, use_x, pdf_pix[idu], 
+			p0 = [np.mean(bin_flux / pixel**2), np.std(bin_flux / pixel**2)], sigma = pdf_err[idu],)
+		e_mu, e_chi = popt[0], popt[1]
+		fit_line = gau_func(x_cen, e_mu, e_chi)
+
+		### applied the mask region
+		star_file = star_cat % (z_g, ra_g, dec_g)
+		galax_file = gal_cat % (ra_g, dec_g, z_g)
+
+		tot_Numb, tot_cx, tot_cy, tot_a, tot_b, tot_theta = get_cat(star_file, galax_file, pixel, wcs_lis,)
+		sc_x, sc_y = tot_cx / (img.shape[1] / block_m.shape[1]), tot_cy / (img.shape[0] / block_m.shape[0])
+		sc_a, sc_b = tot_a * (block_m.shape[1] / img.shape[1]), tot_b * (block_m.shape[0] / img.shape[0])
+		sc_x, sc_y = sc_x - 0.5, sc_y - 0.5
+
+		Rpp = R_pix[ kk ]
+
+		fig = plt.figure( figsize = (13.12, 9.84) )
+		ax0 = fig.add_axes([0.05, 0.55, 0.40, 0.45])
+		ax1 = fig.add_axes([0.55, 0.55, 0.40, 0.45])
+		ax2 = fig.add_axes([0.05, 0.05, 0.40, 0.45])
+		ax3 = fig.add_axes([0.55, 0.05, 0.40, 0.40])
+
+		ax0.set_title('img ra%.3f dec%.3f z%.3f' % (ra_g, dec_g, z_g),)
+		tf = ax0.imshow(img / pixel**2, cmap = 'Greys', origin = 'lower', vmin = 1e-4, vmax = 1e0, norm = mpl.colors.LogNorm())
+		clust = Circle(xy = (xn, yn), radius = Rpp, fill = False, ec = 'b', ls = '-', linewidth = 1, alpha = 0.50,)
+		ax0.add_patch(clust)
+		cb = plt.colorbar(tf, ax = ax0, fraction = 0.035, pad = 0.01, label = 'SB [nanomaggies / $arcsec^2$]',)
+
+		ax1.set_title('after masking')
+		tg = ax1.imshow( remain_img / pixel**2, origin = 'lower', cmap = 'seismic', vmin = -4e-1, vmax = 4e-1,)
+		cb = plt.colorbar(tg, ax = ax1, fraction = 0.035, pad = 0.01, label = 'SB [nanomaggies / $arcsec^2$]',)
+		cb.formatter.set_powerlimits((0,0))
+
+		### image patch_mean case
+		ax2.set_title('2D hist of sub-patch mean value')
+		th = ax2.imshow( block_m / pixel**2, origin = 'lower', cmap = 'seismic', vmin = -4e-2, vmax = 4e-2,)
+		cb = plt.colorbar(th, ax = ax2, fraction = 0.034, pad = 0.01, label = 'SB [nanomaggies / $arcsec^2$]',)
+		cb.formatter.set_powerlimits((0,0))
+
+		for mm in range( tot_Numb ):
+			ellips = Ellipse(xy = (sc_x[mm], sc_y[mm]), width = sc_a[mm], height = sc_b[mm], angle = tot_theta[mm], fill = True, fc = 'w', 
+				ec = 'w', ls = '-', linewidth = 0.75,)
+			ax2.add_patch(ellips)
+
+		for mm in range(block_m.shape[1]):
+			for nn in range(block_m.shape[0]):
+				ax2.text(mm, nn, s = '%.3f' % pix_eta[nn, mm], ha = 'center', va = 'center', color = 'g', fontsize = 8, alpha = 0.5)
+		ax2.set_xlabel('effective pixel ratio shown in green text')
+
+		ax3.set_title('pixel SB PDF [after masking]')
+		ax3.hist(bin_flux / pixel**2, bins = bin_di, density = True, color = 'b', alpha = 0.5,)
+		ax3.plot(x_cen, fit_line, color = 'r', alpha = 0.5, label = 'Gaussian \n $\\mu=%.4f$ \n $\\sigma=%.4f$' % (e_mu, e_chi),)
+		ax3.axvline(x = 0, ls = '-', color = 'k', alpha = 0.5,)
+		ax3.axvline(x = e_mu - e_chi, ls = '--', color = 'k', alpha = 0.5, label = '1 $\\sigma$')
+		ax3.axvline(x = e_mu + e_chi, ls = '--', color = 'k', alpha = 0.5, )
+		ax3.legend(loc = 1, frameon = False,)
+		ax3.set_xlabel('pixel SB [nanomaggies / $arcsec^2$]')
+		ax3.set_ylabel('PDF')
+
+		plt.savefig( out_imgs % (band, ra_g, dec_g, z_g), dpi = 300)
+		plt.close()
+
+		raise
 
 	return
 
-def 
+def img_cat_lis_func(img_file, ref_cat, out_put, sf_len, id_choice = True,):
+	"""
+	img_file : imgs need to capture information, only including data formats(.png, .pdf, .jpg, ...)
+				and the path (in which imgs are saved.), /XX/XX_raX_decX_zX.xx
+	ref_cat : catalog in which match the imgs information, .csv files
+
+	out_put : informations of match those imgs, including [ra, dec, z, bcg_x, bcg_y]
+				(bcg_x, bcg_y) is the location of BCG in image frame. .csv files	
+	"""
+	lis = glob.glob( img_file )
+	name_lis = [ ll.split('/')[-1] for ll in lis ]
+
+	tt_lis = name_lis[0].split('_')
+	dete0 = ['ra' in ll for ll in tt_lis]
+	index0 = dete0.index( True )
+
+	dete1 = ['dec' in ll for ll in tt_lis]
+	index1 = dete1.index( True )
+
+	out_ra = [ ll.split('_')[ index0 ][2:] for ll in name_lis ]
+	out_dec = [ ll.split('_')[ index1 ][3:] for ll in name_lis ]
+
+	ref_dat = pds.read_csv( ref_cat )
+	cat_ra, cat_dec, cat_z = np.array(ref_dat.ra), np.array(ref_dat.dec), np.array(ref_dat.z)
+	clus_x, clus_y = np.array(ref_dat.bcg_x), np.array(ref_dat.bcg_y)
+
+	lis_ra, lis_dec, lis_z, lis_x, lis_y = cat_match_func(
+		out_ra, out_dec, cat_ra, cat_dec, cat_z, clus_x, clus_y, sf_len, id_choice,)
+
+	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y']
+	values = [lis_ra, lis_dec, lis_z, lis_x, lis_y]
+	fill = dict(zip(keys, values))
+	data = pds.DataFrame(fill)
+	data.to_csv( out_put )
+
+	return
+
+def main():
+
+	band = ['r', 'g', 'i']
+	home = '/media/xkchen/My Passport/data/SDSS/'
+	'''
+	cat_file = '/home/xkchen/tmp/02_tot_test_change_1_selection/cluster_tot-r-band_norm-img_cat.csv'
+
+	img_file = home + 'wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
+
+	mask_img_file = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
+
+	star_cat = '/home/xkchen/mywork/ICL/data/corrected_star_cat/dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
+
+	gal_cat = '/home/xkchen/mywork/ICL/data/source_find/cluster_r-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
+
+	out_imgs = '2D_img_%s_ra%.3f_dec%.3f_z%.3f.png'
+
+	pixel = 0.396
+	band = 'r'
+	N_step = 200
+
+	hist_analysis_func(cat_file, img_file, mask_img_file, band, star_cat, gal_cat, out_imgs, pixel, N_step,)
+	'''
+
+	'''
+	img_file = '/home/xkchen/tmp/20_9_26_T1000_over-view/A_norm/*.png'
+	out_put = 'img_cat_identi_test.csv'
+	ref_cat = 'result/test_1000_no_select.csv'
+	sf_len = 3
+
+	img_cat_lis_func(img_file, ref_cat, out_put, sf_len,)
+	'''
+	#cat_file = 'result/test_1000_no_select.csv'
+	cat_file = 'result/test_1000-to-250_cat.csv'
+	ref_cat = 'img_3100_mean_sigm.csv'
+	#out_file = 'img_test-1000_mean_sigm.csv'
+	out_file = 'img_A-250_mean_sigm.csv'
+	get_mu_sigma_(cat_file, ref_cat, out_file, )
+
+if __name__ == "__main__":
+	main()
 

@@ -10,7 +10,7 @@ import astropy.units as U
 import astropy.constants as C
 ## from pipeline
 from groups import groups_find_func
-from light_measure import cc_grid_img, grid_img
+from fig_out_module import cc_grid_img, grid_img
 
 def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, remain_file, thres_S0, thres_S1, sigm_lim, 
 	mu_sigm_file, id_single = True, id_mode = False,):

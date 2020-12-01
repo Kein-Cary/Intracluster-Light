@@ -26,9 +26,6 @@ pc2cm = U.pc.to(U.cm)
 Msun2kg = U.M_sun.to(U.kg)
 Ms = C.M_sun.value # solar mass
 
-## view the R200 of samples
-load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
-home = '/mnt/ddnfs/data_users/cxkttwl/ICL/'
 band = ['r', 'g', 'i', 'u', 'z']
 
 def rich2R_Melchior(z, lamda):
@@ -125,6 +122,10 @@ def rich2R_critical(z, lamda, N_dist = 501):
 	return M200, R200
 
 def main():
+
+	## view the R200 of samples
+	load = '/mnt/ddnfs/data_users/cxkttwl/ICL/data/'
+	home = '/mnt/ddnfs/data_users/cxkttwl/ICL/'
 
 	R_id = 1 ## 0, 1
 	N_dist = 301 ## use for rich2R_2019
@@ -279,3 +280,4 @@ def main():
 
 if __name__ == "__main__":
 	main()
+

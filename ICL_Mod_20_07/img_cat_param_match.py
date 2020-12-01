@@ -5,45 +5,6 @@ import scipy.stats as sts
 import h5py
 import pandas as pds
 
-def cat_match_func(ra_list, dec_list, cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, sf_len, id_choice = True,):
-	"""
-	id_choice : if it's True, then those imgs in given list will be used,
-				if it's False, then those imgs in given list will be rule out
-	"""
-	lis_ra, lis_dec, lis_z = [], [], []
-	lis_x, lis_y = [], []
-
-	com_s = '%.' + '%df' % sf_len
-
-	if id_choice == True:
-		for kk in range( len(cat_ra) ):
-			if ( com_s % cat_ra[kk] in ra_list) * (com_s % cat_dec[kk] in dec_list):
-				lis_ra.append(cat_ra[kk])
-				lis_dec.append(cat_dec[kk])
-				lis_z.append(cat_z[kk])
-				lis_x.append(cat_imgx[kk])
-				lis_y.append(cat_imgy[kk])
-			else:
-				continue
-	else:
-		for kk in range( len(cat_ra) ):
-			if ( com_s % cat_ra[kk] in ra_list) * ( com_s % cat_dec[kk] in dec_list):
-				continue
-			else:
-				lis_ra.append(cat_ra[kk])
-				lis_dec.append(cat_dec[kk])
-				lis_z.append(cat_z[kk])
-				lis_x.append(cat_imgx[kk])
-				lis_y.append(cat_imgy[kk])
-
-	match_ra = np.array(lis_ra)
-	match_dec = np.array(lis_dec)
-	match_z = np.array(lis_z)
-	match_x = np.array(lis_x)
-	match_y = np.array(lis_y)
-
-	return match_ra, match_dec, match_z, match_x, match_y
-
 def match_func(set_ra, set_dec, set_z, cat_file, out_file):
 
 	goal_data = fits.getdata(cat_file)
@@ -330,3 +291,4 @@ def main():
 
 if __name__ == "__main__":
 	main()
+
