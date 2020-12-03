@@ -9,7 +9,10 @@ import numpy as np
 import pandas as pds
 import astropy.constants as C
 import astropy.units as U
+
 from astropy import cosmology as apcy
+from scipy import signal
+from scipy import interpolate as interp
 
 #constant
 rad2arcsec = U.rad.to(U.arcsec)
@@ -205,140 +208,64 @@ def SN_lim_region_select( stack_img, lim_img_id, lim_set, grd_len,):
 
 	return all_mask
 
-#??????????????
+def arr_jack_func(SB_array, R_array, N_sample,):
+	"""
+	stacking profile based on surface brightness,
+	SB_array : list of surface brightness profile, in unit of " nanomaggies / arcsec^2 "
+	SB_array, R_array : list type
+	band_id : int type, for SB correction (0, 1, 2, 3, 4 --> r, g, i, u, z)
+	N_sample : number of sub-samples
+	"""
+	dx_r = np.array(R_array)
+	dy_sb = np.array(SB_array)
 
-"""
-### 2D img compare
-for mm in range( 3 ):
+	n_r = dx_r.shape[1]
+	Len = np.zeros( n_r, dtype = np.float32)
+	for nn in range( n_r ):
+		tmp_I = dy_sb[:,nn]
+		idnn = np.isnan(tmp_I)
+		Len[nn] = N_sample - np.sum(idnn)
 
-	with h5py.File(
-		'/home/xkchen/jupyter/stack/Bro-mode-select_Mean_jack_img_%.1f-sigma_%d-FWHM-ov2_z-ref.h5' % (tt_sigma[mm], size_arr[0]), 'r') as f:
-		tt_img = np.array(f['a'])
+	Stack_R = np.nanmean(dx_r, axis = 0)
+	Stack_SB = np.nanmean(dy_sb, axis = 0)
+	std_Stack_SB = np.nanstd(dy_sb, axis = 0)
 
-	id_nan = np.isnan(tt_img)
-	idvx = id_nan == False
-	idy, idx = np.where(idvx == True)
-	x_low, x_up = np.min(idx), np.max(idx)
-	y_low, y_up = np.min(idy), np.max(idy)
+	### only calculate r bins in which sub-sample number larger than one
+	id_one = Len > 1
+	Stack_R = Stack_R[ id_one ]
+	Stack_SB = Stack_SB[ id_one ]
+	std_Stack_SB = std_Stack_SB[ id_one ]
+	N_img = Len[ id_one ]
+	jk_Stack_err = np.sqrt(N_img - 1) * std_Stack_SB
 
-	dpt_img = tt_img[y_low: y_up+1, x_low: x_up + 1]
-	img_block = cc_grid_img(dpt_img, 100, 100,)[0]
+	### limit the radius bin contribution at least 1/3 * N_sample
+	id_min = N_img >= np.int(N_sample / 3)
+	lim_r = Stack_R[id_min]
+	lim_R = np.nanmax(lim_r)
 
-	block_arr = []
+	return Stack_R, Stack_SB, jk_Stack_err, lim_R
 
-	for kk in range( 1,3):
+def arr_slope_func(fdens, r, wind_len, poly_order, id_log = True,):
+	"""
+	wind_len = 9
+	poly_order = 3
+	"""
+	f_signal = signal.savgol_filter( fdens, window_length = wind_len, polyorder = poly_order, 
+									deriv = 0, delta = 1.0, axis = -1, mode = 'interp', cval = 0.0,)
+	sign_x = 0.5 * ( r[1:] + r[:-1])
+	dx = r[1:] - r[:-1]
 
-		if kk == 2:
-			with h5py.File(
-			load + '20_10_test_jack/Bro-mode-select_Mean_jack_img_selected-by-tot_%.1f-sigma_z-ref.h5' % tt_sigma[mm], 'r') as f:
-				tk_img = np.array(f['a'])
-		else:
-			with h5py.File(
-			'/home/xkchen/jupyter/stack/Bro-mode-select_Mean_jack_img_%.1f-sigma_%d-FWHM-ov2_z-ref.h5' % (tt_sigma[mm], size_arr[kk]), 'r') as f:
-				tk_img = np.array(f['a'])
+	df_dx = ( f_signal[1:] - f_signal[:-1] ) / dx
+	df_dlogx = df_dx * np.log( 10 ) * sign_x
 
-		dpk_img = tk_img[y_low: y_up+1, x_low: x_up + 1]
-		patch_mean = cc_grid_img(dpk_img, 100, 100,)[0]
-		block_arr.append( patch_mean )
+	mf = np.log(10) * 0.5 * ( f_signal[1:] + f_signal[:-1] )
+	dlogf_dlogx = df_dlogx / mf
 
-	fig = plt.figure( figsize = (19.84, 4.8) )
-	ax0 = fig.add_axes([0.02, 0.09, 0.28, 0.85])
-	ax1 = fig.add_axes([0.35, 0.09, 0.28, 0.85])
-	ax2 = fig.add_axes([0.68, 0.09, 0.28, 0.85])
+	if id_log == True:
+		f_slope = dlogf_dlogx.copy()
 
-	ax0.set_title('10 (FWHM/2)')
-	tg = ax0.imshow(img_block / pixel**2, origin = 'lower', cmap = 'seismic', vmin = -4e-2, vmax = 4e-2,)
-	cb = plt.colorbar(tg, ax = ax0, fraction = 0.035, pad = 0.01, label = 'SB [nanomaggies / $arcsec^2$]',)
-	cb.formatter.set_powerlimits( (0,0) )
+	else:
+		f_slope = df_dx.copy()
 
-	ax1.set_title('20 (FWHM/2)')
-	tg = ax1.imshow(block_arr[0] / pixel**2, origin = 'lower', cmap = 'seismic', vmin = -4e-2, vmax = 4e-2,)
-	cb = plt.colorbar(tg, ax = ax1, fraction = 0.035, pad = 0.01, label = 'SB [nanomaggies / $arcsec^2$]',)
-	cb.formatter.set_powerlimits( (0,0) )
-
-	ax2.set_title('30 (FWHM/2)')
-	tg = ax2.imshow(block_arr[1] / pixel**2, origin = 'lower', cmap = 'seismic', vmin = -4e-2, vmax = 4e-2,)
-	cb = plt.colorbar(tg, ax = ax2, fraction = 0.035, pad = 0.01, label = 'SB [nanomaggies / $arcsec^2$]',)
-	cb.formatter.set_powerlimits( (0,0) )
-
-	plt.savefig('2D-img_compare_%.1f-sigma.png' % (tt_sigma[mm]), dpi = 300)
-	plt.close()
-
-tot_img_lis = [ '/home/xkchen/jupyter/stack/T1000-tot_Mean_jack_img_10-FWHM-ov2_z-ref.h5',
-				'/home/xkchen/jupyter/stack/T1000-tot_Mean_jack_img_20-FWHM-ov2_z-ref.h5',
-				load + '20_10_test_jack/T1000-tot_BCG-stack_Mean_jack_img_z-ref.h5']
-
-A250_img_lis = ['/home/xkchen/jupyter/stack/T1000-to-A250_Mean_jack_img_10-FWHM-ov2_z-ref.h5',
-				'/home/xkchen/jupyter/stack/T1000-to-A250_Mean_jack_img_20-FWHM-ov2_z-ref.h5',
-				load + '20_10_test_jack/A_clust_BCG-stack_Mean_jack_img_30-FWHM-ov2_z-ref.h5']
-
-tot_patch = []
-Asub_patch = []
-
-with h5py.File(tot_img_lis[0], 'r') as f:
-	tt_img = np.array(f['a'])
-
-id_nan = np.isnan(tt_img)
-idvx = id_nan == False
-idy, idx = np.where(idvx == True)
-x_low, x_up = np.min(idx), np.max(idx)
-y_low, y_up = np.min(idy), np.max(idy)
-
-dpt_img = tt_img[y_low: y_up+1, x_low: x_up + 1]
-img_block = cc_grid_img(dpt_img, 100, 100,)[0]
-tot_patch.append( img_block )
-
-with h5py.File(A250_img_lis[0], 'r') as f:
-	tt_img = np.array(f['a'])
-dpt_img = tt_img[y_low: y_up+1, x_low: x_up + 1]
-img_block = cc_grid_img(dpt_img, 100, 100,)[0]
-Asub_patch.append( img_block )
-
-### 2D img compare
-for mm in range( 1,3 ):
-
-	with h5py.File(tot_img_lis[mm], 'r') as f:
-		tk_img = np.array(f['a'])
-
-	dpk_img = tk_img[y_low: y_up+1, x_low: x_up + 1]
-	patch_mean = cc_grid_img(dpk_img, 100, 100,)[0]
-	tot_patch.append( patch_mean )	
-
-	with h5py.File(A250_img_lis[mm], 'r') as f:
-		tk_img = np.array(f['a'])
-
-	dpk_img = tk_img[y_low: y_up+1, x_low: x_up + 1]
-	patch_mean = cc_grid_img(dpk_img, 100, 100,)[0]
-	Asub_patch.append( patch_mean )		
-
-fig = plt.figure( figsize = (19.84, 4.8) )
-#fig.suptitle('A-250')
-fig.suptitle('tot-1000')
-
-ax0 = fig.add_axes([0.02, 0.09, 0.28, 0.80])
-ax1 = fig.add_axes([0.35, 0.09, 0.28, 0.80])
-ax2 = fig.add_axes([0.68, 0.09, 0.28, 0.80])
-
-ax0.set_title('10 (FWHM/2)')
-#tg = ax0.imshow(Asub_patch[0] / pixel**2, origin = 'lower', cmap = 'seismic', vmin = -4e-2, vmax = 4e-2,)
-tg = ax0.imshow(tot_patch[0] / pixel**2, origin = 'lower', cmap = 'seismic', vmin = -4e-2, vmax = 4e-2,)
-cb = plt.colorbar(tg, ax = ax0, fraction = 0.035, pad = 0.01, label = 'SB [nanomaggies / $arcsec^2$]',)
-cb.formatter.set_powerlimits( (0,0) )
-
-ax1.set_title('20 (FWHM/2)')
-#tg = ax1.imshow(Asub_patch[1] / pixel**2, origin = 'lower', cmap = 'seismic', vmin = -4e-2, vmax = 4e-2,)
-tg = ax1.imshow(tot_patch[1] / pixel**2, origin = 'lower', cmap = 'seismic', vmin = -4e-2, vmax = 4e-2,)
-cb = plt.colorbar(tg, ax = ax1, fraction = 0.035, pad = 0.01, label = 'SB [nanomaggies / $arcsec^2$]',)
-cb.formatter.set_powerlimits( (0,0) )
-
-ax2.set_title('30 (FWHM/2)')
-#tg = ax2.imshow(Asub_patch[2] / pixel**2, origin = 'lower', cmap = 'seismic', vmin = -4e-2, vmax = 4e-2,)
-tg = ax2.imshow(tot_patch[2] / pixel**2, origin = 'lower', cmap = 'seismic', vmin = -4e-2, vmax = 4e-2,)
-cb = plt.colorbar(tg, ax = ax2, fraction = 0.035, pad = 0.01, label = 'SB [nanomaggies / $arcsec^2$]',)
-cb.formatter.set_powerlimits( (0,0) )
-
-#plt.savefig('A250_2D-img_compare.png', dpi = 300)
-plt.savefig('T1000_2D-img_compare.png', dpi = 300)
-plt.close()
-"""
+	return sign_x, f_slope
 

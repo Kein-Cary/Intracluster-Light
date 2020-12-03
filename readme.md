@@ -7,7 +7,7 @@
 ## in ICL_Mod_20_07.
 
 #after 2020.10.30.
-## after 202.10.30, only the following three parts of files/folders will be updated:
+## after 202.10.30, only the following parts of files/folders will be updated:
 ## 1. ICL_Mod_20_07
 ## 2. code_test
 ## 3. the page you see now
