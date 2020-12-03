@@ -12,7 +12,7 @@ import astropy.constants as C
 from astropy import cosmology as apcy
 
 ### cosmology model
-rad2asec = U.rad.to(U.arcsec)
+rad2asec = U.rad.to( U.arcsec )
 Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
 H0 = Test_model.H0.value
 h = H0 / 100

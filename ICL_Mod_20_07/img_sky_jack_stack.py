@@ -12,10 +12,11 @@ import astropy.constants as C
 from scipy import ndimage
 from astropy import cosmology as apcy
 
-from img_sky_stack import sky_stack_func
-
+from img_stack import stack_func
+from img_edg_cut_stack import cut_stack_func
 from light_measure import light_measure_Z0_weit, light_measure_weit
 from light_measure import jack_SB_func
+from light_measure import light_measure_rn_Z0_weit, light_measure_rn_weit
 
 ### constants transform
 kpc2cm = U.kpc.to(U.cm)
@@ -35,7 +36,7 @@ Omega_m = Test_model.Om0
 Omega_lambda = 1.-Omega_m
 Omega_k = 1.- (Omega_lambda + Omega_m)
 
-### observation params
+### observation params (for SDSS case)
 pixel = 0.396
 band = ['r', 'g', 'i', 'u', 'z']
 l_wave = np.array([6166, 4686, 7480, 3551, 8932])
@@ -156,9 +157,9 @@ def SB_pros_func(flux_img, pix_cont_img, sb_file, N_img, n_rbins, id_Z0, z_ref):
 
 	return
 
-def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y, img_file, band, sub_img,
+def sky_jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y, img_file, band, sub_img,
 	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
-	id_cut = False, N_edg = None, id_Z0 = True, z_ref = None,):
+	id_mean = 0, id_cut = False, N_edg = None, id_Z0 = True, z_ref = None, id_sub = True,):
 	"""
 	combining jackknife stacking process, and 
 	save : sub-sample (sub-jack-sample) stacking image, pixel conunt array, surface brightness profiles
@@ -189,6 +190,12 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 	
 	id_Z0 : stacking imgs on observation coordinate (id_Z0 = True) 
 			or not (id_Z0 = False, give radius in physical unit, kpc), default is True
+	
+	z_ref : reference redshift, (used when id_Z0 = False,) stacking imgs at z_ref.
+	id_sub : if measure the individual sub-samples profile( id_sub = True), or not (id_sub = False)
+
+	id_mean : 0, 1, 2.  0 - img_add = img; 
+	1 - img_add = img - np.mean(img); 2 - img_add = img - np.median(img); Default is id_mean = 0
 	"""
 	lis_ra, lis_dec, lis_z = cat_ra, cat_dec, cat_z
 	lis_x, lis_y = img_x, img_y
@@ -197,6 +204,7 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 	n_step = zN // N_bin
 	id_arr = np.linspace(0, zN - 1, zN)
 	id_arr = id_arr.astype(int)
+
 	## img stacking
 	for nn in range(N_bin):
 
@@ -217,10 +225,10 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 
 		if id_cut == False:
 			stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[0], set_x, set_y, id_cen, 
-				rms_file = None, pix_con_file = sub_cont_file,)
+				rms_file = None, pix_con_file = sub_cont_file, id_mean = id_mean,)
 		if id_cut == True:
 			cut_stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[0], set_x, set_y, id_cen, N_edg, 
-				rms_file = None, pix_con_file = sub_cont_file,)
+				rms_file = None, pix_con_file = sub_cont_file, id_mean = id_mean,)
 
 	for nn in range(N_bin):
 
@@ -239,19 +247,12 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 		jack_samp_stack(d_file, jack_id, jack_cont_file)
 
 	## SB measurement
-	## sub-samples
-	SB_pros_func(sub_img, sub_pix_cont, sub_sb, N_bin, n_rbins, id_Z0, z_ref)
+	if id_sub == True:
+		## sub-samples
+		SB_pros_func(sub_img, sub_pix_cont, sub_sb, N_bin, n_rbins, id_Z0, z_ref)
+
 	## jackknife sub-samples
 	SB_pros_func(J_sub_img, J_sub_pix_cont, J_sub_sb, N_bin, n_rbins, id_Z0, z_ref)
-
-	## calculate the jackknife SB profile and mean of jackknife stacking imgs
-	d_file = J_sub_img
-	out_file = jack_img
-	aveg_stack_img(N_bin, d_file, out_file)
-
-	d_file = J_sub_pix_cont
-	out_file = jack_cont_arr
-	aveg_stack_img(N_bin, d_file, out_file)
 
 	## final jackknife SB profile
 	tmp_sb = []
@@ -280,5 +281,14 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 		f['sb'] = np.array(tt_jk_SB)
 		f['sb_err'] = np.array(tt_jk_err)
 		f['lim_r'] = np.array(sb_lim_r)
+
+	## calculate the jackknife SB profile and mean of jackknife stacking imgs
+	d_file = J_sub_img
+	out_file = jack_img
+	aveg_stack_img(N_bin, d_file, out_file)
+
+	d_file = J_sub_pix_cont
+	out_file = jack_cont_arr
+	aveg_stack_img(N_bin, d_file, out_file)
 
 	return

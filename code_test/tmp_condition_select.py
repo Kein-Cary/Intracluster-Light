@@ -66,8 +66,9 @@ set_ra = np.array([150.585, 165.597, 175.776, 181.244, 211.555, 229.341, 237.984
 set_dec = np.array([15.876, -0.184,  26.394,  25.503,  11.386,  56.655,  3.873,])
 set_z = np.array([0.294, 0.254, 0.289, 0.270, 0.258, 0.295, 0.202,])
 
-#S_crit_0 = 18000  ## big sources
-S_crit_0 = 13700  ## median sources
+max_S_lim = 2.7e4
+S_crit_0 = 18000  ## big sources
+#S_crit_0 = 13700  ## median sources
 
 S_crit_2 = 4500   ## small sources
 e_crit = 0.85
@@ -298,7 +299,6 @@ for kk in range( len(set_z) ):
 	n_block = np.array(n_block)
 
 	## too big sources (no matter where it is)
-	max_S_lim = 2.7e4
 	id_xin = (cx >= 400) & (cx <= img.shape[1] - 400)
 	id_yin = (cy >= 400) & (cy <= img.shape[0] - 400)
 	id_in = id_xin & id_yin

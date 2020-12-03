@@ -408,7 +408,7 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 	
 	id_S2N, S2N :  if set S/N limitation for SB profile measure or not, Default is False (no limitation applied).
 					if id_S2N = True, then measure the SB profile, and in region where S/N is lower than S2N with be 
-					treated as only one radius bins.
+					treated as only one radius bins (edg_bins = None), (or measured according edg_bins.)
 
 	id_sub : measure and save the SB profiles for sub-samples of not, default is True
 	"""

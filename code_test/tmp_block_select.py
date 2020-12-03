@@ -1,6 +1,7 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+from matplotlib.patches import Circle, Ellipse, Rectangle
 
 import h5py
 import skimage
@@ -14,10 +15,10 @@ import scipy.stats as sts
 import astropy.units as U
 import subprocess as subpro
 import astropy.constants as C
+from astropy import cosmology as apcy
 
 from groups import groups_find_func
-from astropy import cosmology as apcy
-from matplotlib.patches import Circle, Ellipse, Rectangle
+from fig_out_module import cc_grid_img, grid_img
 
 ### cosmology model
 rad2asec = U.rad.to(U.arcsec)
@@ -37,7 +38,7 @@ Angu_ref = (R0 / Da_ref)*rad2asec
 Rpp = Angu_ref / pixel
 ####################################
 ### masking source
-def source_mask(img_file, gal_cat, star_cat):
+def source_mask(img_file, cen_x, cen_y, gal_cat, star_cat):
 
 	data = fits.open(img_file)
 	img = data[0].data
@@ -146,90 +147,103 @@ def source_mask(img_file, gal_cat, star_cat):
 
 	mask_img = mask_path * img
 
+	plt.figure()
+	plt.imshow(mask_img, cmap = 'Greys', origin = 'lower', vmin = 1e-4, vmax = 1e1, norm = mpl.colors.LogNorm(),)
+	plt.xlim(xn - 200, xn + 200)
+	plt.ylim(yn - 200, yn + 200)
+	plt.savefig('mask_BCG.png', dpi = 300)
+	plt.show()
+
+	copy_mask = np.ones((img.shape[0], img.shape[1]), dtype = np.float32)
+	tdr = np.sqrt((cen_x - cx)**2 + (cen_y - cy)**2)
+	idx = tdr == np.min(tdr)
+	id_bcg = np.where(idx)[0][0]
+
+	for k in range( Numb ):
+		xc = cx[k]
+		yc = cy[k]
+
+		lr = A[k] * 3
+		sr = B[k] * 3
+
+		chi = theta[k] * np.pi / 180
+
+		if k == id_bcg:
+			continue
+		else:
+			set_r = np.int(np.ceil(1.0 * lr))
+			la0 = np.max( [np.int(xc - set_r), 0])
+			la1 = np.min( [np.int(xc + set_r + 1), img.shape[1] ] )
+			lb0 = np.max( [np.int(yc - set_r), 0] ) 
+			lb1 = np.min( [np.int(yc + set_r + 1), img.shape[0] ] )
+
+			df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.cos(chi) + (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.sin(chi)
+			df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.cos(chi) - (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.sin(chi)
+			fr = df1**2 / lr**2 + df2**2 / sr**2
+			jx = fr <= 1
+
+			iu = np.where(jx == True)
+			iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float32)
+			iv[iu] = np.nan
+			copy_mask[lb0: lb1, la0: la1] = copy_mask[lb0: lb1, la0: la1] * iv
+
+	copy_imgs = copy_mask * img
+
+	tdr = np.sqrt((cen_x - cx)**2 + (cen_y - cy)**2)
+	idx = tdr == np.min(tdr)
+	lr = A[idx] * 8
+	sr = B[idx] * 8
+
+	targ_x = cx[idx]
+	targ_y = cy[idx]
+	targ_chi = theta[idx] * np.pi / 180
+
+	set_r = np.int(np.ceil(1.0 * lr))
+	la0 = np.max( [np.int(targ_x - set_r), 0])
+	la1 = np.min( [np.int(targ_x + set_r +1), img.shape[1] ] )
+	lb0 = np.max( [np.int(targ_y - set_r), 0] )
+	lb1 = np.min( [np.int(targ_y + set_r +1), img.shape[0] ] )
+
+	df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - targ_x)* np.cos(targ_chi) + (basic_coord[1,:][lb0: lb1, la0: la1] - targ_y)* np.sin(targ_chi)
+	df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - targ_y)* np.cos(targ_chi) - (basic_coord[0,:][lb0: lb1, la0: la1] - targ_x)* np.sin(targ_chi)
+	fr = df1**2 / lr**2 + df2**2 / sr**2
+	jx = fr <= 1
+
+	iu = np.where(jx == False)
+	iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float32)
+	iv[iu] = np.nan
+
+	#dpt_img = img[lb0: lb1, la0: la1]
+	dpt_img = copy_imgs[lb0: lb1, la0: la1]
+	dpt_img = dpt_img * iv
+
+	#mask_img[lb0: lb1, la0: la1] = dpt_img
+	mask_img[lb0: lb1, la0: la1] = copy_imgs[lb0: lb1, la0: la1]
+
+	plt.figure()
+	plt.imshow(mask_img, cmap = 'Greys', origin = 'lower', vmin = 1e-4, vmax = 1e1, norm = mpl.colors.LogNorm(),)
+	plt.xlim(xn - 200, xn + 200)
+	plt.ylim(yn - 200, yn + 200)
+	#plt.savefig('add_BCG.png', dpi = 300)
+	plt.savefig('add_BCG_ellipse.png', dpi = 300)
+	plt.show()
+
+	raise
+
 	return mask_img
-
-def cc_grid_img(img_data, N_stepx, N_stepy):
-
-	binx = img_data.shape[1] // N_stepx ## bin number along 2 axis
-	biny = img_data.shape[0] // N_stepy
-
-	beyon_x = img_data.shape[1] - binx * N_stepx ## for edge pixels divid
-	beyon_y = img_data.shape[0] - biny * N_stepy
-
-	odd_x = np.ceil(beyon_x / binx)
-	odd_y = np.ceil(beyon_y / biny)
-
-	n_odd_x = beyon_x // odd_x
-	n_odd_y = beyon_y // odd_y
-
-	d_odd_x = beyon_x - odd_x * n_odd_x
-	d_odd_y = beyon_y - odd_y * n_odd_y
-
-	# get the bin width
-	wid_x = np.zeros(binx, dtype = np.float32)
-	wid_y = np.zeros(biny, dtype = np.float32)
-	for kk in range(binx):
-		if kk == n_odd_x :
-			wid_x[kk] = N_stepx + d_odd_x
-		elif kk < n_odd_x :
-			wid_x[kk] = N_stepx + odd_x
-		else:
-			wid_x[kk] = N_stepx
-
-	for kk in range(biny):
-		if kk == n_odd_y :
-			wid_y[kk] = N_stepy + d_odd_y
-		elif kk < n_odd_y :
-			wid_y[kk] = N_stepy + odd_y
-		else:
-			wid_y[kk] = N_stepy
-
-	# get the bin edge
-	lx = np.zeros(binx + 1, dtype = np.int32)
-	ly = np.zeros(biny + 1, dtype = np.int32)
-	for kk in range(binx):
-		lx[kk + 1] = lx[kk] + wid_x[kk]
-	for kk in range(biny):
-		ly[kk + 1] = ly[kk] + wid_y[kk]
-
-	patch_mean = np.zeros( (biny, binx), dtype = np.float )
-	patch_pix = np.zeros( (biny, binx), dtype = np.float )
-	patch_S0 = np.zeros( (biny, binx), dtype = np.float )
-	patch_Var = np.zeros( (biny, binx), dtype = np.float )
-	for nn in range( biny ):
-		for tt in range( binx ):
-
-			sub_flux = img_data[ly[nn]: ly[nn + 1], lx[tt]: lx[tt + 1] ]
-			id_nn = np.isnan(sub_flux)
-
-			patch_mean[nn,tt] = np.mean( sub_flux[id_nn == False] )
-			patch_pix[nn,tt] = len( sub_flux[id_nn == False] )
-			patch_Var[nn,tt] = np.std( sub_flux[id_nn == False] )
-			patch_S0[nn,tt] = (ly[nn + 1] - ly[nn]) * (lx[tt + 1] - lx[tt])
-
-	return patch_mean, patch_Var, patch_pix, patch_S0
 
 band = ['r', 'g', 'i']
 home = '/media/xkchen/My Passport/data/SDSS/'
+load = '/home/xkchen/mywork/ICL/'
 
-### (mu, sigma) based on single img
-#dat = pds.read_csv('result/test_1000-to-250_rule-out_cat_3.5-sigma.csv')
-#dat = pds.read_csv('result/test_1000-to-459_remain_cat_3.5-sigma.csv')
-### (mu, sigma) based on sample imgs
-#dat = pds.read_csv('result/alt_test_1000-to-250_rule-out_cat_3.5-sigma.csv')
-#dat = pds.read_csv('result/alt_test_1000-to-193_remain_cat_3.5-sigma.csv')
+cat_file = load + 'code/SEX/result/select_based_on_A250/Bro-mode-select_1000-to-193_remain_cat_4.0-sigma.csv'
+dat = pds.read_csv(cat_file)
+ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
+Nz = len(z)
 
-#dat = pds.read_csv('result/CC_test_1000-to-250_rule-out_cat_3.5-sigma.csv')
-dat = pds.read_csv('result/CC_test_1000-to-459_remain_cat_3.5-sigma.csv')
+for kk in range( 30 ):#Nz ):
 
-### (mode_mu, mode_sigma) based on sample imgs
-#dat = pds.read_csv('result/MM_test_1000-to-250_rule-out_cat_3.5-sigma.csv')
-#dat = pds.read_csv('result/MM_test_1000-to-459_remain_cat_3.5-sigma.csv')
-lis_ra, lis_dec, lis_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
-
-for kk in range( 10, 20 ):#len(lis_z) ):
-
-	ra_g, dec_g, z_g = lis_ra[kk], lis_dec[kk], lis_z[kk]
+	ra_g, dec_g, z_g = ra[kk], dec[kk], z[kk]
 
 	file = home + 'wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % ('r', ra_g, dec_g, z_g)
 	#file = home + 'redMap_random/rand_img-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % ('r', ra_g, dec_g, z_g)
@@ -239,28 +253,30 @@ for kk in range( 10, 20 ):#len(lis_z) ):
 	head = data[0].header
 	wcs_lis = awc.WCS(head)
 	xn, yn = wcs_lis.all_world2pix(ra_g * U.deg, dec_g * U.deg, 1)
-	'''
-		hdu = fits.PrimaryHDU()
-		hdu.data = img
-		hdu.header = head
-		hdu.writeto('test_t.fits', overwrite = True)
 
-		param_A = 'default_mask_A.sex'
-		out_cat = 'default_mask_A.param'
+	hdu = fits.PrimaryHDU()
+	hdu.data = img
+	hdu.header = head
+	hdu.writeto('test_t.fits', overwrite = True)
 
-		out_load_A = 'test_t.cat'
-		file_source = 'test_t.fits'
+	param_A = 'default_mask_A.sex'
+	out_cat = 'default_mask_A.param'
 
-		cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s' % (param_A, out_load_A, out_cat)
-		a = subpro.Popen(cmd, shell = True)
-		a.wait()
+	out_load_A = 'test_t.cat'
+	file_source = 'test_t.fits'
 
-		## diffuse light region identify
-		star_cat = '/home/xkchen/mywork/ICL/data/corrected_star_cat/dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' % (z_g, ra_g, dec_g)
-		#star_cat = '/home/xkchen/mywork/ICL/data/corrected_star_cat/random/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' % (z_g, ra_g, dec_g)
+	cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s' % (param_A, out_load_A, out_cat)
+	a = subpro.Popen(cmd, shell = True)
+	a.wait()
 
-		remain_img = source_mask(file, out_load_A, star_cat)
-	'''
+	## diffuse light region identify
+	star_cat = '/home/xkchen/mywork/ICL/data/corrected_star_cat/dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' % (z_g, ra_g, dec_g)
+	#star_cat = '/home/xkchen/mywork/ICL/data/corrected_star_cat/random/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt' % (z_g, ra_g, dec_g)
+
+	remain_img = source_mask(file, xn, yn, out_load_A, star_cat)
+
+	raise
+
 	res_file = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits' % ('r', ra_g, dec_g, z_g)
 	#res_file = home + 'tmp_stack/random/random_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits' % ('r', ra_g, dec_g, z_g)
 	res_data = fits.open(res_file)
@@ -272,51 +288,24 @@ for kk in range( 10, 20 ):#len(lis_z) ):
 
 	N_step = 200
 
-	cen_lx = np.arange(0, 1100, N_step)
-	cen_ly = np.arange(0, 1100, N_step)
-	nl0, nl1 = len(cen_ly), len(cen_lx)
-
-	sub_pock_pix = np.zeros((nl0 - 1, nl1 - 1), dtype = np.float)
-	sub_pock_flux = np.zeros((nl0 - 1, nl1 - 1), dtype = np.float)
-	for nn in range(nl0 - 1):
-		for tt in range(nl1 - 1):
-			sub_flux = flux_cen[ cen_ly[nn]: cen_ly[nn+1], cen_lx[tt]: cen_lx[tt+1] ]
-			id_nn = np.isnan(sub_flux)
-			sub_pock_flux[nn,tt] = np.nanmean(sub_flux)
-			sub_pock_pix[nn,tt] = len(sub_flux[id_nn == False])
-
-	## mu, sigma of center region
+	sub_pock_flux, sub_pock_pix = grid_img(flux_cen, N_step, N_step)[:2]
+	'''
 	id_Nzero = sub_pock_pix > 100
-	#mu = np.nanmean( sub_pock_flux[id_Nzero] )
-	#sigm = np.nanstd( sub_pock_flux[id_Nzero] )
+	mu = np.nanmean( sub_pock_flux[id_Nzero] )
+	sigm = np.nanstd( sub_pock_flux[id_Nzero] )
+	'''
 
-	##?? use sample mean and scatter
-	#samp_dat = pds.read_csv('/home/xkchen/mywork/ICL/code/SEX/result/img_3100_mean_sigm.csv')
-	samp_dat = pds.read_csv('/home/xkchen/mywork/ICL/code/SEX/result/img_test-1000_mean_sigm.csv')
-	img_mu, img_sigma = np.array(samp_dat.cen_mu), np.array(samp_dat.cen_sigma)
-	mu = np.mean(img_mu) # 3 * np.median(img_mu) - 2 * np.mean(img_mu) # 
-	sigm = np.mean(img_sigma) # 3 * np.median(img_sigma) - 2 * np.mean(img_sigma) # 
+	#samp_dat = pds.read_csv('/home/xkchen/mywork/ICL/code/SEX/img_test-1000_mean_sigm.csv')
+	samp_dat = pds.read_csv('/home/xkchen/mywork/ICL/code/SEX/img_A-250_mean_sigm.csv')
+	img_mu, img_sigma = np.array(samp_dat.img_mu), np.array(samp_dat.img_sigma)
+	mu = 3 * np.median(img_mu) - 2 * np.mean(img_mu) # np.mean(img_mu) # 
+	sigm = 3 * np.median(img_sigma) - 2 * np.mean(img_sigma) # np.mean(img_sigma) # 
 
 	## mu, and deviation for sub-patches
-	ly = np.arange(0, img.shape[0], N_step)
-	ly = np.r_[ly, img.shape[0] - N_step, img.shape[0] ]
-	lx = np.arange(0, img.shape[1], N_step)
-	lx = np.r_[lx, img.shape[1] - N_step, img.shape[1] ]
-
-	lx = np.delete(lx, -1)
-	lx = np.delete(lx, -2)
-	ly = np.delete(ly, -1)
-	ly = np.delete(ly, -2)
-
-	patch_mean = np.zeros( (len(ly), len(lx) ), dtype = np.float )
-	patch_pix = np.zeros( (len(ly), len(lx) ), dtype = np.float )
-	for nn in range( len(ly) ):
-		for tt in range( len(lx) ):
-
-			sub_flux = remain_img[ly[nn]: ly[nn] + N_step, lx[tt]: lx[tt] + N_step]
-			id_nn = np.isnan(sub_flux)
-			patch_mean[nn,tt] = np.mean( sub_flux[id_nn == False] )
-			patch_pix[nn,tt] = len( sub_flux[id_nn == False] )
+	patch_grd = cc_grid_img(remain_img, N_step, N_step)
+	patch_mean = patch_grd[0]
+	patch_pix = patch_grd[1]
+	lx, ly = patch_grd[-2], patch_grd[-1]
 
 	id_zeros = patch_pix == 0.
 	patch_pix[id_zeros] = np.nan
@@ -324,7 +313,7 @@ for kk in range( 10, 20 ):#len(lis_z) ):
 	over_sb = (patch_mean - mu) / sigm
 
 	##### img selection
-	lim_sb = 3.5
+	lim_sb = 4
 	### first select
 	identi = over_sb > lim_sb
 
@@ -343,7 +332,8 @@ for kk in range( 10, 20 ):#len(lis_z) ):
 
 		idmask = np.isnan(over_sb)
 		over_sb[idmask] = 100
-		bx.set_title('$ [\\mu_{patch} - \\mu_{center}] / \\sigma_{center} $')
+
+		bx.set_title('$ [\\mu_{patch} - Mode(\\mu)] / Mode(\\sigma) $')
 		tf = bx.imshow(over_sb, origin = 'lower', cmap = 'seismic', vmin = -5, vmax = 5, )
 		plt.colorbar(tf, ax = bx, fraction = 0.035, pad = 0.01, )
 		tf.cmap.set_under('cyan')
@@ -393,7 +383,7 @@ for kk in range( 10, 20 ):#len(lis_z) ):
 
 			idmask = np.isnan(over_sb)
 			over_sb[idmask] = 100
-			bx.set_title('$ [\\mu_{patch} - \\mu_{center}] / \\sigma_{center} $')
+			bx.set_title('$ [\\mu_{patch} - Mode(\\mu)] / Mode(\\sigma) $')
 			tf = bx.imshow(over_sb, origin = 'lower', cmap = 'seismic', vmin = -5, vmax = 5, )
 			plt.colorbar(tf, ax = bx, fraction = 0.035, pad = 0.01, )
 			tf.cmap.set_under('cyan')
@@ -461,7 +451,8 @@ for kk in range( 10, 20 ):#len(lis_z) ):
 
 				idmask = np.isnan(over_sb)
 				over_sb[idmask] = 100
-				bx.set_title('$ [\\mu_{patch} - \\mu_{center}] / \\sigma_{center} $')
+
+				bx.set_title('$ [\\mu_{patch} - Mode(\\mu)] / Mode(\\sigma) $')
 				tf = bx.imshow(over_sb, origin = 'lower', cmap = 'seismic', vmin = -5, vmax = 5, )
 				plt.colorbar(tf, ax = bx, fraction = 0.035, pad = 0.01, )
 				tf.cmap.set_under('cyan')
@@ -494,7 +485,8 @@ for kk in range( 10, 20 ):#len(lis_z) ):
 
 					idmask = np.isnan(over_sb)
 					over_sb[idmask] = 100
-					bx.set_title('$ [\\mu_{patch} - \\mu_{center}] / \\sigma_{center} $')
+
+					bx.set_title('$ [\\mu_{patch} - Mode(\\mu)] / Mode(\\sigma) $')
 					tf = bx.imshow(over_sb, origin = 'lower', cmap = 'seismic', vmin = -5, vmax = 5, )
 					plt.colorbar(tf, ax = bx, fraction = 0.035, pad = 0.01, )
 					tf.cmap.set_under('cyan')
@@ -535,7 +527,8 @@ for kk in range( 10, 20 ):#len(lis_z) ):
 
 						idmask = np.isnan(over_sb)
 						over_sb[idmask] = 100
-						bx.set_title('$ [\\mu_{patch} - \\mu_{center}] / \\sigma_{center} $')
+
+						bx.set_title('$ [\\mu_{patch} - Mode(\\mu)] / Mode(\\sigma) $')
 						tf = bx.imshow(over_sb, origin = 'lower', cmap = 'seismic', vmin = -5, vmax = 5, )
 						plt.colorbar(tf, ax = bx, fraction = 0.035, pad = 0.01, )
 						tf.cmap.set_under('cyan')
@@ -578,7 +571,8 @@ for kk in range( 10, 20 ):#len(lis_z) ):
 
 						idmask = np.isnan(over_sb)
 						over_sb[idmask] = 100
-						bx.set_title('$ [\\mu_{patch} - \\mu_{center}] / \\sigma_{center} $')
+
+						bx.set_title('$ [\\mu_{patch} - Mode(\\mu)] / Mode(\\sigma) $')
 						tf = bx.imshow(over_sb, origin = 'lower', cmap = 'seismic', vmin = -5, vmax = 5, )
 						plt.colorbar(tf, ax = bx, fraction = 0.035, pad = 0.01, )
 						tf.cmap.set_under('cyan')
