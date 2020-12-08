@@ -33,7 +33,7 @@ def sky_build_func(d_file, z_set, ra_set, dec_set, band, out_file):
 		hdu = fits.PrimaryHDU()
 		hdu.data = sky_bl
 		hdu.header = data[0].header
-		hdu.writeto(out_file % (ra_g, dec_g, z_g, band), overwrite = True)
+		hdu.writeto(out_file % (band, ra_g, dec_g, z_g), overwrite = True)
 
 	return
 
@@ -44,7 +44,7 @@ def main():
 	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 
 	d_file = home + 'redMap_random/rand_img-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
-	out_file = '/media/xkchen/My Passport/data/SDSS/random_cat/sky_img/random_sky-ra%.3f-dec%.3f-z%.3f-%s-band.fits'
+	out_file = '/media/xkchen/My Passport/data/SDSS/random_cat/sky_img/random_sky_%s-band_ra%.3f-dec%.3f-z%.3f.fits'
 
 	band = 'r'
 	sky_build_func(d_file, set_z, set_ra, set_dec, band, out_file)

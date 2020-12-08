@@ -15,7 +15,7 @@ Omega_k = 1.- (Omega_lambda + Omega_m)
 DH = vc/H0
 G = C.G.value # gravitation constant
 Ms = C.M_sun.value # solar mass
-#c = 5. # the concentration
+
 kpc2m = U.kpc.to(U.m)
 Msun2kg = U.M_sun.to(U.kg)
 
@@ -25,10 +25,11 @@ def sigma_m(Mc, z, N, c):
     M = 10**Mc
     Ez = np.sqrt(Omega_m*(1+Z)**3+Omega_k*(1+Z)**2+Omega_lambda)
     Hz = H0*Ez
-    rhoc = Qc*(3*Hz**2)/(8*np.pi*G) # in unit Msun/kpc^3
+    rhoc = Qc*(3*Hz**2)/(8*np.pi*G)
     Deltac = (200/3)*(c**3/(np.log(1+c)-c/(c+1))) 
-    r200 = (3*M/(4*np.pi*rhoc*200))**(1/3) # in unit kpc
-    R = np.logspace(-3, np.log10(r200), N)
+    r200 = (3*M/(4*np.pi*rhoc*200))**(1/3)
+    R = np.logspace(-3, np.log10(1.5 * r200), N)
+
     Nbins = len(R)
     rs = r200 / c
     f0 = 2*Deltac*rhoc*rs
@@ -53,15 +54,16 @@ def sigma_m_c(Mc, N, c):
     M = 10**Mc
     rho_0 = (kpc2m / Msun2kg) * (3 * H0**2 ) / (8 * np.pi * G)
     r200_c = (3*M/(4*np.pi*rho_0*200))**(1/3) 
-    R = np.logspace(-3,np.log10(r200_c),N)
+    R = np.logspace(-3,np.log10(1.5 * r200_c),N)
+
     Nbins = len(R)
     rs = r200_c / c
     R_c = R*1
-    # next similar variables are for comoving coordinate, with simble "_c"
+
     rho0_c = M/((np.log(1+c)-c/(1+c))*4*np.pi*rs**3)
     r200_c = (3*M/(4*np.pi*rho_0*200))**(1/3)
-    f0_c = 2*rho0_c*rs # use for test
-    sigma_c = np.zeros(Nbins,dtype = np.float) # comoving coordinate
+    f0_c = 2*rho0_c*rs
+    sigma_c = np.zeros(Nbins,dtype = np.float)
     for k in range(Nbins):
         x = R[k]/rs
         if x < 1: 
@@ -85,8 +87,8 @@ def sigma_m_unlog(Mc, z, N, c):
     Ez = np.sqrt(Omega_m*(1+Z)**3+Omega_k*(1+Z)**2+Omega_lambda)
     Hz = H0*Ez
     rhoc = Qc*(3*Hz**2)/(8*np.pi*G)
-    Deltac = (200/3)*(c**3/(np.log(1+c)-c/(c+1))) # in unit Msun/kpc^3
-    r200 = (3*M/(4*np.pi*rhoc*200))**(1/3) # in unit kpc
+    Deltac = (200/3)*(c**3/(np.log(1+c)-c/(c+1)))
+    r200 = (3*M/(4*np.pi*rhoc*200))**(1/3)
     R = np.linspace(1e-3, r200, N)
     Nbins = len(R)
     rs = r200/c
@@ -117,11 +119,11 @@ def sigma_m_c_unlog(Mc, N, c):
     Nbins = len(R)
     rs = r200_c/c
     R_c = R*1
-    # next similar variables are for comoving coordinate, with simble "_c"
+
     rho0_c = M/((np.log(1+c)-c/(1+c))*4*np.pi*rs**3)
     r200_c = (3*M/(4*np.pi*rho_0*200))**(1/3)
-    f0_c = 2*rho0_c*rs # use for test
-    sigma_c = np.zeros(Nbins,dtype = np.float) # comoving coordinate
+    f0_c = 2*rho0_c*rs
+    sigma_c = np.zeros(Nbins,dtype = np.float)
     for k in range(Nbins):
         x = R[k]/rs
         if x < 1: 

@@ -502,7 +502,7 @@ def light_measure_weit(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 
 ######### test for radius bins in large scale
 def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbins, N_bin, SN_lim, 
-	edg_bins = None, pixel = 0.396,):
+	id_band, edg_bins = None, ):
 
 	### stacking in angle coordinate
 
@@ -593,8 +593,28 @@ def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbi
 			tmp_sb.append(sb_arr)
 			tmp_r.append(r_arr)
 
+	dt_arr = np.array( tmp_r )
+	medi_R = np.nanmedian( dt_arr, axis = 0 )
+	cc_tmp_r = []
+	cc_tmp_sb = []
+
+	for nn in range( N_bin ):
+
+		xx_R = tmp_r[ nn ] + 0
+		xx_sb = tmp_sb[ nn ] + 0
+
+		deviR = np.abs( xx_R - medi_R )
+
+		idmx = deviR > 0
+		xx_sb[ idmx ] = np.nan
+
+		cc_tmp_sb.append( xx_sb )
+		cc_tmp_r.append( medi_R )
+
+	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(cc_tmp_sb, cc_tmp_r, band[ id_band ], N_bin,)[4:]
+
 	## only save the sb result in unit " nanomaggies / arcsec^2 "
-	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, 0, 30,)[4:]
+	#tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, band[ id_band ], N_bin,)[4:]
 
 	with h5py.File(alter_jk_sb, 'w') as f:
 		f['r'] = np.array(tt_jk_R)
@@ -604,7 +624,7 @@ def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbi
 	return
 
 def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbins, N_bin, SN_lim, z_ref,
-	edg_bins = None, pixel = 0.396,):
+	id_band, edg_bins = None,):
 
 	### stacking in angle coordinate
 
@@ -701,8 +721,28 @@ def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb
 			tmp_sb.append(sb_arr)
 			tmp_r.append(r_arr)
 
+	dt_arr = np.array( tmp_r )
+	medi_R = np.nanmedian( dt_arr, axis = 0 )
+	cc_tmp_r = []
+	cc_tmp_sb = []
+
+	for nn in range( N_bin ):
+
+		xx_R = tmp_r[ nn ] + 0
+		xx_sb = tmp_sb[ nn ] + 0
+
+		deviR = np.abs( xx_R - medi_R )
+
+		idmx = deviR > 0
+		xx_sb[ idmx ] = np.nan
+
+		cc_tmp_sb.append( xx_sb )
+		cc_tmp_r.append( medi_R )
+
+	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(cc_tmp_sb, cc_tmp_r, band[ id_band ], N_bin,)[4:]
+
 	## only save the sb result in unit " nanomaggies / arcsec^2 "
-	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, 0, 30,)[4:]
+	#tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, band[ id_band ], N_bin,)[4:]
 
 	with h5py.File(alter_jk_sb, 'w') as f:
 		f['r'] = np.array(tt_jk_R)
@@ -710,3 +750,4 @@ def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb
 		f['sb_err'] = np.array(tt_jk_err)
 
 	return
+

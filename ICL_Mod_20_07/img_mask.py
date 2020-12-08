@@ -41,10 +41,13 @@ def source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file, stack_inf
 		hdu = fits.PrimaryHDU()
 		hdu.data = img
 		hdu.header = head
-		hdu.writeto('tmp.fits', overwrite = True)
+		hdu.writeto(
+			'/home/xkchen/project/tmp/img_ra%.3f_dec%.3f_z%.3f.fits' % (ra_g, dec_g, z_g), overwrite = True)
 
 		out_cat = out_file % (band, ra_g, dec_g, z_g)
-		file_source = 'tmp.fits'
+
+		file_source = '/home/xkchen/project/tmp/img_ra%.3f_dec%.3f_z%.3f.fits' % (ra_g, dec_g, z_g)
+
 		cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s' % (param_A, out_cat, out_param)
 		a = subpro.Popen(cmd, shell = True)
 		a.wait()
@@ -60,7 +63,7 @@ def source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file, stack_inf
 
 	return
 
-def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, stack_info = None, pixel = 0.396, source_det = True,):
+def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, stack_info = None, pixel = 0.396, source_det = False,):
 	"""
 	d_file : path where image data saved (include file-name structure:
 	'/xxx/xxx/xxx.xxx')

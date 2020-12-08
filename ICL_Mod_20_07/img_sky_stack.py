@@ -62,7 +62,7 @@ def sky_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, img_x, img_y,
 		else:
 			yn = np.int(img_y[jj])
 
-		file = d_file % (ra_g, dec_g, z_g, band)
+		file = d_file % (band, ra_g, dec_g, z_g)
 		data_A = fits.open( file )
 		img_A = data_A[0].data
 		head = data_A[0].header
@@ -140,7 +140,7 @@ def main():
 	dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/random_clus-1000-match_cat.csv')
 	set_ra, set_dec, set_z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 
-	d_file = '/media/xkchen/My Passport/data/SDSS/random_cat/sky_img/random_sky-ra%.3f-dec%.3f-z%.3f-%s-band.fits'
+	d_file = '/media/xkchen/My Passport/data/SDSS/random_cat/sky_img/random_sky_%s-band_ra%.3f-dec%.3f-z%.3f.fits'
 	out_file = '/home/xkchen/Downloads/test_imgs/random_sky_stack-test.h5'
 	band = 'r'
 	id_mean = 0

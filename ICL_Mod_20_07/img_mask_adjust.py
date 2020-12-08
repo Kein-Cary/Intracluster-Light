@@ -12,7 +12,48 @@ from astropy import cosmology as apcy
 
 from groups import groups_find_func
 
-def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, out_file, bcg_mask, extra_cat, alter_fac = None, 
+def cat_combine( cat_lis, ra, dec, z, alt_G_size = None,):
+
+	Ns = len( cat_lis )
+
+	tot_cx, tot_cy = np.array([]), np.array([])
+	tot_a, tot_b = np.array([]), np.array([])
+	tot_theta = np.array([])
+	tot_Numb = 0
+
+	for ll in range( Ns ):
+
+		ext_cat = cat_lis[ll] % ( ra, dec, z )
+		try:
+			source = asc.read(ext_cat)
+			Numb = np.array(source['NUMBER'][-1])
+			A = np.array(source['A_IMAGE'])
+			B = np.array(source['B_IMAGE'])
+			theta = np.array(source['THETA_IMAGE'])
+			cx = np.array(source['X_IMAGE']) - 1
+			cy = np.array(source['Y_IMAGE']) - 1
+
+			if alt_G_size is not None:
+				Kron = alt_G_size + 0.
+			else:
+				Kron = 16
+
+			a = Kron * A
+			b = Kron * B
+
+			tot_cx = np.r_[tot_cx, cx]
+			tot_cy = np.r_[tot_cy, cy]
+			tot_a = np.r_[tot_a, a]
+			tot_b = np.r_[tot_b, b]
+			tot_theta = np.r_[tot_theta, theta]
+			tot_Numb = tot_Numb + Numb
+
+		except:
+			continue
+
+	return tot_Numb, tot_cx, tot_cy, tot_a, tot_b, tot_theta
+
+def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, out_file, bcg_mask, extra_cat = None, alter_fac = None, 
 	alt_bright_R = None, alt_G_size = None, stack_info = None, pixel = 0.396,):
 	"""
 	after img masking, use this function to detection "light" region, which
@@ -32,7 +73,7 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 	stack_info : path to save the information of stacking (ra, dec, z, img_x, img_y)
 	including file-name: '/xxx/xxx/xxx.xxx'
 
-	extra_cat : extral galaxy catalog for masking adjust
+	extra_cat : extral galaxy catalog for masking adjust, (list type, .cat files)
 	alter_fac : size adjust for normal stars
 	alt_bright_R : size adjust for bright stars (also for saturated sources)
 	alt_G_size : size adjust for galaxy-like sources
@@ -69,15 +110,16 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 			Kron = 16
 		a = Kron * A
 		b = Kron * B
-		'''
-		##### selected gal_cat source
-		gal_dat = pds.read_csv(extra_cat % (ra_g, dec_g, z_g), )
-		gcat_x, gcat_y = np.array(gal_dat.imgx), np.array(gal_dat.imgy)
 
-		gcat_a = np.ones( len(gcat_x) ) * np.nanmean( a ) * 7.0
-		gcat_b = np.ones( len(gcat_x) ) * np.nanmean( a ) * 7.0 # use a circle to mask
-		gcat_chi = np.ones( len(gcat_x) ) * 0.
-		'''
+		## extral catalog load
+		if extra_cat is not None:
+
+			Ecat_num, Ecat_x, Ecat_y, Ecat_a, Ecat_b, Ecat_chi = cat_combine( extra_cat, ra_g, dec_g, z_g, alt_G_size = None,)
+
+		else:
+			Ecat_num = 0
+			Ecat_x, Ecat_y, Ecat_a, Ecat_b, Ecat_chi = np.array([]), np.array([]), np.array([]), np.array([]), np.array([])
+
 		## stars
 		mask = cat_file % (z_g, ra_g, dec_g)
 		cat = pds.read_csv(mask, skiprows = 1)
@@ -137,12 +179,12 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 		Sr = np.r_[sub_B0[sub_A0 > 0], sub_B2[sub_A2 > 0] ]
 		phi = np.r_[sub_chi0[sub_A0 > 0], sub_chi2[sub_A2 > 0] ]
 
-		tot_cx = np.r_[cx, comx, ] #gcat_x]
-		tot_cy = np.r_[cy, comy, ] #gcat_y]
-		tot_a = np.r_[a, Lr, ] #gcat_a]
-		tot_b = np.r_[b, Sr, ] #gcat_b]
-		tot_theta = np.r_[theta, phi, ] #gcat_chi]
-		tot_Numb = Numb + len(comx)# + len(gcat_x)
+		tot_cx = np.r_[cx, comx, Ecat_x]
+		tot_cy = np.r_[cy, comy, Ecat_y]
+		tot_a = np.r_[a, Lr, Ecat_a]
+		tot_b = np.r_[b, Sr, Ecat_b]
+		tot_theta = np.r_[theta, phi, Ecat_chi]
+		tot_Numb = Numb + len(comx) + Ecat_num
 
 		mask_path = np.ones((img.shape[0], img.shape[1]), dtype = np.float32)
 		ox = np.linspace(0, img.shape[1] - 1, img.shape[1])
@@ -191,8 +233,8 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 				xc = cx[k]
 				yc = cy[k]
 
-				lr = A[k] * 3
-				sr = B[k] * 3
+				lr = A[k] * 5 #3
+				sr = B[k] * 5 #3
 
 				chi = theta[k] * np.pi / 180
 

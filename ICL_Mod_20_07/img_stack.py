@@ -24,7 +24,6 @@ def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, img_x, img_y, id_
 	id_mean : 0, 1, 2.  0 - img_add = img; 
 	1 - img_add = img - np.mean(img); 2 - img_add = img - np.median(img); Default is id_mean = 0
 	"""
-
 	stack_N = len(z_set)
 
 	if id_cen == 1:

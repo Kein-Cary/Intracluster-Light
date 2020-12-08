@@ -35,6 +35,30 @@ Omega_k = 1.- (Omega_lambda + Omega_m)
 rad2asec = U.rad.to(U.arcsec)
 
 #**************************#
+def zref_BCG_pos_func(cat_file, z_ref, out_file, pix_size,):
+
+	dat = pds.read_csv( cat_file )
+	ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
+	clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
+
+	Da_z = Test_model.angular_diameter_distance(z).value
+	Da_ref = Test_model.angular_diameter_distance(z_ref).value
+
+	L_ref = Da_ref * pix_size / rad2asec
+	L_z = Da_z * pix_size / rad2asec
+	eta = L_ref / L_z
+
+	ref_bcgx = np.array( [np.int(ll) for ll in clus_x / eta] )
+	ref_bcgy = np.array( [np.int(ll) for ll in clus_y / eta] )
+
+	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y']
+	values = [ra, dec, z, ref_bcgx, ref_bcgy]
+	fill = dict(zip(keys, values))
+	data = pds.DataFrame(fill)
+	data.to_csv( out_file )
+
+	return
+
 def gau_func(x, mu, sigma):
 	return sts.norm.pdf(x, mu, sigma)
 
@@ -122,7 +146,7 @@ def get_cat(star_cat, gal_cat, pixel, wcs_lis, norm_star_r = 30, brit_star_r = 7
 
 	return tot_Numb, tot_cx, tot_cy, tot_a, tot_b, tot_theta
 
-def get_mu_sigma_(cat_file, ref_cat, out_put, ):
+def get_mu_sigma(cat_file, ref_cat, out_put, ):
 
 	dat = pds.read_csv( cat_file )
 	ra, dec, z = np.array( dat['ra'] ), np.array( dat['dec'] ), np.array( dat['z'] )
@@ -231,7 +255,7 @@ def map_mu_sigma_func(cat_file, img_file, band, L_cen, N_step, out_file,):
 	ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 	clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
 
-	N_samp = len(set_z)
+	N_samp = len( ra )
 
 	cen_sigm, cen_mu = [], []
 	img_mu, img_sigm = [], []
@@ -251,7 +275,7 @@ def map_mu_sigma_func(cat_file, img_file, band, L_cen, N_step, out_file,):
 		mask_arr = np.zeros((remain_img.shape[0], remain_img.shape[1]), dtype = np.float32)
 		mask_arr[idnn == False] = 1
 
-		ca0, ca1 = np.int(img.shape[0] / 2), np.int(img.shape[1] / 2)
+		ca0, ca1 = np.int( remain_img.shape[0] / 2), np.int( remain_img.shape[1] / 2)
 		cen_D = L_cen
 		flux_cen = remain_img[ca0 - cen_D: ca0 + cen_D, ca1 - cen_D: ca1 + cen_D]
 
@@ -277,7 +301,7 @@ def map_mu_sigma_func(cat_file, img_file, band, L_cen, N_step, out_file,):
 		cen_mu.append(mu)
 
 		## grid img (for selecting flare, saturated region...)
-		block_m, block_Var, block_pix, block_S0 = cc_grid_img(remain_img, N_step, N_step)
+		block_m, block_pix, block_Var, block_S0, x_edgs, y_edgs = cc_grid_img(remain_img, N_step, N_step)
 
 		idzo = block_pix < 1.
 		pix_eta = block_pix / block_S0
@@ -294,8 +318,8 @@ def map_mu_sigma_func(cat_file, img_file, band, L_cen, N_step, out_file,):
 	img_mu = np.array(img_mu)
 	img_sigm = np.array(img_sigm)
 
-	keys = ['ra', 'dec', 'z', 'cen_mu', 'cen_sigma', 'img_mu', 'img_sigma',]
-	values = [ra, dec, z, cen_mu, cen_sigm, img_mu, img_sigm]
+	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y', 'cen_mu', 'cen_sigma', 'img_mu', 'img_sigma',]
+	values = [ra, dec, z, clus_x, clus_y, cen_mu, cen_sigm, img_mu, img_sigm]
 	fill = dict(zip(keys, values))
 	data = pds.DataFrame(fill)
 	data.to_csv( out_file )
@@ -510,7 +534,7 @@ def main():
 	ref_cat = 'img_3100_mean_sigm.csv'
 	#out_file = 'img_test-1000_mean_sigm.csv'
 	out_file = 'img_A-250_mean_sigm.csv'
-	get_mu_sigma_(cat_file, ref_cat, out_file, )
+	get_mu_sigma(cat_file, ref_cat, out_file, )
 
 if __name__ == "__main__":
 	main()

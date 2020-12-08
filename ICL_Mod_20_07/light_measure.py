@@ -60,80 +60,126 @@ def cumula_flux_func(angl_r, bin_fdens,):
 
 	return flux_arr
 
-###???????????
-def over_dens_sb_func(data, weit_data, pix_size, cx, cy, z0, R_low, R_up,):
+def over_dens_sb_func(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 	"""
-	use to get the surface brightness for given radius
-	data : data used to measure brightness (2D-array)
-	R_low, R_up : the low_limit and up_limit of the given radius (in unit of "kpc")
-	cx, cy : the center location / the reference point of the radius
-	pix_size : the pixel size in unit of arcsec
-	z0 : the redshift of the data
+	data: data used to measure (2D-array)
+	Nbin: number of bins will devide
+	R_bins : radius bin edges for SB measurement, in unit of pixels
+	cx, cy: cluster central position in image frame (in inuit pixel)
+	pix_size: pixel size
+	z : the redshift of data
 	weit_data : the weight array for surface brightness profile measurement, it's must be 
 	the same size as the 'data' array
 	"""
-	Da0 = Test_model.angular_diameter_distance(z0).value
-	R_pix_low = (R_low * 1e-3 * rad2arcsec / Da0) / pix_size
-	R_pix_up = (R_up * 1e-3 * rad2arcsec / Da0) / pix_size
-
+	Da0 = Test_model.angular_diameter_distance(z0).value ## in unit 'Mpc'
 	Nx = data.shape[1]
 	Ny = data.shape[0]
 	x0 = np.linspace(0, Nx-1, Nx)
 	y0 = np.linspace(0, Ny-1, Ny)
 	pix_id = np.array(np.meshgrid(x0,y0))
 
-	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
-		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
-	idu = (dr >= R_pix_low) & (dr <= R_pix_up)
-
-	theta = np.arctan2((pix_id[1,:] - cy), (pix_id[0,:] - cx))
+	theta = np.arctan2((pix_id[1,:]-cy), (pix_id[0,:]-cx))
 	chi = theta * 180 / np.pi
 
-	samp_chi = chi[idu]
-	samp_flux = data[idu]
-	weit_arr = weit_data[idu]
-	Intns = np.nansum( samp_flux * weit_arr ) / np.nansum( weit_arr )
+	rbin = R_bins # have been divided bins, in unit of pixels
+	angl_r = R_bins * pix_size
 
-	id_nn = np.isnan(samp_flux)
-	N_pix = np.sum( id_nn == False )
-	nsum_ratio = np.nansum(weit_arr) / np.sum( id_nn == False )
+	set_r = rbin * pix_size * Da0 * 1e3 / rad2arcsec # in unit of kpc
 
-	cdr = R_up - R_low
-	d_phi = ( cdr / (0.5 * (R_low + R_up) ) ) * 180 / np.pi
-	N_phi = np.int(360 / d_phi) + 1
-	phi = np.linspace(0, 360, N_phi)
-	phi = phi - 180.
+	intens = np.zeros(len(rbin), dtype = np.float)
+	intens_r = np.zeros(len(rbin), dtype = np.float)
+	intens_err = np.zeros(len(rbin), dtype = np.float)
 
-	tmpf = []
-	for tt in range(len(phi) - 1):
-		idv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt + 1])
+	N_pix = np.zeros(len(rbin), dtype = np.float)
+	nsum_ratio = np.zeros(len(rbin), dtype = np.float)
 
-		set_samp = samp_flux[idv]
-		set_weit = weit_arr[idv]
+	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
+		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
 
-		ttf = np.nansum(set_samp * set_weit) / np.nansum( set_weit )
-		tmpf.append(ttf)
+	for k in range(len(rbin) - 1):
+		cdr = rbin[k + 1] - rbin[k]
+		d_phi = (cdr / ( 0.5 * (rbin[k] + rbin[k + 1]) ) ) * 180 / np.pi
+		N_phi = np.int(360 / d_phi) + 1
+		phi = np.linspace(0, 360, N_phi)
+		phi = phi - 180
 
-	# rms of flux
-	tmpf = np.array(tmpf)
-	id_inf = np.isnan(tmpf)
-	tmpf[id_inf] = np.nan
-	id_zero = tmpf == 0
-	tmpf[id_zero] = np.nan
+		ir = (dr >= rbin[k]) & (dr < rbin[k + 1])
+		bool_sum = np.sum(ir)
 
-	id_nan = np.isnan(tmpf)
-	id_fals = id_nan == False
-	Tmpf = tmpf[id_fals]
+		r_iner = set_r[k] ## useing radius in unit of kpc
+		r_out = set_r[k + 1]
 
-	RMS = np.std(Tmpf)
-	if len(Tmpf) > 1:
-		Intns_err = RMS / np.sqrt(len(Tmpf) - 1)
-	else:
-		Intns_err = RMS
+		if bool_sum == 0:
+			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
 
-	Intns_r = (0.5 * (R_low + R_up) )
+		else:
+			weit_arr = weit_data[ir]
 
-	return Intns, Intns_r, Intns_err, N_pix, nsum_ratio
+			samp_flux = data[ir]
+			samp_chi = chi[ir]
+			tot_flux = np.nansum(samp_flux * weit_arr) / np.nansum(weit_arr)
+
+			idnn = np.isnan( samp_flux )
+			N_pix[k] = np.sum( idnn == False )
+			nsum_ratio[k] = np.nansum(weit_arr) / np.sum( idnn == False )			
+
+			intens[k] = tot_flux
+			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
+
+			tmpf = []
+			for tt in range(len(phi) - 1):
+
+				iv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt+1])
+
+				set_samp = samp_flux[iv]
+				set_weit = weit_arr[iv]
+
+				ttf = np.nansum(set_samp * set_weit) / np.nansum(set_weit)
+				tmpf.append(ttf)
+
+			# rms of flux
+			tmpf = np.array(tmpf)
+			id_inf = np.isnan(tmpf)
+			tmpf[id_inf] = np.nan
+			id_zero = tmpf == 0
+			tmpf[id_zero] = np.nan
+
+			id_nan = np.isnan(tmpf)
+			id_fals = id_nan == False
+			Tmpf = tmpf[id_fals]
+
+			RMS = np.std(Tmpf)
+			if len(Tmpf) > 1:
+				intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+			else:
+				intens_err[k] = RMS
+
+	idzo = N_pix < 1
+
+	Intns = intens.copy()
+	Intns_err = intens_err.copy()
+	Intns_r = intens_r.copy()
+
+	Intns[ idzo ] = np.nan
+	Intns_r[ idzo ] = np.nan
+	Intns_err[ idzo ] = np.nan
+
+	Intns, Intns_err = Intns / pix_size**2, Intns_err / pix_size**2
+
+	id_nn = np.isnan( Intns )
+	fdens = Intns[ id_nn == False ]
+	fdens_err = Intns_err[ id_nn == False ]
+	fdens_R = Intns_r[ id_nn == False ]
+
+	cumuli_f = cumula_flux_func( angl_r[:-1], Intns[:-1])
+	mean_sbr = cumuli_f / ( np.pi * 2 * angl_r**2 )
+
+	####??????????
+	raise
+
+	over_fdens = mean_sbr - Intns
+
+	return Intns_r, Intns, Intns_err, over_fdens, N_pix, nsum_ratio
 
 ### covariance & correlarion matrix
 def cov_MX_func(radius, pros, id_jack = True,):
@@ -198,18 +244,22 @@ def flux_recal(data, z0, zref):
 	return flux
 
 ### jackknife SB 
-def jack_SB_func(SB_array, R_array, band_id, N_sample,):
+def jack_SB_func(SB_array, R_array, band_str, N_sample,):
 	"""
 	stacking profile based on surface brightness,
 	SB_array : list of surface brightness profile, in unit of " nanomaggies / arcsec^2 "
 	SB_array, R_array : list type
-	band_id : int type, for SB correction (0, 1, 2, 3, 4 --> r, g, i, u, z)
+	band_str : 'str' type ['r', 'g', 'i', 'u', 'z'], for SB correction 
+				band_id : 0, 1, 2, 3, 4 --> r, g, i, u, z 
 	N_sample : number of sub-samples
 	"""
+	band_id = band.index( band_str )
+
 	dx_r = np.array(R_array)
 	dy_sb = np.array(SB_array)
 
 	n_r = dx_r.shape[1]
+
 	Len = np.zeros( n_r, dtype = np.float32)
 	for nn in range( n_r ):
 		tmp_I = dy_sb[:,nn]
