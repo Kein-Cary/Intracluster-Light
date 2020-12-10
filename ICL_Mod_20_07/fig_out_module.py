@@ -1,9 +1,3 @@
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-from matplotlib.patches import Circle, Ellipse, Rectangle
-
 import h5py
 import numpy as np
 import pandas as pds
@@ -120,7 +114,7 @@ def grid_img( img_data, N_stepx, N_stepy):
 
 	return patch_mean, patch_pix, patch_Var, lx, ly
 
-def zref_BCG_pos_func( cat_file, z_ref, out_file):
+def zref_BCG_pos_func( cat_file, z_ref, out_file, pix_size,):
 	"""
 	this part use for calculate BCG position after pixel resampling. 
 	"""
@@ -131,12 +125,12 @@ def zref_BCG_pos_func( cat_file, z_ref, out_file):
 	Da_z = Test_model.angular_diameter_distance(z).value
 	Da_ref = Test_model.angular_diameter_distance(z_ref).value
 
-	L_ref = Da_ref * pixel / rad2asec
-	L_z = Da_z * pixel / rad2asec
+	L_ref = Da_ref * pix_size / rad2arcsec
+	L_z = Da_z * pix_size / rad2arcsec
 	eta = L_ref / L_z
 
-	ref_bcgx = np.array( [np.int(ll) for ll in clus_x / eta] )
-	ref_bcgy = np.array( [np.int(ll) for ll in clus_y / eta] )
+	ref_bcgx = clus_x / eta
+	ref_bcgy = clus_y / eta
 
 	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y']
 	values = [ra, dec, z, ref_bcgx, ref_bcgy]

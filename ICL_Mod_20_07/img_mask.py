@@ -20,7 +20,8 @@ def source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file, stack_inf
 	out_file : save sources information (detected by SExTractor)
 	"""
 	Nz = len(z_set)
-	param_A = 'default_mask_A.sex'
+	#param_A = 'default_mask_A.sex'
+	param_A = 'default_mask_A_g.sex'
 	out_param = 'default_mask_A.param'
 	bcg_x, bcg_y = [], []
 
@@ -41,12 +42,13 @@ def source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file, stack_inf
 		hdu = fits.PrimaryHDU()
 		hdu.data = img
 		hdu.header = head
-		hdu.writeto(
-			'/home/xkchen/project/tmp/img_ra%.3f_dec%.3f_z%.3f.fits' % (ra_g, dec_g, z_g), overwrite = True)
+		hdu.writeto('/home/xkchen/project/tmp/img_ra%.3f_dec%.3f_z%.3f.fits' % (ra_g, dec_g, z_g), overwrite = True)
+		#hdu.writeto('tmp.fits', overwrite = True)
 
 		out_cat = out_file % (band, ra_g, dec_g, z_g)
 
 		file_source = '/home/xkchen/project/tmp/img_ra%.3f_dec%.3f_z%.3f.fits' % (ra_g, dec_g, z_g)
+		#file_source = 'tmp.fits'
 
 		cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s' % (param_A, out_cat, out_param)
 		a = subpro.Popen(cmd, shell = True)
@@ -63,6 +65,70 @@ def source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file, stack_inf
 
 	return
 
+def mask_with_BCG( img_file, cen_x, cen_y, gal_cat,):
+
+	## cen_x, cen_y : BCG location in image frame
+	data = fits.open( img_file )
+	img = data[0].data
+
+	source = asc.read(gal_cat)
+	Numb = np.array(source['NUMBER'][-1])
+	A = np.array(source['A_IMAGE'])
+	B = np.array(source['B_IMAGE'])
+	theta = np.array(source['THETA_IMAGE'])
+	cx = np.array(source['X_IMAGE']) - 1
+	cy = np.array(source['Y_IMAGE']) - 1
+	p_type = np.array(source['CLASS_STAR'])
+
+	Kron = 16
+	a = Kron * A
+	b = Kron * B
+
+	mask_path = np.ones((img.shape[0], img.shape[1]), dtype = np.float32)
+	ox = np.linspace(0, img.shape[1] - 1, img.shape[1])
+	oy = np.linspace(0, img.shape[0] - 1, img.shape[0])
+	basic_coord = np.array(np.meshgrid(ox, oy))
+
+	tdr = np.sqrt( (cen_x - cx)**2 + (cen_y - cy)**2)
+	idx = tdr == np.min(tdr)
+	id_bcg = np.where(idx)[0][0]
+
+	major = a / 2
+	minor = b / 2
+	senior = np.sqrt(major**2 - minor**2)
+	# masking 'galaxies'
+	for k in range( Numb ):
+		xc = cx[k]
+		yc = cy[k]
+
+		lr = major[k]
+		sr = minor[k]
+		cr = senior[k]
+		chi = theta[k] * np.pi / 180
+
+		if k == id_bcg:
+			continue
+		else:
+			set_r = np.int(np.ceil(1.2 * lr))
+			la0 = np.max( [np.int(xc - set_r), 0])
+			la1 = np.min( [np.int(xc + set_r + 1), img.shape[1] ] )
+			lb0 = np.max( [np.int(yc - set_r), 0] ) 
+			lb1 = np.min( [np.int(yc + set_r + 1), img.shape[0] ] )
+
+			df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.cos(chi) + (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.sin(chi)
+			df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.cos(chi) - (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.sin(chi)
+			fr = df1**2 / lr**2 + df2**2 / sr**2
+			jx = fr <= 1
+
+			iu = np.where(jx == True)
+			iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float32)
+			iv[iu] = np.nan
+			mask_path[lb0: lb1, la0: la1] = mask_path[lb0: lb1, la0: la1] * iv
+
+	mask_img = mask_path * img
+
+	return mask_img
+
 def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, stack_info = None, pixel = 0.396, source_det = False,):
 	"""
 	d_file : path where image data saved (include file-name structure:
@@ -70,7 +136,7 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 	cat_file : path where photometric data saved, the same structure as d_file
 	set_ra, set_dec, set_z : ra, dec, z of will be masked imgs
 	band: band of image data, 'str' type
-	out_file0 : save sources information
+	out_file0 : save sources information (mainly for galaxies)
 	out_file1 : save the masking data
 	bcg_mask : 0 -- mask all sources except BCGs; 1 : BCGs also will be masked
 	pixel : pixel scale, in unit 'arcsec' (default is 0.396)
@@ -78,7 +144,8 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 	including file-name: '/xxx/xxx/xxx.xxx'
 	"""
 	Nz = len(z_set)
-	param_A = 'default_mask_A.sex'
+	#param_A = 'default_mask_A.sex'
+	param_A = 'default_mask_A_g.sex'
 	out_param = 'default_mask_A.param'
 	bcg_x, bcg_y = [], []
 
@@ -163,121 +230,102 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 		Lr = np.r_[sub_A0[sub_A0 > 0], sub_A2[sub_A2 > 0]]
 		Sr = np.r_[sub_B0[sub_A0 > 0], sub_B2[sub_A2 > 0]]
 		phi = np.r_[sub_chi0[sub_A0 > 0], sub_chi2[sub_A2 > 0]]
+		N_star = len(comx)
 
 		tot_cx = np.r_[cx, comx]
 		tot_cy = np.r_[cy, comy]
 		tot_a = np.r_[a, Lr]
 		tot_b = np.r_[b, Sr]
 		tot_theta = np.r_[theta, phi]
-		tot_Numb = Numb + len(comx)
+		tot_Numb = Numb + N_star
 
-		mask_path = np.ones((img.shape[0], img.shape[1]), dtype = np.float32)
-		ox = np.linspace(0, img.shape[1] - 1, img.shape[1])
-		oy = np.linspace(0, img.shape[0] - 1, img.shape[0])
-		basic_coord = np.array(np.meshgrid(ox, oy))
-		major = tot_a / 2
-		minor = tot_b / 2
-		senior = np.sqrt(major**2 - minor**2)
+		if bcg_mask == 1:
 
-		for k in range(tot_Numb):
-			xc = tot_cx[k]
-			yc = tot_cy[k]
+			mask_path = np.ones((img.shape[0], img.shape[1]), dtype = np.float32)
+			ox = np.linspace(0, img.shape[1] - 1, img.shape[1])
+			oy = np.linspace(0, img.shape[0] - 1, img.shape[0])
+			basic_coord = np.array(np.meshgrid(ox, oy))
+			major = tot_a / 2
+			minor = tot_b / 2
+			senior = np.sqrt(major**2 - minor**2)
 
-			lr = major[k]
-			sr = minor[k]
-			cr = senior[k]
-			chi = tot_theta[k] * np.pi/180
+			for k in range(tot_Numb):
+				xc = tot_cx[k]
+				yc = tot_cy[k]
 
-			set_r = np.int(np.ceil(1.2 * lr))
-			la0 = np.max( [np.int(xc - set_r), 0])
-			la1 = np.min( [np.int(xc + set_r + 1), img.shape[1] ] )
-			lb0 = np.max( [np.int(yc - set_r), 0] ) 
-			lb1 = np.min( [np.int(yc + set_r + 1), img.shape[0] ] )
+				lr = major[k]
+				sr = minor[k]
+				cr = senior[k]
+				chi = tot_theta[k] * np.pi/180
 
-			df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.cos(chi) + (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.sin(chi)
-			df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.cos(chi) - (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.sin(chi)
-			fr = df1**2 / lr**2 + df2**2 / sr**2
-			jx = fr <= 1
+				set_r = np.int(np.ceil(1.2 * lr))
+				la0 = np.max( [np.int(xc - set_r), 0])
+				la1 = np.min( [np.int(xc + set_r + 1), img.shape[1] ] )
+				lb0 = np.max( [np.int(yc - set_r), 0] ) 
+				lb1 = np.min( [np.int(yc + set_r + 1), img.shape[0] ] )
 
-			iu = np.where(jx == True)
-			iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float32)
-			iv[iu] = np.nan
-			mask_path[lb0: lb1, la0: la1] = mask_path[lb0: lb1, la0: la1] * iv
+				df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.cos(chi) + (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.sin(chi)
+				df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.cos(chi) - (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.sin(chi)
+				fr = df1**2 / lr**2 + df2**2 / sr**2
+				jx = fr <= 1
 
-		mask_img = mask_path * img
+				iu = np.where(jx == True)
+				iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float32)
+				iv[iu] = np.nan
+				mask_path[lb0: lb1, la0: la1] = mask_path[lb0: lb1, la0: la1] * iv
+
+			mask_img = mask_path * img
+
+			hdu = fits.PrimaryHDU()
+			hdu.data = mask_img
+			hdu.header = head
+			hdu.writeto(out_file1 % (band, ra_g, dec_g, z_g), overwrite = True)
 
 		### add BCG region back
 		if bcg_mask == 0:
 
-			copy_mask = np.ones((img.shape[0], img.shape[1]), dtype = np.float32)
-			tdr = np.sqrt((xn - cx)**2 + (yn - cy)**2)
-			idx = tdr == np.min(tdr)
-			id_bcg = np.where(idx)[0][0]
+			img_file = d_file % (band, ra_g, dec_g, z_g)
+			gal_cat = out_file0 % (band, ra_g, dec_g, z_g)
 
-			for k in range( Numb ):
-				xc = cx[k]
-				yc = cy[k]
+			pre_mask_img = mask_with_BCG( img_file, xn, yn, gal_cat,)
 
-				lr = A[k] * 3
-				sr = B[k] * 3
+			mask_path = np.ones((img.shape[0], img.shape[1]), dtype = np.float32)
+			ox = np.linspace(0, img.shape[1] - 1, img.shape[1])
+			oy = np.linspace(0, img.shape[0] - 1, img.shape[0])
+			basic_coord = np.array(np.meshgrid(ox, oy))
 
-				chi = theta[k] * np.pi / 180
+			# masking stars
+			for k in range( N_star ):
+				xc = comx[k]
+				yc = comy[k]
 
-				if k == id_bcg:
-					continue
-				else:
-					set_r = np.int(np.ceil(1.0 * lr))
-					la0 = np.max( [np.int(xc - set_r), 0])
-					la1 = np.min( [np.int(xc + set_r + 1), img.shape[1] ] )
-					lb0 = np.max( [np.int(yc - set_r), 0] ) 
-					lb1 = np.min( [np.int(yc + set_r + 1), img.shape[0] ] )
+				lr = Lr[k] / 2
+				sr = Sr[k] / 2
+				cr = np.sqrt(lr**2 - sr**2)
+				chi = phi[k] * np.pi/180
 
-					df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.cos(chi) + (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.sin(chi)
-					df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.cos(chi) - (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.sin(chi)
-					fr = df1**2 / lr**2 + df2**2 / sr**2
-					jx = fr <= 1
+				set_r = np.int(np.ceil(1.2 * lr))
+				la0 = np.max( [np.int(xc - set_r), 0])
+				la1 = np.min( [np.int(xc + set_r + 1), img.shape[1] ] )
+				lb0 = np.max( [np.int(yc - set_r), 0] ) 
+				lb1 = np.min( [np.int(yc + set_r + 1), img.shape[0] ] )
 
-					iu = np.where(jx == True)
-					iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float32)
-					iv[iu] = np.nan
-					copy_mask[lb0: lb1, la0: la1] = copy_mask[lb0: lb1, la0: la1] * iv
+				df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.cos(chi) + (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.sin(chi)
+				df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - yc)* np.cos(chi) - (basic_coord[0,:][lb0: lb1, la0: la1] - xc)* np.sin(chi)
+				fr = df1**2 / lr**2 + df2**2 / sr**2
+				jx = fr <= 1
 
-			copy_imgs = copy_mask * img
+				iu = np.where(jx == True)
+				iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float32)
+				iv[iu] = np.nan
+				mask_path[lb0: lb1, la0: la1] = mask_path[lb0: lb1, la0: la1] * iv
 
-			tdr = np.sqrt((xn - cx)**2 + (yn - cy)**2)
-			idx = tdr == np.min(tdr)
-			lr = A[idx] * 8
-			sr = B[idx] * 8
+			mask_img = mask_path * pre_mask_img
 
-			targ_x = cx[idx]
-			targ_y = cy[idx]
-			targ_chi = theta[idx] * np.pi / 180
-
-			set_r = np.int(np.ceil(1.0 * lr))
-			la0 = np.max( [np.int(targ_x - set_r), 0])
-			la1 = np.min( [np.int(targ_x + set_r +1), img.shape[1] ] )
-			lb0 = np.max( [np.int(targ_y - set_r), 0] )
-			lb1 = np.min( [np.int(targ_y + set_r +1), img.shape[0] ] )
-
-			df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - targ_x)* np.cos(targ_chi) + (basic_coord[1,:][lb0: lb1, la0: la1] - targ_y)* np.sin(targ_chi)
-			df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - targ_y)* np.cos(targ_chi) - (basic_coord[0,:][lb0: lb1, la0: la1] - targ_x)* np.sin(targ_chi)
-			fr = df1**2 / lr**2 + df2**2 / sr**2
-			jx = fr <= 1
-
-			iu = np.where(jx == False)
-			iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float32)
-			iv[iu] = np.nan
-
-			dpt_img = copy_imgs[lb0: lb1, la0: la1]
-			dpt_img = dpt_img * iv
-
-			#mask_img[lb0: lb1, la0: la1] = dpt_img
-			mask_img[lb0: lb1, la0: la1] = copy_imgs[lb0: lb1, la0: la1]
-
-		hdu = fits.PrimaryHDU()
-		hdu.data = mask_img
-		hdu.header = head
-		hdu.writeto(out_file1 % (band, ra_g, dec_g, z_g), overwrite = True)
+			hdu = fits.PrimaryHDU()
+			hdu.data = mask_img
+			hdu.header = head
+			hdu.writeto(out_file1 % (band, ra_g, dec_g, z_g), overwrite = True)
 
 	bcg_x = np.array(bcg_x)
 	bcg_y = np.array(bcg_y)

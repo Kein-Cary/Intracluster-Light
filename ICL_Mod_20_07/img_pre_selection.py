@@ -35,6 +35,32 @@ Omega_k = 1.- (Omega_lambda + Omega_m)
 rad2asec = U.rad.to(U.arcsec)
 
 #**************************#
+def WCS_to_pixel_func(ra, dec, header_inf,):
+	#according to SDSS Early Data Release paper( )
+
+	Ra0 = header_inf['CRVAL1']
+	Dec0 = header_inf['CRVAL2']
+
+	row_0 = header_inf['CRPIX2']
+	col_0 = header_inf['CRPIX1']
+
+	af = header_inf['CD1_1']
+	bf = header_inf['CD1_2']
+
+	cf = header_inf['CD2_1']
+	df = header_inf['CD2_2']
+
+	y1 = (ra - Ra0) * np.cos( Dec0 * np.pi / 180 )
+	y2 = dec - Dec0
+
+	delt_col = (bf * y2 - df * y1) / ( bf * cf - af * df )
+	delt_row = (af * y2 - cf * y1) / ( af * df - bf * cf )
+
+	id_col = col_0 + delt_col
+	id_row = row_0 + delt_row
+
+	return id_col, id_row
+
 def zref_BCG_pos_func(cat_file, z_ref, out_file, pix_size,):
 
 	dat = pds.read_csv( cat_file )
@@ -48,8 +74,8 @@ def zref_BCG_pos_func(cat_file, z_ref, out_file, pix_size,):
 	L_z = Da_z * pix_size / rad2asec
 	eta = L_ref / L_z
 
-	ref_bcgx = np.array( [np.int(ll) for ll in clus_x / eta] )
-	ref_bcgy = np.array( [np.int(ll) for ll in clus_y / eta] )
+	ref_bcgx = clus_x / eta
+	ref_bcgy = clus_y / eta
 
 	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y']
 	values = [ra, dec, z, ref_bcgx, ref_bcgy]

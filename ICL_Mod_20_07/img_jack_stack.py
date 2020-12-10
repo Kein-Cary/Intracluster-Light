@@ -157,9 +157,8 @@ def SB_pros_func(flux_img, pix_cont_img, sb_file, N_img, n_rbins, id_Z0, z_ref):
 
 	return
 
-
 def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbins, N_bin, SN_lim, 
-	edg_bins = None,):
+	id_band, edg_bins = None, ):
 
 	### stacking in angle coordinate
 
@@ -250,8 +249,28 @@ def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbi
 			tmp_sb.append(sb_arr)
 			tmp_r.append(r_arr)
 
+	dt_arr = np.array( tmp_r )
+	medi_R = np.nanmedian( dt_arr, axis = 0 )
+	cc_tmp_r = []
+	cc_tmp_sb = []
+
+	for nn in range( N_bin ):
+
+		xx_R = tmp_r[ nn ] + 0
+		xx_sb = tmp_sb[ nn ] + 0
+
+		deviR = np.abs( xx_R - medi_R )
+
+		idmx = deviR > 0
+		xx_sb[ idmx ] = np.nan
+
+		cc_tmp_sb.append( xx_sb )
+		cc_tmp_r.append( medi_R )
+
+	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(cc_tmp_sb, cc_tmp_r, band[ id_band ], N_bin,)[4:]
+
 	## only save the sb result in unit " nanomaggies / arcsec^2 "
-	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, 0, 30,)[4:]
+	#tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, band[ id_band ], N_bin,)[4:]
 
 	with h5py.File(alter_jk_sb, 'w') as f:
 		f['r'] = np.array(tt_jk_R)
@@ -261,7 +280,7 @@ def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbi
 	return
 
 def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbins, N_bin, SN_lim, z_ref,
-	edg_bins = None,):
+	id_band, edg_bins = None,):
 
 	### stacking in angle coordinate
 
@@ -358,8 +377,28 @@ def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb
 			tmp_sb.append(sb_arr)
 			tmp_r.append(r_arr)
 
+	dt_arr = np.array( tmp_r )
+	medi_R = np.nanmedian( dt_arr, axis = 0 )
+	cc_tmp_r = []
+	cc_tmp_sb = []
+
+	for nn in range( N_bin ):
+
+		xx_R = tmp_r[ nn ] + 0
+		xx_sb = tmp_sb[ nn ] + 0
+
+		deviR = np.abs( xx_R - medi_R )
+
+		idmx = deviR > 0
+		xx_sb[ idmx ] = np.nan
+
+		cc_tmp_sb.append( xx_sb )
+		cc_tmp_r.append( medi_R )
+
+	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(cc_tmp_sb, cc_tmp_r, band[ id_band ], N_bin,)[4:]
+
 	## only save the sb result in unit " nanomaggies / arcsec^2 "
-	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, 0, 30,)[4:]
+	#tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, band[ id_band ], N_bin,)[4:]
 
 	with h5py.File(alter_jk_sb, 'w') as f:
 		f['r'] = np.array(tt_jk_R)
@@ -368,8 +407,7 @@ def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb
 
 	return
 
-
-def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y, img_file, band, sub_img,
+def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y, img_file, band_str, sub_img,
 	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
 	id_cut = False, N_edg = None, 
 	id_Z0 = True, z_ref = None, 
@@ -387,7 +425,7 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 	img_x, img_y : BCG position (in image coordinate)
 
 	img_file : img-data name (include file-name structure:'/xxx/xxx/xxx.xxx')
-	band : the band of imgs, 'str' type
+	band_str : the band of imgs, 'str' type
 
 	sub_img, sub_pix_cont, sub_sb (stacking img, pixel counts array, SB profile): 
 	file name (including patch and file name: '/xxx/xxx/xxx.xxx') of individual sub-sample img stacking result 
@@ -420,6 +458,8 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 	id_arr = np.linspace(0, zN - 1, zN)
 	id_arr = id_arr.astype(int)
 
+	band_id = band.index( band_str )
+
 	## img stacking
 	for nn in range(N_bin):
 
@@ -439,10 +479,10 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 		sub_cont_file = sub_pix_cont % nn
 
 		if id_cut == False:
-			stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[0], set_x, set_y, id_cen, 
+			stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[ band_id ], set_x, set_y, id_cen, 
 				rms_file = None, pix_con_file = sub_cont_file,)
 		if id_cut == True:
-			cut_stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[0], set_x, set_y, id_cen, N_edg, 
+			cut_stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[ band_id ], set_x, set_y, id_cen, N_edg, 
 				rms_file = None, pix_con_file = sub_cont_file,)
 
 	for nn in range(N_bin):
@@ -489,7 +529,7 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 			tmp_r.append(r_arr)
 
 		## only save the sb result in unit " nanomaggies / arcsec^2 "
-		tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, 0, N_bin)[4:]
+		tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, band[ band_id ], N_bin)[4:]
 		sb_lim_r = np.ones( len(tt_jk_R) ) * lim_R
 
 		with h5py.File(jack_SB_file, 'w') as f:
@@ -500,9 +540,9 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 
 	else:
 		if id_Z0 == True:
-			lim_SB_pros_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N, edg_bins,)
+			lim_SB_pros_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N, band_id, edg_bins,)
 		else:
-			zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N, z_ref, edg_bins,)
+			zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N, z_ref, band_id, edg_bins,)
 
 	## calculate the jackknife SB profile and mean of jackknife stacking imgs
 	d_file = J_sub_img
