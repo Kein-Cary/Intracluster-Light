@@ -67,7 +67,7 @@ def over_dens_sb_func(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 	R_bins : radius bin edges for SB measurement, in unit of pixels
 	cx, cy: cluster central position in image frame (in inuit pixel)
 	pix_size: pixel size
-	z : the redshift of data
+	z0 : the redshift of data
 	weit_data : the weight array for surface brightness profile measurement, it's must be 
 	the same size as the 'data' array
 	"""
@@ -165,19 +165,46 @@ def over_dens_sb_func(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 	Intns_err[ idzo ] = np.nan
 
 	Intns, Intns_err = Intns / pix_size**2, Intns_err / pix_size**2
+	Intns, Intns_err = Intns[:-1], Intns_err[:-1]
+	Intns_r = Intns_r[:-1]
 
-	id_nn = np.isnan( Intns )
-	fdens = Intns[ id_nn == False ]
-	fdens_err = Intns_err[ id_nn == False ]
-	fdens_R = Intns_r[ id_nn == False ]
+	# for rbin < 1
+	cen_flux = data[cy, cx] / pix_size**2
+	cen_err = 0
+	cen_R = 0.5 * angl_r[0]
+	fdens = np.r_[ cen_flux, Intns ]
+	R_fdens = 0.5 * ( angl_r[1:] + angl_r[:-1] )
+	R_fdens = np.r_[ cen_R, R_fdens]
 
-	cumuli_f = cumula_flux_func( angl_r[:-1], Intns[:-1])
-	mean_sbr = cumuli_f / ( np.pi * 2 * angl_r**2 )
+	id_nul = np.isnan( fdens )
+	cumuli_f = cumula_flux_func( angl_r[id_nul == False], fdens[id_nul == False])
 
-	####??????????
-	raise
+	bar_fdens = cumuli_f / ( np.pi * angl_r[id_nul == False]**2 )
 
-	over_fdens = mean_sbr - Intns
+	bar_fdens = bar_fdens[1:]
+	R_aper = R_fdens[ id_nul == False][1:]
+	phy_R_aper = ( R_aper * Da0 ) * 1e3 / rad2arcsec
+
+	# over-fdens
+	over_fdens = np.zeros( Intns.shape[0], dtype = np.float )
+
+	N0 = len( Intns )
+
+	for pp in range( N0 ): 
+
+		identi = np.isnan( Intns_r[pp] )
+
+		if identi == False:
+			Ri = Intns_r[pp]
+			dR = np.abs(phy_R_aper - Ri)
+
+			idRx = dR == dR.min()
+			over_fdens[pp] = bar_fdens[idRx] - Intns[pp]
+
+		else:
+			over_fdens[pp] = np.nan
+
+			continue
 
 	return Intns_r, Intns, Intns_err, over_fdens, N_pix, nsum_ratio
 

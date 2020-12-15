@@ -204,10 +204,10 @@ def SN_lim_region_select( stack_img, lim_img_id, lim_set, grd_len,):
 
 def arr_jack_func(SB_array, R_array, N_sample,):
 	"""
-	stacking profile based on surface brightness,
-	SB_array : list of surface brightness profile, in unit of " nanomaggies / arcsec^2 "
-	SB_array, R_array : list type
-	band_id : int type, for SB correction (0, 1, 2, 3, 4 --> r, g, i, u, z)
+	SB_array : y-data for jackknife resampling
+	R_array : x-data for jackknife resampling
+	( SB_array, R_array : list type )
+
 	N_sample : number of sub-samples
 	"""
 	dx_r = np.array(R_array)

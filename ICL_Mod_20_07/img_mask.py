@@ -25,7 +25,7 @@ def source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file, stack_inf
 	out_param = 'default_mask_A.param'
 	bcg_x, bcg_y = [], []
 
-	for q in range(Nz):
+	for q in range( Nz ):
 		z_g = z_set[q]
 		ra_g = ra_set[q]
 		dec_g = dec_set[q]
@@ -65,7 +65,7 @@ def source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file, stack_inf
 
 	return
 
-def mask_with_BCG( img_file, cen_x, cen_y, gal_cat,):
+def mask_with_BCG( img_file, cen_x, cen_y, gal_cat, bcg_R_eff,):
 
 	## cen_x, cen_y : BCG location in image frame
 	data = fits.open( img_file )
@@ -76,8 +76,8 @@ def mask_with_BCG( img_file, cen_x, cen_y, gal_cat,):
 	A = np.array(source['A_IMAGE'])
 	B = np.array(source['B_IMAGE'])
 	theta = np.array(source['THETA_IMAGE'])
-	cx = np.array(source['X_IMAGE']) - 1
-	cy = np.array(source['Y_IMAGE']) - 1
+	cx = np.array(source['X_IMAGE'])
+	cy = np.array(source['Y_IMAGE'])
 	p_type = np.array(source['CLASS_STAR'])
 
 	Kron = 16
@@ -90,13 +90,24 @@ def mask_with_BCG( img_file, cen_x, cen_y, gal_cat,):
 	basic_coord = np.array(np.meshgrid(ox, oy))
 
 	tdr = np.sqrt( (cen_x - cx)**2 + (cen_y - cy)**2)
-	idx = tdr == np.min(tdr)
-	id_bcg = np.where(idx)[0][0]
+	idx = tdr <= bcg_R_eff
+
+	if np.sum( idx ) > 1:
+		dr_in = tdr[idx]
+		in_dx = np.where( idx )[0]
+		min_dr = dr_in == dr_in.min()
+		id_bcg = in_dx[ min_dr ][0]
+
+	if np.sum( idx ) == 1:
+		id_bcg = np.where( idx )[0][0]
+
+	if np.sum( idx ) == 0:
+		id_bcg = np.nan
 
 	major = a / 2
 	minor = b / 2
 	senior = np.sqrt(major**2 - minor**2)
-	# masking 'galaxies'
+
 	for k in range( Numb ):
 		xc = cx[k]
 		yc = cy[k]
@@ -129,7 +140,7 @@ def mask_with_BCG( img_file, cen_x, cen_y, gal_cat,):
 
 	return mask_img
 
-def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, stack_info = None, pixel = 0.396, source_det = False,):
+def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, bcg_photo_file, stack_info = None, pixel = 0.396, source_det = False,):
 	"""
 	d_file : path where image data saved (include file-name structure:
 	'/xxx/xxx/xxx.xxx')
@@ -142,6 +153,7 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 	pixel : pixel scale, in unit 'arcsec' (default is 0.396)
 	stack_info : path to save the information of stacking (ra, dec, z, img_x, img_y)
 	including file-name: '/xxx/xxx/xxx.xxx'
+	bcg_photo_file : files including BCG properties (effective radius,), .txt files
 	"""
 	Nz = len(z_set)
 	#param_A = 'default_mask_A.sex'
@@ -173,8 +185,8 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 		A = np.array(source['A_IMAGE'])
 		B = np.array(source['B_IMAGE'])
 		theta = np.array(source['THETA_IMAGE'])
-		cx = np.array(source['X_IMAGE']) - 1
-		cy = np.array(source['Y_IMAGE']) - 1
+		cx = np.array(source['X_IMAGE'])
+		cy = np.array(source['Y_IMAGE'])
 		p_type = np.array(source['CLASS_STAR'])
 
 		Kron = 16
@@ -284,10 +296,23 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 		### add BCG region back
 		if bcg_mask == 0:
 
+			BCG_photo_cat = pds.read_csv( bcg_photo_file % (z_g, ra_g, dec_g), skiprows = 1)
+			## effective radius, in unit of arcsec
+			r_Reff = np.array(BCG_photo_cat['deVRad_r'])[0]
+			g_Reff = np.array(BCG_photo_cat['deVRad_g'])[0]
+			i_Reff = np.array(BCG_photo_cat['deVRad_i'])[0]
+
 			img_file = d_file % (band, ra_g, dec_g, z_g)
 			gal_cat = out_file0 % (band, ra_g, dec_g, z_g)
 
-			pre_mask_img = mask_with_BCG( img_file, xn, yn, gal_cat,)
+			if band == 'r':
+				bcg_R_eff = r_Reff / pixel
+			if band == 'g':
+				bcg_R_eff = g_Reff / pixel
+			if band == 'i':
+				bcg_R_eff = i_Reff / pixel
+
+			pre_mask_img = mask_with_BCG( img_file, xn, yn, gal_cat, bcg_R_eff,)
 
 			mask_path = np.ones((img.shape[0], img.shape[1]), dtype = np.float32)
 			ox = np.linspace(0, img.shape[1] - 1, img.shape[1])

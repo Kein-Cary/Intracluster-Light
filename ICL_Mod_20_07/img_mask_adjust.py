@@ -30,8 +30,8 @@ def cat_combine( cat_lis, ra, dec, z, alt_G_size = None,):
 			A = np.array(source['A_IMAGE'])
 			B = np.array(source['B_IMAGE'])
 			theta = np.array(source['THETA_IMAGE'])
-			cx = np.array(source['X_IMAGE']) - 1
-			cy = np.array(source['Y_IMAGE']) - 1
+			cx = np.array(source['X_IMAGE'])
+			cy = np.array(source['Y_IMAGE'])
 
 			if alt_G_size is not None:
 				Kron = alt_G_size + 0.
@@ -53,7 +53,7 @@ def cat_combine( cat_lis, ra, dec, z, alt_G_size = None,):
 
 	return tot_Numb, tot_cx, tot_cy, tot_a, tot_b, tot_theta
 
-def mask_with_BCG( img_file, cen_x, cen_y, gal_cat,):
+def mask_with_BCG( img_file, cen_x, cen_y, gal_cat, bcg_R_eff,):
 
 	## cen_x, cen_y : BCG location in image frame
 	data = fits.open( img_file )
@@ -74,8 +74,8 @@ def mask_with_BCG( img_file, cen_x, cen_y, gal_cat,):
 			A = np.array(source['A_IMAGE'])
 			B = np.array(source['B_IMAGE'])
 			theta = np.array(source['THETA_IMAGE'])
-			cx = np.array(source['X_IMAGE']) - 1
-			cy = np.array(source['Y_IMAGE']) - 1
+			cx = np.array(source['X_IMAGE'])
+			cy = np.array(source['Y_IMAGE'])
 			p_type = np.array(source['CLASS_STAR'])
 
 			Kron = 16
@@ -83,8 +83,19 @@ def mask_with_BCG( img_file, cen_x, cen_y, gal_cat,):
 			b = Kron * B
 
 			tdr = np.sqrt( (cen_x - cx)**2 + (cen_y - cy)**2)
-			idx = tdr == np.min(tdr)
-			id_bcg = np.where(idx)[0][0]
+			idx = tdr <= bcg_R_eff
+
+			if np.sum( idx ) > 1:
+				dr_in = tdr[idx]
+				in_dx = np.where( idx )[0]
+				min_dr = dr_in == dr_in.min()
+				id_bcg = in_dx[ min_dr ][0]
+
+			if np.sum( idx ) == 1:
+				id_bcg = np.where( idx )[0][0]
+
+			if np.sum( idx ) == 0:
+				id_bcg = np.nan
 
 			major = a / 2
 			minor = b / 2
@@ -124,8 +135,8 @@ def mask_with_BCG( img_file, cen_x, cen_y, gal_cat,):
 
 	return mask_img
 
-def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, out_file, bcg_mask, extra_cat = None, alter_fac = None, 
-	alt_bright_R = None, alt_G_size = None, stack_info = None, pixel = 0.396,):
+def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, out_file, bcg_mask, bcg_photo_file, extra_cat = None, alter_fac = None, 
+	alt_bright_R = None, alt_G_size = None, stack_info = None, pixel = 0.396):
 	"""
 	after img masking, use this function to detection "light" region, which
 	mainly due to nearby brightstars, for SDSS case: taking the brightness of
@@ -148,7 +159,10 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 	alter_fac : size adjust for normal stars
 	alt_bright_R : size adjust for bright stars (also for saturated sources)
 	alt_G_size : size adjust for galaxy-like sources
+
+	bcg_photo_file : files including BCG properties (effective radius,), .txt files
 	"""
+
 	Nz = len(z_set)
 	bcg_x, bcg_y = [], []
 
@@ -166,13 +180,13 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 		bcg_x.append(xn)
 		bcg_y.append(yn)
 
-		source = asc.read(gal_file % (band, ra_g, dec_g, z_g), )
+		source = asc.read( gal_file % (band, ra_g, dec_g, z_g), )
 		Numb = np.array(source['NUMBER'][-1])
 		A = np.array(source['A_IMAGE'])
 		B = np.array(source['B_IMAGE'])
 		theta = np.array(source['THETA_IMAGE'])
-		cx = np.array(source['X_IMAGE']) - 1
-		cy = np.array(source['Y_IMAGE']) - 1
+		cx = np.array(source['X_IMAGE'])
+		cy = np.array(source['Y_IMAGE'])
 		p_type = np.array(source['CLASS_STAR'])
 
 		if alt_G_size is not None:
@@ -309,7 +323,20 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 			else:
 				gal_cat = [ gal_file % (band, ra_g, dec_g, z_g) ]
 
-			pre_mask_img = mask_with_BCG( img_file, xn, yn, gal_cat,)
+			BCG_photo_cat = pds.read_csv( bcg_photo_file % (z_g, ra_g, dec_g), skiprows = 1)
+			## effective radius, in unit of arcsec
+			r_Reff = np.array(BCG_photo_cat['deVRad_r'])[0]
+			g_Reff = np.array(BCG_photo_cat['deVRad_g'])[0]
+			i_Reff = np.array(BCG_photo_cat['deVRad_i'])[0]
+
+			if band == 'r':
+				bcg_R_eff = r_Reff / pixel
+			if band == 'g':
+				bcg_R_eff = g_Reff / pixel
+			if band == 'i':
+				bcg_R_eff = i_Reff / pixel
+
+			pre_mask_img = mask_with_BCG( img_file, xn, yn, gal_cat, bcg_R_eff,)
 
 			mask_path = np.ones((img.shape[0], img.shape[1]), dtype = np.float32)
 			ox = np.linspace(0, img.shape[1] - 1, img.shape[1])

@@ -36,8 +36,9 @@ rad2asec = U.rad.to(U.arcsec)
 
 #**************************#
 def WCS_to_pixel_func(ra, dec, header_inf,):
-	#according to SDSS Early Data Release paper( )
-
+	"""
+	according to SDSS Early Data Release paper (section 4.2.2 wcs)
+	"""
 	Ra0 = header_inf['CRVAL1']
 	Dec0 = header_inf['CRVAL2']
 
