@@ -408,11 +408,9 @@ def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb
 	return
 
 def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y, img_file, band_str, sub_img,
-	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
-	id_cut = False, N_edg = None, 
-	id_Z0 = True, z_ref = None, 
-	id_S2N = False, S2N = None, 
-	id_sub = True, edg_bins = None,):
+	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr, 
+	id_cut = False, N_edg = None, id_Z0 = True, z_ref = None, id_S2N = False, S2N = None, id_sub = True, edg_bins = None,
+	sub_rms = None, J_sub_rms = None,):
 	"""
 	combining jackknife stacking process, and 
 	save : sub-sample (sub-jack-sample) stacking image, pixel conunt array, surface brightness profiles
@@ -449,6 +447,8 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 					treated as only one radius bins (edg_bins = None), (or measured according edg_bins.)
 
 	id_sub : measure and save the SB profiles for sub-samples of not, default is True
+	
+	sub_rms, J_sub_rms : pixel standard deviation of stacking images (for sub-sample and jackknife sub-sample)
 	"""
 	lis_ra, lis_dec, lis_z = cat_ra, cat_dec, cat_z
 	lis_x, lis_y = img_x, img_y
@@ -477,13 +477,17 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 
 		sub_img_file = sub_img % nn
 		sub_cont_file = sub_pix_cont % nn
+		if sub_rms is not None:
+			sub_rms_file = sub_rms % nn
+		else:
+			sub_rms_file = None
 
 		if id_cut == False:
-			stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[ band_id ], set_x, set_y, id_cen, 
-				rms_file = None, pix_con_file = sub_cont_file,)
+			stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[ band_id ], set_x, set_y, id_cen,
+				rms_file = sub_rms_file, pix_con_file = sub_cont_file,)
 		if id_cut == True:
-			cut_stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[ band_id ], set_x, set_y, id_cen, N_edg, 
-				rms_file = None, pix_con_file = sub_cont_file,)
+			cut_stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[ band_id ], set_x, set_y, id_cen, N_edg,
+				rms_file = sub_rms_file, pix_con_file = sub_cont_file,)
 
 	for nn in range(N_bin):
 
@@ -500,6 +504,11 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 		d_file = sub_pix_cont
 		jack_cont_file = J_sub_pix_cont % nn
 		jack_samp_stack(d_file, jack_id, jack_cont_file)
+
+		if sub_rms is not None:
+			d_file = sub_rms
+			jack_rms_file = J_sub_rms % nn
+			jack_samp_stack(d_file, jack_id, jack_rms_file)
 
 	## SB measurement
 	if id_sub == True:

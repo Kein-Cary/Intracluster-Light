@@ -1,9 +1,3 @@
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-from matplotlib.patches import Circle, Ellipse, Rectangle
-
 import glob
 import h5py
 import numpy as np
@@ -525,6 +519,12 @@ def img_cat_lis_func(img_file, ref_cat, out_put, sf_len, id_choice = True,):
 	return
 
 def main():
+
+	import matplotlib as mpl
+	mpl.use('Agg')
+	import matplotlib.pyplot as plt
+	import matplotlib.gridspec as gridspec
+	from matplotlib.patches import Circle, Ellipse, Rectangle
 
 	band = ['r', 'g', 'i']
 	home = '/media/xkchen/My Passport/data/SDSS/'

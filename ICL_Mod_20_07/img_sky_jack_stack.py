@@ -159,12 +159,13 @@ def SB_pros_func(flux_img, pix_cont_img, sb_file, N_img, n_rbins, id_Z0, z_ref):
 
 def sky_jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y, img_file, band_str, sub_img,
 	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
-	id_mean = 0, id_cut = False, N_edg = None, id_Z0 = True, z_ref = None, id_sub = True,):
+	id_mean = 0, id_cut = False, N_edg = None, id_Z0 = True, z_ref = None, id_sub = True,
+	sub_rms = None, J_sub_rms = None,):
 	"""
 	combining jackknife stacking process, and 
 	save : sub-sample (sub-jack-sample) stacking image, pixel conunt array, surface brightness profiles
-	id_cen : 0 - stacking by centering on BCGs, 1 - stacking by centering on img center
-
+	id_cen : 0 - stacking by centering on BCGs, 1 - stacking by centering on img center,
+		     2 - stacking by random center
 	N_bin : number of jackknife sample
 	n_rbins : the number of radius bins (int type)
 
@@ -196,6 +197,8 @@ def sky_jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, im
 
 	id_mean : 0, 1, 2.  0 - img_add = img; 
 	1 - img_add = img - np.mean(img); 2 - img_add = img - np.median(img); Default is id_mean = 0
+	
+	sub_rms, J_sub_rms : pixel standard deviation of stacking images (for sub-sample and jackknife sub-sample)
 	"""
 	lis_ra, lis_dec, lis_z = cat_ra, cat_dec, cat_z
 	lis_x, lis_y = img_x, img_y
@@ -224,15 +227,19 @@ def sky_jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, im
 
 		sub_img_file = sub_img % nn
 		sub_cont_file = sub_pix_cont % nn
+		if sub_rms is not None:
+			sub_rms_file = sub_rms % nn
+		else:
+			sub_rms_file = None
 
 		if id_cut == False:
-			stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[ band_id ], set_x, set_y, id_cen, 
-				rms_file = None, pix_con_file = sub_cont_file, id_mean = id_mean,)
+			stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[ band_id ], set_x, set_y, id_cen,
+				rms_file = sub_rms_file, pix_con_file = sub_cont_file, id_mean = id_mean,)
 		if id_cut == True:
-			cut_stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[ band_id ], set_x, set_y, id_cen, N_edg, 
-				rms_file = None, pix_con_file = sub_cont_file, id_mean = id_mean,)
+			cut_stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[ band_id ], set_x, set_y, id_cen, N_edg,
+				rms_file = sub_rms_file, pix_con_file = sub_cont_file, id_mean = id_mean,)
 
-	for nn in range(N_bin):
+	for nn in range( N_bin ):
 
 		id_arry = np.linspace(0, N_bin -1, N_bin)
 		id_arry = id_arry.astype(int)
@@ -247,6 +254,11 @@ def sky_jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, im
 		d_file = sub_pix_cont
 		jack_cont_file = J_sub_pix_cont % nn
 		jack_samp_stack(d_file, jack_id, jack_cont_file)
+
+		if sub_rms is not None:
+			d_file = sub_rms
+			jack_rms_file = J_sub_rms % nn
+			jack_samp_stack(d_file, jack_id, jack_rms_file)
 
 	## SB measurement
 	if id_sub == True:
@@ -294,3 +306,4 @@ def sky_jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, im
 	aveg_stack_img(N_bin, d_file, out_file)
 
 	return
+
