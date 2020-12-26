@@ -124,7 +124,9 @@ def over_dens_sb_func(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 			nsum_ratio[k] = np.nansum(weit_arr) / np.sum( idnn == False )			
 
 			intens[k] = tot_flux
-			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
+			#intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
+			cen_r = np.nansum(dr[ ir ] * weit_arr) / np.nansum( weit_arr ) * pix_size
+			intens_r[k] = cen_r * Da0 * 1e3 / rad2arcsec
 
 			tmpf = []
 			for tt in range(len(phi) - 1):
@@ -393,7 +395,8 @@ def light_measure_rn_Z0_weit(data, weit_data, pix_size, cx, cy, R_low, R_up):
 	else:
 		Intns_err = RMS
 
-	Angl_r = (0.5 * (R_low + R_up) ) * pix_size
+	#Angl_r = (0.5 * (R_low + R_up) ) * pix_size
+	Angl_r = np.nansum( dr[idu] * weit_arr ) / np.nansum( weit_arr ) * pixel
 
 	return Intns, Angl_r, Intns_err, N_pix, nsum_ratio
 
@@ -444,7 +447,6 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 
 		if bool_sum == 0:
 			Angl_r[k] = 0.5 * (r_iner + r_out) * pix_size
-
 		else:
 			weit_arr = weit_data[ir]
 			samp_flux = data[ir]
@@ -456,7 +458,8 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 			nsum_ratio[k] = np.nansum(weit_arr) / np.sum( idnn == False )
 
 			intens[k] = tot_flux
-			Angl_r[k] = 0.5 * (r_iner + r_out) * pix_size
+			#Angl_r[k] = 0.5 * (r_iner + r_out) * pix_size
+			Angl_r[k] = np.nansum( dr[ir] * weit_arr ) / np.nansum( weit_arr ) * pix_size
 
 			tmpf = []
 			for tt in range(len(phi) - 1):
@@ -565,7 +568,9 @@ def light_measure_rn_weit(data, weit_data, pix_size, cx, cy, z0, R_low, R_up):
 	else:
 		Intns_err = RMS
 
-	Intns_r = (0.5 * (R_low + R_up) )
+	#Intns_r = (0.5 * (R_low + R_up) )
+	cen_r = np.nansum(dr[idu] * weit_arr) / np.nansum( weit_arr ) * pix_size
+	Intns_r = cen_r * Da0 * 1e3 / rad2arcsec
 
 	return Intns, Intns_r, Intns_err, N_pix, nsum_ratio
 
@@ -618,7 +623,6 @@ def light_measure_weit(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 
 		if bool_sum == 0:
 			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
-
 		else:
 			weit_arr = weit_data[ir]
 
@@ -631,7 +635,9 @@ def light_measure_weit(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 			nsum_ratio[k] = np.nansum(weit_arr) / np.sum( idnn == False )			
 
 			intens[k] = tot_flux
-			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
+			#intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
+			cen_r = np.nansum(dr[ ir ] * weit_arr) / np.nansum( weit_arr ) * pix_size
+			intens_r[k] = cen_r * Da0 * 1e3 / rad2arcsec
 
 			tmpf = []
 			for tt in range(len(phi) - 1):
@@ -654,6 +660,7 @@ def light_measure_weit(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 			id_nan = np.isnan(tmpf)
 			id_fals = id_nan == False
 			Tmpf = tmpf[id_fals]
+
 			#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
 			RMS = np.std(Tmpf)
 			if len(Tmpf) > 1:

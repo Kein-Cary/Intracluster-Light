@@ -43,6 +43,47 @@ l_wave = np.array([6166, 4686, 7480, 3551, 8932])
 mag_add = np.array([0, 0, 0, -0.04, 0.02])
 
 #####################
+def weit_aveg_img(id_set, img_file, weit_file, aveg_file, sum_weit_file = None,):
+
+	tt = 0
+	with h5py.File(d_file % (tt), 'r') as f:
+		tmp_img = np.array(f['a'])
+	Nx, Ny = tmp_img.shape[1], tmp_img.shape[0]
+
+	sum_array_A = np.zeros( (Ny,Nx), dtype = np.float32)
+	p_count_A = np.zeros( (Ny,Nx), dtype = np.float32)
+
+	for jj in id_set:
+
+		with h5py.File( img_file % ( jj ), 'r') as f:
+			sub_img = np.array( f['a'] )
+
+		id_nn = np.isnan(sub_img)
+		idv = id_nn == False
+
+		with h5py.File( weit_file % (jj), 'r') as f:
+			sub_cont = np.array( f['a'] )
+
+		weit_f = sub_img * sub_cont
+
+		sum_array_A[idv] = sum_array_A[idv] + weit_f[idv]
+		p_count_A[idv] = p_count_A[idv] + sub_cont[idv]
+
+	id_zero = p_count_A < 1.
+	p_count_A[ id_zero ] = np.nan
+	sum_array_A[ id_zero ] = np.nan
+
+	mean_f = sum_array_A / p_count_A
+
+	with h5py.File( aveg_file, 'w') as f:
+		f['a'] = np.array( mean_f )
+
+	if sum_weit_file is not None:
+		with h5py.File( sum_weit_file, 'w') as f:
+			f['a'] = np.array( p_count_A )
+
+	return
+
 def aveg_stack_img(N_sample, data_file, out_file,):
 
 	tt = 0
@@ -410,7 +451,7 @@ def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb
 def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y, img_file, band_str, sub_img,
 	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr, 
 	id_cut = False, N_edg = None, id_Z0 = True, z_ref = None, id_S2N = False, S2N = None, id_sub = True, edg_bins = None,
-	sub_rms = None, J_sub_rms = None,):
+	sub_rms = None, J_sub_rms = None, jack_rms_arr = None,):
 	"""
 	combining jackknife stacking process, and 
 	save : sub-sample (sub-jack-sample) stacking image, pixel conunt array, surface brightness profiles
@@ -449,6 +490,7 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 	id_sub : measure and save the SB profiles for sub-samples of not, default is True
 	
 	sub_rms, J_sub_rms : pixel standard deviation of stacking images (for sub-sample and jackknife sub-sample)
+	jack_rms_file : the final rms_file (total sample imgs stacking result)
 	"""
 	lis_ra, lis_dec, lis_z = cat_ra, cat_dec, cat_z
 	lis_x, lis_y = img_x, img_y
@@ -496,7 +538,7 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 		jack_id = list(id_arry)
 		jack_id.remove(jack_id[nn])
 		jack_id = np.array(jack_id)
-
+		'''
 		d_file = sub_img
 		jack_img_file = J_sub_img % nn
 		jack_samp_stack(d_file, jack_id, jack_img_file)
@@ -504,11 +546,19 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 		d_file = sub_pix_cont
 		jack_cont_file = J_sub_pix_cont % nn
 		jack_samp_stack(d_file, jack_id, jack_cont_file)
+		'''
+		jack_img_file = J_sub_img % nn
+		jack_cont_file = J_sub_pix_cont % nn
+		weit_aveg_img(jack_id, sub_img, sub_pix_cont, jack_img_file, sum_weit_file = jack_cont_file,)
 
 		if sub_rms is not None:
+			'''
 			d_file = sub_rms
 			jack_rms_file = J_sub_rms % nn
 			jack_samp_stack(d_file, jack_id, jack_rms_file)
+			'''
+			jack_rms_file = J_sub_rms % nn
+			weit_aveg_img(jack_id, sub_rms, sub_pix_cont, jack_rms_file,)
 
 	## SB measurement
 	if id_sub == True:
@@ -552,8 +602,8 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 			lim_SB_pros_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N, band_id, edg_bins,)
 		else:
 			zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N, z_ref, band_id, edg_bins,)
-
-	## calculate the jackknife SB profile and mean of jackknife stacking imgs
+	'''
+	## mean of jackknife stacking imgs
 	d_file = J_sub_img
 	out_file = jack_img
 	aveg_stack_img(N_bin, d_file, out_file)
@@ -561,6 +611,15 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 	d_file = J_sub_pix_cont
 	out_file = jack_cont_arr
 	aveg_stack_img(N_bin, d_file, out_file)
+	'''
+
+	# calculate the directly stacking result( 2D_img, pixel_count array, and rms file [if sub_rms is not None] )
+	order_id = np.arange(0, N_bin, 1)
+	order_id = order_id.astype( np.int32 )
+	weit_aveg_img(order_id, sub_img, sub_pix_cont, jack_img, sum_weit_file = jack_cont_arr,)
+
+	if sub_rms is not None:
+		weit_aveg_img(order_id, sub_rms, sub_pix_cont, jack_rms_arr,)
 
 	return
 

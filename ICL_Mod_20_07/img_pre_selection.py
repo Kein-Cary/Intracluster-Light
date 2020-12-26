@@ -262,29 +262,25 @@ def cat_match_func(ra_list, dec_list, cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy
 
 	return match_ra, match_dec, match_z, match_x, match_y
 
-def map_mu_sigma_func(cat_file, img_file, band, L_cen, N_step, out_file,):
+def map_mu_sigma_func(cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, img_file, band, L_cen, N_step, out_file,):
 	"""
-	cat_file : img catalog, including : ra, dec, z, bcg location in image frame.(.csv files)
+	cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy : catalog information, including ra, dec, z and 
+		BCG location (cat_imgx, cat_imgy) in image coordinate.
 	img_file : imgs will be analysis, have applied masking ('XX/XX/xx.fits')
 	L_cen : half length of centeral region box
 	N_step : grid size.
 	out_file : out-put file.(.csv files)
 	band : filter imformation (eg. r, g, i, u, z), str type
 	"""
-
-	dat = pds.read_csv(cat_file)
-	ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
-	clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
-
-	N_samp = len( ra )
+	N_samp = len( cat_ra )
 
 	cen_sigm, cen_mu = [], []
 	img_mu, img_sigm = [], []
 
 	for kk in range( N_samp ):
 
-		ra_g, dec_g, z_g = ra[kk], dec[kk], z[kk]
-		xn, yn = clus_x[kk], clus_y[kk]
+		ra_g, dec_g, z_g = cat_ra[kk], cat_dec[kk], cat_z[kk]
+		xn, yn = cat_imgx[kk], cat_imgy[kk]
 
 		# mask imgs
 		res_file = img_file % (band, ra_g, dec_g, z_g)
@@ -340,7 +336,7 @@ def map_mu_sigma_func(cat_file, img_file, band, L_cen, N_step, out_file,):
 	img_sigm = np.array(img_sigm)
 
 	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y', 'cen_mu', 'cen_sigma', 'img_mu', 'img_sigma',]
-	values = [ra, dec, z, clus_x, clus_y, cen_mu, cen_sigm, img_mu, img_sigm]
+	values = [ cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, cen_mu, cen_sigm, img_mu, img_sigm ]
 	fill = dict(zip(keys, values))
 	data = pds.DataFrame(fill)
 	data.to_csv( out_file )

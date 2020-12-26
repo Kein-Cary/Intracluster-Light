@@ -11,6 +11,11 @@ import astropy.units as U
 import astropy.constants as C
 from astropy import cosmology as apcy
 
+from mpi4py import MPI
+commd = MPI.COMM_WORLD
+rank = commd.Get_rank()
+cpus = commd.Get_size()
+
 ### constant
 rad2asec = U.rad.to(U.arcsec)
 Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
@@ -66,7 +71,7 @@ def sdss_sql_star(z_set, ra_set, dec_set, ref_ra, ref_dec, out_file,):
 				p.expAB_u, p.expAB_g, p.expAB_r, p.expAB_i, p.expAB_z,
 				p.expPhi_u, p.expPhi_g, p.expPhi_r, p.expPhi_i, p.expPhi_z,
 				p.flags, dbo.fPhotoFlagsN(p.flags)
-			FROM PhotoObj AS p
+			FROM PhotoObjAll AS p
 			WHERE
 				( (p.ra BETWEEN %.5f AND %.5f) OR (p.ra BETWEEN %.5f AND %.5f) )
 				AND ( p.dec BETWEEN %.5f AND %.5f )
@@ -96,7 +101,7 @@ def sdss_sql_star(z_set, ra_set, dec_set, ref_ra, ref_dec, out_file,):
 				p.expAB_u, p.expAB_g, p.expAB_r, p.expAB_i, p.expAB_z,
 				p.expPhi_u, p.expPhi_g, p.expPhi_r, p.expPhi_i, p.expPhi_z,
 				p.flags, dbo.fPhotoFlagsN(p.flags)
-			FROM PhotoObj AS p
+			FROM PhotoObjAll AS p
 			WHERE
 				( (p.ra BETWEEN %.5f AND %.5f) OR (p.ra BETWEEN %.5f AND %.5f) )
 				AND ( p.dec BETWEEN %.5f AND %.5f )
@@ -120,7 +125,7 @@ def sdss_sql_star(z_set, ra_set, dec_set, ref_ra, ref_dec, out_file,):
 				p.expAB_u, p.expAB_g, p.expAB_r, p.expAB_i, p.expAB_z,
 				p.expPhi_u, p.expPhi_g, p.expPhi_r, p.expPhi_i, p.expPhi_z,
 				p.flags, dbo.fPhotoFlagsN(p.flags)
-			FROM PhotoObj AS p
+			FROM PhotoObjAll AS p
 			WHERE
 				p.ra BETWEEN %.5f AND %.5f
 				AND p.dec BETWEEN %.5f AND %.5f
@@ -136,7 +141,7 @@ def sdss_sql_star(z_set, ra_set, dec_set, ref_ra, ref_dec, out_file,):
 		br['cmd'] = data_set
 		br['format'] = ['csv']
 		response = br.submit()
-		s = str(response.get_data(), encoding = 'utf-8')
+		s = str(response.get_data(), encoding = 'utf-8',)
 		doc = open( out_file % (z_g, ra_g, dec_g), 'w')
 		print(s, file = doc)
 		doc.close()
@@ -280,41 +285,42 @@ def sdss_sql_galaxy(set_ra, set_dec, set_z, ref_ra, ref_dec, out_file,):
 
 	return
 
-load = '/home/xkchen/mywork/ICL/data/'
+home = '/home/xkchen/data/SDSS/'
 
-dat = pds.read_csv(load + 'redmapper/SDSS_spec-sample_sql_cat.csv')
-ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
-ref_ra, ref_dec = np.array(dat.ref_ra), np.array(dat.ref_dec)
+# random cat
+dat = pds.read_csv(home + 'selection/SDSS_random-sample_sql_cat.csv')
+ra, dec, z = np.array(dat['ra']), np.array(dat['dec']), np.array(dat['z'])
+ref_ra, ref_dec = np.array(dat['ref_ra']), np.array(dat['ref_dec'])
 
-out_file = load + 'tmp_img/source_find/Galax_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
-tN = 20
-sdss_sql_galaxy(ra[:tN], dec[:tN], z[:tN], ref_ra[:tN], ref_dec[:tN], out_file,)
+zN = len( z )
+m, n = divmod(zN, cpus)
+N_sub0, N_sub1 = m * rank, (rank + 1) * m
+if rank == cpus - 1:
+	N_sub1 += n
 
-### test-1000
-test_dat = pds.read_csv('/home/xkchen/Downloads/test_imgs/clust-1000-select_remain_test.csv')
-tt_ra, tt_dec, tt_z = np.array(test_dat.ra), np.array(test_dat.dec), np.array(test_dat.z)
+out_file = home + 'new_star_sql/random/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
 
-identi_ra = ['%.3f' % ll for ll in tt_ra[:20] ]
-identi_dec = ['%.3f' % ll for ll in tt_dec[:20] ]
+sdss_sql_star(z[N_sub0:N_sub1], ra[N_sub0:N_sub1], dec[N_sub0:N_sub1],
+	ref_ra[N_sub0:N_sub1], ref_dec[N_sub0:N_sub1], out_file,)
 
-##### use 20 imgs cat. for test
-lis_ra, lis_dec, lis_z, lis_ref_ra, lis_ref_dec = [], [], [], [], []
-for ll in range( len(z) ):
-	ra_i, dec_i = ra[ll], dec[ll]
-	id_in = ('%.3f' % ra_i in identi_ra) & ('%.3f' % dec_i in identi_dec)
+print('random finished !')
 
-	if id_in == True:
-		lis_ra.append(ra_i)
-		lis_dec.append(dec_i)
-		lis_z.append(z[ll])
-		lis_ref_ra.append(ref_ra[ll])
-		lis_ref_dec.append(ref_dec[ll])
+'''
+dat = pds.read_csv(home + 'selection/SDSS_spec-sample_sql_cat.csv')
+ra, dec, z = np.array(dat['ra']), np.array(dat['dec']), np.array(dat['z'])
+ref_ra, ref_dec = np.array(dat['ref_ra']), np.array(dat['ref_dec'])
 
-lis_ra = np.array(lis_ra)
-lis_dec = np.array(lis_dec)
-lis_z = np.array(lis_z)
-lis_ref_ra = np.array(lis_ref_ra)
-lis_ref_dec = np.array(lis_ref_dec)
+zN = len( z )
+m, n = divmod(zN, cpus)
+N_sub0, N_sub1 = m * rank, (rank + 1) * m
+if rank == cpus - 1:
+	N_sub1 += n
 
-out_file = load + 'tmp_img/source_find/Galax_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
-sdss_sql_galaxy(lis_ra, lis_dec, lis_z, lis_ref_ra, lis_ref_dec, out_file,)
+out_file = home + 'new_star_sql/dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
+
+sdss_sql_star(z[N_sub0:N_sub1], ra[N_sub0:N_sub1], dec[N_sub0:N_sub1],
+	ref_ra[N_sub0:N_sub1], ref_dec[N_sub0:N_sub1], out_file,)
+
+print('cluster finished !')
+'''
+

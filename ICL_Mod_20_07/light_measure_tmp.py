@@ -3,6 +3,7 @@ import astropy.constants as C
 import astropy.units as U
 from astropy import cosmology as apcy
 from numba import vectorize
+import pandas as pds
 
 from light_measure import jack_SB_func
 
@@ -500,254 +501,124 @@ def light_measure_weit(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 
 	return Intns, Intns_r, Intns_err, N_pix, nsum_ratio
 
-######### test for radius bins in large scale
-def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbins, N_bin, SN_lim, 
-	id_band, edg_bins = None, ):
 
-	### stacking in angle coordinate
+### ???
+# SB pros with mean, median, mode and flux hist of radius bins
+def SB_measure_Z0_weit_func(data, weit_data, pix_size, cx, cy, R_bins,
+	bin_flux_file,):
+	"""
+	use for measuring surface brightness(SB) profile in angle coordinate,
+		directly measure SB profile from observation img.
+	data : the image use to measure SB profile
+	pix_size : pixel size, in unit of "arcsec"
+	cx, cy : the central position of objs in the image frame
+	weit_data : the weight array for surface brightness profile measurement, it's must be 
+	the same size as the 'data' array
+	R_bins : radius bin edges for SB measurement, in unit of pixel
+	bin_flux_file : output the pixel flux and pixel-contribution of effective radius bins,('.csv' files)
+	"""
+	Nx = data.shape[1]
+	Ny = data.shape[0]
+	x0 = np.linspace(0, Nx-1, Nx)
+	y0 = np.linspace(0, Ny-1, Ny)
+	pix_id = np.array(np.meshgrid(x0,y0))
 
-	lim_r = 0
+	theta = np.arctan2((pix_id[1,:] - cy), (pix_id[0,:] - cx))
+	chi = theta * 180 / np.pi
+	# radius in unit of pixel number
+	rbin = R_bins
 
-	for nn in range( N_bin ):
-		with h5py.File(J_sub_img % nn, 'r') as f:
-			sub_jk_img = np.array(f['a'])
+	mean_intens = np.zeros(len(rbin), dtype = np.float)
+	medi_intens = np.zeros(len(rbin), dtype = np.float)
+	mode_intens = np.zeros(len(rbin), dtype = np.float)
 
-		xn, yn = np.int(sub_jk_img.shape[1] / 2), np.int(sub_jk_img.shape[0] / 2)
-		id_nn = np.isnan(sub_jk_img)
-		eff_y, eff_x = np.where(id_nn == False)
-		dR = np.sqrt((eff_y - yn)**2 + (eff_x - xn)**2)
-		dR_max = np.int( dR.max() ) + 1
-		lim_r = np.max([lim_r, dR_max])
+	intens_err = np.zeros(len(rbin), dtype = np.float)
+	Angl_r = np.zeros(len(rbin), dtype = np.float)
+	N_pix = np.zeros(len(rbin), dtype = np.float)
+	nsum_ratio = np.zeros(len(rbin), dtype = np.float)
 
-	r_bins = np.logspace(0, np.log10(lim_r), n_rbins)
-	r_angl = r_bins * pixel
+	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
+		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
 
-	for nn in range( N_bin ):
+	for k in range(len(rbin) - 1):
+		cdr = rbin[k + 1] - rbin[k]
+		d_phi = (cdr / ( 0.5 * (rbin[k] + rbin[k + 1]) ) ) * 180 / np.pi
+		N_phi = np.int(360 / d_phi) + 1
+		phi = np.linspace(0, 360, N_phi)
+		phi = phi - 180
 
-		with h5py.File(J_sub_img % nn, 'r') as f:
-			tmp_img = np.array(f['a'])
-		with h5py.File(J_sub_pix_cont % nn, 'r') as f:
-			tmp_cont = np.array(f['a'])
+		ir = (dr >= rbin[k]) * (dr < rbin[k + 1])
 
-		xn, yn = np.int(tmp_img.shape[1] / 2), np.int(tmp_img.shape[0] / 2)
+		bool_sum = np.sum(ir)
 
-		Intns, Intns_r, Intns_err, npix, nratio = light_measure_Z0_weit(tmp_img, tmp_cont, pixel, xn, yn, r_bins)
-		sb_arr, sb_err = Intns / pixel**2, Intns_err / pixel**2
+		r_iner = rbin[k]
+		r_out = rbin[k + 1]
 
-		r_arr = Intns_r.copy()
+		if bool_sum == 0:
+			Angl_r[k] = 0.5 * (r_iner + r_out) * pix_size
 
-		id_sn = nratio >= np.nanmax(nratio) / SN_lim ## limitation on S/N
-		id_npix = npix >= 1.
-
-		r_arr[id_npix == False] = np.nan
-		sb_arr[id_npix == False] = np.nan
-		sb_err[id_npix == False] = np.nan
-		try:
-			id_R = r_arr > 200 ## arcsec
-			cri_R = r_arr[ id_R & (id_sn == False) ]
-
-			id_bin = r_angl < cri_R[0]
-			id_dex = np.sum(id_bin) - 1
-		except IndexError:
-			cri_R = np.array([600]) # arcsec
-			id_bin = r_angl < cri_R[0]
-			id_dex = np.sum(id_bin) - 1
-
-		edg_R_low = r_bins[id_dex]
-		edg_R_up = r_bins[ -1 ]
-
-		if edg_bins is not None:
-			## linear bins
-			edg_R_bin = np.linspace(edg_R_low, edg_R_up, edg_bins,)
-			Intns, Intns_r, Intns_err, npix, nratio = light_measure_Z0_weit(tmp_img, tmp_cont, pixel, xn, yn, edg_R_bin)
 		else:
-			## out-region as one bin
-			Intns, Intns_r, Intns_err, npix, nratio = light_measure_rn_Z0_weit(tmp_img, tmp_cont, pixel, xn, yn, edg_R_low, edg_R_up)
 
-		edg_sb, edg_sb_err = Intns / pixel**2, Intns_err / pixel**2
-		edg_R = Intns_r.copy()
+			weit_arr = weit_data[ir]
+			samp_flux = data[ir]
+			samp_chi = chi[ir]
 
-		id_edg = r_arr >= cri_R[0]
-		r_arr[id_edg] = np.nan
-		sb_arr[id_edg] = np.nan
-		sb_err[id_edg] = np.nan
+			tot_flux = np.nansum(samp_flux * weit_arr) / np.nansum(weit_arr)
+			idnn = np.isnan( samp_flux )
+			N_pix[k] = np.sum( idnn == False )
+			nsum_ratio[k] = np.nansum(weit_arr) / np.sum( idnn == False )
 
-		r_arr = np.r_[r_arr, edg_R ]
-		sb_arr = np.r_[sb_arr, edg_sb ]
-		sb_err = np.r_[sb_err, edg_sb_err ]
+			mean_intens[k] = tot_flux
+			#Angl_r[k] = 0.5 * (r_iner + r_out) * pix_size
+			Angl_r[k] = np.nansum( dr[ir] * weit_arr ) / np.nansum( weit_arr ) * pix_size
 
-		with h5py.File(alter_sub_sb % nn, 'w') as f:
-			f['r'] = np.array(r_arr)
-			f['sb'] = np.array(sb_arr)
-			f['sb_err'] = np.array(sb_err)
+			medi_intens[k] = np.nanmedian(samp_flux)
+			mode_intens[k] = 3 * np.nanmedian(samp_flux) - 2 * tot_flux
 
-	tmp_sb = []
-	tmp_r = []
-	for nn in range( N_bin ):
+			## output the flux_arr and count_arr
+			#cen_r = 0.5 * (r_iner + r_out) * pix_size )
+			cen_r = np.nansum( dr[ir] * weit_arr ) / np.nansum( weit_arr ) * pix_size
 
-		with h5py.File(alter_sub_sb % nn, 'r') as f:
-			r_arr = np.array(f['r'])
-			sb_arr = np.array(f['sb'])
-			sb_err = np.array(f['sb_err'])
+			keys = ['flux', 'pix_count']
+			values = [ samp_flux, weit_arr ]
+			fill = dict(zip( keys, values) )
+			out_data = pds.DataFrame(fill)
+			out_data.to_csv( bin_flux_file % cen_r,)
 
-			tmp_sb.append(sb_arr)
-			tmp_r.append(r_arr)
+			tmpf = []
+			for tt in range(len(phi) - 1):
+				iv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt+1])
 
-	dt_arr = np.array( tmp_r )
-	medi_R = np.nanmedian( dt_arr, axis = 0 )
-	cc_tmp_r = []
-	cc_tmp_sb = []
+				set_samp = samp_flux[iv]
+				set_weit = weit_arr[iv]
 
-	for nn in range( N_bin ):
+				ttf = np.nansum(set_samp * set_weit) / np.nansum(set_weit)
+				tmpf.append(ttf)
 
-		xx_R = tmp_r[ nn ] + 0
-		xx_sb = tmp_sb[ nn ] + 0
+			# rms of flux
+			tmpf = np.array(tmpf)
+			id_inf = np.isnan(tmpf)
+			tmpf[id_inf] = np.nan
+			id_zero = tmpf == 0
+			tmpf[id_zero] = np.nan
+			id_nan = np.isnan(tmpf)
+			id_fals = id_nan == False
+			Tmpf = tmpf[id_fals]
 
-		deviR = np.abs( xx_R - medi_R )
+			#RMS = np.sqrt( np.sum(Tmpf**2) / len(Tmpf) )
+			RMS = np.std(Tmpf)
+			if len(Tmpf) > 1:
+				intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+			else:
+				intens_err[k] = RMS
 
-		idmx = deviR > 0
-		xx_sb[ idmx ] = np.nan
+	idzo = N_pix < 1
 
-		cc_tmp_sb.append( xx_sb )
-		cc_tmp_r.append( medi_R )
+	mean_intens[idzo] = np.nan
+	medi_intens[idzo] = np.nan
+	mode_intens[idzo] = np.nan
+	intens_err[idzo] = np.nan
+	nsum_ratio[idzo] = np.nan
 
-	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(cc_tmp_sb, cc_tmp_r, band[ id_band ], N_bin,)[4:]
-
-	## only save the sb result in unit " nanomaggies / arcsec^2 "
-	#tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, band[ id_band ], N_bin,)[4:]
-
-	with h5py.File(alter_jk_sb, 'w') as f:
-		f['r'] = np.array(tt_jk_R)
-		f['sb'] = np.array(tt_jk_SB)
-		f['sb_err'] = np.array(tt_jk_err)
-
-	return
-
-def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbins, N_bin, SN_lim, z_ref,
-	id_band, edg_bins = None,):
-
-	### stacking in angle coordinate
-
-	lim_r = 0
-
-	for nn in range( N_bin ):
-		with h5py.File(J_sub_img % nn, 'r') as f:
-			sub_jk_img = np.array(f['a'])
-
-		xn, yn = np.int(sub_jk_img.shape[1] / 2), np.int(sub_jk_img.shape[0] / 2)
-		id_nn = np.isnan(sub_jk_img)
-		eff_y, eff_x = np.where(id_nn == False)
-		dR = np.sqrt((eff_y - yn)**2 + (eff_x - xn)**2)
-		dR_max = np.int( dR.max() ) + 1
-		lim_r = np.max([lim_r, dR_max])
-
-	r_bins = np.logspace(0, np.log10(lim_r), n_rbins)
-	r_angl = r_bins * pixel
-
-	Da_ref = Test_model.angular_diameter_distance(z_ref).value
-	phy_r = Da_ref * 1e3 * r_angl / rad2asec
-
-	for nn in range( N_bin ):
-
-		with h5py.File(J_sub_img % nn, 'r') as f:
-			tmp_img = np.array(f['a'])
-		with h5py.File(J_sub_pix_cont % nn, 'r') as f:
-			tmp_cont = np.array(f['a'])
-
-		xn, yn = np.int(tmp_img.shape[1] / 2), np.int(tmp_img.shape[0] / 2)
-
-		Intns, Intns_r, Intns_err, npix, nratio = light_measure_weit(tmp_img, tmp_cont, pixel, xn, yn, z_ref, r_bins)
-		sb_arr, sb_err = Intns / pixel**2, Intns_err / pixel**2
-		r_arr = Intns_r.copy()
-
-		id_npix = npix >= 1.
-		r_arr[id_npix == False] = np.nan
-		sb_arr[id_npix == False] = np.nan
-		sb_err[id_npix == False] = np.nan
-
-		id_sn = nratio >= np.nanmax(nratio) / SN_lim ## limitation on S/N
-
-		try:
-			id_R = r_arr > 500 # kpc
-			cri_R = r_arr[ id_R & (id_sn == False) ]
-
-			id_bin = phy_r < cri_R[0]
-			id_dex = np.sum(id_bin) - 1
-
-		except IndexError:
-			cri_R = np.array([2000]) # kpc
-			id_bin = phy_r < cri_R[0]
-			id_dex = np.sum(id_bin) - 1
-
-		edg_R_low = r_bins[id_dex]
-		edg_R_up = r_bins[ -1 ]
-
-		phy_edg_R_low = phy_r[id_dex]
-		phy_edg_R_up = phy_r[ -1 ]
-
-		if edg_bins is not None:
-			edg_R_bin = np.linspace(edg_R_low, edg_R_up, edg_bins,)
-			Intns, Intns_r, Intns_err, npix, nratio = light_measure_weit(tmp_img, tmp_cont, pixel, xn, yn, z_ref, edg_R_bin)
-		else:
-			Intns, Intns_r, Intns_err, npix, nratio = light_measure_rn_weit(
-				tmp_img, tmp_cont, pixel, xn, yn, z_ref, phy_edg_R_low, phy_edg_R_up)			
-
-		edg_sb, edg_sb_err = Intns / pixel**2, Intns_err / pixel**2
-		edg_R = Intns_r.copy()
-
-		id_edg = r_arr >= cri_R[0]
-		r_arr[id_edg] = np.nan
-		sb_arr[id_edg] = np.nan
-		sb_err[id_edg] = np.nan
-
-		r_arr = np.r_[r_arr, edg_R ]
-		sb_arr = np.r_[sb_arr, edg_sb ]
-		sb_err = np.r_[sb_err, edg_sb_err ]
-
-		with h5py.File(alter_sub_sb % nn, 'w') as f:
-			f['r'] = np.array(r_arr)
-			f['sb'] = np.array(sb_arr)
-			f['sb_err'] = np.array(sb_err)
-
-	tmp_sb = []
-	tmp_r = []
-	for nn in range( N_bin ):
-
-		with h5py.File(alter_sub_sb % nn, 'r') as f:
-			r_arr = np.array(f['r'])
-			sb_arr = np.array(f['sb'])
-			sb_err = np.array(f['sb_err'])
-
-			tmp_sb.append(sb_arr)
-			tmp_r.append(r_arr)
-
-	dt_arr = np.array( tmp_r )
-	medi_R = np.nanmedian( dt_arr, axis = 0 )
-	cc_tmp_r = []
-	cc_tmp_sb = []
-
-	for nn in range( N_bin ):
-
-		xx_R = tmp_r[ nn ] + 0
-		xx_sb = tmp_sb[ nn ] + 0
-
-		deviR = np.abs( xx_R - medi_R )
-
-		idmx = deviR > 0
-		xx_sb[ idmx ] = np.nan
-
-		cc_tmp_sb.append( xx_sb )
-		cc_tmp_r.append( medi_R )
-
-	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(cc_tmp_sb, cc_tmp_r, band[ id_band ], N_bin,)[4:]
-
-	## only save the sb result in unit " nanomaggies / arcsec^2 "
-	#tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, band[ id_band ], N_bin,)[4:]
-
-	with h5py.File(alter_jk_sb, 'w') as f:
-		f['r'] = np.array(tt_jk_R)
-		f['sb'] = np.array(tt_jk_SB)
-		f['sb_err'] = np.array(tt_jk_err)
-
-	return
+	return mean_intens, medi_intens, mode_intens, Angl_r, intens_err, N_pix, nsum_ratio
 
