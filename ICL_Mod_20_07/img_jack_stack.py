@@ -46,7 +46,7 @@ mag_add = np.array([0, 0, 0, -0.04, 0.02])
 def weit_aveg_img(id_set, img_file, weit_file, aveg_file, sum_weit_file = None,):
 
 	tt = 0
-	with h5py.File(d_file % (tt), 'r') as f:
+	with h5py.File( img_file % (tt), 'r') as f:
 		tmp_img = np.array(f['a'])
 	Nx, Ny = tmp_img.shape[1], tmp_img.shape[0]
 

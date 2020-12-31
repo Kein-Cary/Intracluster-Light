@@ -190,9 +190,9 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 		p_type = np.array(source['CLASS_STAR'])
 
 		if alt_G_size is not None:
-			Kron = alt_G_size + 0.
+			Kron = alt_G_size * 2
 		else:
-			Kron = 16
+			Kron = 16 # 8-R_kron
 		a = Kron * A
 		b = Kron * B
 
