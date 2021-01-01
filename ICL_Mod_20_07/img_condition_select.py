@@ -20,7 +20,7 @@ Omega_m = Test_model.Om0
 Omega_lambda = 1.-Omega_m
 Omega_k = 1.- (Omega_lambda + Omega_m)
 
-def img_condition_select_func(band, set_ra, set_dec, set_z, data_file, cat_file, rule_out_file, remain_file, pixel = 0.396): 
+def img_condition_select_func(band, set_ra, set_dec, set_z, data_file, cat_file, rule_out_file, remain_file, pixel = 0.396):
 	"""
 	band : observation band
 	set_ra, set_dec, set_z : smaples need to find out-liers
@@ -59,8 +59,8 @@ def img_condition_select_func(band, set_ra, set_dec, set_z, data_file, cat_file,
 		A = np.array(source['A_IMAGE'])
 		B = np.array(source['B_IMAGE'])
 		theta = np.array(source['THETA_IMAGE'])
-		cx = np.array(source['X_IMAGE']) - 1
-		cy = np.array(source['Y_IMAGE']) - 1
+		cx = np.array(source['X_IMAGE'])
+		cy = np.array(source['Y_IMAGE'])
 		p_type = np.array(source['CLASS_STAR'])
 
 		### test the concentration of sources
@@ -347,3 +347,4 @@ def main():
 
 if __name__ == "__main__":
 	main()
+
