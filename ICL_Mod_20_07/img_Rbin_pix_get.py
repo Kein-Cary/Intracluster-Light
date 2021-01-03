@@ -30,7 +30,7 @@ Omega_lambda = 1.-Omega_m
 Omega_k = 1.- (Omega_lambda + Omega_m)
 DH = vc/H0
 
-def pix_flux_set_func(x0, y0, m_cen_x, m_cen_y, set_ra, set_dec, set_z, set_x, set_y, img_file,):
+def pix_flux_set_func(x0, y0, m_cen_x, m_cen_y, set_ra, set_dec, set_z, set_x, set_y, img_file, band_str,):
 	'''
 	x0, y0 : the point which need to check flux (in the aveged image [applied astacking process])
 	m_cen_x, m_cen_y : the center pixel of stacking image
@@ -46,7 +46,7 @@ def pix_flux_set_func(x0, y0, m_cen_x, m_cen_y, set_ra, set_dec, set_z, set_x, s
 		ra_g, dec_g, z_g = set_ra[kk], set_dec[kk], set_z[kk]
 		img_x, img_y = set_x[kk], set_y[kk]
 
-		data = fits.open(d_file % ('r', ra_g, dec_g, z_g) )
+		data = fits.open(img_file % (band_str, ra_g, dec_g, z_g) )
 		img = data[0].data
 
 		dev_05_x = img_x - np.int( img_x )
@@ -118,7 +118,7 @@ def radi_bin_flux_set_func(targ_R, stack_img, m_cen_x, m_cen_y, R_bins, set_ra, 
 		ra_g, dec_g, z_g = set_ra[kk], set_dec[kk], set_z[kk]
 		img_x, img_y = set_x[kk], set_y[kk]
 
-		data = fits.open( d_file % (band_str, ra_g, dec_g, z_g),)
+		data = fits.open( img_file % (band_str, ra_g, dec_g, z_g),)
 		img = data[0].data
 
 		dev_05_x = img_x - np.int( img_x )
@@ -152,3 +152,49 @@ def radi_bin_flux_set_func(targ_R, stack_img, m_cen_x, m_cen_y, R_bins, set_ra, 
 
 	return
 
+def Rbin_flux_track(targ_R, R_lim, flux_lim, img_file, set_ra, set_dec, set_z, set_x, set_y, out_file,):
+	"""
+	targ_R : the radius bin in which the flux will be collected
+	R_lim : the limited radius edges, R_lim[0] is the inner one, and R_lim[1] is the outer one
+	flux_lim : the flux range in which those pixels will be collected,
+				flux_lim[0] is the smaller one and flux_lim[1] is the larger one
+	set_ra, set_dec, set_z, set_x, set_y : the catalog information, including the BCG position (set_x, set_y)
+				in image region
+	img_file : .fits files
+	out_file : out put data of the collected flux, .csv file
+	"""
+	Ns = len(set_z)
+
+	lx = np.linspace(0, 2047, 2048)
+	ly = np.linspace(0, 1488, 1489)
+	grd_lxy = np.array( np.meshgrid(lx, ly) )
+
+	for mm in range( Ns ):
+
+		ra_g, dec_g, z_g = set_ra[mm], set_dec[mm], set_z[mm]
+		cen_x, cen_y = set_x[mm], set_y[mm]
+
+		data = fits.open( img_file % (ra_g, dec_g, z_g),)
+		img = data[0].data
+
+		pix_dR = np.sqrt( (grd_lxy[0] - cen_x)**2 + (grd_lxy[1] - cen_y)**2)
+
+		id_rx = (pix_dR >= R_lim[0]) & (pix_dR < R_lim[1])
+		idnn = np.isnan( img )
+
+		id_vlim = ( img >= flux_lim[0] ) & ( img <= flux_lim[1] )
+
+		id_set = id_rx & (idnn == False) & id_vlim
+
+		my, mx = np.where( id_set == True )
+
+		flux_in = img[ id_set ]
+
+		# save the flux info.
+		keys = ['pix_flux', 'pos_x', 'pos_y',]
+		values = [ flux_in, mx, my ]
+		fill = dict( zip(keys,values) )
+		out_data = pds.DataFrame(fill)
+		out_data.to_csv( out_file % (targ_R, ra_g, dec_g, z_g),)
+
+	return

@@ -182,11 +182,11 @@ def SB_pros_func(flux_img, pix_cont_img, sb_file, N_img, n_rbins, id_Z0, z_ref):
 
 		if id_Z0 == True:
 			Intns, Angl_r, Intns_err, npix, nratio = light_measure_Z0_weit( tmp_img, tmp_cont, pixel, xn, yn, r_bins)
-			sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
+			sb_arr, sb_err_arr = Intns, Intns_err
 			r_arr = Angl_r
 		else:
 			Intns, phy_r, Intns_err, npix, nratio = light_measure_weit( tmp_img, tmp_cont, pixel, xn, yn, z_ref, r_bins)
-			sb_arr, sb_err_arr = Intns / pixel**2, Intns_err / pixel**2
+			sb_arr, sb_err_arr = Intns, Intns_err
 			r_arr = phy_r
 
 		with h5py.File( sb_file % nn, 'w') as f:
@@ -229,7 +229,7 @@ def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbi
 		xn, yn = np.int(tmp_img.shape[1] / 2), np.int(tmp_img.shape[0] / 2)
 
 		Intns, Intns_r, Intns_err, npix, nratio = light_measure_Z0_weit(tmp_img, tmp_cont, pixel, xn, yn, r_bins)
-		sb_arr, sb_err = Intns / pixel**2, Intns_err / pixel**2
+		sb_arr, sb_err = Intns, Intns_err
 
 		r_arr = Intns_r.copy()
 
@@ -261,7 +261,7 @@ def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbi
 			## out-region as one bin
 			Intns, Intns_r, Intns_err, npix, nratio = light_measure_rn_Z0_weit(tmp_img, tmp_cont, pixel, xn, yn, edg_R_low, edg_R_up)
 
-		edg_sb, edg_sb_err = Intns / pixel**2, Intns_err / pixel**2
+		edg_sb, edg_sb_err = Intns, Intns_err
 		edg_R = Intns_r.copy()
 
 		id_edg = r_arr >= cri_R[0]
@@ -308,9 +308,9 @@ def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbi
 		cc_tmp_sb.append( xx_sb )
 		cc_tmp_r.append( medi_R )
 
+	## only save the sb result in unit " nanomaggies / arcsec^2 "
 	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(cc_tmp_sb, cc_tmp_r, band[ id_band ], N_bin,)[4:]
 
-	## only save the sb result in unit " nanomaggies / arcsec^2 "
 	#tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, band[ id_band ], N_bin,)[4:]
 
 	with h5py.File(alter_jk_sb, 'w') as f:
@@ -354,7 +354,7 @@ def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb
 		xn, yn = np.int(tmp_img.shape[1] / 2), np.int(tmp_img.shape[0] / 2)
 
 		Intns, Intns_r, Intns_err, npix, nratio = light_measure_weit(tmp_img, tmp_cont, pixel, xn, yn, z_ref, r_bins)
-		sb_arr, sb_err = Intns / pixel**2, Intns_err / pixel**2
+		sb_arr, sb_err = Intns, Intns_err
 		r_arr = Intns_r.copy()
 
 		id_npix = npix >= 1.
@@ -389,7 +389,7 @@ def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb
 			Intns, Intns_r, Intns_err, npix, nratio = light_measure_rn_weit(
 				tmp_img, tmp_cont, pixel, xn, yn, z_ref, phy_edg_R_low, phy_edg_R_up)			
 
-		edg_sb, edg_sb_err = Intns / pixel**2, Intns_err / pixel**2
+		edg_sb, edg_sb_err = Intns, Intns_err
 		edg_R = Intns_r.copy()
 
 		id_edg = r_arr >= cri_R[0]
@@ -436,9 +436,9 @@ def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb
 		cc_tmp_sb.append( xx_sb )
 		cc_tmp_r.append( medi_R )
 
+	## only save the sb result in unit " nanomaggies / arcsec^2 "
 	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(cc_tmp_sb, cc_tmp_r, band[ id_band ], N_bin,)[4:]
 
-	## only save the sb result in unit " nanomaggies / arcsec^2 "
 	#tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, band[ id_band ], N_bin,)[4:]
 
 	with h5py.File(alter_jk_sb, 'w') as f:
@@ -449,7 +449,7 @@ def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb
 	return
 
 def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y, img_file, band_str, sub_img,
-	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr, 
+	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
 	id_cut = False, N_edg = None, id_Z0 = True, z_ref = None, id_S2N = False, S2N = None, id_sub = True, edg_bins = None,
 	sub_rms = None, J_sub_rms = None, jack_rms_arr = None,):
 	"""
@@ -531,7 +531,7 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 			cut_stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[ band_id ], set_x, set_y, id_cen, N_edg,
 				rms_file = sub_rms_file, pix_con_file = sub_cont_file,)
 
-	for nn in range(N_bin):
+	for nn in range( N_bin ):
 
 		id_arry = np.linspace(0, N_bin -1, N_bin)
 		id_arry = id_arry.astype(int)

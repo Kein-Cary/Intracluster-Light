@@ -396,7 +396,9 @@ def light_measure_rn_Z0_weit(data, weit_data, pix_size, cx, cy, R_low, R_up):
 		Intns_err = RMS
 
 	#Angl_r = (0.5 * (R_low + R_up) ) * pix_size
-	Angl_r = np.nansum( dr[idu] * weit_arr ) / np.nansum( weit_arr ) * pixel
+	Angl_r = np.nansum( dr[idu] * weit_arr ) / np.nansum( weit_arr ) * pix_size
+
+	Intns, Intns_err = Intns / pix_size**2, Intns_err / pix_size**2
 
 	return Intns, Angl_r, Intns_err, N_pix, nsum_ratio
 
@@ -496,6 +498,8 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 	Intns_err[idzo] = 0.
 	nsum_ratio[idzo] = 0.
 
+	Intns, Intns_err = Intns / pix_size**2, Intns_err / pix_size**2
+
 	return Intns, Angl_r, Intns_err, N_pix, nsum_ratio
 
 def light_measure_rn_weit(data, weit_data, pix_size, cx, cy, z0, R_low, R_up):
@@ -571,6 +575,8 @@ def light_measure_rn_weit(data, weit_data, pix_size, cx, cy, z0, R_low, R_up):
 	#Intns_r = (0.5 * (R_low + R_up) )
 	cen_r = np.nansum(dr[idu] * weit_arr) / np.nansum( weit_arr ) * pix_size
 	Intns_r = cen_r * Da0 * 1e3 / rad2arcsec
+
+	Intns, Intns_err = Intns / pix_size**2, Intns_err / pix_size**2
 
 	return Intns, Intns_r, Intns_err, N_pix, nsum_ratio
 
@@ -677,6 +683,7 @@ def light_measure_weit(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 
 	Intns_r = intens_r.copy()
 	nsum_ratio[idzo] = 0.
+	Intns, Intns_err = Intns / pix_size**2, Intns_err / pix_size**2
 
 	return Intns, Intns_r, Intns_err, N_pix, nsum_ratio
 
