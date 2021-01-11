@@ -5,8 +5,13 @@ import scipy.stats as sts
 import h5py
 import pandas as pds
 
-def match_func(set_ra, set_dec, set_z, cat_file, out_file):
-
+def match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len,):
+	"""
+	set_ra, set_dec, set_z : the catalog information
+	cat_file : the total catalog information of query sample
+	out_file : the match result
+	sf_len : the length of str in information match
+	"""
 	goal_data = fits.getdata(cat_file)
 	RA = np.array(goal_data.RA)
 	DEC = np.array(goal_data.DEC)
@@ -49,9 +54,11 @@ def match_func(set_ra, set_dec, set_z, cat_file, out_file):
 	com_ID = ID[(redshift >= 0.2) & (redshift <= 0.3)]
 
 	##### list of the target cat
-	targ_ra = ['%.3f' % ll for ll in set_ra]
-	targ_dec = ['%.3f' % ll for ll in set_dec]
-	targ_z = ['%.3f' % ll for ll in set_z]
+	com_s = '%.' + '%df' % sf_len
+
+	targ_ra = [com_s % ll for ll in set_ra]
+	targ_dec = [com_s % ll for ll in set_dec]
+	targ_z = [com_s % ll for ll in set_z]
 
 	#### initial the list
 	sub_z = []
@@ -80,7 +87,7 @@ def match_func(set_ra, set_dec, set_z, cat_file, out_file):
 		u_mag, u_err = com_u_Mag[jj], com_u_Mag_err[jj]
 		z_mag, z_err = com_z_Mag[jj], com_z_Mag_err[jj]
 
-		identi = ('%.3f' % ra_g in targ_ra) & ('%.3f' % dec_g in targ_dec) # & ('%.3f' % z_g in targ_z)
+		identi = (com_s % ra_g in targ_ra) & (com_s % dec_g in targ_dec) # & (com_s % z_g in targ_z)
 
 		if  identi == True: 
 			sub_z.append(z_g)
@@ -132,8 +139,13 @@ def match_func(set_ra, set_dec, set_z, cat_file, out_file):
 
 	return
 
-def random_match_func(set_ra, set_dec, set_z, cat_file, out_file):
-
+def random_match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len,):
+	"""
+	set_ra, set_dec, set_z : the catalog information
+	cat_file : the total catalog information of query sample
+	out_file : the match result
+	sf_len : the length of str in information match
+	"""
 	rand_data = fits.getdata(cat_file)
 	RA = rand_data.RA
 	DEC = rand_data.DEC
@@ -148,9 +160,11 @@ def random_match_func(set_ra, set_dec, set_z, cat_file, out_file):
 	lamda_eff = LAMBDA[idx]
 
 	##### list of the target cat
-	targ_ra = ['%.5f' % ll for ll in set_ra]
-	targ_dec = ['%.5f' % ll for ll in set_dec]
-	targ_z = ['%.5f' % ll for ll in set_z]
+	com_s = '%.' + '%df' % sf_len
+
+	targ_ra = [com_s % ll for ll in set_ra]
+	targ_dec = [com_s % ll for ll in set_dec]
+	targ_z = [com_s % ll for ll in set_z]
 
 	zN = len(z_eff)
 
@@ -166,7 +180,7 @@ def random_match_func(set_ra, set_dec, set_z, cat_file, out_file):
 		z_g = z_eff[jj]
 		rich_g = lamda_eff[jj]
 
-		identi = ('%.5f' % ra_g in targ_ra) & ('%.5f' % dec_g in targ_dec) & ('%.5f' % z_g in targ_z)
+		identi = (com_s % ra_g in targ_ra) & (com_s % dec_g in targ_dec) & (com_s % z_g in targ_z)
 
 		if  identi == True:
 			sub_z.append(z_g)

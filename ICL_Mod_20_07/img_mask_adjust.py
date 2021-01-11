@@ -12,7 +12,7 @@ from astropy import cosmology as apcy
 
 from groups import groups_find_func
 
-def cat_combine( cat_lis, ra, dec, z, alt_G_size = None,):
+def cat_combine( cat_lis, ra, dec, z, alt_G_size,):
 
 	Ns = len( cat_lis )
 
@@ -34,7 +34,7 @@ def cat_combine( cat_lis, ra, dec, z, alt_G_size = None,):
 			cy = np.array(source['Y_IMAGE'])
 
 			if alt_G_size is not None:
-				Kron = alt_G_size + 0.
+				Kron = alt_G_size * 2.
 			else:
 				Kron = 16
 
@@ -198,7 +198,7 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 
 		## extral catalog load
 		if extra_cat is not None:
-			Ecat_num, Ecat_x, Ecat_y, Ecat_a, Ecat_b, Ecat_chi = cat_combine( extra_cat, ra_g, dec_g, z_g, alt_G_size = None,)
+			Ecat_num, Ecat_x, Ecat_y, Ecat_a, Ecat_b, Ecat_chi = cat_combine( extra_cat, ra_g, dec_g, z_g, alt_G_size,)
 
 		else:
 			Ecat_num = 0

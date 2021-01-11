@@ -31,13 +31,14 @@ Omega_k = 1.- (Omega_lambda + Omega_m)
 DH = vc/H0
 
 def pix_flux_set_func(x0, y0, m_cen_x, m_cen_y, set_ra, set_dec, set_z, set_x, set_y, img_file, band_str,):
-	'''
+	"""
 	x0, y0 : the point which need to check flux (in the aveged image [applied astacking process])
 	m_cen_x, m_cen_y : the center pixel of stacking image
 	set_ra, set_dec, set_z, set_x, set_y : img information of stacking sample imgs,
 			including ra, dec, z, and BCG position on img (set_x, set_y)
 	img_file : imgs for given catalog ('XXX/XX.fits')
-	'''
+	band_str : the filter information
+	"""
 	targ_f = []
 	Ns = len( set_z )
 
@@ -73,30 +74,31 @@ def pix_flux_set_func(x0, y0, m_cen_x, m_cen_y, set_ra, set_dec, set_z, set_x, s
 
 	return targ_f
 
-def radi_bin_flux_set_func(targ_R, stack_img, m_cen_x, m_cen_y, R_bins, set_ra, set_dec, set_z, set_x, set_y,
+def radi_bin_flux_set_func(targ_R, R_edgs, stack_img, m_cen_x, m_cen_y, R_bins, set_ra, set_dec, set_z, set_x, set_y,
 	img_file, pix_size, band_str, out_file,):
 	"""
-	targ_R : the radius bin in which need to check flux
+	targ_R : the radius bin in which need to check flux (in unit arcsec or kpc)
+	R_edgs : the radius bin edges, the unit is the same as targ_R, arcsec or kpc
 	stack_img : the stacking img file (in .h5 format, img = np.array(f['a']),)
-	R_bins : the radius bins will be applied on the stacking img
+	R_bins : the radius bins will be applied on the stacking img or imgs, in unit of pixel
 	set_ra, set_dec, set_z, set_x, set_y : the catalog imformation, (set_x, set_y) is BCG position
 		on img
 	img_file : imgs for given catalog ('XXX/XX.fits')
 	pix_size : the pixel scale of imgs
 	band_str : filter, str type
-	out_file : out-put the data (.csv file)
+	out_file : out-put the data (.h5 file)
 	"""
 	with h5py.File(stack_img, 'r') as f:
 		tt_img = np.array( f['a'] )
 
-	R_angle = 0.5 * (R_bins[1:] + R_bins[:-1]) * pix_size
+	R_cen = 0.5 * (R_edgs[1:] + R_edgs[:-1])
 
 	Nx = np.linspace(0, tt_img.shape[1] - 1, tt_img.shape[1] )
 	Ny = np.linspace(0, tt_img.shape[0] - 1, tt_img.shape[0] )
 	grd = np.array( np.meshgrid(Nx, Ny) )
 	cen_dR = np.sqrt( (grd[0] - m_cen_x)**2 + (grd[1] - m_cen_y)**2 )
 
-	ddr = np.abs( R_angle - targ_R )
+	ddr = np.abs( R_cen - targ_R )
 	idx = np.where( ddr == ddr.min() )[0]
 	edg_lo = R_bins[idx]
 	edg_hi = R_bins[idx + 1]
@@ -105,10 +107,6 @@ def radi_bin_flux_set_func(targ_R, stack_img, m_cen_x, m_cen_y, R_bins, set_ra, 
 	id_nn = np.isnan( tt_img )
 	id_effect = ( id_nn == False ) & id_flux
 	f_stack = tt_img[ id_effect ]
-
-	lx = np.linspace(0, 2047, 2048)
-	ly = np.linspace(0, 1488, 1489)
-	grd_lxy = np.array( np.meshgrid(lx, ly) )
 
 	sub_f_arr = []
 	Ns = len( set_z )
@@ -120,6 +118,10 @@ def radi_bin_flux_set_func(targ_R, stack_img, m_cen_x, m_cen_y, R_bins, set_ra, 
 
 		data = fits.open( img_file % (band_str, ra_g, dec_g, z_g),)
 		img = data[0].data
+
+		lx = np.linspace(0, img.shape[1] - 1, img.shape[1])
+		ly = np.linspace(0, img.shape[0] - 1, img.shape[0])
+		grd_lxy = np.array( np.meshgrid(lx, ly) )
 
 		dev_05_x = img_x - np.int( img_x )
 		dev_05_y = img_y - np.int( img_y )
@@ -145,10 +147,16 @@ def radi_bin_flux_set_func(targ_R, stack_img, m_cen_x, m_cen_y, R_bins, set_ra, 
 		else:
 			sub_f_arr.append( img[ idin ] )
 
-	dtf = np.hstack( sub_f_arr )
+	#### in case of on pixel contribution (for pixel resampling case)
+	if sub_f_arr == []:
+		tmp_f_arr = [np.nan, np.nan, np.nan]
+		sub_f_arr = tmp_f_arr
 
-	out_data = pds.DataFrame(dtf, columns = ['pix_flux'], dtype = np.float32)
-	out_data.to_csv( out_file % targ_R,)
+	dtf = np.hstack( sub_f_arr )
+	dtf = dtf.astype( np.float32 )
+
+	with h5py.File( out_file % targ_R, 'w') as f:
+		f['pix_flux'] = np.array( dtf )
 
 	return
 
@@ -156,6 +164,7 @@ def Rbin_flux_track(targ_R, R_lim, flux_lim, img_file, set_ra, set_dec, set_z, s
 	"""
 	targ_R : the radius bin in which the flux will be collected
 	R_lim : the limited radius edges, R_lim[0] is the inner one, and R_lim[1] is the outer one
+			in unit of pixel 
 	flux_lim : the flux range in which those pixels will be collected,
 				flux_lim[0] is the smaller one and flux_lim[1] is the larger one
 	set_ra, set_dec, set_z, set_x, set_y : the catalog information, including the BCG position (set_x, set_y)
@@ -165,10 +174,6 @@ def Rbin_flux_track(targ_R, R_lim, flux_lim, img_file, set_ra, set_dec, set_z, s
 	"""
 	Ns = len(set_z)
 
-	lx = np.linspace(0, 2047, 2048)
-	ly = np.linspace(0, 1488, 1489)
-	grd_lxy = np.array( np.meshgrid(lx, ly) )
-
 	for mm in range( Ns ):
 
 		ra_g, dec_g, z_g = set_ra[mm], set_dec[mm], set_z[mm]
@@ -176,6 +181,10 @@ def Rbin_flux_track(targ_R, R_lim, flux_lim, img_file, set_ra, set_dec, set_z, s
 
 		data = fits.open( img_file % (ra_g, dec_g, z_g),)
 		img = data[0].data
+
+		lx = np.linspace(0, img.shape[1] - 1, img.shape[1])
+		ly = np.linspace(0, img.shape[0] - 1, img.shape[0])
+		grd_lxy = np.array( np.meshgrid(lx, ly) )
 
 		pix_dR = np.sqrt( (grd_lxy[0] - cen_x)**2 + (grd_lxy[1] - cen_y)**2)
 
@@ -190,11 +199,15 @@ def Rbin_flux_track(targ_R, R_lim, flux_lim, img_file, set_ra, set_dec, set_z, s
 
 		flux_in = img[ id_set ]
 
+		flux_in = flux_in.astype( np.float32 )
+		my = my.astype( np.int32 )
+		mx = mx.astype( np.int32 )
+
 		# save the flux info.
-		keys = ['pix_flux', 'pos_x', 'pos_y',]
-		values = [ flux_in, mx, my ]
-		fill = dict( zip(keys,values) )
-		out_data = pds.DataFrame(fill)
-		out_data.to_csv( out_file % (targ_R, ra_g, dec_g, z_g),)
+		with h5py.File( out_file % (targ_R, ra_g, dec_g, z_g), 'w') as f:
+			f['pix_flux'] = np.array( flux_in )
+			f['pos_x'] = np.array( mx )
+			f['pos_y'] = np.array( my )
 
 	return
+
