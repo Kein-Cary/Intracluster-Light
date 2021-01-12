@@ -112,44 +112,6 @@ def aveg_stack_img(N_sample, data_file, out_file,):
 
 	return
 
-def jack_samp_stack(d_file, id_set, out_file):
-
-	tt = 0
-	with h5py.File(d_file % (tt), 'r') as f:
-		tmp_img = np.array(f['a'])
-	Nx, Ny = tmp_img.shape[1], tmp_img.shape[0]
-
-	sum_array_A = np.zeros( (Ny,Nx), dtype = np.float32)
-	count_array_A = np.ones( (Ny,Nx), dtype = np.float32) * np.nan
-	p_count_A = np.zeros( (Ny,Nx), dtype = np.float32)
-
-	for jj in id_set:
-
-		with h5py.File(d_file % ( jj ), 'r') as f:
-			sub_img = np.array(f['a'])
-
-		id_nn = np.isnan(sub_img)
-		idv = id_nn == False
-		sum_array_A[idv] = sum_array_A[idv] + sub_img[idv]
-		count_array_A[idv] = sub_img[idv]
-		id_nan = np.isnan(count_array_A)
-		id_fals = id_nan == False
-		p_count_A[id_fals] = p_count_A[id_fals] + 1.
-		count_array_A[idv] = np.nan
-
-	id_zero = p_count_A == 0
-	p_count_A[id_zero] = np.nan
-	sum_array_A[id_zero] = np.nan
-
-	stack_img = sum_array_A / p_count_A
-	where_are_inf = np.isinf(stack_img)
-	stack_img[where_are_inf] = np.nan
-
-	with h5py.File(out_file, 'w') as f:
-		f['a'] = np.array(stack_img)
-
-	return
-
 def SB_pros_func(flux_img, pix_cont_img, sb_file, N_img, n_rbins, id_Z0, z_ref):
 	# get the R_max for SB measurement, and R_max will be applied to all subsample
 	# (also, can be re-measured based on the stacking imgs)
@@ -288,25 +250,13 @@ def sky_jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, im
 		jack_id = list(id_arry)
 		jack_id.remove(jack_id[nn])
 		jack_id = np.array(jack_id)
-		'''
-		d_file = sub_img
-		jack_img_file = J_sub_img % nn
-		jack_samp_stack(d_file, jack_id, jack_img_file)
 
-		d_file = sub_pix_cont
-		jack_cont_file = J_sub_pix_cont % nn
-		jack_samp_stack(d_file, jack_id, jack_cont_file)
-		'''
 		jack_img_file = J_sub_img % nn
 		jack_cont_file = J_sub_pix_cont % nn
 		weit_aveg_img(jack_id, sub_img, sub_pix_cont, jack_img_file, sum_weit_file = jack_cont_file,)
 
 		if sub_rms is not None:
-			'''
-			d_file = sub_rms
-			jack_rms_file = J_sub_rms % nn
-			jack_samp_stack(d_file, jack_id, jack_rms_file)
-			'''
+
 			jack_rms_file = J_sub_rms % nn
 			weit_aveg_img(jack_id, sub_rms, sub_pix_cont, jack_rms_file,)
 
@@ -345,18 +295,6 @@ def sky_jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, im
 		f['sb'] = np.array(tt_jk_SB)
 		f['sb_err'] = np.array(tt_jk_err)
 		f['lim_r'] = np.array(sb_lim_r)
-
-	## calculate the jackknife SB profile and mean of jackknife stacking imgs
-	'''
-	## mean of jackknife stacking imgs
-	d_file = J_sub_img
-	out_file = jack_img
-	aveg_stack_img(N_bin, d_file, out_file)
-
-	d_file = J_sub_pix_cont
-	out_file = jack_cont_arr
-	aveg_stack_img(N_bin, d_file, out_file)
-	'''
 
 	# calculate the directly stacking result( 2D_img, pixel_count array, and rms file [if sub_rms is not None] )
 	order_id = np.arange(0, N_bin, 1)

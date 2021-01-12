@@ -140,68 +140,6 @@ def zref_BCG_pos_func( cat_file, z_ref, out_file, pix_size,):
 
 	return
 
-### stacking region select based on the grid variance
-def SN_lim_region_select( stack_img, lim_img_id, lim_set, grd_len,):
-	"""
-	lim_img_id : use for marker selected region, 
-				0 -- use blocks' mean value
-				1 -- use blocks' Variance
-				2 -- use blocks' effective pixel number 
-				3 -- use blocks' effective pixel fraction
-				(check the order of return array of cc_grid_img function)
-	lim_set : threshold for region selection
-	grd_len : block edges for imgs division
-	"""
-	id_nan = np.isnan( stack_img )
-	idvx = id_nan == False
-	idy, idx = np.where(idvx == True)
-	x_low, x_up = np.min(idx), np.max(idx)
-	y_low, y_up = np.min(idy), np.max(idy)
-
-	dpt_img = stack_img[y_low: y_up+1, x_low: x_up + 1]
-	grid_patch = cc_grid_img(dpt_img, grd_len, grd_len,)
-	lx, ly = grid_patch[-2], grid_patch[-1]
-
-	lim_img = grid_patch[ lim_img_id ]
-	id_region = lim_img >= lim_set
-
-	Nx, Ny = lim_img.shape[1], lim_img.shape[0]
-	tp_block = np.ones((Ny, Nx), dtype = np.float32)
-	tp_block[id_region] = np.nan
-
-	copy_img = dpt_img.copy()
-
-	for ll in range( Ny ):
-		for pp in range( Nx ):
-
-			idx_cen = (pp >= 17) & (pp <= 25)
-			idy_cen = (ll >= 12) & (ll <= 17)
-			id_cen = idx_cen & idy_cen
-
-			if id_cen == True:
-				continue
-			else:
-				lim_x0, lim_x1 = lx[pp], lx[ pp + 1 ]
-				lim_y0, lim_y1 = ly[ll], ly[ ll + 1 ]
-
-				id_NAN = np.isnan( tp_block[ll,pp] )
-
-				if id_NAN == True:
-					copy_img[lim_y0: lim_y1, lim_x0: lim_x1] = np.nan
-				else:
-					continue
-
-	SN_mask = np.ones((dpt_img.shape[0], dpt_img.shape[1]), dtype = np.float32)
-	id_nn = np.isnan(copy_img)
-	SN_mask[id_nn] = np.nan
-
-	all_mask = np.ones((stack_img.shape[0], stack_img.shape[1]), dtype = np.float32)
-	id_nn = np.isnan(stack_img)
-	all_mask[id_nn] = np.nan
-	all_mask[y_low: y_up+1, x_low: x_up + 1] = SN_mask
-
-	return all_mask
-
 def arr_jack_func(SB_array, R_array, N_sample,):
 	"""
 	SB_array : y-data for jackknife resampling
@@ -262,4 +200,67 @@ def arr_slope_func(fdens, r, wind_len, poly_order, id_log = True,):
 		f_slope = df_dx.copy()
 
 	return sign_x, f_slope
+
+### stacking region select based on the grid variance
+# ?????
+def SN_lim_region_select( stack_img, lim_img_id, lim_set, grd_len,):
+	"""
+	lim_img_id : use for marker selected region, 
+				0 -- use blocks' mean value
+				1 -- use blocks' Variance
+				2 -- use blocks' effective pixel number 
+				3 -- use blocks' effective pixel fraction
+				(check the order of return array of cc_grid_img function)
+	lim_set : threshold for region selection
+	grd_len : block edges for imgs division
+	"""
+	id_nan = np.isnan( stack_img )
+	idvx = id_nan == False
+	idy, idx = np.where(idvx == True)
+	x_low, x_up = np.min(idx), np.max(idx)
+	y_low, y_up = np.min(idy), np.max(idy)
+
+	dpt_img = stack_img[y_low: y_up+1, x_low: x_up + 1]
+	grid_patch = cc_grid_img(dpt_img, grd_len, grd_len,)
+	lx, ly = grid_patch[-2], grid_patch[-1]
+
+	lim_img = grid_patch[ lim_img_id ]
+	id_region = lim_img >= lim_set
+
+	Nx, Ny = lim_img.shape[1], lim_img.shape[0]
+	tp_block = np.ones((Ny, Nx), dtype = np.float32)
+	tp_block[id_region] = np.nan
+
+	copy_img = dpt_img.copy()
+
+	for ll in range( Ny ):
+		for pp in range( Nx ):
+
+			idx_cen = (pp >= 17) & (pp <= 25)
+			idy_cen = (ll >= 12) & (ll <= 17)
+			id_cen = idx_cen & idy_cen
+
+			if id_cen == True:
+				continue
+			else:
+				lim_x0, lim_x1 = lx[pp], lx[ pp + 1 ]
+				lim_y0, lim_y1 = ly[ll], ly[ ll + 1 ]
+
+				id_NAN = np.isnan( tp_block[ll,pp] )
+
+				if id_NAN == True:
+					copy_img[lim_y0: lim_y1, lim_x0: lim_x1] = np.nan
+				else:
+					continue
+
+	SN_mask = np.ones((dpt_img.shape[0], dpt_img.shape[1]), dtype = np.float32)
+	id_nn = np.isnan(copy_img)
+	SN_mask[id_nn] = np.nan
+
+	all_mask = np.ones((stack_img.shape[0], stack_img.shape[1]), dtype = np.float32)
+	id_nn = np.isnan(stack_img)
+	all_mask[id_nn] = np.nan
+	all_mask[y_low: y_up+1, x_low: x_up + 1] = SN_mask
+
+	return all_mask
 

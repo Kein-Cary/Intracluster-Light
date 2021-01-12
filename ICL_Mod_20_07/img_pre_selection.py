@@ -104,7 +104,7 @@ def get_cat(star_cat, gal_cat, pixel, wcs_lis, norm_star_r = 30, brit_star_r = 7
 	xt = cat['Column1']
 	flags = [str(qq) for qq in xt]
 
-	x, y = wcs_lis.all_world2pix(set_ra * U.deg, set_dec * U.deg, 0)
+	x, y = wcs_lis.all_world2pix(set_ra * U.deg, set_dec * U.deg, 1)
 
 	set_A = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) / pixel
 	set_B = np.array( [ cat['psffwhm_r'] , cat['psffwhm_g'], cat['psffwhm_i']]) / pixel
