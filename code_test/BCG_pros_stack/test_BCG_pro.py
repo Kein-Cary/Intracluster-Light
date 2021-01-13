@@ -2,10 +2,8 @@ import time
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from matplotlib.patches import Circle, Ellipse
 
 import h5py
-import random
 import numpy as np
 import pandas as pds
 import astropy.wcs as awc
@@ -17,12 +15,8 @@ from dustmaps.sfd import SFDQuery
 from astropy.coordinates import SkyCoord
 from extinction_redden import A_wave
 from astropy import cosmology as apcy
-from scipy import interpolate as interp
-from scipy.optimize import curve_fit, minimize
-from light_measure import light_measure, flux_recal, flux_scale
-from resample_modelu import down_samp, sum_samp
+from light_measure import light_measure
 
-import sfdmap
 Rv = 3.1
 sfd = SFDQuery()
 # constant

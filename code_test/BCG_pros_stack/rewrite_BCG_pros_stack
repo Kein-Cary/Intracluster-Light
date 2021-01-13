@@ -1,0 +1,62 @@
+from BCG_SB_pro_stack import BCG_SB_pros_func
+#*************************#
+### BCG pros stack test
+load = '/home/xkchen/mywork/ICL/data/'
+
+pre_lis = ['low-BCG-star-Mass', 'high-BCG-star-Mass']
+band_id = 0 #(0, 1, 2, 3, 4, 5 --> r, g, i, u, z)
+N_bin = 30
+
+for ll in range( 2 ):
+
+	dat = pds.read_csv( load + 'BCG_stellar_mass_cat/' + pre_lis[ll] + '_remain_cat.csv' )
+	ra, dec, z = np.array(dat['ra']), np.array(dat['dec']), np.array(dat['z'])
+
+	z_ref = 0.25
+	pros_file = load + 'BCG_pros/BCG_prof_Z%.3f_ra%.3f_dec%.3f.txt'
+	R_set = np.logspace(np.log10(2), np.log10(102), 50)
+
+	out_file = pre_lis[ll] + '_aveg-BCG-pros.csv'
+	BCG_SB_pros_func(band_id, z, ra, dec, pros_file, z_ref, out_file, R_set,)
+
+'''
+	step_n = len(ra) // N_bin
+	id_arry = np.linspace(0, len(ra) - 1, len(ra))
+	id_arry = id_arry.astype(int)
+
+	for mm in range( N_bin ):
+
+		if mm == N_bin - 1:
+			da0, da1 = np.int(mm * step_n), len(z)
+		else:
+			da0, da1 = np.int(mm * step_n), np.int( (mm + 1) * step_n)
+
+		out_ids = np.arange(da0, da1)
+		chos_id = np.delete(id_arry, out_ids)
+
+		out_file = 'tmp_test/' + pre_lis[ll] + '_aveg-BCG-pros_%d-jk-sub.csv' % mm
+		BCG_SB_pros_func(band_id, z[ chos_id ], ra[ chos_id ], dec[ chos_id ], pros_file, z_ref, out_file, R_set,)
+
+	print('mm = ', mm)
+
+for ll in range( 2 ):
+
+	tmp_r, tmp_sb = [], []
+	for mm in range( N_bin ):
+
+		sdss_bcg_pro = pds.read_csv( 'tmp_test/' + pre_lis[ll] + '_aveg-BCG-pros_%d-jk-sub.csv' % mm)
+		bcg_r = np.array( sdss_bcg_pro['R_ref'] )
+		bcg_mu = np.array( sdss_bcg_pro['SB_fdens'] )
+
+		tmp_r.append( bcg_r )
+		tmp_sb.append( bcg_mu )
+
+	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, band[ band_id ], N_bin)[4:]
+
+	keys = ['R_ref', 'SB_fdens', 'SB_fdens_err']
+	values = [tt_jk_R, tt_jk_SB, tt_jk_err]
+	fill = dict(zip(keys, values))
+	data = pds.DataFrame(fill)
+	data.to_csv( pre_lis[ll] + '_jack-aveg-BCG-pros.csv' )
+'''
+
