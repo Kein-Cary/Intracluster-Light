@@ -204,33 +204,38 @@ def sky_jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, im
 	sub_rms, J_sub_rms : pixel standard deviation of stacking images (for sub-sample and jackknife sub-sample)
 	jack_rms_file : the final rms_file (total sample imgs stacking result)
 	"""
-	lis_ra, lis_dec, lis_z = cat_ra, cat_dec, cat_z
-	lis_x, lis_y = img_x, img_y
 
-	zN = len(lis_z)
-	n_step = zN // N_bin
-	id_arr = np.linspace(0, zN - 1, zN)
-	id_arr = id_arr.astype(int)
+	zN = len( cat_z )
+	id_arr = np.arange(0, zN, 1)
+	id_group = id_arr % N_bin
+
+	lis_ra, lis_dec, lis_z = [], [], []
+	lis_x, lis_y = [], []
+	for nn in range(N_bin):
+
+		id_xbin = np.where( id_group == nn )[0]
+
+		lis_ra.append( cat_ra[ id_xbin ] )
+		lis_dec.append( cat_dec[ id_xbin ] )
+		lis_z.append( cat_z[ id_xbin ] )
+		lis_x.append( img_x[ id_xbin ] )
+		lis_y.append( img_y[ id_xbin ] )
 
 	band_id = band.index( band_str )
 
 	## img stacking
 	for nn in range(N_bin):
 
-		if nn == N_bin - 1:
-			dot = id_arr[nn * n_step:]
-		else:
-			dot = id_arr[nn * n_step: (nn + 1) * n_step]
+		set_z = lis_z[ nn ]
+		set_ra = lis_ra[ nn ]
+		set_dec = lis_dec[ nn ]
 
-		set_z = lis_z[dot]
-		set_ra = lis_ra[dot]
-		set_dec = lis_dec[dot]
-
-		set_x = lis_x[dot]
-		set_y = lis_y[dot]
+		set_x = lis_x[ nn ]
+		set_y = lis_y[ nn ]
 
 		sub_img_file = sub_img % nn
 		sub_cont_file = sub_pix_cont % nn
+
 		if sub_rms is not None:
 			sub_rms_file = sub_rms % nn
 		else:
