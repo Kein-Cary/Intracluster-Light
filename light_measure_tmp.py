@@ -153,7 +153,7 @@ def light_measure_pn(data, Nbin, R_small, R_max, cx, cy, psize, z0, pn):
 
 	return Intns, Intns_r, Intns_err, Npix
 
-######### SB profile measure with adjust in large scale
+######### SB profile measure with modification in large scale
 def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbins, N_bin, SN_lim, 
 	id_band, edg_bins = None, ):
 
@@ -404,118 +404,6 @@ def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb
 
 	return
 
-
-### ???
-### surface brightness profile measurement (weight SNR estimation)
-def light_measure_with_SNR(data, weit_data, pix_size, cx, cy, z0, R_bins,):
-	"""
-	data: data used to measure (2D-array)
-	Nbin: number of bins will devide
-	R_bins : radius bin edges for SB measurement, in unit of pixels
-	cx, cy: cluster central position in image frame (in inuit pixel)
-	pix_size: pixel size
-	z : the redshift of data
-	weit_data : the weight array for surface brightness profile measurement, it's must be 
-	the same size as the 'data' array
-	"""
-	Da0 = Test_model.angular_diameter_distance(z0).value ## in unit 'Mpc'
-	Nx = data.shape[1]
-	Ny = data.shape[0]
-	x0 = np.linspace(0, Nx-1, Nx)
-	y0 = np.linspace(0, Ny-1, Ny)
-	pix_id = np.array(np.meshgrid(x0,y0))
-
-	theta = np.arctan2((pix_id[1,:]-cy), (pix_id[0,:]-cx))
-	chi = theta * 180 / np.pi
-
-	rbin = R_bins # have been divided bins, in unit of pixels
-	set_r = rbin * pix_size * Da0 * 1e3 / rad2arcsec # in unit of kpc
-
-	intens = np.zeros(len(rbin), dtype = np.float)
-	intens_r = np.zeros(len(rbin), dtype = np.float)
-	intens_err = np.zeros(len(rbin), dtype = np.float)
-
-	N_pix = np.zeros(len(rbin), dtype = np.float)
-	nsum_ratio = np.zeros(len(rbin), dtype = np.float)
-	f_SNR = np.zeros(len(rbin), dtype = np.float)
-
-	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
-		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
-
-	for k in range(len(rbin) - 1):
-		cdr = rbin[k + 1] - rbin[k]
-		d_phi = (cdr / ( 0.5 * (rbin[k] + rbin[k + 1]) ) ) * 180 / np.pi
-		N_phi = np.int(360 / d_phi) + 1
-		phi = np.linspace(0, 360, N_phi)
-		phi = phi - 180
-
-		ir = (dr >= rbin[k]) & (dr < rbin[k + 1])
-		bool_sum = np.sum(ir)
-
-		r_iner = set_r[k] ## useing radius in unit of kpc
-		r_out = set_r[k + 1]
-
-		if bool_sum == 0:
-			intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
-
-		else:
-			weit_arr = weit_data[ir]
-
-			samp_flux = data[ir]
-			samp_chi = chi[ir]
-			tot_flux = np.nansum(samp_flux * weit_arr) / np.nansum(weit_arr)
-
-			idnn = np.isnan( samp_flux )
-			N_pix[k] = np.sum( idnn == False )
-			nsum_ratio[k] = np.nansum(weit_arr) / np.sum( idnn == False )			
-
-			intens[k] = tot_flux
-			#intens_r[k] = 0.5 * (r_iner + r_out) # in unit of kpc
-			cen_r = np.nansum(dr[ ir ] * weit_arr) / np.nansum( weit_arr ) * pix_size
-			intens_r[k] = cen_r * Da0 * 1e3 / rad2arcsec
-
-			tmpf = []
-			for tt in range(len(phi) - 1):
-
-				iv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt+1])
-
-				set_samp = samp_flux[iv]
-				set_weit = weit_arr[iv]
-
-				ttf = np.nansum(set_samp * set_weit) / np.nansum(set_weit)
-				tmpf.append(ttf)
-
-			# rms of flux
-			tmpf = np.array(tmpf)
-			id_inf = np.isnan(tmpf)
-			tmpf[id_inf] = np.nan
-			id_zero = tmpf == 0
-			tmpf[id_zero] = np.nan
-
-			id_nan = np.isnan(tmpf)
-			id_fals = id_nan == False
-			Tmpf = tmpf[id_fals]
-
-			RMS = np.std(Tmpf)
-			if len(Tmpf) > 1:
-				intens_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
-			else:
-				intens_err[k] = RMS
-
-			f_SNR[k] = tot_flux / RMS
-
-	idzo = N_pix < 1
-
-	intens[idzo] = np.nan
-	intens_err[idzo] = np.nan
-	nsum_ratio[idzo] = np.nan
-	intens_r[idzo] = np.nan
-
-	intens, intens_err = intens / pix_size**2, intens_err / pix_size**2
-
-	return intens, intens_r, intens_err, f_SNR, N_pix, nsum_ratio
-
-### ???
 # SB pros with mean, median, mode and flux hist of radius bins
 def SB_measure_Z0_weit_func(data, weit_data, pix_size, cx, cy, R_bins, bin_flux_file,):
 	"""
