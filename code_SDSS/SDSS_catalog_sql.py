@@ -49,13 +49,13 @@ def sdss_sql_star(z_set, ra_set, dec_set, ref_ra, ref_dec, out_file,):
 		c_ra1 = cen_ra + r_select
 		c_dec1 = cen_dec + r_select
 
-		if ra_g + r_select > 360:
+		if cen_ra + r_select > 360:
 
-			l_ra_0 = ra_g
+			l_ra_0 = cen_ra
 			l_ra_1 = 0
 
 			r_ra_0 = 360
-			r_ra_1 = r_select - (360 - ra_g)
+			r_ra_1 = r_select - (360 - cen_ra)
 
 			data_set = """
 			SELECT ALL
@@ -79,12 +79,12 @@ def sdss_sql_star(z_set, ra_set, dec_set, ref_ra, ref_dec, out_file,):
 			ORDER by p.r
 			""" % (l_ra_0, r_ra_0, l_ra_1, r_ra_1, c_dec0, c_dec1)
 
-		elif ra_g - r_select < 0:
+		elif cen_ra - r_select < 0:
 
 			l_ra_0 = 0
-			l_ra_1 = 360 + (ra_g - r_select)
+			l_ra_1 = 360 + (cen_ra - r_select)
 
-			r_ra_0 = ra_g
+			r_ra_0 = cen_ra
 			r_ra_1 = 360
 
 			data_set = """
@@ -162,13 +162,16 @@ def sdss_sql_galaxy(set_ra, set_dec, set_z, ref_ra, ref_dec, out_file,):
 		c_ra1 = ref_ra[q] + r_select
 		c_dec1 = ref_dec[q] + r_select
 
-		if ra_g + r_select > 360:
+		cen_ra = ref_ra[q]
+		cen_dec = ref_dec[q]
 
-			l_ra_0 = ra_g
+		if cen_ra + r_select > 360:
+
+			l_ra_0 = cen_ra
 			l_ra_1 = 0
 
 			r_ra_0 = 360
-			r_ra_1 = r_select - (360 - ra_g)
+			r_ra_1 = r_select - (360 - cen_ra)
 
 			data_set = """
 			SELECT ALL
@@ -200,12 +203,12 @@ def sdss_sql_galaxy(set_ra, set_dec, set_z, ref_ra, ref_dec, out_file,):
 				--AND (((flags & 0x100000000000) = 0) OR (flags & 0x1000) = 0)
 			""" % (l_ra_0, r_ra_0, l_ra_1, r_ra_1, c_dec0, c_dec1)		
 
-		elif ra_g - r_select < 0:
+		elif cen_ra - r_select < 0:
 
 			l_ra_0 = 0
-			l_ra_1 = 360 + (ra_g - r_select)
+			l_ra_1 = 360 + (cen_ra - r_select)
 
-			r_ra_0 = ra_g
+			r_ra_0 = cen_ra
 			r_ra_1 = 360
 
 			data_set = """
