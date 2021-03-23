@@ -1,0 +1,295 @@
+## stacking test
+load = '/media/xkchen/My Passport/data/SDSS/'
+
+id_cen = 0
+n_rbins = 100
+N_bin = 30
+"""
+## on angle coordinate
+for mm in range( 6 ):
+
+	ra, dec, z = np.array([]), np.array([]), np.array([])
+	clus_x, clus_y = np.array([]), np.array([])	
+
+	for kk in range( 4 ):
+
+		##### select based on T1000
+		#p_dat = pds.read_csv('SEX/result/differ_sigma_with_T1000/Bro-mode-select_1000-to-%d_remain_cat_%.1f-sigma.csv' % ( n_main[kk], sigma[mm] ),)
+		p_dat = pds.read_csv('SEX/result/differ_sigma_with_A250/Bro-mode-select_1000-to-%d_remain_cat_%.1f-sigma.csv' % ( n_main[kk], sigma[mm] ),)
+
+		ra = np.r_[ ra, np.array(p_dat.ra) ]
+		dec = np.r_[ dec, np.array(p_dat.dec) ]
+		z = np.r_[ z, np.array(p_dat.z) ]
+		clus_x = np.r_[ clus_x, np.array(p_dat.bcg_x) ]
+		clus_y = np.r_[ clus_y, np.array(p_dat.bcg_y) ]
+
+	sub_img = load + '20_10_test_jack/T1000_select-test_sub-%d_img_diffi-sigma.h5'
+	sub_pix_cont = load + '20_10_test_jack/T1000_select-test_sub-%d_pix-cont_diffi-sigma.h5'
+	sub_sb = load + '20_10_test_jack/T1000_select-test_sub-%d_SB-pro_diffi-sigma.h5'
+
+	d_file = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
+	'''
+	## selected by tot-1000
+	J_sub_img = load + '20_10_test_jack/Bro-mode-select_jack-sub-%d_img_selected-by-tot' + '_%.1f-sigma.h5' % sigma[mm]
+	J_sub_pix_cont = load + '20_10_test_jack/Bro-mode-select_jack-sub-%d_pix-cont_selected-by-tot' + '_%.1f-sigma.h5' % sigma[mm]
+	J_sub_sb = load + '20_10_test_jack/Bro-mode-select_jack-sub-%d_SB-pro_selected-by-tot' + '_%.1f-sigma.h5' % sigma[mm]
+
+	jack_SB_file = load + '20_10_test_jack/Bro-mode-select_Mean_jack_SB-pro_selected-by-tot' + '_%.1f-sigma.h5' % sigma[mm]
+	jack_img = load + '20_10_test_jack/Bro-mode-select_Mean_jack_img_selected-by-tot' + '_%.1f-sigma.h5' % sigma[mm]
+	jack_cont_arr = load + '20_10_test_jack/Bro-mode-select_Mean_jack_pix-cont_selected-by-tot' + '_%.1f-sigma.h5' % sigma[mm]
+	'''
+
+	## selected by A250
+	J_sub_img = load + '20_10_test_jack/Bro-mode-select_jack-sub-%d_img' + '_%.1f-sigma.h5' % sigma[mm]
+	J_sub_pix_cont = load + '20_10_test_jack/Bro-mode-select_jack-sub-%d_pix-cont' + '_%.1f-sigma.h5' % sigma[mm]
+	J_sub_sb = load + '20_10_test_jack/Bro-mode-select_jack-sub-%d_SB-pro' + '_%.1f-sigma.h5' % sigma[mm]
+
+	jack_SB_file = load + '20_10_test_jack/Bro-mode-select_Mean_jack_SB-pro' + '_%.1f-sigma.h5' % sigma[mm]
+	jack_img = load + '20_10_test_jack/Bro-mode-select_Mean_jack_img' + '_%.1f-sigma.h5' % sigma[mm]
+	jack_cont_arr = load + '20_10_test_jack/Bro-mode-select_Mean_jack_pix-cont' + '_%.1f-sigma.h5' % sigma[mm]
+
+	jack_main_func(id_cen, N_bin, n_rbins, ra, dec, z, clus_x, clus_y, d_file, band[0], sub_img,
+		sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
+		id_cut = False, N_edg = None, id_Z0 = True, z_ref = None, id_S2N = True, S2N = 5,)
+
+print('to here 1')
+"""
+
+### SB profile compare
+load = '/media/xkchen/My Passport/data/SDSS/'
+## angle coordinate
+with h5py.File('test/T1000_R-bin_SB_test.h5', 'r') as f:
+	tot_r = np.array(f['r'])
+	tot_sb = np.array(f['sb'])
+	tot_sb_err = np.array(f['sb_err'])
+
+with h5py.File('test/T1000_A250_R-bin_SB_test.h5', 'r') as f:
+	A250_r = np.array(f['r'])
+	A250_sb = np.array(f['sb'])
+	A250_sb_err = np.array(f['sb_err'])
+"""
+angl_r, angl_sb, angl_sb_err = [], [], []
+phy_r, phy_sb, phy_sb_err = [], [], []
+
+for kk in range( 6 ):
+
+	## angle coordinate
+	with h5py.File( load + '20_10_test_jack/Bro-mode-select_Mean_jack_SB-pro_selected-by-tot_%.1f-sigma.h5' % sigma[kk], 'r') as f:
+	#with h5py.File( load + '20_10_test_jack/Bro-mode-select_Mean_jack_SB-pro_%.1f-sigma.h5' % sigma[kk], 'r') as f:
+		c_r_arr = np.array(f['r'])
+		c_sb_arr = np.array(f['sb'])
+		c_sb_err = np.array(f['sb_err'])
+
+	angl_r.append(c_r_arr)
+	angl_sb.append(c_sb_arr)
+	angl_sb_err.append(c_sb_err)
+
+	with h5py.File( load + '20_10_test_jack/Bro-mode-select_Mean_jack_img_selected-by-tot_%.1f-sigma.h5' % sigma[kk], 'r') as f:
+	#with h5py.File( load + '20_10_test_jack/Bro-mode-select_Mean_jack_img_%.1f-sigma.h5' % sigma[kk], 'r') as f:
+		tt_img = np.array(f['a'])
+
+	id_nan = np.isnan(tt_img)
+	idvx = id_nan == False
+	idy, idx = np.where(idvx == True)
+	x_low, x_up = np.min(idx), np.max(idx)
+	y_low, y_up = np.min(idy), np.max(idy)
+
+	dpt_img = tt_img[y_low: y_up+1, x_low: x_up + 1]
+	img_block = cc_grid_img(dpt_img, 100, 100,)[0]
+
+	'''
+	fig = plt.figure( figsize = (13.12, 4.8) )
+	ax0 = fig.add_axes([0.05, 0.10, 0.40, 0.80])
+	ax1 = fig.add_axes([0.55, 0.10, 0.40, 0.80])
+
+	ax0.set_title('%.1f $\\sigma$' % sigma[kk],)
+	tg = ax0.imshow(img_block / pixel**2, origin = 'lower', cmap = 'seismic', vmin = -4e-2, vmax = 4e-2,)
+	cb = plt.colorbar(tg, ax = ax0, fraction = 0.035, pad = 0.01, label = 'SB [nanomaggies / $arcsec^2$]',)
+	cb.formatter.set_powerlimits( (0,0) )
+
+	ax1.plot(c_r_arr, c_sb_arr, ls = '-', color = 'r', alpha = 0.8, label = '%.1f $\\sigma$' % sigma[kk],)
+	ax1.fill_between(c_r_arr, y1 = c_sb_arr - c_sb_err, y2 = c_sb_arr + c_sb_err, color = 'r', alpha = 0.2,)
+
+	ax1.plot(A250_r, A250_sb, ls = '-', color = 'k', alpha = 0.8, label = 'A-250',)
+	ax1.fill_between(A250_r, y1 = A250_sb - A250_sb_err, y2 = A250_sb + A250_sb_err, color = 'k', alpha = 0.2,)
+
+	ax1.plot(tot_r, tot_sb, ls = '-', color = 'c', alpha = 0.8, label = 'tot-1000',)
+	ax1.fill_between(tot_r, y1 = tot_sb - tot_sb_err, y2 = tot_sb + tot_sb_err, color = 'c', alpha = 0.2,)
+
+	ax1.set_ylim(1e-3, 3e-2)
+	ax1.set_yscale('log')
+	ax1.set_xlim(1e1, 1e3)
+	ax1.set_xlabel('R [arcsec]')
+	ax1.set_ylabel('SB [nanomaggies / $arcsec^2$]')
+	ax1.set_xscale('log')
+	ax1.legend(loc = 3, frameon = False,)
+	ax1.grid(which = 'both', axis = 'both', alpha = 0.25)
+	ax1.tick_params(axis = 'both', which = 'both', direction = 'in',)
+	tick_form = mpl.ticker.LogFormatter(labelOnlyBase = False)
+	ax1.get_yaxis().set_minor_formatter(tick_form)
+
+	plt.savefig('2D-grd_SB_%.1f-sigma_selected.png' % sigma[kk], dpi = 300)
+	plt.close()
+	'''
+	## at z_ref
+	with h5py.File( load + '20_10_test_jack/Bro-mode-select_Mean_jack_SB-pro_selected-by-tot_%.1f-sigma_z-ref.h5' % sigma[kk], 'r') as f:
+	#with h5py.File( load + '20_10_test_jack/Bro-mode-select_Mean_jack_SB-pro_%.1f-sigma_z-ref.h5' % sigma[kk], 'r') as f:
+		c_r_arr = np.array(f['r'])
+		c_sb_arr = np.array(f['sb'])
+		c_sb_err = np.array(f['sb_err'])
+
+	phy_r.append(c_r_arr)
+	phy_sb.append(c_sb_arr)
+	phy_sb_err.append(c_sb_err)
+
+	with h5py.File( load + '20_10_test_jack/Bro-mode-select_Mean_jack_img_selected-by-tot_%.1f-sigma_z-ref.h5' % sigma[kk], 'r') as f:
+	#with h5py.File( load + '20_10_test_jack/Bro-mode-select_Mean_jack_img_%.1f-sigma_z-ref.h5' % sigma[kk], 'r') as f:
+		tt_img = np.array(f['a'])
+
+	id_nan = np.isnan(tt_img)
+	idvx = id_nan == False
+	idy, idx = np.where(idvx == True)
+	x_low, x_up = np.min(idx), np.max(idx)
+	y_low, y_up = np.min(idy), np.max(idy)
+
+	dpt_img = tt_img[y_low: y_up+1, x_low: x_up + 1]
+	img_block = cc_grid_img(dpt_img, 100, 100,)[0]
+	'''
+	fig = plt.figure( figsize = (13.12, 4.8) )
+	ax0 = fig.add_axes([0.05, 0.10, 0.40, 0.80])
+	ax1 = fig.add_axes([0.55, 0.10, 0.40, 0.80])
+
+	ax0.set_title('%.1f $\\sigma$ [stacking at $ z_{ref} $]' % sigma[kk],)
+	tg = ax0.imshow(img_block / pixel**2, origin = 'lower', cmap = 'seismic', vmin = -4e-2, vmax = 4e-2,)
+	cb = plt.colorbar(tg, ax = ax0, fraction = 0.035, pad = 0.01, label = 'SB [nanomaggies / $arcsec^2$]',)
+	cb.formatter.set_powerlimits( (0,0) )
+
+	ax1.plot(c_r_arr, c_sb_arr, ls = '-', color = 'r', alpha = 0.8, label = '%.1f $\\sigma$' % sigma[kk],)
+	ax1.fill_between(c_r_arr, y1 = c_sb_arr - c_sb_err, y2 = c_sb_arr + c_sb_err, color = 'r', alpha = 0.2,)
+
+	ax1.plot(alt_A250_r, alt_A250_sb, ls = '-', color = 'k', alpha = 0.8, label = 'A-250',)
+	ax1.fill_between(alt_A250_r, y1 = alt_A250_sb - alt_A250_sb_err, y2 = alt_A250_sb + alt_A250_sb_err, color = 'k', alpha = 0.2,)
+
+	ax1.plot(alt_tot_r, alt_tot_sb, ls = '-', color = 'c', alpha = 0.8, label = 'tot-1000',)
+	ax1.fill_between(alt_tot_r, y1 = alt_tot_sb - alt_tot_sb_err, y2 = alt_tot_sb + alt_tot_sb_err, color = 'c', alpha = 0.2,)
+
+	ax1.set_ylim(1e-3, 3e-2)
+	ax1.set_yscale('log')
+	ax1.set_xlim(5e1, 4e3)
+	ax1.set_xlabel('R [kpc]')
+	ax1.set_ylabel('SB [nanomaggies / $arcsec^2$]')
+	ax1.set_xscale('log')
+	ax1.legend(loc = 3, frameon = False,)
+	ax1.grid(which = 'both', axis = 'both', alpha = 0.25)
+	ax1.tick_params(axis = 'both', which = 'both', direction = 'in',)
+	tick_form = mpl.ticker.LogFormatter(labelOnlyBase = False)
+	ax1.get_yaxis().set_minor_formatter(tick_form)
+
+	plt.savefig('2D-grd_SB_%.1f-sigma_selected_z-ref.png' % sigma[kk], dpi = 300)
+	plt.close()
+	'''
+
+id_angl = False
+
+plt.figure()
+ax = plt.subplot(111)
+ax.set_title('selected by tot-1000')
+#ax.set_title('selected by A250')
+
+for kk in range( 6 ):
+
+	if id_angl == True:
+		ax.plot(angl_r[kk], angl_sb[kk], ls = '-', color = mpl.cm.plasma( kk / 6), alpha = 0.8, label = '%.1f $\\sigma$' % sigma[kk],)
+		#ax.fill_between(angl_r[kk], y1 = angl_sb[kk] - angl_sb_err[kk], 
+		#	y2 = angl_sb[kk] + angl_sb_err[kk], color = mpl.cm.plasma( kk / 6), alpha = 0.2,)
+
+		idsb = angl_sb[kk][-2]
+		devi_sb = angl_sb[kk] - idsb
+		#ax.axhline(y = idsb, ls = ':', color = mpl.cm.plasma( kk / 6), alpha = 0.5,)
+		ax.plot(angl_r[kk], devi_sb, ls = '--', color = mpl.cm.plasma( kk / 6), alpha = 0.8,)
+		#ax.fill_between(angl_r[kk], y1 = devi_sb - angl_sb_err[kk], y2 = devi_sb + angl_sb_err[kk], color = mpl.cm.plasma( kk / 6), alpha = 0.2,)
+
+	else:
+		ax.plot(phy_r[kk], phy_sb[kk], ls = '-', color = mpl.cm.plasma( kk / 6), alpha = 0.8, label = '%.1f $\\sigma$' % sigma[kk],)
+		#ax.fill_between(phy_r[kk], y1 = phy_sb[kk] - phy_sb_err[kk], 
+		#	y2 = phy_sb[kk] + phy_sb_err[kk], color = mpl.cm.plasma( kk / 6), alpha = 0.2,)
+
+		idr = phy_r[kk] > 1e3
+		idsb = np.nanmin( phy_sb[kk][idr] )
+		devi_sb = phy_sb[kk] - idsb
+
+		#ax.axhline(y = idsb, ls = ':', color = mpl.cm.plasma( kk / 6), alpha = 0.5,)
+		ax.plot(phy_r[kk], devi_sb, ls = '--', color = mpl.cm.plasma( kk / 6), alpha = 0.8,)
+		#ax.fill_between(phy_r[kk], y1 = devi_sb - phy_sb[kk], y2 = devi_sb + phy_sb[kk], color = mpl.cm.plasma( kk / 6), alpha = 0.2,)
+
+if id_angl == True:
+	ax.plot(A250_r, A250_sb, ls = '-', color = 'k', alpha = 0.8, label = 'A-250',)
+	ax.fill_between(A250_r, y1 = A250_sb - A250_sb_err, y2 = A250_sb + A250_sb_err, color = 'k', alpha = 0.2,)
+
+	idsb = A250_sb[-1]
+	devi_sb = A250_sb - idsb
+
+	#ax.axhline(y = idsb, ls = ':', color = 'k', alpha = 0.5,)
+	ax.plot(A250_r, devi_sb, ls = '--', color = 'k', alpha = 0.8,)
+	ax.fill_between(A250_r, y1 = devi_sb - A250_sb_err, y2 = devi_sb + A250_sb_err, color = 'k', alpha = 0.2,)
+
+	ax.plot(tot_r, tot_sb, ls = '-', color = 'c', alpha = 0.8, label = 'tot-1000',)
+	ax.fill_between(tot_r, y1 = tot_sb - tot_sb_err, y2 = tot_sb + tot_sb_err, color = 'c', alpha = 0.2,)
+
+	idsb = tot_sb[-2]
+	devi_sb = tot_sb - idsb
+
+	#ax.axhline(y = idsb, ls = ':', color = 'c', alpha = 0.5,)
+	ax.plot(tot_r, devi_sb, ls = '--', color = 'c', alpha = 0.8,)
+	ax.fill_between(tot_r, y1 = devi_sb - tot_sb_err, y2 = devi_sb + tot_sb_err, color = 'c', alpha = 0.2,)
+
+	ax.set_xlim(1e1, 1e3)
+	ax.set_xlabel('R [arcsec]')
+
+else:
+	ax.plot(R_obs, flux_obs, ls = '-.', color = 'g', alpha = 0.5, label = 'Z05',)
+
+	ax.plot(alt_A250_r, alt_A250_sb, ls = '-', color = 'k', alpha = 0.8, label = 'A-250',)
+	ax.fill_between(alt_A250_r, y1 = alt_A250_sb - alt_A250_sb_err, 
+		y2 = alt_A250_sb + alt_A250_sb_err, color = 'k', alpha = 0.2,)
+
+	idr = np.abs(alt_A250_r - 2e3)
+	idrx = np.where(idr == idr.min() )[0][0]
+	idsb = np.nanmin( alt_A250_sb[idrx] )
+	devi_sb = alt_A250_sb - idsb
+
+	#ax.axhline(y = idsb, ls = ':', color = 'k', alpha = 0.5,)
+	ax.plot(alt_A250_r, devi_sb, ls = '--', color = 'k', alpha = 0.8,)
+	ax.fill_between(alt_A250_r, y1 = devi_sb - alt_A250_sb_err, y2 = devi_sb + alt_A250_sb_err, color = 'k', alpha = 0.2,)
+
+
+	ax.plot(alt_tot_r, alt_tot_sb, ls = '-', color = 'c', alpha = 0.8, label = 'tot-1000',)
+	ax.fill_between(alt_tot_r, y1 = alt_tot_sb - alt_tot_sb_err, 
+		y2 = alt_tot_sb + alt_tot_sb_err, color = 'c', alpha = 0.2,)
+
+	idr = alt_tot_r > 1e3
+	idsb = np.nanmin( alt_tot_sb[idr] )
+	devi_sb = alt_tot_sb - idsb
+
+	#ax.axhline(y = idsb, ls = ':', color = 'c', alpha = 0.5,)
+	ax.plot(alt_tot_r, devi_sb, ls = '--', color = 'c', alpha = 0.8,)
+	ax.fill_between(alt_tot_r, y1 = devi_sb - alt_tot_sb_err, y2 = devi_sb + alt_tot_sb_err, color = 'c', alpha = 0.2,)
+
+	ax.set_xlim(5e1, 4e3)
+	ax.set_xlabel('R [kpc]')
+
+ax.set_ylim(1e-4, 3e-2)
+ax.set_yscale('log')
+ax.set_ylabel('SB [nanomaggies / $arcsec^2$]')
+ax.set_xscale('log')
+ax.legend(loc = 3, frameon = False, fontsize = 9)
+ax.grid(which = 'both', axis = 'both', alpha = 0.25)
+ax.tick_params(axis = 'both', which = 'both', direction = 'in',)
+
+if id_angl == True:
+	plt.savefig('T1000_sigma-selected_SB-compare.png', dpi = 300)
+else:
+	plt.savefig('T1000_sigma-selected_SB-compare_z-ref.png', dpi = 300)
+plt.close()
+"""
+

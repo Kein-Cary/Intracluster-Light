@@ -1,0 +1,113 @@
+n_rbins = 110
+
+for mm in range( 4 ):
+
+	alt_ND_img = img_lis[mm].replace('.h5', '_No-D.h5')
+	alt_ND_sb = pro_lis[mm].replace('.h5', '_No-D.h5')
+
+	with h5py.File( alt_ND_img, 'r') as f:
+		ND_img = np.array(f['a'])
+
+	xn, yn = np.int(ND_img.shape[1] / 2), np.int(ND_img.shape[0] / 2)
+
+	id_nan = np.isnan(ND_img)
+
+	eff_y, eff_x = np.where(id_nan == False)
+	dR = np.sqrt((eff_y - yn)**2 + (eff_x - xn)**2)
+	dR_max = np.int( dR.max() ) + 1
+
+	r_bins = np.logspace(0, np.log10(dR_max), n_rbins)
+	Angl_r = r_bins * pixel
+	medi_R = 0.5 * (Angl_r[1:] + Angl_r[:-1])
+
+	idvx = id_nan == False
+	idy, idx = np.where(idvx == True)
+	x_low, x_up = np.min(idx), np.max(idx)
+	y_low, y_up = np.min(idy), np.max(idy)
+	cen_x, cen_y = xn - x_low, yn - y_low
+
+	dpt_ND = ND_img[y_low: y_up+1, x_low: x_up + 1]
+	ND_block = cc_grid_img(dpt_ND, 100, 100,)
+
+	patch_mean = ND_block[0]
+	Nlx, Nly = patch_mean.shape[1], patch_mean.shape[0]
+	grd_x, grd_y = ND_block[-2], ND_block[-1]
+
+	with h5py.File( alt_ND_sb, 'r') as f:
+		ND_r = np.array(f['r'])
+		ND_sb = np.array(f['sb'])
+		ND_sb_err = np.array(f['sb_err'])
+
+	fig = plt.figure( figsize = (19.84, 4.8) )
+	ax0 = fig.add_axes([0.03, 0.09, 0.30, 0.85])
+	ax1 = fig.add_axes([0.38, 0.09, 0.30, 0.85])
+	ax2 = fig.add_axes([0.73, 0.09, 0.25, 0.85])
+
+	tg = ax0.imshow(patch_mean / pixel**2, origin = 'lower', cmap = 'seismic', vmin = -4e-2, vmax = 4e-2,)
+	cb = plt.colorbar(tg, ax = ax0, fraction = 0.035, pad = 0.01, label = 'SB [nanomaggies / $arcsec^2$]',)
+	cb.formatter.set_powerlimits( (0,0) )
+	ax0.set_xlim(-2, Nlx + 1)
+	ax0.set_ylim(-2, Nly + 1)
+
+	ax1.set_title( name_lis[mm] )
+	tg = ax1.imshow(dpt_ND / pixel**2, origin = 'lower', cmap = 'seismic', vmin = -2e0, vmax = 2e0,)
+	cb = plt.colorbar(tg, ax = ax1, fraction = 0.036, pad = 0.01,)
+	cb.formatter.set_powerlimits((0,0))
+
+	for nn in range( 5 ):
+		devi_R = np.abs(medi_R - ND_r[-(nn + 1)])
+		idvx = devi_R == devi_R.min() 
+		bins_id = np.where(idvx == True)[0][0]
+
+		pix_low = Angl_r[ bins_id ] / pixel
+		pix_hig = Angl_r[ bins_id + 1] / pixel
+
+		clust = Circle(xy = (cen_x, cen_y), radius = pix_hig, fill = False, ec = 'b', ls = '-', linewidth = 0.75, alpha = 0.5,)
+		ax1.add_patch(clust)
+		if nn == 4:
+			clust = Circle(xy = (cen_x, cen_y), radius = pix_low, fill = False, ec = 'b', ls = '-', linewidth = 0.75, alpha = 0.5,)
+			ax1.add_patch(clust)
+
+		clust = Circle(xy = (cen_x, cen_y), radius = medi_R[ bins_id ] / pixel, fill = False, ec = mpl.cm.rainbow(nn / 5), 
+			ls = '--', linewidth = 1, alpha = 0.5,)
+		ax1.add_patch(clust)
+
+	for kk in range(Nly):
+		for ll in range(Nlx):
+				a0, a1 = grd_x[ll], grd_x[ll + 1]
+				b0, b1 = grd_y[kk], grd_y[kk + 1]
+				idnn = np.isnan( patch_mean[kk, ll] )
+				if idnn == False:
+					region = Rectangle(xy = (a0, b0), width = a1 - a0, height = b1 - b0, fill = False, ec = 'g', 
+						linewidth = 0.5, alpha = 0.5,)
+					ax1.add_patch(region)
+
+	ax1.set_xlim(-200, dpt_ND.shape[1] + 200)
+	ax1.set_ylim(-200, dpt_ND.shape[0] + 200)
+
+
+	ax2.plot(ND_r, ND_sb, ls = '-', color = 'r', alpha = 0.8, label = name_lis[mm] + '[w/o D]',)
+	ax2.fill_between(ND_r, y1 = ND_sb - ND_sb_err, y2 = ND_sb + ND_sb_err, color = 'r', alpha = 0.2,)
+
+	for pp in range( 5 ):
+		devi_R = np.abs(medi_R - ND_r[-(pp+1)])
+		idvx = devi_R == devi_R.min() 
+		bins_id = np.where(idvx == True)[0][0]
+		ax2.axvline(x = medi_R[ bins_id], ls = '--', color = mpl.cm.rainbow(pp / 5), alpha = 0.5,)
+
+	ax2.set_ylim(1e-3, 3e-2)
+	ax2.set_yscale('log')
+	ax2.set_xlim(1e1, 1e3)
+	ax2.set_xlabel('R [arcsec]')
+	ax2.set_ylabel('SB [nanomaggies / $arcsec^2$]')
+	ax2.set_xscale('log')
+	ax2.legend(loc = 3, frameon = False, fontsize = 8)
+	ax2.grid(which = 'both', axis = 'both', alpha = 0.25)
+	ax2.tick_params(axis = 'both', which = 'both', direction = 'in',)
+	tick_form = mpl.ticker.LogFormatter(labelOnlyBase = False)
+	ax2.get_yaxis().set_minor_formatter(tick_form)
+
+	plt.savefig('%s_SB_check.png' % file_lis[mm], dpi = 300)
+	plt.close()
+
+

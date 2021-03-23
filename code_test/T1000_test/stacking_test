@@ -1,0 +1,102 @@
+%%%%%%%%%%%%
+stacking test for T1000
+%%%%%%%%%%%%
+
+#*******************************
+## test for star masking size (stacking on angle coordinate)
+'''
+## 30 (FWHM/2) case, cut img edge pixels test
+id_cen = 0
+n_rbins = 110
+N_bin = 30
+d_file = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits'
+
+dat = pds.read_csv('/home/xkchen/mywork/ICL/code/SEX/result/test_1000-to-250_cat.csv')
+ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
+clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
+
+N_cut = np.array([200, 500])
+
+for ll in range( 2 ):
+
+	sub_img = load + '20_10_test_jack/A_clust_BCG-stack_sub-%d_img_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+	sub_pix_cont = load + '20_10_test_jack/A_clust_BCG-stack_sub-%d_pix-cont_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+	sub_sb = load + '20_10_test_jack/A_clust_BCG-stack_sub-%d_SB-pro_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+
+	J_sub_img = load + '20_10_test_jack/A_clust_BCG-stack_jack-sub-%d_img_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+	J_sub_pix_cont = load + '20_10_test_jack/A_clust_BCG-stack_jack-sub-%d_pix-cont_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+	J_sub_sb = load + '20_10_test_jack/A_clust_BCG-stack_jack-sub-%d_SB-pro_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+
+	jack_SB_file = load + '20_10_test_jack/A_clust_BCG-stack_Mean_jack_SB-pro_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+	jack_img = load + '20_10_test_jack/A_clust_BCG-stack_Mean_jack_img_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+	jack_cont_arr = load + '20_10_test_jack/A_clust_BCG-stack_Mean_jack_pix-cont_30-FWHM-ov2' + '_cut-%d.h5' % N_cut[ll]
+
+	jack_main_func(id_cen, N_bin, n_rbins, ra, dec, z, clus_x, clus_y, d_file, band[0], sub_img,
+		sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
+		id_cut = True, N_edg = N_cut[ll],)
+
+raise
+'''
+
+'''
+dat = pds.read_csv('/home/xkchen/mywork/ICL/code/SEX/result/test_1000-to-250_cat.csv')
+ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
+clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
+
+Bdat = pds.read_csv('/home/xkchen/mywork/ICL/code/SEX/result/test_1000-to-98_cat.csv')
+Bra, Bdec, Bz = np.array(Bdat.ra), np.array(Bdat.dec), np.array(Bdat.z)
+Bclus_x, Bclus_y = np.array(Bdat.bcg_x), np.array(Bdat.bcg_y)
+
+ra = np.r_[ ra, Bra ]
+dec = np.r_[ dec, Bdec ]
+z = np.r_[ z, Bz ]
+clus_x = np.r_[ clus_x, Bclus_x ]
+clus_y = np.r_[ clus_y, Bclus_y ]
+
+size_arr = np.array([5, 10, 15, 20, 25])
+for mm in range(5):
+
+	id_cen = 0
+	n_rbins = 110
+	N_bin = 30
+	d_file = home + '20_10_test/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_' + '%d-FWHM-ov2.fits' % (size_arr[mm])
+
+	sub_img = load + '20_10_test_jack/AB_clust_BCG-stack_sub-%d_img' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+	sub_pix_cont = load + '20_10_test_jack/AB_clust_BCG-stack_sub-%d_pix-cont' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+	sub_sb = load + '20_10_test_jack/AB_clust_BCG-stack_sub-%d_SB-pro' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+
+	J_sub_img = load + '20_10_test_jack/AB_clust_BCG-stack_jack-sub-%d_img' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+	J_sub_pix_cont = load + '20_10_test_jack/AB_clust_BCG-stack_jack-sub-%d_pix-cont' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+	J_sub_sb = load + '20_10_test_jack/AB_clust_BCG-stack_jack-sub-%d_SB-pro' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+
+	jack_SB_file = load + '20_10_test_jack/AB_clust_BCG-stack_Mean_jack_SB-pro' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+	jack_img = load + '20_10_test_jack/AB_clust_BCG-stack_Mean_jack_img' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+	jack_cont_arr = load + '20_10_test_jack/AB_clust_BCG-stack_Mean_jack_pix-cont' + '_%d-FWHM-ov2.h5' % (size_arr[mm])
+
+	jack_main_func(id_cen, N_bin, n_rbins, ra, dec, z, clus_x, clus_y, d_file, band[0], sub_img,
+		sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,)
+
+print('start point!')
+id_cen = 0
+n_rbins = 110
+N_bin = 30
+d_file = home + 'tmp_stack/cluster/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_cat-corrected.fits' ## 30 (FWHM/2) case
+
+sub_img = load + '20_10_test_jack/AB_clust_BCG-stack_sub-%d_img_30-FWHM-ov2.h5'
+sub_pix_cont = load + '20_10_test_jack/AB_clust_BCG-stack_sub-%d_pix-cont_30-FWHM-ov2.h5'
+sub_sb = load + '20_10_test_jack/AB_clust_BCG-stack_sub-%d_SB-pro_30-FWHM-ov2.h5'
+
+J_sub_img = load + '20_10_test_jack/AB_clust_BCG-stack_jack-sub-%d_img_30-FWHM-ov2.h5'
+J_sub_pix_cont = load + '20_10_test_jack/AB_clust_BCG-stack_jack-sub-%d_pix-cont_30-FWHM-ov2.h5'
+J_sub_sb = load + '20_10_test_jack/AB_clust_BCG-stack_jack-sub-%d_SB-pro_30-FWHM-ov2.h5'
+
+jack_SB_file = load + '20_10_test_jack/AB_clust_BCG-stack_Mean_jack_SB-pro_30-FWHM-ov2.h5'
+jack_img = load + '20_10_test_jack/AB_clust_BCG-stack_Mean_jack_img_30-FWHM-ov2.h5'
+jack_cont_arr = load + '20_10_test_jack/AB_clust_BCG-stack_Mean_jack_pix-cont_30-FWHM-ov2.h5'
+
+jack_main_func(id_cen, N_bin, n_rbins, ra, dec, z, clus_x, clus_y, d_file, band[0], sub_img,
+	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,)
+raise
+'''
+
+
