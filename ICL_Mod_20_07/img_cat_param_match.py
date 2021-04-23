@@ -5,7 +5,7 @@ import scipy.stats as sts
 import h5py
 import pandas as pds
 
-def match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len,):
+def match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len, id_spec = True,):
 	"""
 	set_ra, set_dec, set_z : the catalog information
 	cat_file : the total catalog information of query sample
@@ -16,7 +16,15 @@ def match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len,):
 	RA = np.array(goal_data.RA)
 	DEC = np.array(goal_data.DEC)
 	ID = np.array(goal_data.ID)
-	redshift = np.array(goal_data.Z_SPEC)
+
+	z_spec = np.array(goal_data.Z_SPEC)
+	z_phot = np.array(goal_data.Z_LAMBDA)
+
+	if id_spec == True:
+		redshift = z_spec
+	else:
+		redshift = z_phot
+
 	Mag_bcgs = np.array(goal_data.MODEL_MAG_R)
 	Mag_err = np.array(goal_data.MODEL_MAGERR_R)
 	lamda = np.array(goal_data.LAMBDA)
@@ -89,7 +97,8 @@ def match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len,):
 
 		identi = (com_s % ra_g in targ_ra) & (com_s % dec_g in targ_dec) # & (com_s % z_g in targ_z)
 
-		if  identi == True: 
+		if  identi == True:
+
 			sub_z.append(z_g)
 			sub_ra.append(ra_g)
 			sub_dec.append(dec_g)
@@ -189,6 +198,7 @@ def random_match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len,):
 			sub_rich.append(rich_g)
 		else:
 			continue
+
 	sub_z = np.array(sub_z)
 	sub_ra = np.array(sub_ra)
 	sub_dec = np.array(sub_dec)
@@ -204,6 +214,7 @@ def random_match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len,):
 	return
 
 def main():
+
 	"""
 	### random img
 	cat_file = '/home/xkchen/mywork/ICL/data/redmapper/redmapper_dr8_public_v6.3_randoms.fits'

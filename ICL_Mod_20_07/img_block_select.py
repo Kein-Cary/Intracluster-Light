@@ -130,7 +130,7 @@ def diffuse_identi_func(band, set_ra, set_dec, set_z, data_file, rule_out_file, 
 				sigma_bins = np.arange( sb2, sb3, step_sigma)
 				sigma_bins = np.r_[ sigma_bins, sigma_bins[-1] + step_sigma]
 
-				mode_sigma = mode_func( img_sigma, sigma_bins)
+				mode_sigma = mode_func( img_sigma, sigma_bins )
 
 				mu = mode_mu + 0.
 				sigm = mode_sigma + 0.

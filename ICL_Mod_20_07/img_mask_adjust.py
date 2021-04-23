@@ -135,8 +135,8 @@ def mask_with_BCG( img_file, cen_x, cen_y, gal_cat, bcg_R_eff,):
 
 	return mask_img
 
-def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, out_file, bcg_mask, bcg_photo_file, extra_cat = None, alter_fac = None, 
-	alt_bright_R = None, alt_G_size = None, stack_info = None, pixel = 0.396):
+def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, out_file, bcg_mask,
+	bcg_photo_file = None, extra_cat = None, alter_fac = None, alt_bright_R = None, alt_G_size = None, stack_info = None, pixel = 0.396):
 	"""
 	after img masking, use this function to detection "light" region, which
 	mainly due to nearby brightstars, for SDSS case: taking the brightness of
@@ -160,7 +160,8 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 	alt_bright_R : size adjust for bright stars (also for saturated sources)
 	alt_G_size : size adjust for galaxy-like sources
 
-	bcg_photo_file : files including BCG properties (effective radius,), .txt files
+	bcg_photo_file : files including BCG properties (effective radius,), .txt files,
+		[default is None, for radnom img case, always set masking for BCGs]
 	"""
 
 	Nz = len(z_set)

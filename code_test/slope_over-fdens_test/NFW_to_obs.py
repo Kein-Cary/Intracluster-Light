@@ -73,7 +73,7 @@ def mode_flux_densi(rho_2d, m2l, z):
 
 	m0 = Lsun / (np.pi * 4 * m2l * h)
 	m1 = rho_2d / (z + 1)**4
-	
+
 	f_dens = m0 * m1 * kpc2cm**(-2) * rad2arcsec**(-2)
 
 	fdens = f_dens / f0

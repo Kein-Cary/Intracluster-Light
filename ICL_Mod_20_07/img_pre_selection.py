@@ -80,6 +80,293 @@ def zref_BCG_pos_func(cat_file, z_ref, out_file, pix_size,):
 
 	return
 
+def get_mu_sigma(cat_file, ref_cat, out_put, ):
+
+	dat = pds.read_csv( cat_file )
+	ra, dec, z = np.array( dat['ra'] ), np.array( dat['dec'] ), np.array( dat['z'] )
+	tt_ra = ['%.5f' % ll for ll in ra]
+	tt_dec = ['%.5f' % ll for ll in dec]
+
+	samp_dat = pds.read_csv( ref_cat )
+	tmp_ra, tmp_dec, tmp_z = np.array( samp_dat['ra'] ), np.array( samp_dat['dec'] ), np.array( samp_dat['z'] )
+	tmp_mu, tmp_sigm = np.array(samp_dat['img_mu']), np.array(samp_dat['img_sigma'])
+	tmp_cen_mu, tmp_cen_sigm = np.array(samp_dat['cen_mu']), np.array(samp_dat['cen_sigma'])
+	tmp_imgx, tmp_imgy = np.array(samp_dat['bcg_x']), np.array(samp_dat['bcg_y'])
+	N_samp = len( tmp_z )
+
+	cen_mu, cen_sigm = [], []
+	img_mu, img_sigm = [], []
+	dd_ra, dd_dec, dd_z = [], [], []
+	dd_imgx, dd_imgy = [], []
+
+	for kk in range( N_samp ):
+
+		if ('%.5f' % tmp_ra[kk] in tt_ra) & ('%.5f' % tmp_dec[kk] in tt_dec):
+
+			dd_ra.append( tmp_ra[kk])
+			dd_dec.append( tmp_dec[kk])
+			dd_z.append( tmp_z[kk])
+			dd_imgx.append( tmp_imgx[kk])
+			dd_imgy.append( tmp_imgy[kk])
+
+			cen_mu.append( tmp_cen_mu[kk])
+			cen_sigm.append( tmp_cen_sigm[kk])
+			img_mu.append( tmp_mu[kk])
+			img_sigm.append( tmp_sigm[kk])
+		else:
+			continue
+
+	cen_sigm = np.array(cen_sigm)
+	cen_mu = np.array(cen_mu)
+	img_mu = np.array(img_mu)
+	img_sigm = np.array(img_sigm)
+
+	dd_ra = np.array( dd_ra )
+	dd_dec = np.array( dd_dec )
+	dd_z = np.array( dd_z )
+	dd_imgx = np.array( dd_imgx )
+	dd_imgy = np.array( dd_imgy )
+
+	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y', 'cen_mu', 'cen_sigma', 'img_mu', 'img_sigma',]
+	values = [dd_ra, dd_dec, dd_z, dd_imgx, dd_imgy, cen_mu, cen_sigm, img_mu, img_sigm]
+	fill = dict(zip(keys, values))
+	data = pds.DataFrame(fill)
+	data.to_csv( out_put )
+
+	return
+
+### match extra-catalog with the image catalog
+def extra_match_func(ra_list, dec_list, z_lis, cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, sf_len = 5,):
+	"""
+	cat_imgx, cat_imgy : BCG location in image frame
+	cat_ra, cat_dec, cat_z : catalog information of image catalog
+	ra_list, dec_list, z_lis : catalog information of which used to match to the image catalog
+	"""
+	lis_ra, lis_dec, lis_z = [], [], []
+	lis_x, lis_y = [], []
+
+	com_s = '%.' + '%df' % sf_len
+
+	origin_dex = []
+
+	for kk in range( len(cat_ra) ):
+
+		identi = ( com_s % cat_ra[kk] in ra_list) * (com_s % cat_dec[kk] in dec_list)# * (com_s % cat_z[kk] in z_lis)
+
+		if identi == True:
+
+			## use the location of the source in catalog to make sure they are the same objects in different catalog
+			ndex_0 = ra_list.index( com_s % cat_ra[kk] )
+			ndex_1 = dec_list.index( com_s % cat_dec[kk] )
+
+			if ndex_0 == ndex_1:
+				lis_ra.append( cat_ra[kk] )
+				lis_dec.append( cat_dec[kk] )
+				lis_z.append( cat_z[kk] )
+				lis_x.append( cat_imgx[kk] )
+				lis_y.append( cat_imgy[kk] )
+
+				## origin_dex record the location of objs in the origin catalog (not the image catalog),
+				origin_dex.append( ndex_0 )
+			else:
+				continue
+		else:
+			continue
+
+	match_ra = np.array( lis_ra )
+	match_dec = np.array( lis_dec )
+	match_z = np.array( lis_z )
+	match_x = np.array( lis_x )
+	match_y = np.array( lis_y )
+	origin_dex = np.array( origin_dex )
+
+	return match_ra, match_dec, match_z, match_x, match_y, origin_dex
+
+### match between image catalogs or use for image selection
+def cat_match_func(ra_list, dec_list, z_lis, cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, sf_len, id_choice = True,):
+	"""
+	id_choice : if it's True, then those imgs in given list will be used,
+				if it's False, then those imgs in given list will be rule out
+	cat_imgx, cat_imgy : BCG location in image frame
+	"""
+	lis_ra, lis_dec, lis_z = [], [], []
+	lis_x, lis_y = [], []
+
+	com_s = '%.' + '%df' % sf_len
+
+	if id_choice == True:
+
+		origin_dex = []
+
+		for kk in range( len(cat_ra) ):
+
+			identi = ( com_s % cat_ra[kk] in ra_list) * (com_s % cat_dec[kk] in dec_list) * (com_s % cat_z[kk] in z_lis)
+
+			if identi == True:
+
+				ndex_0 = ra_list.index( com_s % cat_ra[kk] )
+
+				lis_ra.append( cat_ra[kk] )
+				lis_dec.append( cat_dec[kk] )
+				lis_z.append( cat_z[kk] )
+				lis_x.append( cat_imgx[kk] )
+				lis_y.append( cat_imgy[kk] )
+
+				origin_dex.append( ndex_0 )
+
+			else:
+				continue
+
+		match_ra = np.array( lis_ra )
+		match_dec = np.array( lis_dec )
+		match_z = np.array( lis_z )
+		match_x = np.array( lis_x )
+		match_y = np.array( lis_y )
+		origin_dex = np.array( origin_dex )
+
+		return match_ra, match_dec, match_z, match_x, match_y, origin_dex
+
+	else:
+		for kk in range( len(cat_ra) ):
+
+			identi = ( com_s % cat_ra[kk] in ra_list) * (com_s % cat_dec[kk] in dec_list) * (com_s % cat_z[kk] in z_lis)
+
+			if identi == True:
+				continue
+			else:
+				lis_ra.append(cat_ra[kk])
+				lis_dec.append(cat_dec[kk])
+				lis_z.append(cat_z[kk])
+				lis_x.append(cat_imgx[kk])
+				lis_y.append(cat_imgy[kk])
+
+		match_ra = np.array(lis_ra)
+		match_dec = np.array(lis_dec)
+		match_z = np.array(lis_z)
+		match_x = np.array(lis_x)
+		match_y = np.array(lis_y)
+
+		return match_ra, match_dec, match_z, match_x, match_y
+
+def map_mu_sigma_func(cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, img_file, band, L_cen, N_step, out_file,):
+	"""
+	cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy : catalog information, including ra, dec, z and 
+		BCG location (cat_imgx, cat_imgy) in image coordinate.
+	img_file : imgs will be analysis, have applied masking ('XX/XX/xx.fits')
+	L_cen : half length of centeral region box
+	N_step : grid size.
+	out_file : out-put file.(.csv files)
+	band : filter imformation (eg. r, g, i, u, z), str type
+	"""
+	N_samp = len( cat_ra )
+
+	cen_sigm, cen_mu = [], []
+	img_mu, img_sigm = [], []
+
+	for kk in range( N_samp ):
+
+		ra_g, dec_g, z_g = cat_ra[kk], cat_dec[kk], cat_z[kk]
+		xn, yn = cat_imgx[kk], cat_imgy[kk]
+
+		# mask imgs
+		res_file = img_file % (band, ra_g, dec_g, z_g)
+		res_data = fits.open(res_file)
+		remain_img = res_data[0].data
+
+		# mask matrix
+		idnn = np.isnan(remain_img)
+		mask_arr = np.zeros((remain_img.shape[0], remain_img.shape[1]), dtype = np.float32)
+		mask_arr[idnn == False] = 1
+
+		ca0, ca1 = np.int( remain_img.shape[0] / 2), np.int( remain_img.shape[1] / 2)
+		cen_D = L_cen
+		flux_cen = remain_img[ca0 - cen_D: ca0 + cen_D, ca1 - cen_D: ca1 + cen_D]
+
+		cen_lx = np.arange(0, 1100, N_step)
+		cen_ly = np.arange(0, 1100, N_step)
+		nl0, nl1 = len(cen_ly), len(cen_lx)
+
+		sub_pock_pix = np.zeros((nl0 - 1, nl1 - 1), dtype = np.float)
+		sub_pock_flux = np.zeros((nl0 - 1, nl1 - 1), dtype = np.float)
+		for nn in range(nl0 - 1):
+			for tt in range(nl1 - 1):
+				sub_flux = flux_cen[ cen_ly[nn]: cen_ly[nn+1], cen_lx[tt]: cen_lx[tt+1] ]
+				id_nn = np.isnan(sub_flux)
+				sub_pock_flux[nn,tt] = np.nanmean(sub_flux)
+				sub_pock_pix[nn,tt] = len(sub_flux[id_nn == False])
+
+		## mu, sigma of center region
+		id_Nzero = sub_pock_pix > 100
+		mu = np.nanmean( sub_pock_flux[id_Nzero] )
+		sigm = np.nanstd( sub_pock_flux[id_Nzero] )
+
+		cen_sigm.append( sigm )
+		cen_mu.append( mu )
+
+		## grid img (for selecting flare, saturated region...)
+		block_m, block_pix, block_Var, block_S0, x_edgs, y_edgs = cc_grid_img(remain_img, N_step, N_step)
+
+		idzo = block_pix < 1.
+		pix_eta = block_pix / block_S0
+		idnn = np.isnan(pix_eta)
+		pix_eta[idnn] = 0.
+		idnul = pix_eta < 5e-2
+		block_m[idnul] = 0.
+
+		img_mu.append( np.nanmean( block_m[idnul == False] ) )
+		img_sigm.append( np.nanstd( block_m[idnul == False] ) )
+
+	cen_sigm = np.array(cen_sigm)
+	cen_mu = np.array(cen_mu)
+	img_mu = np.array(img_mu)
+	img_sigm = np.array(img_sigm)
+
+	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y', 'cen_mu', 'cen_sigma', 'img_mu', 'img_sigma',]
+	values = [ cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, cen_mu, cen_sigm, img_mu, img_sigm ]
+	fill = dict(zip(keys, values))
+	data = pds.DataFrame(fill)
+	data.to_csv( out_file )
+
+	return
+
+def img_cat_lis_func(img_file, ref_cat, out_put, sf_len, id_choice = True,):
+	"""
+	img_file : imgs need to capture information, only including data formats(.png, .pdf, .jpg, ...)
+				and the path (in which imgs are saved.), /XX/XX_raX_decX_zX.xx
+	ref_cat : catalog in which match the imgs information, .csv files
+
+	out_put : informations of match those imgs, including [ra, dec, z, bcg_x, bcg_y]
+				(bcg_x, bcg_y) is the location of BCG in image frame. .csv files	
+	"""
+	lis = glob.glob( img_file )
+	name_lis = [ ll.split('/')[-1] for ll in lis ]
+
+	tt_lis = name_lis[0].split('_')
+	dete0 = ['ra' in ll for ll in tt_lis]
+	index0 = dete0.index( True )
+
+	dete1 = ['dec' in ll for ll in tt_lis]
+	index1 = dete1.index( True )
+
+	out_ra = [ ll.split('_')[ index0 ][2:] for ll in name_lis ]
+	out_dec = [ ll.split('_')[ index1 ][3:] for ll in name_lis ]
+
+	ref_dat = pds.read_csv( ref_cat )
+	cat_ra, cat_dec, cat_z = np.array(ref_dat.ra), np.array(ref_dat.dec), np.array(ref_dat.z)
+	clus_x, clus_y = np.array(ref_dat.bcg_x), np.array(ref_dat.bcg_y)
+
+	lis_ra, lis_dec, lis_z, lis_x, lis_y = cat_match_func(
+		out_ra, out_dec, cat_ra, cat_dec, cat_z, clus_x, clus_y, sf_len, id_choice,)
+
+	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y']
+	values = [lis_ra, lis_dec, lis_z, lis_x, lis_y]
+	fill = dict(zip(keys, values))
+	data = pds.DataFrame(fill)
+	data.to_csv( out_put )
+
+	return
+
+## === ## use for image over view
 def gau_func(x, mu, sigma):
 	return sts.norm.pdf(x, mu, sigma)
 
@@ -166,182 +453,6 @@ def get_cat(star_cat, gal_cat, pixel, wcs_lis, norm_star_r = 30, brit_star_r = 7
 	tot_Numb = Numb + len(comx)
 
 	return tot_Numb, tot_cx, tot_cy, tot_a, tot_b, tot_theta
-
-def get_mu_sigma(cat_file, ref_cat, out_put, ):
-
-	dat = pds.read_csv( cat_file )
-	ra, dec, z = np.array( dat['ra'] ), np.array( dat['dec'] ), np.array( dat['z'] )
-	tt_ra = ['%.5f' % ll for ll in ra]
-	tt_dec = ['%.5f' % ll for ll in dec]
-
-	samp_dat = pds.read_csv( ref_cat )
-	tmp_ra, tmp_dec, tmp_z = np.array( samp_dat['ra'] ), np.array( samp_dat['dec'] ), np.array( samp_dat['z'] )
-	tmp_mu, tmp_sigm = np.array(samp_dat['img_mu']), np.array(samp_dat['img_sigma'])
-	tmp_cen_mu, tmp_cen_sigm = np.array(samp_dat['cen_mu']), np.array(samp_dat['cen_sigma'])
-	tmp_imgx, tmp_imgy = np.array(samp_dat['bcg_x']), np.array(samp_dat['bcg_y'])
-	N_samp = len( tmp_z )
-
-	cen_mu, cen_sigm = [], []
-	img_mu, img_sigm = [], []
-	dd_ra, dd_dec, dd_z = [], [], []
-	dd_imgx, dd_imgy = [], []
-
-	for kk in range( N_samp ):
-
-		if ('%.5f' % tmp_ra[kk] in tt_ra) & ('%.5f' % tmp_dec[kk] in tt_dec):
-
-			dd_ra.append( tmp_ra[kk])
-			dd_dec.append( tmp_dec[kk])
-			dd_z.append( tmp_z[kk])
-			dd_imgx.append( tmp_imgx[kk])
-			dd_imgy.append( tmp_imgy[kk])
-
-			cen_mu.append( tmp_cen_mu[kk])
-			cen_sigm.append( tmp_cen_sigm[kk])
-			img_mu.append( tmp_mu[kk])
-			img_sigm.append( tmp_sigm[kk])
-		else:
-			continue
-
-	cen_sigm = np.array(cen_sigm)
-	cen_mu = np.array(cen_mu)
-	img_mu = np.array(img_mu)
-	img_sigm = np.array(img_sigm)
-
-	dd_ra = np.array( dd_ra )
-	dd_dec = np.array( dd_dec )
-	dd_z = np.array( dd_z )
-	dd_imgx = np.array( dd_imgx )
-	dd_imgy = np.array( dd_imgy )
-
-	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y', 'cen_mu', 'cen_sigma', 'img_mu', 'img_sigma',]
-	values = [dd_ra, dd_dec, dd_z, dd_imgx, dd_imgy, cen_mu, cen_sigm, img_mu, img_sigm]
-	fill = dict(zip(keys, values))
-	data = pds.DataFrame(fill)
-	data.to_csv( out_put )
-
-	return
-
-def cat_match_func(ra_list, dec_list, cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, sf_len, id_choice = True,):
-	"""
-	id_choice : if it's True, then those imgs in given list will be used,
-				if it's False, then those imgs in given list will be rule out
-	cat_imgx, cat_imgy : BCG location in image frame
-	"""
-	lis_ra, lis_dec, lis_z = [], [], []
-	lis_x, lis_y = [], []
-
-	com_s = '%.' + '%df' % sf_len
-
-	if id_choice == True:
-		for kk in range( len(cat_ra) ):
-			if ( com_s % cat_ra[kk] in ra_list) * (com_s % cat_dec[kk] in dec_list):
-				lis_ra.append(cat_ra[kk])
-				lis_dec.append(cat_dec[kk])
-				lis_z.append(cat_z[kk])
-				lis_x.append(cat_imgx[kk])
-				lis_y.append(cat_imgy[kk])
-			else:
-				continue
-	else:
-		for kk in range( len(cat_ra) ):
-			if ( com_s % cat_ra[kk] in ra_list) * ( com_s % cat_dec[kk] in dec_list):
-				continue
-			else:
-				lis_ra.append(cat_ra[kk])
-				lis_dec.append(cat_dec[kk])
-				lis_z.append(cat_z[kk])
-				lis_x.append(cat_imgx[kk])
-				lis_y.append(cat_imgy[kk])
-
-	match_ra = np.array(lis_ra)
-	match_dec = np.array(lis_dec)
-	match_z = np.array(lis_z)
-	match_x = np.array(lis_x)
-	match_y = np.array(lis_y)
-
-	return match_ra, match_dec, match_z, match_x, match_y
-
-def map_mu_sigma_func(cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, img_file, band, L_cen, N_step, out_file,):
-	"""
-	cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy : catalog information, including ra, dec, z and 
-		BCG location (cat_imgx, cat_imgy) in image coordinate.
-	img_file : imgs will be analysis, have applied masking ('XX/XX/xx.fits')
-	L_cen : half length of centeral region box
-	N_step : grid size.
-	out_file : out-put file.(.csv files)
-	band : filter imformation (eg. r, g, i, u, z), str type
-	"""
-	N_samp = len( cat_ra )
-
-	cen_sigm, cen_mu = [], []
-	img_mu, img_sigm = [], []
-
-	for kk in range( N_samp ):
-
-		ra_g, dec_g, z_g = cat_ra[kk], cat_dec[kk], cat_z[kk]
-		xn, yn = cat_imgx[kk], cat_imgy[kk]
-
-		# mask imgs
-		res_file = img_file % (band, ra_g, dec_g, z_g)
-		res_data = fits.open(res_file)
-		remain_img = res_data[0].data
-
-		# mask matrix
-		idnn = np.isnan(remain_img)
-		mask_arr = np.zeros((remain_img.shape[0], remain_img.shape[1]), dtype = np.float32)
-		mask_arr[idnn == False] = 1
-
-		ca0, ca1 = np.int( remain_img.shape[0] / 2), np.int( remain_img.shape[1] / 2)
-		cen_D = L_cen
-		flux_cen = remain_img[ca0 - cen_D: ca0 + cen_D, ca1 - cen_D: ca1 + cen_D]
-
-		cen_lx = np.arange(0, 1100, N_step)
-		cen_ly = np.arange(0, 1100, N_step)
-		nl0, nl1 = len(cen_ly), len(cen_lx)
-
-		sub_pock_pix = np.zeros((nl0 - 1, nl1 - 1), dtype = np.float)
-		sub_pock_flux = np.zeros((nl0 - 1, nl1 - 1), dtype = np.float)
-		for nn in range(nl0 - 1):
-			for tt in range(nl1 - 1):
-				sub_flux = flux_cen[ cen_ly[nn]: cen_ly[nn+1], cen_lx[tt]: cen_lx[tt+1] ]
-				id_nn = np.isnan(sub_flux)
-				sub_pock_flux[nn,tt] = np.nanmean(sub_flux)
-				sub_pock_pix[nn,tt] = len(sub_flux[id_nn == False])
-
-		## mu, sigma of center region
-		id_Nzero = sub_pock_pix > 100
-		mu = np.nanmean( sub_pock_flux[id_Nzero] )
-		sigm = np.nanstd( sub_pock_flux[id_Nzero] )
-
-		cen_sigm.append(sigm)
-		cen_mu.append(mu)
-
-		## grid img (for selecting flare, saturated region...)
-		block_m, block_pix, block_Var, block_S0, x_edgs, y_edgs = cc_grid_img(remain_img, N_step, N_step)
-
-		idzo = block_pix < 1.
-		pix_eta = block_pix / block_S0
-		idnn = np.isnan(pix_eta)
-		pix_eta[idnn] = 0.
-		idnul = pix_eta < 5e-2
-		block_m[idnul] = 0.
-
-		img_mu.append( np.nanmean( block_m[idnul == False] ) )
-		img_sigm.append( np.nanstd( block_m[idnul == False] ) )
-
-	cen_sigm = np.array(cen_sigm)
-	cen_mu = np.array(cen_mu)
-	img_mu = np.array(img_mu)
-	img_sigm = np.array(img_sigm)
-
-	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y', 'cen_mu', 'cen_sigma', 'img_mu', 'img_sigma',]
-	values = [ cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, cen_mu, cen_sigm, img_mu, img_sigm ]
-	fill = dict(zip(keys, values))
-	data = pds.DataFrame(fill)
-	data.to_csv( out_file )
-
-	return
 
 def hist_analysis_func(cat_file, img_file, mask_img_file, band, star_cat, gal_cat, out_imgs, pix_scale, N_step,):
 	"""
@@ -477,43 +588,6 @@ def hist_analysis_func(cat_file, img_file, mask_img_file, band, star_cat, gal_ca
 
 	return
 
-def img_cat_lis_func(img_file, ref_cat, out_put, sf_len, id_choice = True,):
-	"""
-	img_file : imgs need to capture information, only including data formats(.png, .pdf, .jpg, ...)
-				and the path (in which imgs are saved.), /XX/XX_raX_decX_zX.xx
-	ref_cat : catalog in which match the imgs information, .csv files
-
-	out_put : informations of match those imgs, including [ra, dec, z, bcg_x, bcg_y]
-				(bcg_x, bcg_y) is the location of BCG in image frame. .csv files	
-	"""
-	lis = glob.glob( img_file )
-	name_lis = [ ll.split('/')[-1] for ll in lis ]
-
-	tt_lis = name_lis[0].split('_')
-	dete0 = ['ra' in ll for ll in tt_lis]
-	index0 = dete0.index( True )
-
-	dete1 = ['dec' in ll for ll in tt_lis]
-	index1 = dete1.index( True )
-
-	out_ra = [ ll.split('_')[ index0 ][2:] for ll in name_lis ]
-	out_dec = [ ll.split('_')[ index1 ][3:] for ll in name_lis ]
-
-	ref_dat = pds.read_csv( ref_cat )
-	cat_ra, cat_dec, cat_z = np.array(ref_dat.ra), np.array(ref_dat.dec), np.array(ref_dat.z)
-	clus_x, clus_y = np.array(ref_dat.bcg_x), np.array(ref_dat.bcg_y)
-
-	lis_ra, lis_dec, lis_z, lis_x, lis_y = cat_match_func(
-		out_ra, out_dec, cat_ra, cat_dec, cat_z, clus_x, clus_y, sf_len, id_choice,)
-
-	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y']
-	values = [lis_ra, lis_dec, lis_z, lis_x, lis_y]
-	fill = dict(zip(keys, values))
-	data = pds.DataFrame(fill)
-	data.to_csv( out_put )
-
-	return
-
 def main():
 
 	import matplotlib as mpl
@@ -524,6 +598,7 @@ def main():
 
 	band = ['r', 'g', 'i']
 	home = '/media/xkchen/My Passport/data/SDSS/'
+
 	'''
 	cat_file = '/home/xkchen/tmp/02_tot_test_change_1_selection/cluster_tot-r-band_norm-img_cat.csv'
 
@@ -552,6 +627,7 @@ def main():
 
 	img_cat_lis_func(img_file, ref_cat, out_put, sf_len,)
 	'''
+
 	#cat_file = 'result/test_1000_no_select.csv'
 	cat_file = 'result/test_1000-to-250_cat.csv'
 	ref_cat = 'img_3100_mean_sigm.csv'

@@ -43,12 +43,10 @@ def source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file, stack_inf
 		hdu.data = img
 		hdu.header = head
 		hdu.writeto('/home/xkchen/project/tmp/img_ra%.3f_dec%.3f_z%.3f.fits' % (ra_g, dec_g, z_g), overwrite = True)
-		#hdu.writeto('tmp.fits', overwrite = True)
 
 		out_cat = out_file % (band, ra_g, dec_g, z_g)
 
 		file_source = '/home/xkchen/project/tmp/img_ra%.3f_dec%.3f_z%.3f.fits' % (ra_g, dec_g, z_g)
-		#file_source = 'tmp.fits'
 
 		cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s' % (param_A, out_cat, out_param)
 		a = subpro.Popen(cmd, shell = True)
@@ -140,15 +138,18 @@ def mask_with_BCG( img_file, cen_x, cen_y, gal_cat, bcg_R_eff,):
 
 	return mask_img
 
-def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, bcg_photo_file, stack_info = None, pixel = 0.396, source_det = False,):
+def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, bcg_photo_file = None,
+	stack_info = None, pixel = 0.396, source_det = False,):
 	"""
 	d_file : path where image data saved (include file-name structure:
 	'/xxx/xxx/xxx.xxx')
 	cat_file : path where photometric data saved, the same structure as d_file
 	set_ra, set_dec, set_z : ra, dec, z of will be masked imgs
 	band: band of image data, 'str' type
+
 	out_file0 : save sources information (mainly for galaxies)
 	out_file1 : save the masking data
+
 	bcg_mask : 0 -- mask all sources except BCGs; 1 : BCGs also will be masked
 	pixel : pixel scale, in unit 'arcsec' (default is 0.396)
 	stack_info : path to save the information of stacking (ra, dec, z, img_x, img_y)
