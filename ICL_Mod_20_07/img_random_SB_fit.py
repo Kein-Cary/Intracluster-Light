@@ -107,10 +107,12 @@ def clust_SB_fit_func( R_arr, sb_arr, sb_err_arr, params_file, R_psf, lo_R_lim, 
 	## read params of random point SB profile
 	p_dat = pds.read_csv( params_file )
 	( e_a, e_b, e_x0, e_A, e_alpha, e_B ) = ( np.array(p_dat['e_a'])[0], np.array(p_dat['e_b'])[0], np.array(p_dat['e_x0'])[0],
-											np.array(p_dat['e_A'])[0], np.array(p_dat['e_alpha'])[0], np.array(p_dat['e_B'])[0], )
+											np.array(p_dat['e_A'])[0], np.array(p_dat['e_alpha'])[0], np.array(p_dat['e_B'])[0],)
 
-	idx1 = ( com_r >= lo_R_lim )
-	idx2 = ( com_r >= lo_R_lim ) & (com_r <= hi_R_lim)
+	idx1 = ( com_r >= lo_R_lim ) # normal
+	# idx1 = ( com_r >= lo_R_lim ) & ( com_r <= hi_R_lim ) # adjust
+
+	idx2 = ( com_r >= lo_R_lim ) & ( com_r <= hi_R_lim )
 
 	fx = com_r[idx1]
 	fy = com_sb[idx1]
@@ -120,7 +122,7 @@ def clust_SB_fit_func( R_arr, sb_arr, sb_err_arr, params_file, R_psf, lo_R_lim, 
 
 	po = list( p0 )
 	bonds = bounds
-	E_return = optimize.minimize(err_fit_func, x0 = np.array(po), args = (fx, fy, params, ferr), method = 'L-BFGS-B', bounds = bonds,)
+	E_return = optimize.minimize( err_fit_func, x0 = np.array(po), args = (fx, fy, params, ferr), method = 'L-BFGS-B', bounds = bonds,)
 	popt = E_return.x
 	offD, I_e, R_e = popt
 
@@ -170,4 +172,5 @@ def clust_SB_fit_func( R_arr, sb_arr, sb_err_arr, params_file, R_psf, lo_R_lim, 
 	out_data.to_csv( out_params_file )
 
 	return
+
 

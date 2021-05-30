@@ -45,6 +45,7 @@ cat_Rii = np.array([0.23,  0.68,  1.03,   1.76,   3.00,
 ## the band info. of SDSS BCG pro. : 0, 1, 2, 3, 4 --> u, g, r, i, z
 
 def cumula_flux(angl_r, bin_fdens,):
+
 	N_bin = len( angl_r )
 	flux_arr = np.zeros( N_bin, dtype = np.float32)
 
@@ -57,6 +58,7 @@ def cumula_flux(angl_r, bin_fdens,):
 		else:
 			tps = kk + 0
 			cfi = 0
+
 			while tps > 0:
 				cfi = cfi + np.pi * (angl_r[tps]**2 - angl_r[tps-1]**2) * bin_fdens[tps]
 				tps = tps - 1
@@ -94,7 +96,9 @@ def fdens_deriv(r_angle, obs_r, obs_fmean, ):
 	'''
 	return sb_f
 
-def BCG_SB_pros_func(band_id, set_z, set_ra, set_dec, pros_file, z_ref, out_file, r_bins,):
+def BCG_SB_pros_func(band_str, set_z, set_ra, set_dec, pros_file, z_ref, out_file, r_bins,):
+
+	band_id = band.index( band_str )
 
 	if band_id == 0:
 		pro_id = 2
@@ -104,7 +108,7 @@ def BCG_SB_pros_func(band_id, set_z, set_ra, set_dec, pros_file, z_ref, out_file
 		pro_id = 3
 
 	zn = len(set_z)
-	fdens_arr = np.zeros((zn, len(r_bins) ), dtype = np.float32) + np.nan
+	fdens_arr = np.zeros( (zn, len(r_bins) ), dtype = np.float32) + np.nan
 
 	for tt in range( zn ):
 
@@ -115,10 +119,10 @@ def BCG_SB_pros_func(band_id, set_z, set_ra, set_dec, pros_file, z_ref, out_file
 
 		cat_pro = pds.read_csv( pros_file % (z_g, ra_g, dec_g), skiprows = 1)
 
-		dat_band = np.array(cat_pro.band)
-		dat_bins = np.array(cat_pro.bin)
-		dat_pro = np.array(cat_pro.profMean) # in unit of nmaggy / arcsec^2
-		dat_pro_err = np.array(cat_pro.profErr)
+		dat_band = np.array( cat_pro.band )
+		dat_bins = np.array( cat_pro.bin )
+		dat_pro = np.array( cat_pro.profMean ) # in unit of nmaggy / arcsec^2
+		dat_pro_err = np.array( cat_pro.profErr )
 
 		idx = dat_band == pro_id
 		tt_pro = dat_pro[idx]
@@ -151,4 +155,44 @@ def BCG_SB_pros_func(band_id, set_z, set_ra, set_dec, pros_file, z_ref, out_file
 	data.to_csv( out_file )
 
 	return
+
+### for single image
+def single_img_SB_func(band_str, set_z, set_ra, set_dec, pros_file, z_ref, r_bins):
+
+	band_id = band.index( band_str )
+
+	if band_id == 0:
+		pro_id = 2
+	if band_id == 1:
+		pro_id = 1
+	if band_id == 2:
+		pro_id = 3
+
+	z_g, ra_g, dec_g = set_z, set_ra, set_dec
+
+	Da_g = Test_model.angular_diameter_distance(z_g).value
+	r_angl = (r_bins * 1e-3) / Da_g * rad2asec
+
+	cat_pro = pds.read_csv( pros_file % (z_g, ra_g, dec_g), skiprows = 1)
+
+	dat_band = np.array( cat_pro.band )
+	dat_bins = np.array( cat_pro.bin )
+	dat_pro = np.array( cat_pro.profMean ) # in unit of nmaggy / arcsec^2
+	dat_pro_err = np.array( cat_pro.profErr )
+
+	idx = dat_band == pro_id
+	tt_pro = dat_pro[idx]
+	tt_proErr = dat_pro_err[idx]
+	tt_bin = dat_bins[idx]
+	tt_r = cat_Rii[tt_bin]
+
+	id_lim = r_angl <= tt_r.max()
+	use_angl_r = r_angl[ id_lim ]
+
+	fdens = fdens_deriv( use_angl_r, tt_r, tt_pro,)
+
+	out_fdens = fdens * ( (1 + z_g) / (1 + z_ref) )**4
+	out_rbins = r_bins[ id_lim ]
+
+	return out_rbins, fdens
 

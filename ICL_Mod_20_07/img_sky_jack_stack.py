@@ -211,7 +211,7 @@ def sky_jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, im
 
 	lis_ra, lis_dec, lis_z = [], [], []
 	lis_x, lis_y = [], []
-	for nn in range(N_bin):
+	for nn in range( N_bin ):
 
 		id_xbin = np.where( id_group == nn )[0]
 

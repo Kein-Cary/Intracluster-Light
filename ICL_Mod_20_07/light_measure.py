@@ -179,7 +179,7 @@ def over_dens_sb_func(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 	R_fdens = np.r_[ cen_R, R_fdens]
 
 	id_nul = np.isnan( fdens )
-	cumuli_f = cumula_flux_func( angl_r[id_nul == False], fdens[id_nul == False])
+	cumuli_f = cumula_flux_func( angl_r[id_nul == False], fdens[id_nul == False] )
 
 	bar_fdens = cumuli_f / ( np.pi * angl_r[id_nul == False]**2 )
 
@@ -328,11 +328,24 @@ def light_measure_rn_Z0_weit(data, weit_data, pix_size, cx, cy, R_low, R_up):
 	y0 = np.linspace(0, Ny-1, Ny)
 	pix_id = np.array(np.meshgrid(x0,y0))
 
-	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
-		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
+	#..center pixel point
+	dev_05_x = cx - np.int( cx )
+	dev_05_y = cy - np.int( cy )
+
+	if dev_05_x > 0.5:
+		xn = np.int( cx ) + 1
+	else:
+		xn = np.int( cx )
+
+	if dev_05_y > 0.5:
+		yn = np.int( cy ) + 1
+	else:
+		yn = np.int( cy )
+
+	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*xn + 1) / 2)**2 + ((2*pix_id[1] + 1) / 2 - (2*yn + 1) / 2)**2)
 	idu = (dr >= R_low) & (dr <= R_up)
 
-	theta = np.arctan2((pix_id[1,:] - cy), (pix_id[0,:] - cx))
+	theta = np.arctan2((pix_id[1,:] - yn), (pix_id[0,:] - xn))
 	chi = theta * 180 / np.pi
 
 	samp_chi = chi[idu]
@@ -401,7 +414,21 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 	y0 = np.linspace(0, Ny-1, Ny)
 	pix_id = np.array(np.meshgrid(x0,y0))
 
-	theta = np.arctan2((pix_id[1,:] - cy), (pix_id[0,:] - cx))
+	#..center pixel point
+	dev_05_x = cx - np.int( cx )
+	dev_05_y = cy - np.int( cy )
+
+	if dev_05_x > 0.5:
+		xn = np.int( cx ) + 1
+	else:
+		xn = np.int( cx )
+
+	if dev_05_y > 0.5:
+		yn = np.int( cy ) + 1
+	else:
+		yn = np.int( cy )
+
+	theta = np.arctan2((pix_id[1,:] - yn), (pix_id[0,:] - xn))
 	chi = theta * 180 / np.pi
 	# radius in unit of pixel number
 	rbin = R_bins
@@ -412,8 +439,7 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 	N_pix = np.zeros(len(rbin), dtype = np.float)
 	nsum_ratio = np.zeros(len(rbin), dtype = np.float)
 
-	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
-		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
+	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*xn + 1) / 2)**2 + ((2*pix_id[1] + 1) / 2 - (2*yn + 1) / 2)**2)
 
 	for k in range(len(rbin) - 1):
 		cdr = rbin[k + 1] - rbin[k]
@@ -505,11 +531,24 @@ def light_measure_rn_weit(data, weit_data, pix_size, cx, cy, z0, R_low, R_up):
 	y0 = np.linspace(0, Ny-1, Ny)
 	pix_id = np.array(np.meshgrid(x0,y0))
 
-	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
-		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
+	#..center pixel point
+	dev_05_x = cx - np.int( cx )
+	dev_05_y = cy - np.int( cy )
+
+	if dev_05_x > 0.5:
+		xn = np.int( cx ) + 1
+	else:
+		xn = np.int( cx )
+
+	if dev_05_y > 0.5:
+		yn = np.int( cy ) + 1
+	else:
+		yn = np.int( cy )
+
+	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*xn + 1) / 2)**2 + ((2*pix_id[1] + 1) / 2 - (2*yn + 1) / 2)**2)
 	idu = (dr >= R_pix_low) & (dr <= R_pix_up)
 
-	theta = np.arctan2((pix_id[1,:] - cy), (pix_id[0,:] - cx))
+	theta = np.arctan2((pix_id[1,:] - yn), (pix_id[0,:] - xn))
 	chi = theta * 180 / np.pi
 
 	samp_chi = chi[idu]
@@ -580,7 +619,21 @@ def light_measure_weit(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 	y0 = np.linspace(0, Ny-1, Ny)
 	pix_id = np.array(np.meshgrid(x0,y0))
 
-	theta = np.arctan2((pix_id[1,:]-cy), (pix_id[0,:]-cx))
+	#..center pixel point
+	dev_05_x = cx - np.int( cx )
+	dev_05_y = cy - np.int( cy )
+
+	if dev_05_x > 0.5:
+		xn = np.int( cx ) + 1
+	else:
+		xn = np.int( cx )
+
+	if dev_05_y > 0.5:
+		yn = np.int( cy ) + 1
+	else:
+		yn = np.int( cy )
+
+	theta = np.arctan2((pix_id[1,:] - yn), (pix_id[0,:] - xn))
 	chi = theta * 180 / np.pi
 
 	rbin = R_bins # have been divided bins, in unit of pixels
@@ -593,8 +646,7 @@ def light_measure_weit(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 	N_pix = np.zeros(len(rbin), dtype = np.float)
 	nsum_ratio = np.zeros(len(rbin), dtype = np.float)
 
-	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
-		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
+	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*xn + 1) / 2)**2 + ((2*pix_id[1] + 1) / 2 - (2*yn + 1) / 2)**2)
 
 	for k in range(len(rbin) - 1):
 		cdr = rbin[k + 1] - rbin[k]
@@ -783,7 +835,6 @@ def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbi
 
 	## only save the sb result in unit " nanomaggies / arcsec^2 "
 	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(cc_tmp_sb, cc_tmp_r, band[ id_band ], N_bin,)[4:]
-
 	#tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, band[ id_band ], N_bin,)[4:]
 
 	with h5py.File(alter_jk_sb, 'w') as f:
@@ -911,7 +962,6 @@ def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb
 
 	## only save the sb result in unit " nanomaggies / arcsec^2 "
 	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(cc_tmp_sb, cc_tmp_r, band[ id_band ], N_bin,)[4:]
-
 	#tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, band[ id_band ], N_bin,)[4:]
 
 	with h5py.File(alter_jk_sb, 'w') as f:
@@ -920,4 +970,3 @@ def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb
 		f['sb_err'] = np.array(tt_jk_err)
 
 	return
-

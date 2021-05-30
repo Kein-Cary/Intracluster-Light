@@ -252,7 +252,7 @@ def adjust_mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, o
 
 		if alt_bright_R is not None:
 			sub_A2 = lr_iso[ipx] * alt_bright_R
-			sub_B2 = sr_iso[ipx] * alt_bright_R			
+			sub_B2 = sr_iso[ipx] * alt_bright_R
 		else:
 			sub_A2 = lr_iso[ipx] * 75
 			sub_B2 = sr_iso[ipx] * 75
