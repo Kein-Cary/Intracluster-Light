@@ -29,7 +29,7 @@ Omega_k = 1.- (Omega_lambda + Omega_m)
 rad2asec = U.rad.to(U.arcsec)
 
 #**************************#
-def WCS_to_pixel_func(ra, dec, header_inf,):
+def WCS_to_pixel_func(ra, dec, header_inf):
 	"""
 	according to SDSS Early Data Release paper (section 4.2.2 wcs)
 	"""
@@ -55,6 +55,33 @@ def WCS_to_pixel_func(ra, dec, header_inf,):
 	id_row = row_0 + delt_row
 
 	return id_col, id_row
+
+def pixel_to_WCS_func(x, y, header_inf):
+
+	Ra0 = header_inf['CRVAL1']
+	Dec0 = header_inf['CRVAL2']
+
+	row_0 = header_inf['CRPIX2']
+	col_0 = header_inf['CRPIX1']
+
+	af = header_inf['CD1_1']
+	bf = header_inf['CD1_2']
+
+	cf = header_inf['CD2_1']
+	df = header_inf['CD2_2']
+
+	_delta = bf * cf - af * df
+
+	delta_x = x - col_0
+	delta_y = y - row_0
+
+	delta_ra = _delta * ( delta_x * af + delta_y * bf ) / _delta
+	delta_dec = _delta * ( delta_x * cf + delta_y * df ) / _delta
+
+	dec = Dec0 + delta_dec
+	ra = Ra0 + delta_ra / np.cos( Dec0 * np.pi / 180 )
+
+	return ra, dec
 
 def zref_BCG_pos_func(cat_file, z_ref, out_file, pix_size,):
 
@@ -136,7 +163,7 @@ def get_mu_sigma(cat_file, ref_cat, out_put, ):
 	return
 
 ### match extra-catalog with the image catalog
-def extra_match_func(ra_list, dec_list, z_lis, cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, sf_len = 5,):
+def extra_match_func(ra_list, dec_list, z_lis, cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, sf_len = 5):
 	"""
 	cat_imgx, cat_imgy : BCG location in image frame
 	cat_ra, cat_dec, cat_z : catalog information of image catalog
@@ -151,7 +178,7 @@ def extra_match_func(ra_list, dec_list, z_lis, cat_ra, cat_dec, cat_z, cat_imgx,
 
 	for kk in range( len(cat_ra) ):
 
-		identi = ( com_s % cat_ra[kk] in ra_list) * (com_s % cat_dec[kk] in dec_list)# * (com_s % cat_z[kk] in z_lis)
+		identi = ( com_s % cat_ra[kk] in ra_list) * (com_s % cat_dec[kk] in dec_list) #* (com_s % cat_z[kk] in z_lis)
 
 		if identi == True:
 
@@ -159,17 +186,17 @@ def extra_match_func(ra_list, dec_list, z_lis, cat_ra, cat_dec, cat_z, cat_imgx,
 			ndex_0 = ra_list.index( com_s % cat_ra[kk] )
 			ndex_1 = dec_list.index( com_s % cat_dec[kk] )
 
-			if ndex_0 == ndex_1:
-				lis_ra.append( cat_ra[kk] )
-				lis_dec.append( cat_dec[kk] )
-				lis_z.append( cat_z[kk] )
-				lis_x.append( cat_imgx[kk] )
-				lis_y.append( cat_imgy[kk] )
+			# if ndex_0 == ndex_1:
+			lis_ra.append( cat_ra[kk] )
+			lis_dec.append( cat_dec[kk] )
+			lis_z.append( cat_z[kk] )
+			lis_x.append( cat_imgx[kk] )
+			lis_y.append( cat_imgy[kk] )
 
-				## origin_dex record the location of objs in the origin catalog (not the image catalog),
-				origin_dex.append( ndex_0 )
-			else:
-				continue
+			## origin_dex record the location of objs in the origin catalog (not the image catalog),
+			origin_dex.append( ndex_0 )
+			# else:
+			# 	continue
 		else:
 			continue
 
@@ -181,6 +208,107 @@ def extra_match_func(ra_list, dec_list, z_lis, cat_ra, cat_dec, cat_z, cat_imgx,
 	origin_dex = np.array( origin_dex )
 
 	return match_ra, match_dec, match_z, match_x, match_y, origin_dex
+
+def gri_common_cat_func(r_band_file, g_band_file, i_band_file, medi_r_file, medi_g_file, out_r_file, out_g_file, out_i_file,):
+	"""
+	origin_ID : the catalog location of the matched sources
+	"""
+	r_dat = pds.read_csv( r_band_file )
+	r_ra, r_dec, r_z = np.array( r_dat['ra'] ), np.array( r_dat['dec'] ), np.array( r_dat['z'] )
+	r_imgx, r_imgy, r_origin_ID = np.array( r_dat['bcg_x'] ), np.array( r_dat['bcg_y'] ), np.array( r_dat['origin_ID'] )
+
+	g_dat = pds.read_csv( g_band_file )
+	g_ra, g_dec, g_z = np.array( g_dat['ra'] ), np.array( g_dat['dec'] ), np.array( g_dat['z'] )
+	g_imgx, g_imgy, g_origin_ID = np.array( g_dat['bcg_x'] ), np.array( g_dat['bcg_y'] ), np.array( g_dat['origin_ID'] )
+
+	i_dat = pds.read_csv( i_band_file )
+	i_ra, i_dec, i_z = np.array( i_dat['ra'] ), np.array( i_dat['dec'] ), np.array( i_dat['z'] )
+	i_imgx, i_imgy, i_origin_ID = np.array( i_dat['bcg_x'] ), np.array( i_dat['bcg_y'] ), np.array( i_dat['origin_ID'] )
+
+	N_r, N_g, N_i = len(r_origin_ID), len(g_origin_ID), len(i_origin_ID)
+
+	### common of r and g band
+	com_id = []
+	sub_lis_r = []
+	sub_lis_g = []
+
+	for ii in range( N_r ):
+
+		id_dex = np.abs(r_origin_ID[ ii ] - g_origin_ID)
+		id_order = id_dex == 0
+
+		if np.sum( id_order ) == 1:
+			get_id = np.where( id_dex == 0)[0][0]
+
+			com_id.append( g_origin_ID[ get_id ] )
+			sub_lis_g.append( get_id )
+			sub_lis_r.append( ii )
+
+	### save medi catalog
+	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y', 'origin_ID']
+	values = [ r_ra[sub_lis_r], r_dec[sub_lis_r], r_z[sub_lis_r], r_imgx[sub_lis_r], r_imgy[sub_lis_r], r_origin_ID[sub_lis_r] ]
+	fill = dict(zip(keys, values))
+	data = pds.DataFrame(fill)
+	data.to_csv( medi_r_file )
+
+	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y', 'origin_ID']
+	values = [ g_ra[sub_lis_g], g_dec[sub_lis_g], g_z[sub_lis_g], g_imgx[sub_lis_g], g_imgy[sub_lis_g], g_origin_ID[sub_lis_g] ]
+	fill = dict(zip(keys, values))
+	data = pds.DataFrame(fill)
+	data.to_csv( medi_g_file )
+
+
+	### match with i band
+	medi_r_dat = pds.read_csv( medi_r_file )
+	medi_r_ra, medi_r_dec, medi_r_z = np.array( medi_r_dat['ra'] ), np.array( medi_r_dat['dec'] ), np.array( medi_r_dat['z'] )
+	medi_r_imgx, medi_r_imgy, medi_r_origin_ID = np.array( medi_r_dat['bcg_x'] ), np.array( medi_r_dat['bcg_y'] ), np.array( medi_r_dat['origin_ID'] )
+
+	medi_g_dat = pds.read_csv( medi_g_file )
+	medi_g_ra, medi_g_dec, medi_g_z = np.array( medi_g_dat['ra'] ), np.array( medi_g_dat['dec'] ), np.array( medi_g_dat['z'] )
+	medi_g_imgx, medi_g_imgy, medi_g_origin_ID = np.array( medi_g_dat['bcg_x'] ), np.array( medi_g_dat['bcg_y'] ), np.array( medi_g_dat['origin_ID'] )
+
+
+	N_mid = len( com_id )
+
+	com_id_1 = []
+	sub_lis_r_1 = []
+
+	sub_lis_i = []
+
+	for ii in range( N_mid ):
+
+		id_dex = np.abs( medi_r_origin_ID[ ii ] - i_origin_ID )
+		id_order = id_dex == 0
+
+		if np.sum( id_order ) == 1:
+
+			get_id = np.where( id_dex == 0)[0][0]
+			com_id_1.append( i_origin_ID[ get_id ] )
+			sub_lis_i.append( get_id )
+			sub_lis_r_1.append( ii )
+
+	### save the final common catalog
+	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y', 'origin_ID']
+	values = [ i_ra[sub_lis_i], i_dec[sub_lis_i], i_z[sub_lis_i], i_imgx[sub_lis_i], i_imgy[sub_lis_i], i_origin_ID[sub_lis_i] ]
+	fill = dict(zip(keys, values))
+	data = pds.DataFrame(fill)
+	data.to_csv( out_i_file )
+
+	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y', 'origin_ID']
+	values = [ medi_r_ra[sub_lis_r_1], medi_r_dec[sub_lis_r_1], medi_r_z[sub_lis_r_1], 
+				medi_r_imgx[sub_lis_r_1], medi_r_imgy[sub_lis_r_1], medi_r_origin_ID[sub_lis_r_1] ]
+	fill = dict(zip(keys, values))
+	data = pds.DataFrame(fill)
+	data.to_csv( out_r_file )
+
+	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y', 'origin_ID']
+	values = [ medi_g_ra[sub_lis_r_1], medi_g_dec[sub_lis_r_1], medi_g_z[sub_lis_r_1], 
+				medi_g_imgx[sub_lis_r_1], medi_g_imgy[sub_lis_r_1], medi_g_origin_ID[sub_lis_r_1] ]
+	fill = dict(zip(keys, values))
+	data = pds.DataFrame(fill)
+	data.to_csv( out_g_file )
+
+	return
 
 ### match between image catalogs or use for image selection
 def cat_match_func(ra_list, dec_list, z_lis, cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, sf_len, id_choice = True,):
@@ -332,7 +460,10 @@ def map_mu_sigma_func(cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, img_file, band
 def img_cat_lis_func(img_file, ref_cat, out_put, sf_len, id_choice = True,):
 	"""
 	img_file : imgs need to capture information, only including data formats(.png, .pdf, .jpg, ...)
-				and the path (in which imgs are saved.), /XX/XX_raX_decX_zX.xx
+				and the path (in which imgs are saved.)
+
+				format : /path/XXX_raX-decX-zX.xxx
+
 	ref_cat : catalog in which match the imgs information, .csv files
 
 	out_put : informations of match those imgs, including [ra, dec, z, bcg_x, bcg_y]
@@ -342,21 +473,37 @@ def img_cat_lis_func(img_file, ref_cat, out_put, sf_len, id_choice = True,):
 	name_lis = [ ll.split('/')[-1] for ll in lis ]
 
 	tt_lis = name_lis[0].split('_')
+
 	dete0 = ['ra' in ll for ll in tt_lis]
 	index0 = dete0.index( True )
+
+	sub_str = tt_lis[ index0 ].split('-')
+	dete0_1 = [ 'ra' in ll for ll in sub_str ]
+	index0_1 = dete0_1.index( True )
 
 	dete1 = ['dec' in ll for ll in tt_lis]
 	index1 = dete1.index( True )
 
-	out_ra = [ ll.split('_')[ index0 ][2:] for ll in name_lis ]
-	out_dec = [ ll.split('_')[ index1 ][3:] for ll in name_lis ]
+	sub_str = tt_lis[ index1 ].split('-')
+	dete1_1 = [ 'dec' in ll for ll in sub_str ]
+	index1_1 = dete1_1.index( True )	
+
+	dete2 = ['-z0.' in ll for ll in tt_lis]
+	index2 = dete2.index( True )
+
+	sub_str = tt_lis[ index2 ].split('-')
+	dete2_1 = [ 'z0.' in ll for ll in sub_str ]
+	index2_1 = dete2_1.index( True )
+
+	out_ra = [ ll.split('_')[ index0 ].split('-')[ index0_1 ][2:] for ll in name_lis ]
+	out_dec = [ ll.split('_')[ index1 ].split('-')[ index1_1 ][3:] for ll in name_lis ]
+	out_z = [ ll.split('_')[ index2 ].split('-')[ index2_1 ][1:] for ll in name_lis ]
 
 	ref_dat = pds.read_csv( ref_cat )
 	cat_ra, cat_dec, cat_z = np.array(ref_dat.ra), np.array(ref_dat.dec), np.array(ref_dat.z)
 	clus_x, clus_y = np.array(ref_dat.bcg_x), np.array(ref_dat.bcg_y)
 
-	lis_ra, lis_dec, lis_z, lis_x, lis_y = cat_match_func(
-		out_ra, out_dec, cat_ra, cat_dec, cat_z, clus_x, clus_y, sf_len, id_choice,)
+	lis_ra, lis_dec, lis_z, lis_x, lis_y, cat_order = cat_match_func( out_ra, out_dec, out_z, cat_ra, cat_dec, cat_z, clus_x, clus_y, sf_len, id_choice,)
 
 	keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y']
 	values = [lis_ra, lis_dec, lis_z, lis_x, lis_y]
@@ -619,14 +766,15 @@ def main():
 	hist_analysis_func(cat_file, img_file, mask_img_file, band, star_cat, gal_cat, out_imgs, pixel, N_step,)
 	'''
 
-	'''
+
 	img_file = '/home/xkchen/tmp/20_9_26_T1000_over-view/A_norm/*.png'
-	out_put = 'img_cat_identi_test.csv'
-	ref_cat = 'result/test_1000_no_select.csv'
+	out_put = '/home/xkchen/figs/img_cat_identi_test.csv'
+	ref_cat = '/home/xkchen/Downloads/T1000_cat/test_1000_no_select.csv'
 	sf_len = 3
 
 	img_cat_lis_func(img_file, ref_cat, out_put, sf_len,)
-	'''
+
+	raise
 
 	#cat_file = 'result/test_1000_no_select.csv'
 	cat_file = 'result/test_1000-to-250_cat.csv'
@@ -637,4 +785,3 @@ def main():
 
 if __name__ == "__main__":
 	main()
-

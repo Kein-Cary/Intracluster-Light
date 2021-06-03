@@ -28,6 +28,61 @@ l_wave = np.array([6166, 4686, 7480])
 mag_add = np.array([0, 0, 0 ])
 Mag_sun = [ 4.65, 5.11, 4.53 ]
 
+#**************************#
+def WCS_to_pixel_func(ra, dec, header_inf):
+	"""
+	according to SDSS Early Data Release paper (section 4.2.2 wcs)
+	"""
+	Ra0 = header_inf['CRVAL1']
+	Dec0 = header_inf['CRVAL2']
+
+	row_0 = header_inf['CRPIX2']
+	col_0 = header_inf['CRPIX1']
+
+	af = header_inf['CD1_1']
+	bf = header_inf['CD1_2']
+
+	cf = header_inf['CD2_1']
+	df = header_inf['CD2_2']
+
+	y1 = (ra - Ra0) * np.cos( Dec0 * np.pi / 180 )
+	y2 = dec - Dec0
+
+	delt_col = (bf * y2 - df * y1) / ( bf * cf - af * df )
+	delt_row = (af * y2 - cf * y1) / ( af * df - bf * cf )
+
+	id_col = col_0 + delt_col
+	id_row = row_0 + delt_row
+
+	return id_col, id_row
+
+def pixel_to_WCS_func(x, y, header_inf):
+
+	Ra0 = header_inf['CRVAL1']
+	Dec0 = header_inf['CRVAL2']
+
+	row_0 = header_inf['CRPIX2']
+	col_0 = header_inf['CRPIX1']
+
+	af = header_inf['CD1_1']
+	bf = header_inf['CD1_2']
+
+	cf = header_inf['CD2_1']
+	df = header_inf['CD2_2']
+
+	_delta = bf * cf - af * df
+
+	delta_x = x - col_0
+	delta_y = y - row_0
+
+	delta_ra = _delta * ( delta_x * af + delta_y * bf ) / _delta
+	delta_dec = _delta * ( delta_x * cf + delta_y * df ) / _delta
+
+	dec = Dec0 + delta_dec
+	ra = Ra0 + delta_ra / np.cos( Dec0 * np.pi / 180 )
+
+	return ra, dec
+
 def zref_BCG_pos_func( cat_file, z_ref, out_file, pix_size,):
 	"""
 	this part use for calculate BCG position after pixel resampling. 

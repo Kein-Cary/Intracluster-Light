@@ -160,12 +160,15 @@ def adjust_mask_func( d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, 
 	including file-name: '/xxx/xxx/xxx.xxx'
 
 	extra_cat : extral galaxy catalog for masking adjust, (list type, .cat files)
+	extra_img : images of extral catalog, use for matching wcs information
 	alter_fac : size adjust for normal stars
 	alt_bright_R : size adjust for bright stars (also for saturated sources)
 	alt_G_size : size adjust for galaxy-like sources
 
 	bcg_photo_file : files including BCG properties (effective radius,), .txt files,
 		[default is None, for radnom img case, always set masking for BCGs]
+	
+	offset_file : correction files for sources in single frame image, .csv files
 	"""
 
 	Nz = len(z_set)
