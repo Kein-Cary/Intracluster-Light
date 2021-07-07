@@ -285,502 +285,6 @@ def BG_pro_cov( jk_sub_sb, N_samples, out_file, R_lim0):
 
 	return
 
-### === ### 2D signal combine
-def ri_2D_signal( r_img_file, r_rms_file, i_img_file, i_rms_file, rand_r_img_file, rand_i_img_file, 
-	r_BG_file, i_BG_file, fig_title, out_fig_file, z_ref, pixel):
-
-	import matplotlib as mpl
-	# mpl.use('Agg')
-	import matplotlib.pyplot as plt
-	import matplotlib.gridspec as gridspec
-	from matplotlib.patches import Circle
-
-	"""
-	BG_file : parameters file of the Background estimation
-	"""
-	Da_ref = Test_model.angular_diameter_distance( z_ref ).value
-	L_pix = Da_ref * 10**3 * pixel / rad2arcsec
-
-	R1Mpc = 1000 / L_pix
-	R2Mpc = 2000 / L_pix
-	R3Mpc = 3000 / L_pix
-
-	## r band img
-	with h5py.File( r_img_file, 'r') as f:
-		r_band_img = np.array( f['a'] )
-	with h5py.File( r_rms_file, 'r') as f:
-		r_band_rms = np.array( f['a'] )
-
-	inves_r_rms2 = 1 / r_band_rms**2 
-
-	## i band img
-	with h5py.File( i_img_file, 'r') as f:
-		i_band_img = np.array( f['a'] )
-	with h5py.File( i_rms_file, 'r') as f:
-		i_band_rms = np.array( f['a'] )
-
-	## random imgs
-	with h5py.File( rand_r_img_file, 'r') as f:
-		r_rand_img = np.array( f['a'])
-
-	with h5py.File( rand_i_img_file, 'r') as f:
-		i_rand_img = np.array( f['a'])
-
-	cat = pds.read_csv( r_BG_file )
-	r_offD, I_e, R_e = np.array(cat['offD'])[0], np.array(cat['I_e'])[0], np.array(cat['R_e'])[0]
-	r_sb_2Mpc = sersic_func( 2e3, I_e, R_e, 2.1)
-
-	off_r_band_rand_img = r_rand_img / pixel**2 - r_offD + r_sb_2Mpc
-
-
-	cat = pds.read_csv( i_BG_file )
-	i_offD, I_e, R_e = np.array(cat['offD'])[0], np.array(cat['I_e'])[0], np.array(cat['R_e'])[0]
-	i_sb_2Mpc = sersic_func( 2e3, I_e, R_e, 2.1)
-
-	off_i_band_rand_img = i_rand_img / pixel**2 - i_offD + i_sb_2Mpc
-
-	inves_i_rms2 = 1 / i_band_rms**2
-
-	r_BG_sub_img = r_band_img / pixel**2 - off_r_band_rand_img
-	i_BG_sub_img = i_band_img / pixel**2 - off_i_band_rand_img
-
-	cen_x, cen_y = np.int( r_band_img.shape[1] / 2 ), np.int( r_band_img.shape[0] / 2 )
-	weit_img = ( r_BG_sub_img * inves_r_rms2 + i_BG_sub_img * inves_i_rms2 ) / ( inves_r_rms2 + inves_i_rms2 )
-
-	###
-	cut_L = np.int( 1e3 / L_pix )
-
-	cut_img = weit_img[ cen_y - cut_L: cen_y + cut_L, cen_x - cut_L: cen_x + cut_L ]
-
-	filt_img_0 = ndimage.gaussian_filter( cut_img, sigma = 3,)
-	mag_map_0 = 22.5 - 2.5 * np.log10( filt_img_0 )
-
-	filt_img_1 = ndimage.gaussian_filter( cut_img, sigma = 7,)
-	mag_map_1 = 22.5 - 2.5 * np.log10( filt_img_1 )
-
-	filt_img_2 = ndimage.gaussian_filter( cut_img, sigma = 11,)
-	mag_map_2 = 22.5 - 2.5 * np.log10( filt_img_2 )
-
-	filt_img_3 = ndimage.gaussian_filter( cut_img, sigma = 17,)
-	mag_map_3 = 22.5 - 2.5 * np.log10( filt_img_3 )
-
-	filt_img_4 = ndimage.gaussian_filter( cut_img, sigma = 21,)
-	mag_map_4 = 22.5 - 2.5 * np.log10( filt_img_4 )
-
-	## color_lis
-	color_str = []
-	for jj in range( 7 ):
-		color_str.append( mpl.cm.autumn_r(jj / 6) )
-
-	me_map = mpl.colors.ListedColormap( color_str )
-	c_bounds = [ 25.5, 26.5, 27.5, 28.5, 29.5, 30.5, 32.5]
-	norm = mpl.colors.BoundaryNorm( c_bounds, me_map.N )
-
-	fig = plt.figure()
-	ax = fig.add_axes([ 0.05, 0.10, 0.90, 0.80])
-	ax1 = fig.add_axes([ 0.82, 0.10, 0.02, 0.80])
-
-	ax.set_title( fig_title )
-
-	ax.imshow( cut_img, origin  ='lower', cmap = 'Greys', vmin = -2e-2, vmax = 3e-2,)
-
-	cs = ax.contour( mag_map_0, origin = 'lower', levels = [26, 100], alpha = 0.75,
-		colors = [ color_str[0], color_str[-1] ] )
-
-	cs = ax.contour( mag_map_1, origin = 'lower', levels = [27, 100], alpha = 0.75, 
-		colors = [ color_str[1], color_str[-1] ] )
-
-	cs = ax.contour( mag_map_2, origin = 'lower', levels = [28, 100], alpha = 0.75, 
-		colors = [ color_str[2], color_str[-1] ] )
-
-	cs = ax.contour( mag_map_3, origin = 'lower', levels = [29, 100], alpha = 0.75, 
-		colors = [ color_str[3], color_str[-1] ] )
-
-	cs = ax.contour( mag_map_4, origin = 'lower', levels = [30, 32, 100,], alpha = 0.75, 
-		colors = [ color_str[4], color_str[5], color_str[-1] ] )
-
-	cbs = mpl.colorbar.ColorbarBase( ax = ax1, cmap = me_map, norm = norm, extend = 'neither', ticks = [26, 27, 28, 29, 30, 32],
-		spacing = 'proportional', orientation = 'vertical', )
-	cbs.set_label( 'SB [mag / $arcsec^2$]' )
-	cbs.ax.set_yticklabels( ['26', '27', '28', '29', '30', '32'] )
-
-	clust = Circle(xy = (cut_L, cut_L), radius = R1Mpc, fill = False, ec = 'k', ls = '-', linewidth = 1.25, alpha = 0.5, label = '1Mpc')
-	ax.add_patch(clust)
-	clust = Circle(xy = (cut_L, cut_L), radius = 0.5 * R1Mpc, fill = False, ec = 'k', ls = '--', linewidth = 1.25, alpha = 0.5, label = '0.5Mpc')
-	ax.add_patch(clust)
-
-	ax.set_xlim(0, cut_L * 2)
-	ax.set_ylim(0, cut_L * 2)
-
-	## # of pixels pre 100kpc
-	ax.set_xticklabels( labels = [] ) ## ignore the major axis_ticks
-	ax.set_yticklabels( labels = [] )
-
-	n200 = 200 / L_pix
-
-	ticks_0 = np.arange( cut_L, 0, -1 * n200)
-	ticks_1 = np.arange( cut_L, cut_L * 2, n200)
-	ticks = np.r_[ ticks_0[::-1], ticks_1[1:] ]
-
-	tick_R = np.r_[ np.arange(800, 0, -200), np.arange(0, 1000, 200) ]
-	tick_lis = [ '%d' % ll for ll in tick_R ]
-
-	ax.set_xticks( ticks, minor = True, )
-	ax.set_xticklabels( labels = tick_lis, minor = True,)
-
-	ax.set_yticks( ticks, minor = True )
-	ax.set_yticklabels( labels = tick_lis, minor = True,)
-	ax.tick_params( axis = 'both', which = 'major', direction = 'in',)
-
-	ax.set_xlabel( 'kpc' )
-	ax.set_ylabel( 'kpc' )
-
-	ax.legend( loc = 1, fontsize = 8)
-
-	plt.savefig( out_fig_file, dpi = 300)
-	plt.close()
-
-	return
-
-def BG_sub_2D_signal( img_file, random_img_file, BG_file, z_ref, pixel, band_str, out_fig_name):
-
-	import matplotlib as mpl
-	# mpl.use('Agg')
-	import matplotlib.pyplot as plt
-	import matplotlib.gridspec as gridspec
-	from matplotlib.patches import Circle
-
-	Da_ref = Test_model.angular_diameter_distance( z_ref ).value
-	L_pix = Da_ref * 10**3 * pixel / rad2arcsec
-	R1Mpc = 1000 / L_pix
-
-	## flux imgs
-	with h5py.File( img_file, 'r') as f:
-		tmp_img = np.array( f['a'])
-	cen_x, cen_y = np.int( tmp_img.shape[1] / 2 ), np.int( tmp_img.shape[0] / 2 )
-
-	idnn = np.isnan( tmp_img )
-	idy_lim, idx_lim = np.where(idnn == False)
-	x_lo_lim, x_up_lim = idx_lim.min(), idx_lim.max()
-	y_lo_lim, y_up_lim = idy_lim.min(), idy_lim.max()
-
-	## random imgs
-	with h5py.File( random_img_file, 'r') as f:
-		rand_img = np.array( f['a'])
-	xn, yn = np.int( rand_img.shape[1] / 2 ), np.int( rand_img.shape[0] / 2 )
-
-	idnn = np.isnan( rand_img )
-	idy_lim, idx_lim = np.where( idnn == False)
-	x_lo_eff, x_up_eff = idx_lim.min(), idx_lim.max()
-	y_lo_eff, y_up_eff = idy_lim.min(), idy_lim.max()
-
-	## BG-estimate params
-	cat = pds.read_csv( BG_file )
-	offD, I_e, R_e = np.array(cat['offD'])[0], np.array(cat['I_e'])[0], np.array(cat['R_e'])[0]
-	sb_2Mpc = sersic_func( 2e3, I_e, R_e, 2.1)
-
-	shift_rand_img = rand_img / pixel**2 - offD + sb_2Mpc
-	BG_sub_img = tmp_img / pixel**2 - shift_rand_img
-
-	idnn = np.isnan( BG_sub_img )
-	idy_lim, idx_lim = np.where( idnn == False)
-	x_lo_cut, x_up_cut = idx_lim.min(), idx_lim.max()
-	y_lo_cut, y_up_cut = idy_lim.min(), idy_lim.max()
-
-
-	cut_img = tmp_img[ y_lo_lim: y_up_lim + 1, x_lo_lim: x_up_lim + 1 ] / pixel**2
-	id_nan = np.isnan( cut_img )
-	cut_img[id_nan] = 0.
-
-	cut_rand = rand_img[ y_lo_eff: y_up_eff + 1, x_lo_eff: x_up_eff + 1 ] / pixel**2
-	id_nan = np.isnan( cut_rand )
-	cut_rand[id_nan] = 0.
-
-	cut_off_rand = shift_rand_img[ y_lo_eff: y_up_eff + 1, x_lo_eff: x_up_eff + 1 ]
-	id_nan = np.isnan( cut_off_rand )
-	cut_off_rand[id_nan] = 0.
-
-	cut_BG_sub_img = BG_sub_img[ y_lo_cut: y_up_cut + 1, x_lo_cut: x_up_cut + 1 ]
-	id_nan = np.isnan( cut_BG_sub_img )
-	cut_BG_sub_img[id_nan] = 0.
-
-	### figs of 2D signal
-	color_str = []
-	for jj in range( 9 ):
-		color_str.append( mpl.cm.autumn_r( jj / 9 ) )
-
-	color_lis = []
-	for jj in np.arange(0, 90, 10):
-		color_lis.append( mpl.cm.rainbow_r( jj / 80 ) )
-
-
-	filt_rand = ndimage.gaussian_filter( cut_rand, sigma = 65,)
-	filt_rand_mag = 22.5 - 2.5 * np.log10( filt_rand )
-
-	filt_off_rand = ndimage.gaussian_filter( cut_off_rand, sigma = 65,)
-	filt_off_rand_mag = 22.5 - 2.5 * np.log10( filt_off_rand )
-
-
-	filt_img = ndimage.gaussian_filter( cut_img, sigma = 65,) # sigma = 105,)
-	filt_mag = 22.5 - 2.5 * np.log10( filt_img )
-
-	filt_BG_sub_img = ndimage.gaussian_filter( cut_BG_sub_img, sigma = 65,) # sigma = 105,)
-	filt_BG_sub_mag = 22.5 - 2.5 * np.log10( filt_BG_sub_img )
-
-
-	fig = plt.figure( figsize = (18, 12) )
-	ax0 = fig.add_axes( [0.03, 0.55, 0.40, 0.40] )
-	cb_ax0 = fig.add_axes( [0.41, 0.55, 0.02, 0.40] )
-
-	ax1 = fig.add_axes( [0.52, 0.55, 0.40, 0.40] )
-	cb_ax1 = fig.add_axes( [0.90, 0.55, 0.02, 0.40] )
-
-	ax2 = fig.add_axes( [0.03, 0.05, 0.40, 0.40] )
-	cb_ax2 = fig.add_axes( [0.41, 0.05, 0.02, 0.40] )
-
-	ax3 = fig.add_axes( [0.52, 0.05, 0.40, 0.40] )
-	cb_ax3 = fig.add_axes( [0.90, 0.05, 0.02, 0.40] )
-
-	levels_0 = np.linspace(28, 29, 6)
-
-	## cluster imgs before BG subtract
-	ax0.set_title( 'stacking cluster image' )
-	tf = ax0.imshow( cut_img, origin = 'lower', cmap = 'Greys', vmin = -2e-2, vmax = 3e-2,)
-
-	cs = ax0.contour( filt_mag, origin = 'lower',  levels = levels_0, colors = color_str[:6], extent = (0, x_up_lim + 1 - x_lo_lim, 0, y_up_lim + 1 - y_lo_lim ), )
-
-	#c_bounds = np.r_[ levels_0[0] - 0.01, levels_0 + 0.01 ]
-	c_bounds = np.r_[ levels_0[0] - 0.1, levels_0 + 0.1 ]
-	me_map = mpl.colors.ListedColormap( color_str[:6] )
-	norm = mpl.colors.BoundaryNorm( c_bounds, me_map.N )
-
-	cbs = mpl.colorbar.ColorbarBase( ax = cb_ax0, cmap = me_map, norm = norm, extend = 'neither', ticks = levels_0,
-		spacing = 'proportional', orientation = 'vertical', )
-	cbs.set_label( 'SB [mag / $arcsec^2$]' )
-	cbs.ax.set_yticklabels( ['%.2f' % ll for ll in levels_0] )
-
-	clust = Circle( xy = (cen_x - x_lo_lim, cen_y - y_lo_lim), radius = R1Mpc, fill = False, ec = 'k', ls = '-', linewidth = 1.25, alpha = 0.5,)
-	ax0.add_patch(clust)
-	clust = Circle( xy = (cen_x - x_lo_lim, cen_y - y_lo_lim), radius = 0.5 * R1Mpc, fill = False, ec = 'k', ls = '--', linewidth = 1.25, alpha = 0.5,)
-	ax0.add_patch(clust)
-	clust = Circle( xy = (cen_x - x_lo_lim, cen_y - y_lo_lim), radius = 2 * R1Mpc, fill = False, ec = 'k', ls = '-.', linewidth = 1.25, alpha = 0.5,)
-	ax0.add_patch(clust)
-
-	ax0.set_xlim( 0, x_up_lim + 1 - x_lo_lim )
-	ax0.set_ylim( 0, y_up_lim + 1 - y_lo_lim )
-
-	ax0.set_xticklabels( labels = [] )
-	ax0.set_yticklabels( labels = [] )
-
-	n500 = 500 / L_pix
-
-	x_ticks_0 = np.arange( xn - x_lo_lim, 0, -1 * n500)
-	x_ticks_1 = np.arange( xn - x_lo_lim, cut_rand.shape[1], n500)
-	x_ticks = np.r_[ x_ticks_0[::-1], x_ticks_1[1:] ]
-
-	tick_R = np.r_[ np.arange( ( len(x_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(x_ticks_1) ), 500) ]
-	tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
-
-	ax0.set_xticks( x_ticks, minor = True, )
-	ax0.set_xticklabels( labels = tick_lis, minor = True,)
-	ax0.set_xlabel( 'Mpc' )
-
-	y_ticks_0 = np.arange( yn - y_lo_lim, 0, -1 * n500)
-	y_ticks_1 = np.arange( yn - y_lo_lim, cut_rand.shape[0], n500)
-	y_ticks = np.r_[ y_ticks_0[::-1], y_ticks_1[1:] ]
-
-	tick_R = np.r_[ np.arange( ( len(y_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(y_ticks_1) ), 500) ]
-	tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
-
-	ax0.set_yticks( y_ticks, minor = True )
-	ax0.set_yticklabels( labels = tick_lis, minor = True,)
-	ax0.set_ylabel( 'Mpc' )
-	ax0.tick_params( axis = 'both', which = 'major', direction = 'in',)
-
-	## cluster imgs after BG-subtraction
-	ax2.set_title( 'stacking cluster image - background image')	
-	tf = ax2.imshow( cut_BG_sub_img, origin  ='lower', cmap = 'Greys', vmin = -2e-2, vmax = 3e-2,)
-
-	cs = ax2.contour( filt_BG_sub_mag, origin = 'lower',  levels = levels_0, colors = color_str[:6], 
-		extent = (0, x_up_cut + 1 - x_lo_cut, 0, y_up_cut + 1 - y_lo_cut ), )
-
-	#c_bounds = np.r_[ levels_0[0] - 0.01, levels_0 + 0.01 ]
-	c_bounds = np.r_[ levels_0[0] - 0.1, levels_0 + 0.1 ]
-	me_map = mpl.colors.ListedColormap( color_str[:6] )
-	norm = mpl.colors.BoundaryNorm( c_bounds, me_map.N )
-
-	cbs = mpl.colorbar.ColorbarBase( ax = cb_ax2, cmap = me_map, norm = norm, extend = 'neither', ticks = levels_0,
-		spacing = 'proportional', orientation = 'vertical', )
-	cbs.set_label( 'SB [mag / $arcsec^2$]' )
-	cbs.ax.set_yticklabels( ['%.2f' % ll for ll in levels_0] )
-
-
-	clust = Circle( xy = (cen_x - x_lo_cut, cen_y - y_lo_cut), radius = R1Mpc, fill = False, ec = 'k', ls = '-', linewidth = 1.25, alpha = 0.5, label = '1Mpc')
-	ax2.add_patch(clust)
-	clust = Circle( xy = (cen_x - x_lo_cut, cen_y - y_lo_cut), radius = 0.5 * R1Mpc, fill = False, ec = 'k', ls = '--', linewidth = 1.25, alpha = 0.5,label = '0.5Mpc')
-	ax2.add_patch(clust)
-	clust = Circle( xy = (cen_x - x_lo_cut, cen_y - y_lo_cut), radius = 2 * R1Mpc, fill = False, ec = 'k', ls = '-.', linewidth = 1.25, alpha = 0.5, label = '2Mpc')
-	ax2.add_patch(clust)
-
-	ax2.legend( loc = 1 )
-	ax2.set_xlim( 0, x_up_cut + 1 - x_lo_cut )
-	ax2.set_ylim( 0, y_up_cut + 1 - y_lo_cut )
-
-	## # of pixels pre 100kpc
-	ax2.set_xticklabels( labels = [] ) ## ignore the major axis_ticks
-	ax2.set_yticklabels( labels = [] )
-
-	n500 = 500 / L_pix
-
-	x_ticks_0 = np.arange( xn - x_lo_cut, 0, -1 * n500)
-	x_ticks_1 = np.arange( xn - x_lo_cut, cut_rand.shape[1], n500)
-	x_ticks = np.r_[ x_ticks_0[::-1], x_ticks_1[1:] ]
-
-	tick_R = np.r_[ np.arange( ( len(x_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(x_ticks_1) ), 500) ]
-	tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
-
-	ax2.set_xticks( x_ticks, minor = True, )
-	ax2.set_xticklabels( labels = tick_lis, minor = True,)
-	ax2.set_xlabel( 'Mpc' )
-
-	y_ticks_0 = np.arange( yn - y_lo_cut, 0, -1 * n500)
-	y_ticks_1 = np.arange( yn - y_lo_cut, cut_rand.shape[0], n500)
-	y_ticks = np.r_[ y_ticks_0[::-1], y_ticks_1[1:] ]
-
-	tick_R = np.r_[ np.arange( ( len(y_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(y_ticks_1) ), 500) ]
-	tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
-
-	ax2.set_yticks( y_ticks, minor = True )
-	ax2.set_yticklabels( labels = tick_lis, minor = True,)
-	ax2.set_ylabel( 'Mpc' )
-	ax2.tick_params( axis = 'both', which = 'major', direction = 'in',)
-
-	ax2.set_xlabel( 'Mpc' )
-	ax2.set_ylabel( 'Mpc' )
-
-	### random image
-	if band_str == 'r':
-		tt_lis = np.linspace( 28.54, 28.64, 6 )
-	if band_str == 'g':
-		tt_lis = np.linspace( 28.77, 28.86, 6 )
-	if band_str == 'i':
-		tt_lis = np.linspace( 28.15, 28.45, 6 )
-
-	ax1.set_title( 'stacking random image' )
-	ax1.imshow( cut_rand, origin = 'lower', cmap = 'Greys', vmin = -2e-2, vmax = 3e-2,)
-
-	cs = ax1.contour( filt_rand_mag, origin = 'lower',  levels = tt_lis, colors = color_str[:6], 
-		extent = (0, x_up_eff + 1 - x_lo_eff, 0, y_up_eff + 1 - y_lo_eff ), )
-
-	me_map = mpl.colors.ListedColormap( color_str[:6] )
-	c_bounds = np.r_[ tt_lis[0] - 0.01, tt_lis + 0.01]
-	norm = mpl.colors.BoundaryNorm( c_bounds, me_map.N )
-
-	cbs = mpl.colorbar.ColorbarBase( ax = cb_ax1, cmap = me_map, norm = norm, extend = 'neither', ticks = tt_lis,
-		spacing = 'proportional', orientation = 'vertical', )
-	cbs.set_label( 'SB [mag / $arcsec^2$]' )
-	cbs.ax.set_yticklabels( ['%.2f' % ll for ll in tt_lis] )
-
-	clust = Circle( xy = ( xn - x_lo_eff, yn - y_lo_eff), radius = R1Mpc, fill = False, ec = 'k', ls = '-', linewidth = 1.25, alpha = 0.5, label = '1Mpc')
-	ax1.add_patch(clust)
-	clust = Circle( xy = ( xn - x_lo_eff, yn - y_lo_eff), radius = 0.5 * R1Mpc, fill = False, ec = 'k', ls = '--', linewidth = 1.25, alpha = 0.5, label = '0.5Mpc')
-	ax1.add_patch(clust)
-	clust = Circle( xy = ( xn - x_lo_eff, yn - y_lo_eff), radius = 2 * R1Mpc, fill = False, ec = 'k', ls = '-.', linewidth = 1.25, alpha = 0.5, label = '2Mpc')
-	ax1.add_patch(clust)
-
-	ax1.set_xlim( 0, x_up_eff + 1 - x_lo_eff )
-	ax1.set_ylim( 0, y_up_eff + 1 - y_lo_eff )
-
-	# ticks set
-	ax1.set_xticklabels( labels = [] )
-	ax1.set_yticklabels( labels = [] )
-
-	n500 = 500 / L_pix
-
-	x_ticks_0 = np.arange( xn - x_lo_eff, 0, -1 * n500)
-	x_ticks_1 = np.arange( xn - x_lo_eff, cut_rand.shape[1], n500)
-	x_ticks = np.r_[ x_ticks_0[::-1], x_ticks_1[1:] ]
-
-	tick_R = np.r_[ np.arange( ( len(x_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(x_ticks_1) ), 500) ]
-	tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
-
-	ax1.set_xticks( x_ticks, minor = True, )
-	ax1.set_xticklabels( labels = tick_lis, minor = True,)
-	ax1.set_xlabel( 'Mpc' )
-
-	y_ticks_0 = np.arange( yn - y_lo_eff, 0, -1 * n500)
-	y_ticks_1 = np.arange( yn - y_lo_eff, cut_rand.shape[0], n500)
-	y_ticks = np.r_[ y_ticks_0[::-1], y_ticks_1[1:] ]
-
-	tick_R = np.r_[ np.arange( ( len(y_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(y_ticks_1) ), 500) ]
-	tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
-
-	ax1.set_yticks( y_ticks, minor = True )
-	ax1.set_yticklabels( labels = tick_lis, minor = True,)
-	ax1.set_ylabel( 'Mpc' )
-	ax1.tick_params( axis = 'both', which = 'major', direction = 'in',)
-
-
-	### shift random ( based on BG estimate fitting)
-	ax3.set_title( 'background image [stacking random image - C]' )
-	ax3.imshow( cut_off_rand, origin = 'lower', cmap = 'Greys', vmin = -2e-2, vmax = 3e-2,)
-
-	cs = ax3.contour( filt_off_rand_mag, origin = 'lower',  levels = tt_lis, colors = color_str[:6], 
-		extent = (0, x_up_eff + 1 - x_lo_eff, 0, y_up_eff + 1 - y_lo_eff),)
-
-	me_map = mpl.colors.ListedColormap( color_str[:6] )
-	c_bounds = np.r_[ tt_lis[0] - 0.01, tt_lis + 0.01]
-	norm = mpl.colors.BoundaryNorm( c_bounds, me_map.N )
-
-	cbs = mpl.colorbar.ColorbarBase( ax = cb_ax3, cmap = me_map, norm = norm, extend = 'neither', ticks = tt_lis,
-		spacing = 'proportional', orientation = 'vertical', )
-	cbs.set_label( 'SB [mag / $arcsec^2$]' )
-	cbs.ax.set_yticklabels( ['%.2f' % ll for ll in tt_lis] )
-
-
-	clust = Circle( xy = ( xn - x_lo_eff, yn - y_lo_eff), radius = R1Mpc, fill = False, ec = 'k', ls = '-', linewidth = 1.25, alpha = 0.5,)
-	ax3.add_patch(clust)
-	clust = Circle( xy = ( xn - x_lo_eff, yn - y_lo_eff), radius = 0.5 * R1Mpc, fill = False, ec = 'k', ls = '--', linewidth = 1.25, alpha = 0.5,)
-	ax3.add_patch(clust)
-	clust = Circle( xy = ( xn - x_lo_eff, yn - y_lo_eff), radius = 2 * R1Mpc, fill = False, ec = 'k', ls = '-.', linewidth = 1.25, alpha = 0.5,)
-	ax3.add_patch(clust)
-
-	ax3.set_xlim( 0, x_up_eff + 1 - x_lo_eff )
-	ax3.set_ylim( 0, y_up_eff + 1 - y_lo_eff )
-
-	# ticks set
-	ax3.set_xticklabels( labels = [] )
-	ax3.set_yticklabels( labels = [] )
-
-	n500 = 500 / L_pix
-
-	x_ticks_0 = np.arange( xn - x_lo_eff, 0, -1 * n500)
-	x_ticks_1 = np.arange( xn - x_lo_eff, cut_rand.shape[1], n500)
-	x_ticks = np.r_[ x_ticks_0[::-1], x_ticks_1[1:] ]
-
-	tick_R = np.r_[ np.arange( ( len(x_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(x_ticks_1) ), 500) ]
-	tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
-
-	ax3.set_xticks( x_ticks, minor = True, )
-	ax3.set_xticklabels( labels = tick_lis, minor = True,)
-	ax3.set_xlabel( 'Mpc' )
-
-	y_ticks_0 = np.arange( yn - y_lo_eff, 0, -1 * n500)
-	y_ticks_1 = np.arange( yn - y_lo_eff, cut_rand.shape[0], n500)
-	y_ticks = np.r_[ y_ticks_0[::-1], y_ticks_1[1:] ]
-
-	tick_R = np.r_[ np.arange( ( len(y_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(y_ticks_1) ), 500) ]
-	tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
-
-	ax3.set_yticks( y_ticks, minor = True )
-	ax3.set_yticklabels( labels = tick_lis, minor = True,)
-	ax3.set_ylabel( 'Mpc' )
-	ax3.tick_params( axis = 'both', which = 'major', direction = 'in',)
-
-	plt.savefig( out_fig_name, dpi = 300)
-	plt.close()
-
-	return
 
 ### === ### 1D profile fitting
 def color_func( flux_arr_0, flux_err_0, flux_arr_1, flux_err_1):
@@ -852,3 +356,67 @@ def arr_jack_func(SB_array, R_array, N_sample):
 
 	return Stack_R, Stack_SB, jk_Stack_err, lim_R
 
+### === ### 2D array, centeriod mean
+def centric_2D_aveg(data, weit_data, pix_size, cx, cy, z0, R_bins):
+
+	Da0 = Test_model.angular_diameter_distance(z0).value ## in unit 'Mpc'
+	Nx = data.shape[1]
+	Ny = data.shape[0]
+	x0 = np.linspace(0, Nx-1, Nx)
+	y0 = np.linspace(0, Ny-1, Ny)
+	pix_id = np.array(np.meshgrid(x0,y0))
+
+	theta = np.arctan2((pix_id[1,:]-cy), (pix_id[0,:]-cx))
+	chi = theta * 180 / np.pi
+
+	rbin = R_bins # have been divided bins, in unit of pixels
+	set_r = rbin * pix_size * Da0 * 1e3 / rad2arcsec # in unit of kpc
+
+	aveg_arr = np.ones( (Ny, Nx), dtype = np.float32 )
+
+	dev_05_x = cx - np.int( cx )
+	dev_05_y = cy - np.int( cy )
+
+	if dev_05_x > 0.5:
+		xn = np.int( cx ) + 1
+	else:
+		xn = np.int( cx )
+
+	if dev_05_y > 0.5:
+		yn = np.int( cy ) + 1
+	else:
+		yn = np.int( cy )
+
+	dr = np.sqrt( ( (2 * pix_id[0] + 1) / 2 - (2 * xn + 1) / 2 )**2 + ( (2 * pix_id[1] + 1) / 2 - (2 * yn + 1) / 2)**2 )
+
+	for k in range( 1,len(rbin) - 1):
+
+		cdr = rbin[k + 1] - rbin[k]
+		d_phi = (cdr / ( 0.5 * (rbin[k] + rbin[k + 1]) ) ) * 180 / np.pi
+		N_phi = np.int(360 / d_phi) + 1
+		phi = np.linspace(0, 360, N_phi)
+		phi = phi - 180
+
+		ir = (dr >= rbin[k]) & (dr < rbin[k + 1])
+		bool_sum = np.sum(ir)
+
+		if bool_sum == 0:
+			continue
+		else:
+			weit_arr = weit_data[ir]
+
+			samp_flux = data[ir]
+			samp_chi = chi[ir]
+			tot_flux = np.nansum(samp_flux * weit_arr) / np.nansum(weit_arr)
+
+			aveg_arr[ir] = tot_flux + 0.
+
+	## center pixel
+	aveg_arr[yn, xn] = data[yn, xn]
+
+	id_Nan = np.isnan( data )
+	aveg_arr[id_Nan] = np.nan
+
+	bins_edgs = np.r_[ np.sqrt( pix_size**2 / np.pi ), rbin[1:] * pix_size ]
+
+	return bins_edgs, aveg_arr

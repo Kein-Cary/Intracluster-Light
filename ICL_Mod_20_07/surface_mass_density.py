@@ -24,12 +24,6 @@ def input_cosm_model( get_model = None ):
         ### cosmology
         Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
 
-        # H0 = Test_model.H0.value
-        # h = H0/100
-        # Omega_m = Test_model.Om0
-        # Omega_lambda = 1.-Omega_m
-        # Omega_k = 1.- (Omega_lambda + Omega_m)
-
     return Test_model
 
 def cosmos_param():
@@ -133,7 +127,7 @@ def sigmam(r, Mc, z, c):
     r200m = ( 3 * M / ( 4 * np.pi * rho_mean ) )**(1/3)  ## in unit of kpc / h
 
     rs = r200m / c
-    f0 = 2 * Deltac * ( rhoc * omega_mz / h**2 ) * rs
+    f0 = 2 * Deltac * ( rhoc * omega_mz / h**2 ) * rs # in unit of M_sun * h / kpc^2
 
     x = R / rs
 
@@ -176,7 +170,7 @@ def sigmac(r, Mc, z, c):
     r200c = ( 3 * M / ( 4 * np.pi * rho_c * v_m ) )**(1/3)
 
     rs = r200c / c
-    f0 = 2 * Deltac * ( rhoc / h**2 ) * rs # in unit of M_sun * h / kpc^3
+    f0 = 2 * Deltac * ( rhoc / h**2 ) * rs # in unit of M_sun * h / kpc^2
 
     x = R / rs
 
