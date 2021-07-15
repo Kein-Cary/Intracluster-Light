@@ -36,56 +36,6 @@ l_wave = np.array( [6166, 4686, 7480] )
 ## solar Magnitude corresponding to SDSS filter
 Mag_sun = [ 4.65, 5.11, 4.53 ]
 
-### === M/L - color (Du et al., 2020)
-def grg_band_c2m_func(g2r_arr, g_lumi_arr):
-	a_g = -0.857
-	b_g = 1.558
-
-	lg_m2l = a_g + b_g * g2r_arr
-	M = g_lumi_arr * 10**( lg_m2l )
-	return M / h**2
-
-def grr_band_c2m_func(g2r_arr, r_lumi_arr):
-	a_g = -0.700
-	b_g = 1.252
-
-	lg_m2l = a_g + b_g * g2r_arr
-	M = r_lumi_arr * 10**( lg_m2l )
-	return M / h**2
-
-def gri_band_c2m_func(g2r_arr, i_lumi_arr):
-	a_g = -0.756
-	b_g = 1.226
-
-	lg_m2l = a_g + b_g * g2r_arr
-	M = i_lumi_arr * 10**( lg_m2l )
-	return M / h**2
-
-def gig_band_c2m_func(g2i_arr, g_lumi_arr):
-	a_g = -1.152
-	b_g = 1.328
-
-	lg_m2l = a_g + b_g * g2i_arr
-	M = g_lumi_arr * 10**( lg_m2l )
-	return M / h**2
-
-def gir_band_c2m_func(g2i_arr, r_lumi_arr):
-	a_g = -0.947
-	b_g = 1.088
-
-	lg_m2l = a_g + b_g * g2i_arr
-	M = r_lumi_arr * 10**( lg_m2l )
-	return M / h**2
-
-def gii_band_c2m_func(g2i_arr, i_lumi_arr):
-	a_g = -0.993
-	b_g = 1.057
-
-	lg_m2l = a_g + b_g * g2i_arr
-	M = i_lumi_arr * 10**( lg_m2l )
-	return M / h**2
-
-
 ### === color to mass (my fitting)
 def gr_ri_band_c2m_func(g2r_arr, r2i_arr, i_lumi_arr, fit_params):
 
@@ -136,7 +86,7 @@ def cumu_mass_func(rp, surf_mass, N_grid = 100):
 
 	return cumu_mass
 
-def get_c2mass_func( r_arr, band_str, sb_arr, color_arr, z_obs, N_grid = 100, fit_file = None, out_file = None):
+def get_c2mass_func( r_arr, band_str, sb_arr, color_arr, z_obs, N_grid = 100, fit_file, out_file = None):
 	"""
 	band_str : use which bands as bsed luminosity to estimate, the second str is the band information.
 	sb_arr : in terms of absolute magnitude
@@ -147,39 +97,16 @@ def get_c2mass_func( r_arr, band_str, sb_arr, color_arr, z_obs, N_grid = 100, fi
 	t_Lumi = SB_to_Lumi_func( sb_arr, z_obs, band[ band_id ] ) ## in unit L_sun / pc^2
 	t_Lumi = 1e6 * t_Lumi ## in unit L_sun / kpc^2
 
-	if fit_file is None:
+	fit_dat = pds.read_csv( fit_file )
+	a_fit = np.array( fit_dat['a'] )[0]
+	b_fit = np.array( fit_dat['b'] )[0]
+	c_fit = np.array( fit_dat['c'] )[0]
+	d_fit = np.array( fit_dat['d'] )[0]
 
-		if band_str == 'grg':
-			t_mass = grg_band_c2m_func( color_arr, t_Lumi ) ## in unit M_sun / kpc^2
-
-		if band_str == 'grr':
-			t_mass = grr_band_c2m_func( color_arr, t_Lumi ) ## in unit M_sun / kpc^2
-
-		if band_str == 'gri':
-			t_mass = gri_band_c2m_func( color_arr, t_Lumi ) ## in unit M_sun / kpc^2
-
-
-		if band_str == 'gig':
-			t_mass = gig_band_c2m_func( color_arr, t_Lumi ) ## in unit M_sun / kpc^2
-
-		if band_str == 'gir':
-			t_mass = gir_band_c2m_func( color_arr, t_Lumi ) ## in unit M_sun / kpc^2
-
-		if band_str == 'gii':
-			t_mass = gii_band_c2m_func( color_arr, t_Lumi ) ## in unit M_sun / kpc^2
-
-	#... two colors estimation
-	if fit_file is not None:
-		fit_dat = pds.read_csv( fit_file )
-		a_fit = np.array( fit_dat['a'] )[0]
-		b_fit = np.array( fit_dat['b'] )[0]
-		c_fit = np.array( fit_dat['c'] )[0]
-		d_fit = np.array( fit_dat['d'] )[0]
-
-		fit_params = [ a_fit, b_fit, c_fit, d_fit ]
-		# print( fit_params )
-		g2r_arr, r2i_arr = color_arr[0], color_arr[1]
-		t_mass = gr_ri_band_c2m_func(g2r_arr, r2i_arr, t_Lumi, fit_params)
+	fit_params = [ a_fit, b_fit, c_fit, d_fit ]
+	# print( fit_params )
+	g2r_arr, r2i_arr = color_arr[0], color_arr[1]
+	t_mass = gr_ri_band_c2m_func(g2r_arr, r2i_arr, t_Lumi, fit_params)
 
 	## cumulative mass
 	cumu_mass = cumu_mass_func( r_arr, t_mass, N_grid = N_grid )
@@ -237,73 +164,56 @@ def jk_sub_SB_func(N_samples, jk_sub_sb, BG_file, out_sub_sb):
 
 	return
 
-def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_file, Dl, z_obs, fit_file = None):
-	# Dl : the luminosity distance
+def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_file, Dl, z_obs, fit_file, sub_SB_file_item = None,):
 	### measure surface mass of sub sample
+	# Dl : the luminosity distance
+
+	if sub_SB_file_item is None:
+		R_item, SB_item, sb_err_item = ['R', 'BG_sub_SB', 'sb_err']
+
+	if sub_SB_file_item is not None:
+		R_item, SB_item, sb_err_item = sub_SB_file_item[:]
+
 	for nn in range( N_samples ):
 
-		if fit_file is None:
-			#... sb array 1
-			dat_0 = pds.read_csv( sub_SB_file % ( band_str[0], nn),)
-			r_0, sb_0, err_0 = np.array( dat_0['R']), np.array( dat_0['BG_sub_SB']), np.array( dat_0['sb_err'])
+		#... r-band
+		r_dat = pds.read_csv( sub_SB_file % ('r', nn),)
+		r_R, r_sb, r_sb_err = np.array( r_dat[ R_item ]), np.array( r_dat[ SB_item ]), np.array( r_dat[ sb_err_item ])
 
-			idx_lim = ( r_0 >= low_R_lim ) & ( r_0 <= up_R_lim )
-			idnan = np.isnan( sb_0 )
-			id_lim = (idnan == False) & ( idx_lim )
+		idx_lim = ( r_R >= low_R_lim ) & ( r_R <= up_R_lim )
+		idnan = np.isnan( r_sb )
+		id_lim = (idnan == False) & ( idx_lim )
 
-			r_0, sb_0, err_0 = r_0[ id_lim ], sb_0[ id_lim ], err_0[ id_lim ]
+		r_R, r_sb, r_sb_err = r_R[ id_lim ], r_sb[ id_lim ], r_sb_err[ id_lim ]
 
-			#... SB array 2
-			dat_1 = pds.read_csv( sub_SB_file % ( band_str[1], nn),)
-			r_1, sb_1, err_1 = np.array( dat_1['R']), np.array( dat_1['BG_sub_SB']), np.array( dat_1['sb_err'])
+		#... g-band
+		g_dat = pds.read_csv( sub_SB_file % ('g', nn),)
+		g_R, g_sb, g_sb_err = np.array( g_dat[ R_item ]), np.array( g_dat[ SB_item ]), np.array( g_dat[ sb_err_item ])
 
-			idx_lim = ( r_1 >= low_R_lim ) & ( r_1 <= up_R_lim )
-			idnan = np.isnan( sb_1 )
-			id_lim = (idnan == False) & ( idx_lim )
+		idx_lim = ( g_R >= low_R_lim ) & ( g_R <= up_R_lim )
+		idnan = np.isnan( g_sb )
+		id_lim = (idnan == False) & ( idx_lim )
 
-			r_1, sb_1, err_1 = r_1[ id_lim ], sb_1[ id_lim ], err_1[ id_lim ]
-			c_arr, c_err = color_func( sb_0, err_0, sb_1, err_1 )
+		g_R, g_sb, g_sb_err = g_R[ id_lim ], g_sb[ id_lim ], g_sb_err[ id_lim ]
 
-		if fit_file is not None:
-			#... r-band
-			r_dat = pds.read_csv( sub_SB_file % ('r', nn),)
-			r_R, r_sb, r_sb_err = np.array( r_dat['R']), np.array( r_dat['BG_sub_SB']), np.array( r_dat['sb_err'])
+		#... i-band
+		i_dat = pds.read_csv( sub_SB_file % ('i', nn),)
+		i_R, i_sb, i_sb_err = np.array( i_dat[ R_item ]), np.array( i_dat[ SB_item ]), np.array( i_dat[ sb_err_item ])
 
-			idx_lim = ( r_R >= low_R_lim ) & ( r_R <= up_R_lim )
-			idnan = np.isnan( r_sb )
-			id_lim = (idnan == False) & ( idx_lim )
+		idx_lim = ( i_R >= low_R_lim ) & ( i_R <= up_R_lim )
+		idnan = np.isnan( i_sb )
+		id_lim = (idnan == False) & ( idx_lim )
 
-			r_R, r_sb, r_sb_err = r_R[ id_lim ], r_sb[ id_lim ], r_sb_err[ id_lim ]
+		i_R, i_sb, i_sb_err = i_R[ id_lim ], i_sb[ id_lim ], i_sb_err[ id_lim ]
 
-			#... g-band
-			g_dat = pds.read_csv( sub_SB_file % ('g', nn),)
-			g_R, g_sb, g_sb_err = np.array( g_dat['R']), np.array( g_dat['BG_sub_SB']), np.array( g_dat['sb_err'])
+		gr_arr, gr_err = color_func( g_sb, g_sb_err, r_sb, r_sb_err )
+		ri_arr, ri_err = color_func( r_sb, r_sb_err, i_sb, i_sb_err )
 
-			idx_lim = ( g_R >= low_R_lim ) & ( g_R <= up_R_lim )
-			idnan = np.isnan( g_sb )
-			id_lim = (idnan == False) & ( idx_lim )
+		c_arr = np.array( [ gr_arr, ri_arr ] )
 
-			g_R, g_sb, g_sb_err = g_R[ id_lim ], g_sb[ id_lim ], g_sb_err[ id_lim ]
-
-			#... i-band
-			i_dat = pds.read_csv( sub_SB_file % ('i', nn),)
-			i_R, i_sb, i_sb_err = np.array( i_dat['R']), np.array( i_dat['BG_sub_SB']), np.array( i_dat['sb_err'])
-
-			idx_lim = ( i_R >= low_R_lim ) & ( i_R <= up_R_lim )
-			idnan = np.isnan( i_sb )
-			id_lim = (idnan == False) & ( idx_lim )
-
-			i_R, i_sb, i_sb_err = i_R[ id_lim ], i_sb[ id_lim ], i_sb_err[ id_lim ]
-
-			gr_arr, gr_err = color_func( g_sb, g_sb_err, r_sb, r_sb_err )
-			ri_arr, ri_err = color_func( r_sb, r_sb_err, i_sb, i_sb_err )
-
-			c_arr = np.array( [ gr_arr, ri_arr ] )
-
-		# print(c_arr.shape)
 		#... filter data used to calculate luminosity
 		dat_nd = pds.read_csv( sub_SB_file % ( band_str[-1], nn),)
-		r_nd, sb_nd, err_nd = np.array( dat_nd['R']), np.array( dat_nd['BG_sub_SB']), np.array( dat_nd['sb_err'])
+		r_nd, sb_nd, err_nd = np.array( dat_nd[ R_item ]), np.array( dat_nd[ SB_item ]), np.array( dat_nd[ sb_err_item ])
 
 		idx_lim = ( r_nd >= low_R_lim ) & ( r_nd <= up_R_lim )
 		idnan = np.isnan( sb_nd )
@@ -329,11 +239,26 @@ def aveg_mass_pro_func(N_samples, band_str, jk_sub_m_file, jk_aveg_m_file, lgM_c
 
 		o_dat = pds.read_csv( jk_sub_m_file % nn,)
 
-		tmp_r.append( o_dat['R'] )
-		tmp_mass.append( o_dat['surf_mass'] )
+		# tmp_r.append( o_dat['R'] )
+		# tmp_mass.append( o_dat['surf_mass'] )
 
-		tmp_c_mass.append( o_dat['cumu_mass'] )
-		tmp_lumi.append( o_dat['lumi'] )
+		# tmp_c_mass.append( o_dat['cumu_mass'] )
+		# tmp_lumi.append( o_dat['lumi'] )
+
+		sub_R, sub_mass = np.array( o_dat['R'] ), np.array( o_dat['surf_mass'] )
+		sub_c_mass, sub_lumi = np.array( o_dat['cumu_mass'] ), np.array( o_dat['lumi'] )
+
+		id_nn_0 = np.isnan( sub_mass )
+		id_nn_1 = np.isnan( sub_c_mass )
+		id_nn_2 = np.isnan( sub_lumi )
+
+		id_nn = id_nn_0 | id_nn_1 | id_nn_2
+
+		tmp_r.append( sub_R[ id_nn == False ] )
+		tmp_mass.append( sub_mass[ id_nn == False ] )
+
+		tmp_c_mass.append( sub_c_mass[ id_nn == False ] )
+		tmp_lumi.append( sub_lumi[ id_nn == False ] )
 
 	### jack-mean pf mass and lumi profile
 	aveg_R, aveg_surf_m, aveg_surf_m_err = arr_jack_func( tmp_mass, tmp_r, N_samples)[:3]

@@ -5,26 +5,13 @@ import scipy.stats as sts
 import h5py
 import pandas as pds
 
-def match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len, id_spec = True,):
-	"""
-	set_ra, set_dec, set_z : the catalog information
-	cat_file : the total catalog information of query sample
-	out_file : the match result
-	sf_len : the length of str in information match
-	"""
+def match_func(set_ra, set_dec, set_z, cat_file, out_file):
+
 	goal_data = fits.getdata(cat_file)
 	RA = np.array(goal_data.RA)
 	DEC = np.array(goal_data.DEC)
 	ID = np.array(goal_data.ID)
-
-	z_spec = np.array(goal_data.Z_SPEC)
-	z_phot = np.array(goal_data.Z_LAMBDA)
-
-	if id_spec == True:
-		redshift = z_spec
-	else:
-		redshift = z_phot
-
+	redshift = np.array(goal_data.Z_SPEC)
 	Mag_bcgs = np.array(goal_data.MODEL_MAG_R)
 	Mag_err = np.array(goal_data.MODEL_MAGERR_R)
 	lamda = np.array(goal_data.LAMBDA)
@@ -62,11 +49,9 @@ def match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len, id_spec = Tru
 	com_ID = ID[(redshift >= 0.2) & (redshift <= 0.3)]
 
 	##### list of the target cat
-	com_s = '%.' + '%df' % sf_len
-
-	targ_ra = [com_s % ll for ll in set_ra]
-	targ_dec = [com_s % ll for ll in set_dec]
-	targ_z = [com_s % ll for ll in set_z]
+	targ_ra = ['%.3f' % ll for ll in set_ra]
+	targ_dec = ['%.3f' % ll for ll in set_dec]
+	targ_z = ['%.3f' % ll for ll in set_z]
 
 	#### initial the list
 	sub_z = []
@@ -95,10 +80,9 @@ def match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len, id_spec = Tru
 		u_mag, u_err = com_u_Mag[jj], com_u_Mag_err[jj]
 		z_mag, z_err = com_z_Mag[jj], com_z_Mag_err[jj]
 
-		identi = (com_s % ra_g in targ_ra) & (com_s % dec_g in targ_dec) # & (com_s % z_g in targ_z)
+		identi = ('%.3f' % ra_g in targ_ra) & ('%.3f' % dec_g in targ_dec) # & ('%.3f' % z_g in targ_z)
 
-		if  identi == True:
-
+		if  identi == True: 
 			sub_z.append(z_g)
 			sub_ra.append(ra_g)
 			sub_dec.append(dec_g)
@@ -148,13 +132,8 @@ def match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len, id_spec = Tru
 
 	return
 
-def random_match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len,):
-	"""
-	set_ra, set_dec, set_z : the catalog information
-	cat_file : the total catalog information of query sample
-	out_file : the match result
-	sf_len : the length of str in information match
-	"""
+def random_match_func(set_ra, set_dec, set_z, cat_file, out_file):
+
 	rand_data = fits.getdata(cat_file)
 	RA = rand_data.RA
 	DEC = rand_data.DEC
@@ -169,11 +148,9 @@ def random_match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len,):
 	lamda_eff = LAMBDA[idx]
 
 	##### list of the target cat
-	com_s = '%.' + '%df' % sf_len
-
-	targ_ra = [com_s % ll for ll in set_ra]
-	targ_dec = [com_s % ll for ll in set_dec]
-	targ_z = [com_s % ll for ll in set_z]
+	targ_ra = ['%.5f' % ll for ll in set_ra]
+	targ_dec = ['%.5f' % ll for ll in set_dec]
+	targ_z = ['%.5f' % ll for ll in set_z]
 
 	zN = len(z_eff)
 
@@ -189,7 +166,7 @@ def random_match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len,):
 		z_g = z_eff[jj]
 		rich_g = lamda_eff[jj]
 
-		identi = (com_s % ra_g in targ_ra) & (com_s % dec_g in targ_dec) & (com_s % z_g in targ_z)
+		identi = ('%.5f' % ra_g in targ_ra) & ('%.5f' % dec_g in targ_dec) & ('%.5f' % z_g in targ_z)
 
 		if  identi == True:
 			sub_z.append(z_g)
@@ -198,7 +175,6 @@ def random_match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len,):
 			sub_rich.append(rich_g)
 		else:
 			continue
-
 	sub_z = np.array(sub_z)
 	sub_ra = np.array(sub_ra)
 	sub_dec = np.array(sub_dec)
@@ -214,7 +190,6 @@ def random_match_func(set_ra, set_dec, set_z, cat_file, out_file, sf_len,):
 	return
 
 def main():
-
 	"""
 	### random img
 	cat_file = '/home/xkchen/mywork/ICL/data/redmapper/redmapper_dr8_public_v6.3_randoms.fits'
@@ -316,4 +291,3 @@ def main():
 
 if __name__ == "__main__":
 	main()
-
