@@ -77,16 +77,18 @@ def cumu_mass_func(rp, surf_mass, N_grid = 100):
 	intep_sigma_F = interp.interp1d( rp, surf_mass, kind = 'linear', fill_value = 'extrapolate',)
 
 	cumu_mass = np.zeros( NR, )
+	lg_r_min = np.log10( np.min( rp ) / 10 )
 
 	for ii in range( NR ):
 
-		new_rp = np.logspace(0, np.log10( rp[ii] ), N_grid)
+		new_rp = np.logspace( lg_r_min, np.log10( rp[ii] ), N_grid)
 		new_mass = intep_sigma_F( new_rp )
+
 		cumu_mass[ ii ] = integ.simps( 2 * np.pi * new_rp * new_mass, new_rp)
 
 	return cumu_mass
 
-def get_c2mass_func( r_arr, band_str, sb_arr, color_arr, z_obs, N_grid = 100, fit_file, out_file = None):
+def get_c2mass_func(r_arr, band_str, sb_arr, color_arr, z_obs, fit_file, N_grid = 100, out_file = None):
 	"""
 	band_str : use which bands as bsed luminosity to estimate, the second str is the band information.
 	sb_arr : in terms of absolute magnitude
@@ -225,7 +227,7 @@ def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_
 		Mag_arr = mag_arr - 5 * np.log10( Dl * 10**6 / 10)
 
 		out_m_file = out_file % nn
-		get_c2mass_func( r_nd, band_str, Mag_arr, c_arr, z_obs, fit_file = fit_file, out_file = out_m_file )
+		get_c2mass_func( r_nd, band_str, Mag_arr, c_arr, z_obs, fit_file, out_file = out_m_file )
 
 	return
 
@@ -239,12 +241,6 @@ def aveg_mass_pro_func(N_samples, band_str, jk_sub_m_file, jk_aveg_m_file, lgM_c
 
 		o_dat = pds.read_csv( jk_sub_m_file % nn,)
 
-		# tmp_r.append( o_dat['R'] )
-		# tmp_mass.append( o_dat['surf_mass'] )
-
-		# tmp_c_mass.append( o_dat['cumu_mass'] )
-		# tmp_lumi.append( o_dat['lumi'] )
-
 		sub_R, sub_mass = np.array( o_dat['R'] ), np.array( o_dat['surf_mass'] )
 		sub_c_mass, sub_lumi = np.array( o_dat['cumu_mass'] ), np.array( o_dat['lumi'] )
 
@@ -254,11 +250,16 @@ def aveg_mass_pro_func(N_samples, band_str, jk_sub_m_file, jk_aveg_m_file, lgM_c
 
 		id_nn = id_nn_0 | id_nn_1 | id_nn_2
 
-		tmp_r.append( sub_R[ id_nn == False ] )
-		tmp_mass.append( sub_mass[ id_nn == False ] )
+		#. keep the array length and replace id_nn values
+		sub_R[ id_nn ] = np.nan
+		sub_mass[ id_nn ] = np.nan
+		sub_c_mass[ id_nn ] = np.nan
+		sub_lumi[ id_nn ] = np.nan
 
-		tmp_c_mass.append( sub_c_mass[ id_nn == False ] )
-		tmp_lumi.append( sub_lumi[ id_nn == False ] )
+		tmp_r.append( sub_R )
+		tmp_mass.append( sub_mass )
+		tmp_c_mass.append( sub_c_mass )
+		tmp_lumi.append( sub_lumi )
 
 	### jack-mean pf mass and lumi profile
 	aveg_R, aveg_surf_m, aveg_surf_m_err = arr_jack_func( tmp_mass, tmp_r, N_samples)[:3]

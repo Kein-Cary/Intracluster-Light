@@ -210,6 +210,7 @@ def over_dens_sb_func(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 
 	return Intns_r, Intns, Intns_err, over_fdens, N_pix, nsum_ratio
 
+
 ### covariance & correlarion matrix
 def cov_MX_func(radius, pros, id_jack = True,):
 
@@ -241,18 +242,33 @@ def cov_MX_func(radius, pros, id_jack = True,):
 
 	return R_mean, cov_MX, cor_MX
 
-### dimming effect correction
+
+### dimming effect correction and flux scaling
 def flux_recal(data, z0, zref):
 	"""
-	this function is used to rescale the pixel flux of sample images to reference redshift
+	this function is used to rescale the pixel flux of cluster images to reference redshift
 	"""
-	obs = data
+	f_obs = data
 	z0 = z0
 	z1 = zref
+	Da0 = Test_model.angular_diameter_distance( z0 ).value
+	Da1 = Test_model.angular_diameter_distance( z1 ).value
+	f_ref = f_obs * (1 + z0)**4 * Da0**2 / ( (1 + z1)**4 * Da1**2 )
+	return f_ref
+
+def flux_scale(data, z0, zref, pix_z0):
+	obs = data / pix_z0**2
+	scaled_sb = obs *( (1 + z0)**4 / (1 + zref)**4 )
+
 	Da0 = Test_model.angular_diameter_distance(z0).value
-	Da1 = Test_model.angular_diameter_distance(z1).value
-	flux = obs * (1 + z0)**4 * Da0**2 / ((1 + z1)**4 * Da1**2)
-	return flux
+	Da1 = Test_model.angular_diameter_distance(zref).value
+	s0 = pix_z0**2
+	s1 = pix_z0**2 * ( Da0**2 / Da1**2 )
+
+	pix_zf = np.sqrt(s1)
+	sb_ref = scaled_sb * s1
+	return sb_ref, pix_zf
+
 
 ### jackknife SB 
 def jack_SB_func(SB_array, R_array, band_str, N_sample,):
@@ -308,6 +324,7 @@ def jack_SB_func(SB_array, R_array, band_str, N_sample,):
 	jk_Stack_err1[idx_nan] = 100.
 
 	return jk_Stack_SB, jk_Stack_R, jk_Stack_err0, jk_Stack_err1, Stack_R, Stack_SB, jk_Stack_err, lim_R
+
 
 ### surface brightness profile measurement (weight version)
 ###		[set weit_data as ones-array for no weight case]
@@ -601,7 +618,7 @@ def light_measure_rn_weit(data, weit_data, pix_size, cx, cy, z0, R_low, R_up):
 
 	return Intns, Intns_r, Intns_err, N_pix, nsum_ratio
 
-def light_measure_weit(data, weit_data, pix_size, cx, cy, z0, R_bins,):
+def light_measure_weit(data, weit_data, pix_size, cx, cy, z0, R_bins):
 	"""
 	data: data used to measure (2D-array)
 	Nbin: number of bins will devide
@@ -720,6 +737,7 @@ def light_measure_weit(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 	Intns, Intns_err = Intns / pix_size**2, Intns_err / pix_size**2
 
 	return Intns, Intns_r, Intns_err, N_pix, nsum_ratio
+
 
 ### SB profile measure with modification in large scale
 ### 	[with weight array applied]

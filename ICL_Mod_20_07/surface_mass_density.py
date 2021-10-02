@@ -4,6 +4,7 @@ import astropy.constants as C
 import astropy.units as U
 from astropy import cosmology as apcy
 from numba import vectorize
+import scipy.interpolate as interp
 
 ### constant
 G = C.G.value # gravitation constant
@@ -31,7 +32,7 @@ def cosmos_param():
     global H0, h, Omega_m, Omega_lambda, Omega_k
 
     ## cosmology params
-    H0 = Test_model.H0
+    H0 = Test_model.H0.value
     h = H0 / 100
     Omega_m = Test_model.Om0
     Omega_lambda = 1.-Omega_m
@@ -99,6 +100,97 @@ def rho_nfw_delta_c(r, z, c_mass, lgM, v_m = 200):
     rho = delta_c * rhoc / ( (r / rs) * (1 + r / rs)**2 ) # in unit of M_sun * h^2 / kpc^3
 
     return rho
+
+### === ### miscentering nfw profile (Zu et al. 2021, section 3.)
+def aveg_sigma_func(rp, sigma_arr, N_grid = 100):
+
+    NR = len( rp )
+    aveg_sigma = np.zeros( NR, dtype = np.float32 )
+
+    tR = rp
+    intep_sigma_F = interp.interp1d( tR , sigma_arr, kind = 'cubic', fill_value = 'extrapolate',)
+
+    cumu_mass = np.zeros( NR, )
+    lg_r_min = np.log10( np.min( rp ) / 10 )
+
+    for ii in range( NR ):
+
+        new_rp = np.logspace( lg_r_min, np.log10( tR[ii] ), N_grid)
+        new_sigma = intep_sigma_F( new_rp )
+
+        cumu_sigma = integ.simps( new_rp * new_sigma, new_rp)
+
+        aveg_sigma[ii] = 2 * cumu_sigma / tR[ii]**2
+
+    return aveg_sigma
+
+def mis_p_func( r_off, sigma_off):
+    """
+    r_off : the offset between cluster center and BCGs
+    sigma_off : characteristic offset
+    """
+
+    pf0 = r_off / sigma_off**2
+    pf1 = np.exp( - r_off / sigma_off )
+
+    return pf0 * pf1
+
+def misNFW_sigma_func( rp, sigma_off, z, c_mass, lgM, v_m):
+
+    theta = np.linspace( 0, 2 * np.pi, 100)
+    d_theta = np.diff( theta )
+    N_theta = len( theta )
+
+    try:
+        NR = len( rp )
+    except:
+        rp = np.array( [rp] )
+        NR = len( rp )
+
+    r_off = np.arange( 0, 15 * sigma_off, 0.02 * sigma_off )
+    off_pdf = mis_p_func( r_off, sigma_off )
+    dr_off = np.diff( r_off )
+
+    NR_off = len( r_off )
+
+    surf_dens_off = np.zeros( NR, dtype = np.float32 )
+
+    for ii in range( NR ):
+
+        surf_dens_arr = np.zeros( (NR_off, N_theta), dtype = np.float32 )
+
+        for jj in range( NR_off ):
+
+            r_cir = np.sqrt( rp[ii]**2 + 2 * rp[ii] * r_off[jj] * np.cos( theta ) + r_off[jj]**2 )
+            surf_dens_arr[jj,:] = sigmam( r_cir, lgM, z, c_mass,)
+
+        ## integration on theta
+        medi_surf_dens = ( surf_dens_arr[:,1:] + surf_dens_arr[:,:-1] ) / 2
+        sum_theta_fdens = np.sum( medi_surf_dens * d_theta, axis = 1) / ( 2 * np.pi )
+
+        ## integration on r_off
+        integ_f = sum_theta_fdens * off_pdf
+
+        medi_integ_f = ( integ_f[1:] + integ_f[:-1] ) / 2
+
+        surf_dens_ii = np.sum( medi_integ_f * dr_off )
+
+        surf_dens_off[ ii ] = surf_dens_ii
+
+    off_sigma = surf_dens_off
+
+    if NR == 1:
+        return off_sigma[0]
+    return off_sigma
+
+def obs_sigma_func( rp, f_off, sigma_off, z, c_mass, lgM, v_m):
+
+    off_sigma = misNFW_sigma_func( rp, sigma_off, z, c_mass, lgM, v_m)
+    norm_sigma = sigmam( rp, lgM, z, c_mass)
+
+    obs_sigma = f_off * off_sigma + ( 1 - f_off ) * norm_sigma
+
+    return obs_sigma
 
 ### sigma for given radius (based on NFW)
 @vectorize

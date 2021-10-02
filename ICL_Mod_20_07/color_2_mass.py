@@ -30,10 +30,27 @@ Omega_m = Test_model.Om0
 Omega_lambda = 1.-Omega_m
 Omega_k = 1.- (Omega_lambda + Omega_m)
 
+rad2asec = U.rad.to(U.arcsec)
 band = [ 'r', 'g', 'i' ]
 l_wave = np.array( [6166, 4686, 7480] )
 ## solar Magnitude corresponding to SDSS filter
 Mag_sun = [ 4.65, 5.11, 4.53 ]
+
+#... color profile
+def color_func( flux_arr_0, flux_err_0, flux_arr_1, flux_err_1):
+
+	mag_arr_0 = 22.5 - 2.5 * np.log10( flux_arr_0 )
+	mag_arr_1 = 22.5 - 2.5 * np.log10( flux_arr_1 )
+
+	color_pros = mag_arr_0 - mag_arr_1
+
+	sigma_0 = 2.5 * flux_err_0 / (np.log(10) * flux_arr_0 )
+	sigma_1 = 2.5 * flux_err_1 / (np.log(10) * flux_arr_1 )
+
+	color_err = np.sqrt( sigma_0**2 + sigma_1**2 )
+
+	return color_pros, color_err
+
 ### === ###... g-r color based
 def gr_band_m2l_func(g2r_arr, r_lumi_arr):
 
@@ -49,7 +66,7 @@ def gr_band_c2m_func(g2r_arr, r_lumi_arr):
 	lg_m2l = a_g2r + b_g2r * g2r_arr
 	M = r_lumi_arr * 10**( lg_m2l )
 	## correction for h^2 term in Bell 2003
-	M = M / h**2
+	M = M + 0.
 	return M
 
 def rg_band_m2l_func(g2r_arr, g_lumi_arr):
@@ -67,7 +84,7 @@ def rg_band_c2m_func(g2r_arr, g_lumi_arr):
 	lg_m2l = a_r2g + b_r2g * g2r_arr
 	M = g_lumi_arr * 10**( lg_m2l )
 	## correction for h^2 term in Bell 2003
-	M = M / h**2
+	M = M + 0.
 	return M
 
 ### === ###... g-i color based
@@ -86,7 +103,7 @@ def gi_band_c2m_func(g2i_arr, i_lumi_arr):
 	lg_m2l = a_g2i + b_g2i * g2i_arr
 	M = i_lumi_arr * 10**( lg_m2l )
 	## correction for h^2 term in Bell 2003
-	M = M / h**2
+	M = M + 0.
 	return M
 
 def ig_band_m2l_func(g2i_arr, g_lumi_arr):
@@ -104,7 +121,7 @@ def ig_band_c2m_func(g2i_arr, g_lumi_arr):
 	lg_m2l = a_i2g + b_i2g * g2i_arr
 	M = g_lumi_arr * 10**( lg_m2l )
 	## correction for h^2 term in Bell 2003
-	M = M / h**2
+	M = M + 0.
 	return M
 
 ### === ###... r-i color based
@@ -123,7 +140,7 @@ def ri_band_c2m_func(r2i_arr, i_lumi_arr):
 	lg_m2l = a_r2i + b_r2i * r2i_arr
 	M = i_lumi_arr * 10**( lg_m2l )
 	## correction for h^2 term in Bell 2003
-	M = M / h**2
+	M = M + 0.
 	return M
 
 def ir_band_m2l_func(r2i_arr, r_lumi_arr):
@@ -141,7 +158,7 @@ def ir_band_c2m_func(r2i_arr, r_lumi_arr):
 	lg_m2l = a_i2r + b_i2r * r2i_arr
 	M = r_lumi_arr * 10**( lg_m2l )
 	## correction for h^2 term in Bell 2003
-	M = M / h**2
+	M = M + 0.
 	return M
 
 ### === ###... three band combined
@@ -152,7 +169,7 @@ def gri_band_c2m_func(g2r_arr, i_lumi_arr):
 
 	M = i_lumi_arr * 10**( lg_m2l )
 	## correction for h^2 term in Bell 2003
-	M = M / h**2
+	M = M + 0.
 	return M
 
 def gir_band_c2m_func(g2i_arr, r_lumi_arr):
@@ -162,7 +179,7 @@ def gir_band_c2m_func(g2i_arr, r_lumi_arr):
 
 	M = r_lumi_arr * 10**( lg_m2l )
 	## correction for h^2 term in Bell 2003
-	M = M / h**2
+	M = M + 0.
 	return M
 
 def rig_band_c2m_func(r2i_arr, g_lumi_arr):
@@ -172,13 +189,13 @@ def rig_band_c2m_func(r2i_arr, g_lumi_arr):
 
 	M = g_lumi_arr * 10**( lg_m2l )
 	## correction for h^2 term in Bell 2003
-	M = M / h**2
+	M = M + 0.
 	return M
 
 ### === ###... profile measurement
 def SB_to_Lumi_func(sb_arr, obs_z, band_s):
 	"""
-	sb_arr : in unit of mag /arcsec^2,
+	sb_arr : in unit of mag /arcsec^2, apparent magnitude
 	"""
 	if band_s == 'r':
 		Mag_dot = Mag_sun[0]
@@ -208,11 +225,13 @@ def cumu_mass_func(rp, surf_mass, N_grid = 100):
 	intep_sigma_F = interp.interp1d( rp, surf_mass, kind = 'linear', fill_value = 'extrapolate',)
 
 	cumu_mass = np.zeros( NR, )
+	lg_r_min = np.log10( np.min( rp ) / 10 )
 
 	for ii in range( NR ):
 
-		new_rp = np.logspace(0, np.log10( rp[ii] ), N_grid)
+		new_rp = np.logspace( lg_r_min, np.log10( rp[ii] ), N_grid)
 		new_mass = intep_sigma_F( new_rp )
+
 		cumu_mass[ ii ] = integ.simps( 2 * np.pi * new_rp * new_mass, new_rp)
 
 	return cumu_mass
@@ -313,15 +332,23 @@ def jk_sub_SB_func(N_samples, jk_sub_sb, BG_file, out_sub_sb):
 
 	return
 
-def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_file, Dl, z_obs, c_inv = False):
-
+def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_file, Dl, z_obs, 
+	c_inv = False, sub_SB_file_item = None,):
+	# sub_SB_file_item : the columns name of sub SB profile .csv files
 	# Dl : the luminosity distance
 	# c_inv : if change the position of the order of the two SB profile array
+
 	### measure surface mass of sub sample
 	for nn in range( N_samples ):
 		#... sb array 1
-		dat_0 = pds.read_csv( sub_SB_file % ( band_str[0], nn),)
-		r_0, sb_0, err_0 = np.array( dat_0['R']), np.array( dat_0['BG_sub_SB']), np.array( dat_0['sb_err'])
+		if sub_SB_file_item is None:
+			dat_0 = pds.read_csv( sub_SB_file % ( band_str[0], nn),)
+			r_0, sb_0, err_0 = np.array( dat_0['R']), np.array( dat_0['BG_sub_SB']), np.array( dat_0['sb_err'])
+
+		if sub_SB_file_item is not None:
+			R_item, SB_item, sb_err_item = sub_SB_file_item[:]
+			dat_0 = pds.read_csv( sub_SB_file % ( band_str[0], nn),)
+			r_0, sb_0, err_0 = np.array( dat_0[ R_item ]), np.array( dat_0[ SB_item ]), np.array( dat_0[ sb_err_item ])
 
 		idx_lim = ( r_0 >= low_R_lim ) & ( r_0 <= up_R_lim )
 		idnan = np.isnan( sb_0 )
@@ -330,8 +357,14 @@ def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_
 		r_0, sb_0, err_0 = r_0[ id_lim ], sb_0[ id_lim ], err_0[ id_lim ]
 
 		#... SB array 2
-		dat_1 = pds.read_csv( sub_SB_file % ( band_str[1], nn),)
-		r_1, sb_1, err_1 = np.array( dat_1['R']), np.array( dat_1['BG_sub_SB']), np.array( dat_1['sb_err'])
+		if sub_SB_file_item is None:
+			dat_1 = pds.read_csv( sub_SB_file % ( band_str[1], nn),)
+			r_1, sb_1, err_1 = np.array( dat_1['R']), np.array( dat_1['BG_sub_SB']), np.array( dat_1['sb_err'])
+
+		if sub_SB_file_item is not None:
+			R_item, SB_item, sb_err_item = sub_SB_file_item[:]
+			dat_1 = pds.read_csv( sub_SB_file % ( band_str[1], nn),)
+			r_1, sb_1, err_1 = np.array( dat_1[ R_item ]), np.array( dat_1[ SB_item ]), np.array( dat_1[ sb_err_item ])
 
 		idx_lim = ( r_1 >= low_R_lim ) & ( r_1 <= up_R_lim )
 		idnan = np.isnan( sb_1 )
@@ -346,8 +379,14 @@ def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_
 			c_arr, c_err = color_func( sb_0, err_0, sb_1, err_1 )
 
 		#... filter data used to calculate luminosity
-		dat_nd = pds.read_csv( sub_SB_file % ( band_str[-1], nn),)
-		r_nd, sb_nd, err_nd = np.array( dat_nd['R']), np.array( dat_nd['BG_sub_SB']), np.array( dat_nd['sb_err'])
+		if sub_SB_file_item is None:
+			dat_nd = pds.read_csv( sub_SB_file % ( band_str[-1], nn),)
+			r_nd, sb_nd, err_nd = np.array( dat_nd['R']), np.array( dat_nd['BG_sub_SB']), np.array( dat_nd['sb_err'])
+
+		if sub_SB_file_item is not None:
+			R_item, SB_item, sb_err_item = sub_SB_file_item[:]
+			dat_nd = pds.read_csv( sub_SB_file % ( band_str[-1], nn),)
+			r_nd, sb_nd, err_nd = np.array( dat_nd[ R_item ]), np.array( dat_nd[ SB_item ]), np.array( dat_nd[ sb_err_item ])
 
 		idx_lim = ( r_nd >= low_R_lim ) & ( r_nd <= up_R_lim )
 		idnan = np.isnan( sb_nd )
@@ -356,8 +395,6 @@ def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_
 		r_nd, sb_nd, err_nd = r_nd[ id_lim], sb_nd[ id_lim], err_nd[ id_lim]
 
 		mag_arr = 22.5 - 2.5 * np.log10( sb_nd )
-
-		# Mag_arr = mag_arr - 5 * np.log10( Dl * 10**6 / 10)
 		Mag_arr = mag_arr + 0.
 
 		out_m_file = out_file % nn
@@ -374,12 +411,25 @@ def aveg_mass_pro_func(N_samples, band_str, jk_sub_m_file, jk_aveg_m_file, lgM_c
 	for nn in range( N_samples ):
 
 		o_dat = pds.read_csv( jk_sub_m_file % nn,)
+		sub_R, sub_mass = np.array( o_dat['R'] ), np.array( o_dat['surf_mass'] )
+		sub_c_mass, sub_lumi = np.array( o_dat['cumu_mass'] ), np.array( o_dat['lumi'] )
 
-		tmp_r.append( o_dat['R'] )
-		tmp_mass.append( o_dat['surf_mass'] )
+		id_nn_0 = np.isnan( sub_mass )
+		id_nn_1 = np.isnan( sub_c_mass )
+		id_nn_2 = np.isnan( sub_lumi )
 
-		tmp_c_mass.append( o_dat['cumu_mass'] )
-		tmp_lumi.append( o_dat['lumi'] )
+		id_nn = id_nn_0 | id_nn_1 | id_nn_2
+
+		#. keep the array length and replace id_nn values
+		sub_R[ id_nn ] = np.nan
+		sub_mass[ id_nn ] = np.nan
+		sub_c_mass[ id_nn ] = np.nan
+		sub_lumi[ id_nn ] = np.nan
+
+		tmp_r.append( sub_R )
+		tmp_mass.append( sub_mass )
+		tmp_c_mass.append( sub_c_mass )
+		tmp_lumi.append( sub_lumi )
 
 	### jack-mean pf mass and lumi profile
 	aveg_R, aveg_surf_m, aveg_surf_m_err = arr_jack_func( tmp_mass, tmp_r, N_samples)[:3]

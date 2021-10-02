@@ -173,4 +173,3 @@ def clust_SB_fit_func( R_arr, sb_arr, sb_err_arr, params_file, R_psf, lo_R_lim, 
 
 	return
 
-

@@ -141,14 +141,10 @@ def BCG_SB_pros_func(band_str, set_z, set_ra, set_dec, pros_file, z_ref, out_fil
 	std_fdens = np.nanstd( fdens_arr, axis = 0 )
 
 	SB_pro = 22.5 - 2.5 * np.log10(m_fdens) + mag_add[ band_id ]
+	err_pro = 2.5 * std_fdens / ( np.log(10) * m_fdens )
 
-	SB0 = 22.5 - 2.5 * np.log10(m_fdens + std_fdens) + mag_add[band_id]
-	SB1 = 22.5 - 2.5 * np.log10(m_fdens - std_fdens) + mag_add[band_id]
-	err0 = SB_pro - SB0
-	err1 = SB1 - SB_pro
-
-	keys = ['R_ref', 'SB_mag', 'SB_mag_err0', 'SB_mag_err1', 'SB_fdens', 'SB_fdens_err']
-	values = [r_bins, SB_pro, err0, err1, m_fdens, std_fdens]
+	keys = ['R_ref', 'SB_mag', 'SB_mag_err', 'SB_fdens', 'SB_fdens_err']
+	values = [r_bins, SB_pro, err_pro, m_fdens, std_fdens]
 
 	fill = dict(zip(keys, values))
 	data = pds.DataFrame(fill)
@@ -157,7 +153,7 @@ def BCG_SB_pros_func(band_str, set_z, set_ra, set_dec, pros_file, z_ref, out_fil
 	return
 
 ### for single image
-def single_img_SB_func(band_str, set_z, set_ra, set_dec, pros_file, z_ref, r_bins):
+def single_img_SB_func(band_str, set_z, set_ra, set_dec, pros_file, r_bins, z_ref = None):
 
 	band_id = band.index( band_str )
 
@@ -191,8 +187,13 @@ def single_img_SB_func(band_str, set_z, set_ra, set_dec, pros_file, z_ref, r_bin
 
 	fdens = fdens_deriv( use_angl_r, tt_r, tt_pro,)
 
-	out_fdens = fdens * ( (1 + z_g) / (1 + z_ref) )**4
+	if z_ref is not None:
+		out_fdens = fdens * ( (1 + z_g) / (1 + z_ref) )**4
+
+	else:
+		out_fdens = fdens * 1.
+
 	out_rbins = r_bins[ id_lim ]
 
-	return out_rbins, fdens
+	return out_rbins, out_fdens
 

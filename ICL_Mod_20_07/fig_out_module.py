@@ -8,6 +8,7 @@ from astropy import cosmology as apcy
 from scipy import signal
 from scipy import interpolate as interp
 from scipy import ndimage
+from scipy import integrate as integ
 
 #constant
 rad2arcsec = U.rad.to(U.arcsec)
@@ -29,6 +30,23 @@ mag_add = np.array([0, 0, 0 ])
 Mag_sun = [ 4.65, 5.11, 4.53 ]
 
 #**************************#
+### === ### absMag to luminosity in unit of L_sun
+def absMag_to_Lumi_func( absM_arr, band_str ):
+
+	if band_str == 'r':
+		Mag_dot = Mag_sun[0]
+
+	if band_str == 'g':
+		Mag_dot = Mag_sun[1]
+
+	if band_str == 'i':
+		Mag_dot = Mag_sun[2]
+
+	L_obs = 10**( 0.4 * ( Mag_dot - absM_arr ) )
+
+	return L_obs
+
+### === ### coordinate or position translation
 def WCS_to_pixel_func(ra, dec, header_inf):
 	"""
 	according to SDSS Early Data Release paper (section 4.2.2 wcs)
@@ -115,6 +133,92 @@ def sersic_func(r, Ie, re, ndex):
 	Ir = Ie * np.exp( fn )
 	return Ir
 
+### === ### member galaxies matched to host cluster
+#. for SDSS redMaPPer catalog 
+def mem_clus_match_func( cat_file, mem_file, stack_cat_file, out_file):
+	"""
+	out_file : hdf5 files
+	"""
+	cat_data = fits.open( cat_file )
+	goal_data = cat_data[1].data
+	RA = np.array(goal_data.RA)
+	DEC = np.array(goal_data.DEC)
+	ID = np.array(goal_data.ID)
+
+	z_phot = np.array(goal_data.Z_LAMBDA)
+	idvx = (z_phot >= 0.2) & (z_phot <= 0.3)
+
+	ref_Ra, ref_Dec, ref_Z = RA[idvx], DEC[idvx], z_phot[idvx]
+	ref_ID = ID[idvx]
+
+	mem_data = fits.open( mem_file )
+	sate_data = mem_data[1].data
+
+	group_ID = np.array(sate_data.ID)
+	centric_R = np.array(sate_data.R)
+	P_member = np.array(sate_data.P)
+
+	mem_r_mag = np.array(sate_data.MODEL_MAG_R)
+	mem_r_mag_err = np.array(sate_data.MODEL_MAGERR_R)
+
+	mem_g_mag = np.array(sate_data.MODEL_MAG_G)
+	mem_g_mag_err = np.array(sate_data.MODEL_MAGERR_G)
+
+	mem_i_mag = np.array(sate_data.MODEL_MAG_I)
+	mem_i_mag_err = np.array(sate_data.MODEL_MAGERR_I)
+
+	sat_ra, sat_dec = np.array(sate_data.RA), np.array(sate_data.DEC)
+	sat_Z = np.array( sate_data.Z_SPEC )
+	sat_objID = np.array( sate_data.OBJID )
+
+	d_cat = pds.read_csv( stack_cat_file )
+	ra, dec, z = np.array( d_cat['ra']), np.array( d_cat['dec']), np.array( d_cat['z'])
+
+	out_ra = ['%.5f' % ll for ll in ref_Ra ]
+	out_dec = ['%.5f' % ll for ll in ref_Dec ]
+	out_z = ['%.5f' % ll for ll in ref_Z ]
+
+	sub_index = simple_match( out_ra, out_dec, out_z, ra, dec, z )[-1]
+	match_ID = ref_ID[ sub_index ]
+	Ns = len( ra )
+
+	F_tree = h5py.File( out_file, 'w')
+
+	for qq in range( Ns ):
+
+		ra_g, dec_g, z_g = ra[qq], dec[qq], z[qq]
+
+		targ_ID = match_ID[qq]
+
+		id_group = group_ID == targ_ID
+
+		cen_R_arr = centric_R[ id_group ]
+		sub_Pmem = P_member[ id_group ]
+
+		sub_r_mag = mem_r_mag[ id_group ]
+		sub_g_mag = mem_g_mag[ id_group ]
+		sub_i_mag = mem_i_mag[ id_group ]
+
+		sub_r_mag_err = mem_r_mag_err[ id_group ]
+		sub_g_mag_err = mem_g_mag_err[ id_group ]
+		sub_i_mag_err = mem_i_mag_err[ id_group ]
+
+		sub_ra, sub_dec, sub_z = sat_ra[ id_group ], sat_dec[ id_group ], sat_Z[ id_group ]
+		sub_obj_IDs = sat_objID[ id_group ]
+
+		sub_g2r = sub_g_mag - sub_r_mag
+		sub_g2i = sub_g_mag - sub_i_mag
+		sub_r2i = sub_r_mag - sub_i_mag
+
+		out_arr = np.array( [ sub_ra, sub_dec, sub_z, cen_R_arr, sub_Pmem, sub_g2r, sub_g2i, sub_r2i ] )
+		gk = F_tree.create_group( "clust_%d/" % qq )
+		dk0 = gk.create_dataset( "arr", data = out_arr )
+		dk1 = gk.create_dataset( "IDs", data = sub_obj_IDs )
+
+	F_tree.close()
+
+	return
+
 ### === ### img grid
 def cc_grid_img( img_data, N_stepx, N_stepy):
 
@@ -167,7 +271,7 @@ def cc_grid_img( img_data, N_stepx, N_stepy):
 	for nn in range( biny ):
 		for tt in range( binx ):
 
-			sub_flux = img_data[ly[nn]: ly[nn + 1], lx[tt]: lx[tt + 1] ]
+			sub_flux = img_data[ ly[nn]: ly[nn + 1], lx[tt]: lx[tt + 1] ]
 			id_nn = np.isnan(sub_flux)
 
 			patch_mean[nn,tt] = np.mean( sub_flux[id_nn == False] )
@@ -355,6 +459,28 @@ def arr_jack_func(SB_array, R_array, N_sample):
 	lim_R = np.nanmax(lim_r)
 
 	return Stack_R, Stack_SB, jk_Stack_err, lim_R
+
+def cumu_mass_func(rp, surf_mass, N_grid = 100):
+
+	try:
+		NR = len(rp)
+	except:
+		rp = np.array([ rp ])
+		NR = len(rp)
+
+	intep_sigma_F = interp.interp1d( rp, surf_mass, kind = 'linear', fill_value = 'extrapolate',)
+
+	cumu_mass = np.zeros( NR, )
+	lg_r_min = np.log10( np.min( rp ) / 10 )
+
+	for ii in range( NR ):
+
+		new_rp = np.logspace( lg_r_min, np.log10( rp[ii] ), N_grid)
+		new_mass = intep_sigma_F( new_rp )
+
+		cumu_mass[ ii ] = integ.simps( 2 * np.pi * new_rp * new_mass, new_rp)
+
+	return cumu_mass
 
 ### === ### 2D array, centeriod mean
 def centric_2D_aveg(data, weit_data, pix_size, cx, cy, z0, R_bins):
