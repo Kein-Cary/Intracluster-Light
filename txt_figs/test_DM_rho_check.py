@@ -137,8 +137,8 @@ a_ref = 1 / (z_ref + 1)
 rho_c, rho_m = rhom_set( z_ref ) # in unit of M_sun * h^2 / kpc^3
 rho_m = rho_m / (1 + z_ref)**3
 
-lo_xi_file = '/home/xkchen/low_BCG_M_xi-rp.txt'
-hi_xi_file = '/home/xkchen/high_BCG_M_xi-rp.txt'
+lo_xi_file = '/home/xkchen/tmp_run/data_files/figs/low_BCG_M_xi-rp.txt'
+hi_xi_file = '/home/xkchen/tmp_run/data_files/figs/high_BCG_M_xi-rp.txt'
 
 lo_dat = np.loadtxt( lo_xi_file )
 lo_rp, lo_xi = lo_dat[:,0], lo_dat[:,1]
@@ -192,17 +192,16 @@ plt.show()
 raise
 
 #... physical check
-BG_path = '/home/xkchen/jupyter/fixed_rich/BCG_M_bin/BGs/'
+BG_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_rich/BCG_M_bin/BGs/'
 cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
 
 a_ref = 1 / (z_ref + 1)
-rho_c, rho_m = rhom_set( 0 ) # in unit of M_sun * h^2 / kpc^3
-# rho_m = rho_m / (1 + z_ref)**3
+rho_c, rho_m = rhom_set( 0 ) # in unit of M_sun * h^2 / kpc^3, comoving coordinate
 
-lo_xi_file = '/home/xkchen/low_BCG_M_xi-rp.txt'
+lo_xi_file = '/home/xkchen/tmp_run/data_files/figs/low_BCG_M_xi-rp.txt'
 lo_dat = np.loadtxt( lo_xi_file )
 
-lo_rp, lo_xi = lo_dat[:,0], lo_dat[:,1]
+lo_rp, lo_xi = lo_dat[:,0], lo_dat[:,1] ## xi in unit Mpc/h, comoving
 lo_rho_m = ( lo_xi * 1e3 * rho_m ) / a_ref**2 * h
 lo_rp = lo_rp * 1e3 / h * a_ref
 

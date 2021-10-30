@@ -253,10 +253,12 @@ for mm in range( 2 ):
 		_i_mag_ = np.r_[ _i_mag_, sub_i_mag ]
 		_i_Mag_ = np.r_[ _i_Mag_, sub_i_Mag ]
 
-	keys = [ 'ra', 'dec', 'z', 'r_cmag', 'r_cMag', 'g_cmag', 'g_cMag', 'i_cmag', 'i_cMag']
-	values = [ p_ra, p_dec, p_z, _r_mag_, _r_Mag_, _g_mag_, _g_Mag_, _i_mag_, _i_Mag_ ]
-	fill = dict(zip( keys, values) )
-	out_data = pds.DataFrame( fill )
-	out_data.to_csv( '/home/xkchen/tmp_run/data_files/figs/%s_BCG_cmag.csv' % cat_lis[mm] )
+	# keys = [ 'ra', 'dec', 'z', 'r_cmag', 'r_cMag', 'g_cmag', 'g_cMag', 'i_cmag', 'i_cMag']
+	# values = [ p_ra, p_dec, p_z, _r_mag_, _r_Mag_, _g_mag_, _g_Mag_, _i_mag_, _i_Mag_ ]
+	# fill = dict(zip( keys, values) )
+	# out_data = pds.DataFrame( fill )
+	# out_data.to_csv( '/home/xkchen/tmp_run/data_files/figs/%s_BCG_cmag.csv' % cat_lis[mm] )
 
 	print(p_ra.shape)
+
+	raise

@@ -167,14 +167,14 @@ def sdss_photo_pros():
 			set_z = np.r_[ set_z, lis_z[oo] ]
 
 		pros_file = home + 'photo_files/BCG_profile/BCG_prof_Z%.3f_ra%.3f_dec%.3f.txt'
-		out_file = '/home/xkchen/figs/total-sample_%s-band_jack-sub-%d_BCG_photo-SB_pros.csv' % (band_str, nn)
+		out_file = '/home/xkchen/tmp_run/data_files/figs/total-sample_%s-band_jack-sub-%d_BCG_photo-SB_pros.csv' % (band_str, nn)
 		BCG_SB_pros_func( band_str, set_z, set_ra, set_dec, pros_file, z_ref, out_file, r_bins)
 
 	## mean of jackknife sample
 	tmp_r, tmp_sb = [], []
 	for nn in range( N_samples ):
 
-		pro_dat = pds.read_csv( '/home/xkchen/figs/total-sample_%s-band_jack-sub-%d_BCG_photo-SB_pros.csv' % (band_str, nn),)
+		pro_dat = pds.read_csv( '/home/xkchen/tmp_run/data_files/figs/total-sample_%s-band_jack-sub-%d_BCG_photo-SB_pros.csv' % (band_str, nn),)
 
 		tt_r, tt_sb = np.array( pro_dat['R_ref'] ), np.array( pro_dat['SB_fdens'] )
 
@@ -187,7 +187,7 @@ def sdss_photo_pros():
 	values = [ mean_R, mean_sb, mean_sb_err ]
 	fill = dict(zip( keys, values) )
 	out_data = pds.DataFrame( fill )
-	out_data.to_csv( '/home/xkchen/figs/total-sample_%s-band_Mean-jack_BCG_photo-SB_pros.csv' % band_str,)
+	out_data.to_csv( '/home/xkchen/tmp_run/data_files/figs/total-sample_%s-band_Mean-jack_BCG_photo-SB_pros.csv' % band_str,)
 
 	print( '%s band, done!' % band_str,)
 
@@ -198,13 +198,14 @@ def sdss_photo_pros():
 ### === mass estimate
 Dl_ref = Test_model.luminosity_distance( z_ref ).value
 
-load = '/home/xkchen/figs/All_sample_BCG_pros/'
+load = '/home/xkchen/tmp_run/data_files/figs/All_sample_BCG_pros/'
+
 N_samples = 30
 
 band_str = 'gri'
 c_inv = False
 
-fit_file = '/home/xkchen/figs/M2L_Lumi_selected/least-square_M-to-i-band-Lumi&color.csv'
+fit_file = '/home/xkchen/tmp_run/data_files/figs/M2L_Lumi_selected/least-square_M-to-i-band-Lumi&color.csv'
 '''
 sub_file_item = ['R_ref', 'SB_fdens', 'SB_fdens_err']
 

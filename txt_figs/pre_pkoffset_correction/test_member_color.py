@@ -379,3 +379,4 @@ for mass_id in (True, False):
 		out_data.to_csv( '/home/xkchen/figs/%s_%s-band_Mean-jack_member_color.csv' % (cat_lis[ll], band_str),)
 
 print('color bin finished!')
+

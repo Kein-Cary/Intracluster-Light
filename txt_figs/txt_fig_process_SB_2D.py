@@ -4,6 +4,9 @@ this file use for figure adjust
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+
+from matplotlib import ticker
+from matplotlib.ticker import MultipleLocator, AutoMinorLocator
 from matplotlib.patches import Circle, Ellipse, Rectangle
 
 import h5py
@@ -42,10 +45,13 @@ z_ref = 0.25
 band = ['r', 'g', 'i']
 
 ### === ### Background subtraction img
-path = '/home/xkchen/tmp_run/data_files/jupyter/total_bcgM/SBs/'
-out_path = '/home/xkchen/tmp_run/data_files/jupyter/total_bcgM/BGs/'
-rand_path = '/home/xkchen/tmp_run/data_files/jupyter/random_ref_SB/'
-img_path = '/home/xkchen/tmp_run/data_files/jupyter/total_bcgM/'
+#. flux scaling correction
+path = '/home/xkchen/figs/re_measure_SBs/SBs/'
+out_path = '/home/xkchen/figs/re_measure_SBs/BGs/'
+
+img_path = '/home/xkchen/figs/re_measure_SBs/SBs/'
+rand_path = '/home/xkchen/figs/re_measure_SBs/random_ref_SB/'
+
 
 color_s = [ 'r', 'g', 'b' ]
 
@@ -99,358 +105,359 @@ def sersic_func(r, Ie, re, ndex):
 	Ir = Ie * np.exp( fn )
 	return Ir
 
-import time
-
 n500 = 500 / L_pix
 n1000 = 1000 / L_pix
 n900 = 900 / L_pix
 
 ##... full area of stacked image
-"""
-for kk in range( 0,1 ):
+def full_stack_image_2D():
 
-	## flux imgs
-	with h5py.File( img_path + 'photo-z_match_tot-BCG-star-Mass_%s-band_Mean_jack_img_z-ref.h5' % band[kk], 'r') as f:
-		tmp_img = np.array( f['a'])
-	cen_x, cen_y = np.int( tmp_img.shape[1] / 2 ), np.int( tmp_img.shape[0] / 2 )
+	for kk in range( 0,1 ):
 
-	idnn = np.isnan( tmp_img )
-	idy_lim, idx_lim = np.where(idnn == False)
-	x_lo_lim, x_up_lim = idx_lim.min(), idx_lim.max()
-	y_lo_lim, y_up_lim = idy_lim.min(), idy_lim.max()
+		## flux imgs
+		with h5py.File( img_path + 'photo-z_match_tot-BCG-star-Mass_%s-band_Mean_jack_img_z-ref.h5' % band[kk], 'r') as f:
+			tmp_img = np.array( f['a'])
+		cen_x, cen_y = np.int( tmp_img.shape[1] / 2 ), np.int( tmp_img.shape[0] / 2 )
 
-	## random imgs
-	with h5py.File( rand_path + 'random_%s-band_rand-stack_Mean_jack_img_z-ref-aveg.h5' % band[kk], 'r') as f:
-		rand_img = np.array( f['a'])
-	xn, yn = np.int( rand_img.shape[1] / 2 ), np.int( rand_img.shape[0] / 2 )
+		idnn = np.isnan( tmp_img )
+		idy_lim, idx_lim = np.where(idnn == False)
+		x_lo_lim, x_up_lim = idx_lim.min(), idx_lim.max()
+		y_lo_lim, y_up_lim = idy_lim.min(), idy_lim.max()
 
-	idnn = np.isnan( rand_img )
-	idy_lim, idx_lim = np.where( idnn == False)
-	x_lo_eff, x_up_eff = idx_lim.min(), idx_lim.max()
-	y_lo_eff, y_up_eff = idy_lim.min(), idy_lim.max()
+		## random imgs
+		with h5py.File( rand_path + 'random_%s-band_rand-stack_Mean_jack_img_z-ref-aveg.h5' % band[kk], 'r') as f:
+			rand_img = np.array( f['a'])
+		xn, yn = np.int( rand_img.shape[1] / 2 ), np.int( rand_img.shape[0] / 2 )
 
-	## BG-estimate params
-	BG_file = out_path + 'photo-z_tot-BCG-star-Mass_%s-band_BG-profile_params_diag-fit.csv' % band[kk]
+		idnn = np.isnan( rand_img )
+		idy_lim, idx_lim = np.where( idnn == False)
+		x_lo_eff, x_up_eff = idx_lim.min(), idx_lim.max()
+		y_lo_eff, y_up_eff = idy_lim.min(), idy_lim.max()
 
-	cat = pds.read_csv( BG_file )
-	offD, I_e, R_e = np.array(cat['offD'])[0], np.array(cat['I_e'])[0], np.array(cat['R_e'])[0]
-	sb_2Mpc = sersic_func( 2e3, I_e, R_e, 2.1)
+		## BG-estimate params
+		BG_file = out_path + 'photo-z_tot-BCG-star-Mass_%s-band_BG-profile_params_diag-fit.csv' % band[kk]
 
-	shift_rand_img = rand_img / pixel**2 - offD + sb_2Mpc
-	BG_sub_img = tmp_img / pixel**2 - shift_rand_img
+		cat = pds.read_csv( BG_file )
+		offD, I_e, R_e = np.array(cat['offD'])[0], np.array(cat['I_e'])[0], np.array(cat['R_e'])[0]
+		sb_2Mpc = sersic_func( 2e3, I_e, R_e, 2.1)
 
-	idnn = np.isnan( BG_sub_img )
-	idy_lim, idx_lim = np.where( idnn == False)
-	x_lo_cut, x_up_cut = idx_lim.min(), idx_lim.max()
-	y_lo_cut, y_up_cut = idy_lim.min(), idy_lim.max()
+		shift_rand_img = rand_img / pixel**2 - offD + sb_2Mpc
+		BG_sub_img = tmp_img / pixel**2 - shift_rand_img
 
-	## 2D signal
-	cut_img = tmp_img[ y_lo_lim: y_up_lim + 1, x_lo_lim: x_up_lim + 1 ] / pixel**2
-	id_nan = np.isnan( cut_img )
-	cut_img[id_nan] = 0.
+		idnn = np.isnan( BG_sub_img )
+		idy_lim, idx_lim = np.where( idnn == False)
+		x_lo_cut, x_up_cut = idx_lim.min(), idx_lim.max()
+		y_lo_cut, y_up_cut = idy_lim.min(), idy_lim.max()
 
-	cut_rand = rand_img[ y_lo_eff: y_up_eff + 1, x_lo_eff: x_up_eff + 1 ] / pixel**2
-	id_nan = np.isnan( cut_rand )
-	cut_rand[id_nan] = 0.
+		## 2D signal
+		cut_img = tmp_img[ y_lo_lim: y_up_lim + 1, x_lo_lim: x_up_lim + 1 ] / pixel**2
+		id_nan = np.isnan( cut_img )
+		cut_img[id_nan] = 0.
 
-	cut_off_rand = shift_rand_img[ y_lo_eff: y_up_eff + 1, x_lo_eff: x_up_eff + 1 ]
-	id_nan = np.isnan( cut_off_rand )
-	cut_off_rand[id_nan] = 0.
+		cut_rand = rand_img[ y_lo_eff: y_up_eff + 1, x_lo_eff: x_up_eff + 1 ] / pixel**2
+		id_nan = np.isnan( cut_rand )
+		cut_rand[id_nan] = 0.
 
-	cut_BG_sub_img = BG_sub_img[ y_lo_cut: y_up_cut + 1, x_lo_cut: x_up_cut + 1 ]
-	id_nan = np.isnan( cut_BG_sub_img )
-	cut_BG_sub_img[id_nan] = 0.
+		cut_off_rand = shift_rand_img[ y_lo_eff: y_up_eff + 1, x_lo_eff: x_up_eff + 1 ]
+		id_nan = np.isnan( cut_off_rand )
+		cut_off_rand[id_nan] = 0.
 
-	y_peak, x_peak = np.where( cut_BG_sub_img == np.nanmax( cut_BG_sub_img ) )
-	y_peak, x_peak = y_peak[0], x_peak[0]
-	cen_region = cut_BG_sub_img[ y_peak - np.int( 3 * n500 ) : y_peak + np.int( 3 * n500 ) + 1, x_peak - np.int( 3 * n500 ) : x_peak + np.int( 3 * n500 ) + 1 ]
+		cut_BG_sub_img = BG_sub_img[ y_lo_cut: y_up_cut + 1, x_lo_cut: x_up_cut + 1 ]
+		id_nan = np.isnan( cut_BG_sub_img )
+		cut_BG_sub_img[id_nan] = 0.
 
-	#... smooth image
-	filt_off_rand = ndimage.gaussian_filter( cut_off_rand, sigma = 105,)
-	filt_off_rand_mag = 22.5 - 2.5 * np.log10( filt_off_rand )
+		y_peak, x_peak = np.where( cut_BG_sub_img == np.nanmax( cut_BG_sub_img ) )
+		y_peak, x_peak = y_peak[0], x_peak[0]
+		cen_region = cut_BG_sub_img[ y_peak - np.int( 3 * n500 ) : y_peak + np.int( 3 * n500 ) + 1, x_peak - np.int( 3 * n500 ) : x_peak + np.int( 3 * n500 ) + 1 ]
 
-	filt_img = ndimage.gaussian_filter( cut_img, sigma = 115,)
-	filt_mag = 22.5 - 2.5 * np.log10( filt_img )
+		#... smooth image
+		filt_off_rand = ndimage.gaussian_filter( cut_off_rand, sigma = 105,)
+		filt_off_rand_mag = 22.5 - 2.5 * np.log10( filt_off_rand )
 
-	filt_img_1 = ndimage.gaussian_filter( cen_region, sigma = 7,)
-	mag_map_1 = 22.5 - 2.5 * np.log10( filt_img_1 )
+		filt_img = ndimage.gaussian_filter( cut_img, sigma = 115,)
+		filt_mag = 22.5 - 2.5 * np.log10( filt_img )
 
-	filt_img_2 = ndimage.gaussian_filter( cen_region, sigma = 11,)
-	mag_map_2 = 22.5 - 2.5 * np.log10( filt_img_2 )
+		filt_img_1 = ndimage.gaussian_filter( cen_region, sigma = 7,)
+		mag_map_1 = 22.5 - 2.5 * np.log10( filt_img_1 )
 
-	filt_img_3 = ndimage.gaussian_filter( cen_region, sigma = 17,)
-	mag_map_3 = 22.5 - 2.5 * np.log10( filt_img_3 )
+		filt_img_2 = ndimage.gaussian_filter( cen_region, sigma = 11,)
+		mag_map_2 = 22.5 - 2.5 * np.log10( filt_img_2 )
 
-	filt_img_4 = ndimage.gaussian_filter( cen_region, sigma = 21,)
-	mag_map_4 = 22.5 - 2.5 * np.log10( filt_img_4 )
+		filt_img_3 = ndimage.gaussian_filter( cen_region, sigma = 17,)
+		mag_map_3 = 22.5 - 2.5 * np.log10( filt_img_3 )
 
-	filt_BG_sub_img = ndimage.gaussian_filter( cut_BG_sub_img, sigma = 105)#sigma = 81,)
-	filt_BG_sub_mag = 22.5 - 2.5 * np.log10( filt_BG_sub_img )
+		filt_img_4 = ndimage.gaussian_filter( cen_region, sigma = 21,)
+		mag_map_4 = 22.5 - 2.5 * np.log10( filt_img_4 )
 
-	#... large scale only array
-	Nx = cut_img.shape[1]
-	Ny = cut_img.shape[0]
+		filt_BG_sub_img = ndimage.gaussian_filter( cut_BG_sub_img, sigma = 105)#sigma = 81,)
+		filt_BG_sub_mag = 22.5 - 2.5 * np.log10( filt_BG_sub_img )
 
-	lx = np.linspace( 0, Nx - 1, Nx)
-	ly = np.linspace( 0, Ny - 1, Ny)
-	pix_xy = np.array( np.meshgrid( lx, ly ) )
+		#... large scale only array
+		Nx = cut_img.shape[1]
+		Ny = cut_img.shape[0]
 
-	pc_x, pc_y = cen_x - x_lo_lim, cen_y - y_lo_lim
-	cen_dr = np.sqrt( ( (2*pix_xy[0] + 1) / 2 - (2*pc_x + 1) / 2)**2 + ( (2*pix_xy[1] + 1) / 2 - (2*pc_y + 1) / 2)**2 )
+		lx = np.linspace( 0, Nx - 1, Nx)
+		ly = np.linspace( 0, Ny - 1, Ny)
+		pix_xy = np.array( np.meshgrid( lx, ly ) )
 
-	id_cen_arr = cen_dr <= n900
-	cp_cut_img = cut_img.copy()
-	cp_cut_img[ id_cen_arr ] = np.nan
+		pc_x, pc_y = cen_x - x_lo_lim, cen_y - y_lo_lim
+		cen_dr = np.sqrt( ( (2*pix_xy[0] + 1) / 2 - (2*pc_x + 1) / 2)**2 + ( (2*pix_xy[1] + 1) / 2 - (2*pc_y + 1) / 2)**2 )
 
-	idnan = np.isnan( cp_cut_img )
-	cp_cut_img[ idnan ] = 0.
+		id_cen_arr = cen_dr <= n900
+		cp_cut_img = cut_img.copy()
+		cp_cut_img[ id_cen_arr ] = np.nan
 
-	filt_cp_img = ndimage.gaussian_filter( cp_cut_img, sigma = 115,)
-	filt_cp_mag = 22.5 - 2.5 * np.log10( filt_cp_img )
+		idnan = np.isnan( cp_cut_img )
+		cp_cut_img[ idnan ] = 0.
 
+		filt_cp_img = ndimage.gaussian_filter( cp_cut_img, sigma = 115,)
+		filt_cp_mag = 22.5 - 2.5 * np.log10( filt_cp_img )
 
-	## SB profiles in mag / arcsec^2
-	modi_rand_sb = rand_sb[kk] - offD + sb_2Mpc
-	modi_rand_mag = 22.5 - 2.5 * np.log10( modi_rand_sb )
-	modi_rand_mag_err = 2.5 * rand_err[kk] / ( np.log(10) * modi_rand_sb )
 
-	clus_mag = 22.5 - 2.5 * np.log10( tot_sb[kk] )
-	clus_mag_err = 2.5 * tot_err[kk] / ( np.log(10) * tot_sb[kk] )
+		## SB profiles in mag / arcsec^2
+		modi_rand_sb = rand_sb[kk] - offD + sb_2Mpc
+		modi_rand_mag = 22.5 - 2.5 * np.log10( modi_rand_sb )
+		modi_rand_mag_err = 2.5 * rand_err[kk] / ( np.log(10) * modi_rand_sb )
 
-	nbg_clus_mag = 22.5 - 2.5 * np.log10( nbg_tot_sb[kk] )
-	nbg_clus_mag_err = 2.5 * nbg_tot_err[kk] / ( np.log(10) * nbg_tot_sb[kk] )
+		clus_mag = 22.5 - 2.5 * np.log10( tot_sb[kk] )
+		clus_mag_err = 2.5 * tot_err[kk] / ( np.log(10) * tot_sb[kk] )
 
-	idnn = np.isnan( nbg_clus_mag )
-	nbg_clus_mag = nbg_clus_mag[ idnn == False ]
-	nbg_clus_mag_err = nbg_clus_mag_err[ idnn == False ]
+		nbg_clus_mag = 22.5 - 2.5 * np.log10( nbg_tot_sb[kk] )
+		nbg_clus_mag_err = 2.5 * nbg_tot_err[kk] / ( np.log(10) * nbg_tot_sb[kk] )
 
+		idnn = np.isnan( nbg_clus_mag )
+		nbg_clus_mag = nbg_clus_mag[ idnn == False ]
+		nbg_clus_mag_err = nbg_clus_mag_err[ idnn == False ]
 
-	color_str = []
-	for jj in range( 12 ):
-		# color_str.append( mpl.cm.rainbow_r( jj / 11) )
-		color_str.append( mpl.cm.coolwarm_r( jj / 11) )
 
-	color_lis = []
-	for jj in np.arange( 11 ):
-		# color_lis.append( mpl.cm.rainbow_r( jj / 10) )
-		color_lis.append( mpl.cm.coolwarm_r( jj / 10) )
+		color_str = []
+		for jj in range( 12 ):
+			# color_str.append( mpl.cm.rainbow_r( jj / 11) )
+			color_str.append( mpl.cm.coolwarm_r( jj / 11) )
 
-	# levels_0 = np.linspace(28, 29, 11)
-	# levels_0 = np.linspace(28.5, 29.0, 9)
-	levels_0 = np.linspace(28.7, 29.0, 7)
+		color_lis = []
+		for jj in np.arange( 11 ):
+			# color_lis.append( mpl.cm.rainbow_r( jj / 10) )
+			color_lis.append( mpl.cm.coolwarm_r( jj / 10) )
 
+		# levels_0 = np.linspace(28, 29, 11)
+		# levels_0 = np.linspace(28.5, 29.0, 9)
+		levels_0 = np.linspace(28.7, 29.0, 7)
 
-	## figs
-	fig = plt.figure( figsize = (14.2, 9.6) )
-	cb_ax2 = fig.add_axes( [0.863, 0.07, 0.02, 0.40] )
-	ax2 = fig.add_axes( [0.48, 0.07, 0.40, 0.40] )
 
-	ax3 = fig.add_axes( [0.07, 0.07, 0.36, 0.40] )
+		## figs
+		fig = plt.figure( figsize = (14.2, 9.6) )
+		cb_ax2 = fig.add_axes( [0.863, 0.07, 0.02, 0.40] )
+		ax2 = fig.add_axes( [0.48, 0.07, 0.40, 0.40] )
 
-	ax0 = fig.add_axes( [0.05, 0.55, 0.40, 0.40] )
+		ax3 = fig.add_axes( [0.07, 0.07, 0.36, 0.40] )
 
-	cb_ax1 = fig.add_axes( [0.866, 0.55, 0.02, 0.40] )
-	ax1 = fig.add_axes( [0.48, 0.55, 0.40, 0.40] )
+		ax0 = fig.add_axes( [0.05, 0.55, 0.40, 0.40] )
 
+		cb_ax1 = fig.add_axes( [0.866, 0.55, 0.02, 0.40] )
+		ax1 = fig.add_axes( [0.48, 0.55, 0.40, 0.40] )
 
-	## cluster imgs before BG subtract
-	ax0.imshow( cut_img, origin = 'lower', cmap = 'Greys', vmin = -3e-2, vmax = 3e-2, alpha = 0.75,)
-	#... use levels 28~29
-	edge_levels = np.array( [28.55, 28.6, 28.65 ] )
-	ax0.contour( filt_cp_mag, origin = 'lower',  levels = edge_levels, colors = color_str[1:4], 
-		extent = (0, x_up_cut + 1 - x_lo_cut, 0, y_up_cut + 1 - y_lo_cut), )
 
-	ax0.contour( filt_mag, origin = 'lower',  levels = levels_0, colors = color_str[4:], 
-		extent = (0, x_up_lim + 1 - x_lo_lim, 0, y_up_lim + 1 - y_lo_lim ), )
+		## cluster imgs before BG subtract
+		ax0.imshow( cut_img, origin = 'lower', cmap = 'Greys', vmin = -3e-2, vmax = 3e-2, alpha = 0.75,)
+		#... use levels 28~29
+		edge_levels = np.array( [28.55, 28.6, 28.65 ] )
+		ax0.contour( filt_cp_mag, origin = 'lower',  levels = edge_levels, colors = color_str[1:4], 
+			extent = (0, x_up_cut + 1 - x_lo_cut, 0, y_up_cut + 1 - y_lo_cut), )
 
-	clust = Circle( xy = (cen_x - x_lo_lim, cen_y - y_lo_lim), radius = n500 * 2, fill = False, ec = 'k', ls = '--', alpha = 1.0,)
-	ax0.add_patch(clust)
+		ax0.contour( filt_mag, origin = 'lower',  levels = levels_0, colors = color_str[4:], 
+			extent = (0, x_up_lim + 1 - x_lo_lim, 0, y_up_lim + 1 - y_lo_lim ), )
 
-	ax0.set_xlim( 0, x_up_lim + 1 - x_lo_lim )
-	ax0.set_ylim( 0, y_up_lim + 1 - y_lo_lim )
+		clust = Circle( xy = (cen_x - x_lo_lim, cen_y - y_lo_lim), radius = n500 * 2, fill = False, ec = 'k', ls = '--', alpha = 1.0,)
+		ax0.add_patch(clust)
 
-	ax0.set_xticklabels( labels = [] )
-	ax0.set_yticklabels( labels = [] )
+		ax0.set_xlim( 0, x_up_lim + 1 - x_lo_lim )
+		ax0.set_ylim( 0, y_up_lim + 1 - y_lo_lim )
 
-	x_ticks_0 = np.arange( xn - x_lo_lim, 0, -1 * n500)
-	x_ticks_1 = np.arange( xn - x_lo_lim, cut_rand.shape[1], n500)
-	x_ticks = np.r_[ x_ticks_0[::-1], x_ticks_1[1:] ]
+		ax0.set_xticklabels( labels = [] )
+		ax0.set_yticklabels( labels = [] )
 
-	tick_R = np.r_[ np.arange( ( len(x_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(x_ticks_1) ), 500) ]
-	tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
+		x_ticks_0 = np.arange( xn - x_lo_lim, 0, -1 * n500)
+		x_ticks_1 = np.arange( xn - x_lo_lim, cut_rand.shape[1], n500)
+		x_ticks = np.r_[ x_ticks_0[::-1], x_ticks_1[1:] ]
 
-	ax0.set_xticks( x_ticks, minor = True, )
-	ax0.set_xticklabels( labels = tick_lis, minor = True, fontsize = 14,)
-	ax0.xaxis.set_ticks_position('bottom')
-	ax0.set_xlabel('Mpc', fontsize = 16,)
+		tick_R = np.r_[ np.arange( ( len(x_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(x_ticks_1) ), 500) ]
+		tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
 
-	y_ticks_0 = np.arange( yn - y_lo_lim, 0, -1 * n500)
-	y_ticks_1 = np.arange( yn - y_lo_lim, cut_rand.shape[0], n500)
-	y_ticks = np.r_[ y_ticks_0[::-1], y_ticks_1[1:] ]
+		ax0.set_xticks( x_ticks, minor = True, )
+		ax0.set_xticklabels( labels = tick_lis, minor = True, fontsize = 14,)
+		ax0.xaxis.set_ticks_position('bottom')
+		ax0.set_xlabel('Mpc', fontsize = 16,)
 
-	tick_R = np.r_[ np.arange( ( len(y_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(y_ticks_1) ), 500) ]
-	tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
+		y_ticks_0 = np.arange( yn - y_lo_lim, 0, -1 * n500)
+		y_ticks_1 = np.arange( yn - y_lo_lim, cut_rand.shape[0], n500)
+		y_ticks = np.r_[ y_ticks_0[::-1], y_ticks_1[1:] ]
 
-	ax0.set_yticks( y_ticks, minor = True )
-	ax0.set_yticklabels( labels = tick_lis, minor = True, fontsize = 14,)
-	ax0.set_ylabel( 'Mpc', fontsize = 16,)
-	ax0.tick_params( axis = 'both', which = 'major', direction = 'in', bottom = False, left = False, top = False,) #labelsize = 16,)
+		tick_R = np.r_[ np.arange( ( len(y_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(y_ticks_1) ), 500) ]
+		tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
 
-	ax0.text( 100, 100, 'ICL + BCG + Background', fontsize = 15, bbox = {'facecolor': 'white', 'edgecolor': 'white', 'alpha': 1.0, 'pad':5.0},)
+		ax0.set_yticks( y_ticks, minor = True )
+		ax0.set_yticklabels( labels = tick_lis, minor = True, fontsize = 14,)
+		ax0.set_ylabel( 'Mpc', fontsize = 16,)
+		ax0.tick_params( axis = 'both', which = 'major', direction = 'in', bottom = False, left = False, top = False,) #labelsize = 16,)
 
+		ax0.text( 100, 100, 'ICL + BCG + Background', fontsize = 15, bbox = {'facecolor': 'white', 'edgecolor': 'white', 'alpha': 1.0, 'pad':5.0},)
 
-	## cluster imgs after BG-subtraction
-	ax2.imshow( cut_BG_sub_img, origin  ='lower', cmap = 'Greys', vmin = -3e-2, vmax = 3e-2, alpha = 0.75,)
 
-	dd_lis = np.arange(27, 34, 1)
+		## cluster imgs after BG-subtraction
+		ax2.imshow( cut_BG_sub_img, origin  ='lower', cmap = 'Greys', vmin = -3e-2, vmax = 3e-2, alpha = 0.75,)
 
-	ax2.contour( mag_map_1, origin = 'lower', levels = [27, 100], colors = [ color_lis[0], 'w'], 
-		extent = (x_peak - np.int( 3 * n500 ), x_peak + np.int( 3 * n500 ) + 1, y_peak - np.int( 3 * n500 ), y_peak + np.int( 3 * n500 ) + 1), )
+		dd_lis = np.arange(27, 34, 1)
 
-	ax2.contour( mag_map_2, origin = 'lower', levels = [28, 100], colors = [ color_lis[2], 'w'], 
-		extent = (x_peak - np.int( 3 * n500 ), x_peak + np.int( 3 * n500 ) + 1, y_peak - np.int( 3 * n500 ), y_peak + np.int( 3 * n500 ) + 1), )
+		ax2.contour( mag_map_1, origin = 'lower', levels = [27, 100], colors = [ color_lis[0], 'w'], 
+			extent = (x_peak - np.int( 3 * n500 ), x_peak + np.int( 3 * n500 ) + 1, y_peak - np.int( 3 * n500 ), y_peak + np.int( 3 * n500 ) + 1), )
 
-	ax2.contour( mag_map_3, origin = 'lower', levels = [29, 100], colors = [ color_lis[3], 'w'], 
-		extent = (x_peak - np.int( 3 * n500 ), x_peak + np.int( 3 * n500 ) + 1, y_peak - np.int( 3 * n500 ), y_peak + np.int( 3 * n500 ) + 1), )
+		ax2.contour( mag_map_2, origin = 'lower', levels = [28, 100], colors = [ color_lis[2], 'w'], 
+			extent = (x_peak - np.int( 3 * n500 ), x_peak + np.int( 3 * n500 ) + 1, y_peak - np.int( 3 * n500 ), y_peak + np.int( 3 * n500 ) + 1), )
 
-	ax2.contour( mag_map_4, origin = 'lower', levels = [30, 100], colors = [ color_lis[4], 'w'], 
-		extent = (x_peak - np.int( 3 * n500 ), x_peak + np.int( 3 * n500 ) + 1, y_peak - np.int( 3 * n500 ), y_peak + np.int( 3 * n500 ) + 1), )
+		ax2.contour( mag_map_3, origin = 'lower', levels = [29, 100], colors = [ color_lis[3], 'w'], 
+			extent = (x_peak - np.int( 3 * n500 ), x_peak + np.int( 3 * n500 ) + 1, y_peak - np.int( 3 * n500 ), y_peak + np.int( 3 * n500 ) + 1), )
 
-	ax2.contour( filt_BG_sub_mag, origin = 'lower',  levels = [31, 32, 33, 100], colors = [ color_lis[6], color_lis[8], color_lis[10], 'w'], 
-		extent = (0, x_up_cut + 1 - x_lo_cut, 0, y_up_cut + 1 - y_lo_cut), )
+		ax2.contour( mag_map_4, origin = 'lower', levels = [30, 100], colors = [ color_lis[4], 'w'], 
+			extent = (x_peak - np.int( 3 * n500 ), x_peak + np.int( 3 * n500 ) + 1, y_peak - np.int( 3 * n500 ), y_peak + np.int( 3 * n500 ) + 1), )
 
-	clust = Circle( xy = (xn - x_lo_cut, yn - y_lo_cut), radius = n500 * 2, fill = False, ec = 'k', ls = '--', alpha = 1.0,)
-	ax2.add_patch(clust)
+		ax2.contour( filt_BG_sub_mag, origin = 'lower',  levels = [31, 32, 33, 100], colors = [ color_lis[6], color_lis[8], color_lis[10], 'w'], 
+			extent = (0, x_up_cut + 1 - x_lo_cut, 0, y_up_cut + 1 - y_lo_cut), )
 
-	dt_color = [ color_lis[0], color_lis[2], color_lis[3], color_lis[4], color_lis[6], color_lis[8], color_lis[10] ]
-	me_map = mpl.colors.ListedColormap( dt_color )
-	c_bounds = np.r_[ dd_lis[0] - 0.5, dd_lis + 0.5]
-	norm = mpl.colors.BoundaryNorm( c_bounds, me_map.N )
+		clust = Circle( xy = (xn - x_lo_cut, yn - y_lo_cut), radius = n500 * 2, fill = False, ec = 'k', ls = '--', alpha = 1.0,)
+		ax2.add_patch(clust)
 
-	cbs = mpl.colorbar.ColorbarBase( ax = cb_ax2, cmap = me_map, norm = norm, extend = 'neither', ticks = [27, 28, 29, 30, 31, 32, 33], 
-		spacing = 'proportional', orientation = 'vertical')
-	cbs.set_label( '$ SB \; [mag \, / \, arcsec^2] $', fontsize = 15,)
-	cbs.ax.set_yticklabels( ['27', '28', '29', '30', '31', '32', '33'], fontsize = 14)
-	cbs.ax.tick_params( axis = 'both', which = 'major', direction = 'in')
-	cbs.ax.invert_yaxis()
+		dt_color = [ color_lis[0], color_lis[2], color_lis[3], color_lis[4], color_lis[6], color_lis[8], color_lis[10] ]
+		me_map = mpl.colors.ListedColormap( dt_color )
+		c_bounds = np.r_[ dd_lis[0] - 0.5, dd_lis + 0.5]
+		norm = mpl.colors.BoundaryNorm( c_bounds, me_map.N )
 
-	ax2.set_xlim( 0, x_up_cut + 1 - x_lo_cut )
-	ax2.set_ylim( 0, y_up_cut + 1 - y_lo_cut )
+		cbs = mpl.colorbar.ColorbarBase( ax = cb_ax2, cmap = me_map, norm = norm, extend = 'neither', ticks = [27, 28, 29, 30, 31, 32, 33], 
+			spacing = 'proportional', orientation = 'vertical')
+		cbs.set_label( '$ SB \; [mag \, / \, arcsec^2] $', fontsize = 15,)
+		cbs.ax.set_yticklabels( ['27', '28', '29', '30', '31', '32', '33'], fontsize = 14)
+		cbs.ax.tick_params( axis = 'both', which = 'major', direction = 'in')
+		cbs.ax.invert_yaxis()
 
-	ax2.set_xticklabels( labels = [] )
-	ax2.set_yticklabels( labels = [] )
+		ax2.set_xlim( 0, x_up_cut + 1 - x_lo_cut )
+		ax2.set_ylim( 0, y_up_cut + 1 - y_lo_cut )
 
-	x_ticks_0 = np.arange( xn - x_lo_cut, 0, -1 * n500)
-	x_ticks_1 = np.arange( xn - x_lo_cut, cut_rand.shape[1], n500)
-	x_ticks = np.r_[ x_ticks_0[::-1], x_ticks_1[1:] ]
+		ax2.set_xticklabels( labels = [] )
+		ax2.set_yticklabels( labels = [] )
 
-	tick_R = np.r_[ np.arange( ( len(x_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(x_ticks_1) ), 500) ]
-	tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
+		x_ticks_0 = np.arange( xn - x_lo_cut, 0, -1 * n500)
+		x_ticks_1 = np.arange( xn - x_lo_cut, cut_rand.shape[1], n500)
+		x_ticks = np.r_[ x_ticks_0[::-1], x_ticks_1[1:] ]
 
-	ax2.set_xticks( x_ticks, minor = True, )
-	ax2.set_xticklabels( labels = tick_lis, minor = True, fontsize = 14,)
-	ax2.xaxis.set_ticks_position('bottom')
-	ax2.set_xlabel( 'Mpc', fontsize = 16,)
+		tick_R = np.r_[ np.arange( ( len(x_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(x_ticks_1) ), 500) ]
+		tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
 
-	y_ticks_0 = np.arange( yn - y_lo_cut, 0, -1 * n500)
-	y_ticks_1 = np.arange( yn - y_lo_cut, cut_rand.shape[0], n500)
-	y_ticks = np.r_[ y_ticks_0[::-1], y_ticks_1[1:] ]
+		ax2.set_xticks( x_ticks, minor = True, )
+		ax2.set_xticklabels( labels = tick_lis, minor = True, fontsize = 14,)
+		ax2.xaxis.set_ticks_position('bottom')
+		ax2.set_xlabel( 'Mpc', fontsize = 16,)
 
-	tick_R = np.r_[ np.arange( ( len(y_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(y_ticks_1) ), 500) ]
-	tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
+		y_ticks_0 = np.arange( yn - y_lo_cut, 0, -1 * n500)
+		y_ticks_1 = np.arange( yn - y_lo_cut, cut_rand.shape[0], n500)
+		y_ticks = np.r_[ y_ticks_0[::-1], y_ticks_1[1:] ]
 
-	ax2.set_yticks( y_ticks, minor = True )
-	ax2.set_yticklabels( labels = tick_lis, minor = True, fontsize = 14,)
-	ax2.set_ylabel( 'Mpc', fontsize = 16,)
+		tick_R = np.r_[ np.arange( ( len(y_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(y_ticks_1) ), 500) ]
+		tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
 
-	ax2.tick_params( axis = 'both', which = 'major', direction = 'in', bottom = False, left = False, top = False,) #labelsize = 16,)
-	ax2.text( 100, 100, 'ICL + BCG', fontsize = 15, bbox = {'facecolor': 'white', 'edgecolor': 'white', 'alpha': 1.0, 'pad':5.0},)
+		ax2.set_yticks( y_ticks, minor = True )
+		ax2.set_yticklabels( labels = tick_lis, minor = True, fontsize = 14,)
+		ax2.set_ylabel( 'Mpc', fontsize = 16,)
 
+		ax2.tick_params( axis = 'both', which = 'major', direction = 'in', bottom = False, left = False, top = False,) #labelsize = 16,)
+		ax2.text( 100, 100, 'ICL + BCG', fontsize = 15, bbox = {'facecolor': 'white', 'edgecolor': 'white', 'alpha': 1.0, 'pad':5.0},)
 
-	### random image
-	ax1.imshow( cut_off_rand, origin = 'lower', cmap = 'Greys', vmin = -3e-2, vmax = 3e-2, alpha = 0.75,)
 
-	# .. use levels 28 ~ 29
-	ax1.contour( filt_off_rand_mag, origin = 'lower', levels = edge_levels, colors = color_str[1:4], 
-		extent = (0, x_up_eff + 1 - x_lo_eff, 0, y_up_eff + 1 - y_lo_eff), )
+		### random image
+		ax1.imshow( cut_off_rand, origin = 'lower', cmap = 'Greys', vmin = -3e-2, vmax = 3e-2, alpha = 0.75,)
 
-	ax1.contour( filt_off_rand_mag, origin = 'lower', levels = levels_0, colors = color_str[4:], 
-		extent = (0, x_up_eff + 1 - x_lo_eff, 0, y_up_eff + 1 - y_lo_eff), )
+		# .. use levels 28 ~ 29
+		ax1.contour( filt_off_rand_mag, origin = 'lower', levels = edge_levels, colors = color_str[1:4], 
+			extent = (0, x_up_eff + 1 - x_lo_eff, 0, y_up_eff + 1 - y_lo_eff), )
 
-	c_bounds = np.r_[ edge_levels[0] - 0.025, edge_levels + 0.025, levels_0 + 0.025 ]
-	me_map = mpl.colors.ListedColormap( color_str[1:] )
-	norm = mpl.colors.BoundaryNorm( c_bounds, me_map.N )
+		ax1.contour( filt_off_rand_mag, origin = 'lower', levels = levels_0, colors = color_str[4:], 
+			extent = (0, x_up_eff + 1 - x_lo_eff, 0, y_up_eff + 1 - y_lo_eff), )
 
-	cbs = mpl.colorbar.ColorbarBase( ax = cb_ax1, cmap = me_map, norm = norm, extend = 'neither', 
-		ticks = np.r_[ edge_levels, levels_0],
-		spacing = 'proportional', orientation = 'vertical', )
-	cbs.set_label( '$ SB \; [mag \, / \, arcsec^2] $', fontsize = 15)
-	cbs.ax.set_yticklabels( ['%.2f' % ll for ll in np.r_[ edge_levels, levels_0] ], fontsize = 14)
-	cbs.ax.tick_params( axis = 'both', which = 'major', direction = 'in')
-	cbs.ax.invert_yaxis()
+		c_bounds = np.r_[ edge_levels[0] - 0.025, edge_levels + 0.025, levels_0 + 0.025 ]
+		me_map = mpl.colors.ListedColormap( color_str[1:] )
+		norm = mpl.colors.BoundaryNorm( c_bounds, me_map.N )
 
-	clust = Circle( xy = (xn - x_lo_eff, yn - y_lo_eff), radius = n500 * 2, fill = False, ec = 'k', ls = '--', alpha = 1.0,)
-	ax1.add_patch(clust)
+		cbs = mpl.colorbar.ColorbarBase( ax = cb_ax1, cmap = me_map, norm = norm, extend = 'neither', 
+			ticks = np.r_[ edge_levels, levels_0],
+			spacing = 'proportional', orientation = 'vertical', )
+		cbs.set_label( '$ SB \; [mag \, / \, arcsec^2] $', fontsize = 15)
+		cbs.ax.set_yticklabels( ['%.2f' % ll for ll in np.r_[ edge_levels, levels_0] ], fontsize = 14)
+		cbs.ax.tick_params( axis = 'both', which = 'major', direction = 'in')
+		cbs.ax.invert_yaxis()
 
-	ax1.set_xlim( 0, x_up_eff + 1 - x_lo_eff )
-	ax1.set_ylim( 0, y_up_eff + 1 - y_lo_eff )
+		clust = Circle( xy = (xn - x_lo_eff, yn - y_lo_eff), radius = n500 * 2, fill = False, ec = 'k', ls = '--', alpha = 1.0,)
+		ax1.add_patch(clust)
 
-	ax1.set_yticklabels( labels = [] )
-	ax1.set_xticklabels( labels = [] )
+		ax1.set_xlim( 0, x_up_eff + 1 - x_lo_eff )
+		ax1.set_ylim( 0, y_up_eff + 1 - y_lo_eff )
 
-	x_ticks_0 = np.arange( xn - x_lo_eff, 0, -1 * n500)
-	x_ticks_1 = np.arange( xn - x_lo_eff, cut_rand.shape[1], n500)
-	x_ticks = np.r_[ x_ticks_0[::-1], x_ticks_1[1:] ]
+		ax1.set_yticklabels( labels = [] )
+		ax1.set_xticklabels( labels = [] )
 
-	tick_R = np.r_[ np.arange( ( len(x_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(x_ticks_1) ), 500) ]
-	tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
+		x_ticks_0 = np.arange( xn - x_lo_eff, 0, -1 * n500)
+		x_ticks_1 = np.arange( xn - x_lo_eff, cut_rand.shape[1], n500)
+		x_ticks = np.r_[ x_ticks_0[::-1], x_ticks_1[1:] ]
 
-	ax1.set_xticks( x_ticks, minor = True, )
-	ax1.set_xticklabels( labels = tick_lis, minor = True, fontsize = 14,)
-	ax1.xaxis.set_ticks_position('bottom')
-	ax1.set_xlabel( 'Mpc', fontsize = 16,)
+		tick_R = np.r_[ np.arange( ( len(x_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(x_ticks_1) ), 500) ]
+		tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
 
-	y_ticks_0 = np.arange( yn - y_lo_eff, 0, -1 * n500)
-	y_ticks_1 = np.arange( yn - y_lo_eff, cut_rand.shape[0], n500)
-	y_ticks = np.r_[ y_ticks_0[::-1], y_ticks_1[1:] ]
+		ax1.set_xticks( x_ticks, minor = True, )
+		ax1.set_xticklabels( labels = tick_lis, minor = True, fontsize = 14,)
+		ax1.xaxis.set_ticks_position('bottom')
+		ax1.set_xlabel( 'Mpc', fontsize = 16,)
 
-	tick_R = np.r_[ np.arange( ( len(y_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(y_ticks_1) ), 500) ]
-	tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
+		y_ticks_0 = np.arange( yn - y_lo_eff, 0, -1 * n500)
+		y_ticks_1 = np.arange( yn - y_lo_eff, cut_rand.shape[0], n500)
+		y_ticks = np.r_[ y_ticks_0[::-1], y_ticks_1[1:] ]
 
-	ax1.set_yticks( y_ticks, minor = True )
-	ax1.set_yticklabels( labels = tick_lis, minor = True, fontsize = 14,)
-	ax1.set_ylabel( 'Mpc', fontsize = 16,)
+		tick_R = np.r_[ np.arange( ( len(y_ticks_0) - 1 ) * 500, 0, -500), np.arange(0, 500 * ( len(y_ticks_1) ), 500) ]
+		tick_lis = [ '%.1f' % (ll / 1e3) for ll in tick_R ]
 
-	ax1.tick_params( axis = 'both', which = 'major', direction = 'in', bottom = False, left = False, top = False,) #labelsize = 16,)
-	ax1.text( 100, 100, 'Background', fontsize = 15, bbox = {'facecolor': 'white', 'edgecolor': 'white', 'alpha': 1.0, 'pad':5.0},)
+		ax1.set_yticks( y_ticks, minor = True )
+		ax1.set_yticklabels( labels = tick_lis, minor = True, fontsize = 14,)
+		ax1.set_ylabel( 'Mpc', fontsize = 16,)
 
+		ax1.tick_params( axis = 'both', which = 'major', direction = 'in', bottom = False, left = False, top = False,) #labelsize = 16,)
+		ax1.text( 100, 100, 'Background', fontsize = 15, bbox = {'facecolor': 'white', 'edgecolor': 'white', 'alpha': 1.0, 'pad':5.0},)
 
-	## 1D profile
-	ax3.plot( tot_r[kk], clus_mag, ls = '--', color = 'b', alpha = 0.85, label = 'ICL + BCG + Background',)
-	ax3.fill_between( tot_r[kk], y1 = clus_mag - clus_mag_err, y2 = clus_mag + clus_mag_err, color = 'b', alpha = 0.18,)
 
-	ax3.plot( rand_r[kk], modi_rand_mag, ls = '--', color = 'k', alpha = 0.85, label = 'Background',)
-	ax3.fill_between( rand_r[kk], y1 = modi_rand_mag - modi_rand_mag_err, y2 = modi_rand_mag + modi_rand_mag_err, color = 'k', alpha = 0.18,)
+		## 1D profile
+		ax3.plot( tot_r[kk], clus_mag, ls = '--', color = 'b', alpha = 0.85, label = 'ICL + BCG + Background',)
+		ax3.fill_between( tot_r[kk], y1 = clus_mag - clus_mag_err, y2 = clus_mag + clus_mag_err, color = 'b', alpha = 0.18,)
 
-	ax3.plot(nbg_tot_r[kk][ idnn == False ], nbg_clus_mag, ls = '-', color = 'r', alpha = 0.85, label = 'ICL + BCG',)
-	ax3.fill_between(nbg_tot_r[kk][ idnn == False ], y1 = nbg_clus_mag - nbg_clus_mag_err, 
-		y2 = nbg_clus_mag + nbg_clus_mag_err, color = 'r', alpha = 0.18,)
+		ax3.plot( rand_r[kk], modi_rand_mag, ls = '--', color = 'k', alpha = 0.85, label = 'Background',)
+		ax3.fill_between( rand_r[kk], y1 = modi_rand_mag - modi_rand_mag_err, y2 = modi_rand_mag + modi_rand_mag_err, color = 'k', alpha = 0.18,)
 
-	ax3.set_xlim( 3e0, 1.1e3 )
-	ax3.set_ylim( 20, 34 )
+		ax3.plot(nbg_tot_r[kk][ idnn == False ], nbg_clus_mag, ls = '-', color = 'r', alpha = 0.85, label = 'ICL + BCG',)
+		ax3.fill_between(nbg_tot_r[kk][ idnn == False ], y1 = nbg_clus_mag - nbg_clus_mag_err, 
+			y2 = nbg_clus_mag + nbg_clus_mag_err, color = 'r', alpha = 0.18,)
 
-	ax3.invert_yaxis()
-	ax3.set_xscale('log')
-	ax3.set_xlabel('$ R \; [kpc] $', fontsize = 16,)
-	ax3.set_ylabel('$ SB \; [mag \, / \, arcsec^2] $', fontsize = 16,)
-	ax3.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 14.5,)
-	ax3.legend( loc = 3, fontsize = 18, frameon = False)
-	ax3.set_aspect( 'auto' )
+		ax3.set_xlim( 3e0, 1.1e3 )
+		ax3.set_ylim( 20, 34 )
 
-	plt.savefig('/home/xkchen/mass-bin_%s-band_BG-sub_process.pdf' % band[kk], dpi = 100)
-	plt.close()
+		ax3.invert_yaxis()
+		ax3.set_xscale('log')
+		ax3.set_xlabel('$ R \; [kpc] $', fontsize = 16,)
+		ax3.set_ylabel('$ SB \; [mag \, / \, arcsec^2] $', fontsize = 16,)
+		ax3.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 14.5,)
+		ax3.legend( loc = 3, fontsize = 18, frameon = False)
+		ax3.set_aspect( 'auto' )
 
-"""
+		plt.savefig('/home/xkchen/mass-bin_%s-band_BG-sub_process.pdf' % band[kk], dpi = 100)
+		plt.close()
+
+	return
+
+# full_stack_image_2D()
 
 ##... center region
 def ri_aveg_img():
@@ -707,6 +714,7 @@ def ri_aveg_img():
 
 # ri_aveg_img()
 
+
 for kk in range( 0,1 ):
 
 	## flux imgs
@@ -882,14 +890,14 @@ for kk in range( 0,1 ):
 	ax2.set_ylim( yp - np.ceil(1.11 * n1000), yp + np.ceil(1.11 * n1000 ) )
 
 
-	ax3.plot(nbg_tot_r[kk][ idnn == False ] / 1e3, nbg_clus_mag, ls = '-', color = 'r', alpha = 0.5, label = 'ICL + BCG',)
+	ax3.plot(nbg_tot_r[kk][ idnn == False ] / 1e3, nbg_clus_mag, ls = '-', color = 'r', alpha = 0.5, label = 'BCG + ICL',)
 	ax3.fill_between(nbg_tot_r[kk][ idnn == False ] / 1e3, y1 = nbg_clus_mag - nbg_clus_mag_err, 
 		y2 = nbg_clus_mag + nbg_clus_mag_err, color = 'r', alpha = 0.12,)
 
 	ax3.plot( rand_r[kk] / 1e3, modi_rand_mag, ls = ':', color = 'k', alpha = 0.5, label = 'Background',)
 	ax3.fill_between( rand_r[kk] / 1e3, y1 = modi_rand_mag - modi_rand_mag_err, y2 = modi_rand_mag + modi_rand_mag_err, color = 'k', alpha = 0.12,)
 
-	ax3.plot( tot_r[kk] / 1e3, clus_mag, ls = '--', color = 'b', alpha = 0.5, label = 'ICL + BCG + Background',)
+	ax3.plot( tot_r[kk] / 1e3, clus_mag, ls = '--', color = 'b', alpha = 0.5, label = 'BCG + ICL + Background',)
 	ax3.fill_between( tot_r[kk] / 1e3, y1 = clus_mag - clus_mag_err, y2 = clus_mag + clus_mag_err, color = 'b', alpha = 0.12,)
 
 	ax3.annotate( text = 'r-band', xy = (0.75, 0.85), xycoords = 'axes fraction', fontsize = 15,)
@@ -902,11 +910,15 @@ for kk in range( 0,1 ):
 	ax3.set_xlabel('$R \; [\\mathrm{M}pc] $', fontsize = 15,)
 	ax3.set_ylabel('$ \\mu \; [mag \, / \, arcsec^2] $', fontsize = 15,)
 
-	ax3.set_xticks([ 1e-2, 1e-1, 1e0])
-	ax3.set_xticklabels( labels = ['$\\mathrm{0.01}$','$\\mathrm{0.1}$', '$\\mathrm{1}$'] )
+	x_tick_arr = [ 1e-2, 1e-1, 1e0]
+	tick_lis = ['$\\mathrm{0.01}$','$\\mathrm{0.1}$', '$\\mathrm{1}$']
+	ax3.set_xticks( x_tick_arr )
+	ax3.get_xaxis().set_major_formatter( ticker.FixedFormatter( tick_lis ) )
+	ax3.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
 
 	ax3.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
 	ax3.legend( loc = 3, fontsize = 14, frameon = False)
 
 	plt.savefig('/home/xkchen/mass-bin_%s-band_BG-sub_2D.png' % band[kk], dpi = 300)
 	plt.close()
+

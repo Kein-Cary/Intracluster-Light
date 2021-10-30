@@ -44,13 +44,14 @@ def sersic_func(r, Ie, re, ndex):
 
 color_s = ['r', 'g', 'b']
 
-rand_path = '/home/xkchen/tmp_run/data_files/jupyter/random_ref_SB/'
+# rand_path = '/home/xkchen/tmp_run/data_files/jupyter/random_ref_SB/'
+rand_path = '/home/xkchen/figs/re_measure_SBs/random_ref_SB/'
 
 rand_r, rand_sb, rand_err = [], [], []
 
 #... 1D profile
-"""
-for ii in range( 2,3 ):
+
+for ii in range( 3 ):
 
 	with h5py.File( rand_path + 'random_%s-band_rand-stack_Mean_jack_SB-pro_z-ref-aveg.h5' % band[ii], 'r') as f:
 		tt_r = np.array(f['r'])
@@ -66,8 +67,8 @@ for ii in range( 2,3 ):
 
 	fit_file = rand_path + '%s-band_random_SB_fit_params.csv' % band[ii]
 
-	# random_SB_fit_func( tt_r, tt_sb, tt_err, po, fit_file, end_point = 2, R_psf = 10,)
-	random_SB_fit_func( tt_r, tt_sb, tt_err, po, fit_file, end_point = 1, R_psf = 10,)
+	random_SB_fit_func( tt_r, tt_sb, tt_err, po, fit_file, end_point = 2, R_psf = 10,)
+	# random_SB_fit_func( tt_r, tt_sb, tt_err, po, fit_file, end_point = 1, R_psf = 10,)
 
 	## figs
 	idx_lim = tt_r >= 10
@@ -91,7 +92,7 @@ for ii in range( 2,3 ):
 	ax.text(x = 12, y = 0.00425,s = 'fit line : ' + '\n' + 
 	'$ SB(r) = %.5f * log(r) + %.5f + %.5f * |log(r) - %.5f|^{(-%.5f)}$' % (e_a, e_b, e_A, e_x0, e_alpha), color = 'b', fontsize = 7,)
 
-	ax.set_ylim( 2e-3, 5e-3 )
+	ax.set_ylim( 2.5e-3, 5.5e-3 )
 	ax.set_xlim( 1e1, 5e3 )
 	ax.set_ylabel('SB [nanomaggies / $arcsec^2$]')
 	ax.set_xscale('log')
@@ -104,8 +105,8 @@ for ii in range( 2,3 ):
 	plt.savefig('/home/xkchen/%s-band_random-SB_fit.png' % band[ii], dpi = 300)
 	plt.close()
 
-	raise
-"""
+raise
+
 #... 2D img
 for ii in range( 3 ):
 

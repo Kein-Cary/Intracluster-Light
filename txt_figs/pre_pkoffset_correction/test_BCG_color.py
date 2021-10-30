@@ -327,11 +327,8 @@ for mm in range( 2 ):
 	p_g2r, p_g2i = np.array( pdat['c_g2r'] ), np.array( pdat['c_g2i'] )
 
 	out_file = ref_path + 'BCG_mags/BCG_color_Z%.3f_ra%.3f_dec%.3f.txt'
-	sql_color( p_z, p_ra, p_dec, p_ID, out_file ) ## SDSS data query
+	# sql_color( p_z, p_ra, p_dec, p_ID, out_file ) ## SDSS data query
 
-print('done !')
-raise
-'''
 	## readout
 	Ns = len( p_ra )
 
@@ -424,4 +421,4 @@ ax.legend( loc = 2, frameon = False, fontsize = 13,)
 
 plt.savefig('/home/xkchen/age-bin_BCG_g2i_compare.png', dpi = 300)
 plt.close()
-'''
+

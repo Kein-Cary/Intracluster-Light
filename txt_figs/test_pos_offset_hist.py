@@ -296,8 +296,7 @@ def tractor_peak_pos( img_file, gal_cat ):
 ### === ###
 load = '/home/xkchen/fig_tmp/'
 home = '/home/xkchen/data/SDSS/'
-
-out_path = '/home/xkchen/figs/'
+out_path = '/home/xkchen/data/SDSS/photo_files/pos_offset_correct_imgs/'
 
 # cat_lis = [ 'low-age', 'hi-age' ]
 # fig_name = [ 'younger', 'older' ]
@@ -341,7 +340,7 @@ for mm in range( 2 ):
 		values = [ ra_g, dec_g, z_g, cx_g, cy_g, mx, my, x_peak, y_peak ]
 		fill = dict( zip( keys, values ) )
 		data = pds.DataFrame( fill )
-		data.to_csv( out_path + '%s-band_ra%.3f_dec%.3f_z%.3f_peak-pos.csv' % (band_str, ra_g, dec_g, z_g),)
+		data.to_csv( out_path + 'offset/%s-band_ra%.3f_dec%.3f_z%.3f_peak-pos.csv' % (band_str, ra_g, dec_g, z_g),)
 
 	print( '%s band, done !' % band_str )
 
@@ -360,7 +359,7 @@ for mm in range( 2 ):
 		Head_info = img_data[0].header
 
 		## tractor source position
-		g_cat = pds.read_csv( out_path + '%s-band_ra%.3f_dec%.3f_z%.3f_peak-pos.csv' % (band_str, ra_g, dec_g, z_g),)
+		g_cat = pds.read_csv( out_path + 'offset/%s-band_ra%.3f_dec%.3f_z%.3f_peak-pos.csv' % (band_str, ra_g, dec_g, z_g),)
 		cen_x, cen_y = np.array( g_cat['L_cen_x'] ), np.array( g_cat['L_cen_y'] ) 
 		peak_x, peak_y = np.array( g_cat['x_peak'] ), np.array( g_cat['y_peak'] )
 
@@ -404,7 +403,7 @@ for mm in range( 2 ):
 		values = [ off_cen, off_peak, devi_cenx, devi_ceny, devi_pkx, devi_pky ]
 		fill = dict( zip( keys, values ) )
 		data = pds.DataFrame( fill )
-		data.to_csv( out_path + '%s-band_ra%.3f_dec%.3f_z%.3f_star-pos-offset.csv' % (band_str, ra_g, dec_g, z_g),)
+		data.to_csv( out_path + 'offset/%s-band_ra%.3f_dec%.3f_z%.3f_star-pos-offset.csv' % (band_str, ra_g, dec_g, z_g),)
 
 		##.. adjust in astropy.WCS
 		# cm_x1, cm_y1, cm_A1, cm_B1, cm_chi1 = cc_star_pos_func( star_file, Head_info )[:5]
@@ -499,10 +498,10 @@ for mm in range( 2 ):
 		ra_g, dec_g, z_g = ra[jj], dec[jj], z[jj]
 
 		##...
-		pk_dat = pds.read_csv( out_path + '%s-band_ra%.3f_dec%.3f_z%.3f_peak-pos.csv' % (band_str, ra_g, dec_g, z_g),)
+		pk_dat = pds.read_csv( out_path + 'offset/%s-band_ra%.3f_dec%.3f_z%.3f_peak-pos.csv' % (band_str, ra_g, dec_g, z_g),)
 		cen_x, cen_y = np.array( pk_dat['bcg_x'] )[0], np.array( pk_dat['bcg_y'] )[0]
 
-		off_dat = pds.read_csv( out_path + '%s-band_ra%.3f_dec%.3f_z%.3f_star-pos-offset.csv' % ( band_str, ra_g, dec_g, z_g),)
+		off_dat = pds.read_csv( out_path + 'offset/%s-band_ra%.3f_dec%.3f_z%.3f_star-pos-offset.csv' % ( band_str, ra_g, dec_g, z_g),)
 		x2cen_off_arr = np.array( off_dat[ 'devi_cenx' ] )
 		y2cen_off_arr = np.array( off_dat[ 'devi_ceny' ] )
 
@@ -521,11 +520,11 @@ for mm in range( 2 ):
 	values = [ ra, dec, z, off_pk_x, off_pk_y ]
 	fill = dict( zip(keys, values) )
 	data = pds.DataFrame( fill )
-	data.to_csv( '/home/xkchen/%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat.csv' % (cat_lis[mm], band_str),)
+	data.to_csv( load + 'pkoffset_cat/%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat.csv' % (cat_lis[mm], band_str),)
 
 	## z_ref case..
-	cat_file = '/home/xkchen/%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat.csv' % (cat_lis[mm], band_str)
-	out_file = '/home/xkchen/%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[mm], band_str)
+	cat_file = load + 'pkoffset_cat/%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat.csv' % (cat_lis[mm], band_str)
+	out_file = load + 'pkoffset_cat/%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[mm], band_str)
 	zref_BCG_pos_func(cat_file, z_ref, out_file, pixel)
 
 	print( '%d, %s band done !' % (mm, band_str), )
@@ -572,8 +571,8 @@ for ii in range( 3 ):
 			Head = img_data[0].header
 			cen_x, cen_y = WCS_to_pixel_func( ra_g, dec_g, Head)
 
-			off_dat = pds.read_csv(
-				'/home/xkchen/project/tmp/offset/%s-band_ra%.3f_dec%.3f_z%.3f_star-pos-offset.csv' % ( band_str, ra_g, dec_g, z_g),)
+			off_dat = pds.read_csv( out_path + 'offset/' + 
+									'%s-band_ra%.3f_dec%.3f_z%.3f_star-pos-offset.csv' % ( band_str, ra_g, dec_g, z_g),)
 			x2pk_off_arr = np.array( off_dat[ 'devi_pk_x' ] )
 			y2pk_off_arr = np.array( off_dat[ 'devi_pk_y' ] )
 
@@ -589,11 +588,11 @@ for ii in range( 3 ):
 		values = [ ra, dec, z, off_pk_x, off_pk_y ]
 		fill = dict( zip(keys, values) )
 		data = pds.DataFrame( fill )
-		data.to_csv( '/home/xkchen/%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat.csv' % (cat_lis[mm], band_str),)
+		data.to_csv( load + 'pkoffset_cat/%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat.csv' % (cat_lis[mm], band_str),)
 
 		## z_ref case..
-		cat_file = '/home/xkchen/%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat.csv' % (cat_lis[mm], band_str)
-		out_file = '/home/xkchen/%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[mm], band_str)
+		cat_file = load + 'pkoffset_cat/%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat.csv' % (cat_lis[mm], band_str)
+		out_file = load + 'pkoffset_cat/%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[mm], band_str)
 		zref_BCG_pos_func(cat_file, z_ref, out_file, pixel)
 
 		print( '%d, %s band done !' % (mm, band_str), )
@@ -676,6 +675,6 @@ for kk in range( 3 ):
 		values = [ off_cen, off_peak, devi_cenx, devi_ceny, devi_pkx, devi_pky ]
 		fill = dict( zip( keys, values ) )
 		data = pds.DataFrame( fill )
-		data.to_csv( out_path + 'random_%s-band_ra%.3f_dec%.3f_z%.3f_star-pos-offset.csv' % (band_str, ra_g, dec_g, z_g),)
+		data.to_csv( out_path + 'offset/random_%s-band_ra%.3f_dec%.3f_z%.3f_star-pos-offset.csv' % (band_str, ra_g, dec_g, z_g),)
 
 	print( '%s band done !' % band_str )

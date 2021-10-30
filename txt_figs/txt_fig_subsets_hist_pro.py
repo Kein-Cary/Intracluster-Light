@@ -42,18 +42,17 @@ color_s = [ 'r', 'g', 'darkred' ]
 line_c = [ 'b', 'r'  ]
 line_s = [ '--', '-' ]
 
+
 ## fixed richness samples
-# cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
-# fig_name = ['Low $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $', 'High $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $']
-# file_s = 'BCG_Mstar_bin'
-# cat_path = '/home/xkchen/mywork/ICL/data/BCG_stellar_mass_cat/photo_z_gri_common/'
-# BG_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_rich/BCG_M_bin/BGs/'
+cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
+fig_name = ['Low $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $', 'High $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $']
+file_s = 'BCG_Mstar_bin'
+cat_path = '/home/xkchen/mywork/ICL/data/BCG_stellar_mass_cat/photo_z_gri_common/'
 
 # cat_lis = ['younger', 'older']
 # fig_name = ['Low $ t_{\\mathrm{age}} $ $ \\mid \\lambda $', 'High $ t_{\\mathrm{age}} $ $ \\mid \\lambda $']
 # file_s = 'BCG_age_bin'
 # cat_path = '/home/xkchen/mywork/ICL/data/cat_z_form/age_bin_cat/gri_common_cat/'
-# BG_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_rich/age_bin_SBs/BGs/'
 
 
 ## fixed BCG Mstar samples
@@ -61,13 +60,16 @@ line_s = [ '--', '-' ]
 # fig_name = [ 'Low $ \\lambda $ $ \\mid M_{\\ast}^{\\mathrm{BCG}} $', 'High $ \\lambda $ $ \\mid M_{\\ast}^{\\mathrm{BCG}} $']
 # file_s = 'rich_bin_fixed_BCG_M'
 # cat_path = '/home/xkchen/tmp_run/data_files/figs/'
-# BG_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_BCG_M/rich_bin_SBs/BGs/'
 
-cat_lis = [ 'low-age', 'hi-age' ]
-fig_name = [ 'Low $ t_{\\mathrm{age}} $ $ \\mid M_{\\ast}^{\\mathrm{BCG}} $', 'High $ t_{\\mathrm{age}} $ $ \\mid M_{\\ast}^{\\mathrm{BCG}} $' ]
-file_s = 'age_bin_fixed_BCG_M'
-cat_path = '/home/xkchen/tmp_run/data_files/figs/'
-BG_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_BCG_M/age_bin/BGs/'
+# cat_lis = [ 'low-age', 'hi-age' ]
+# fig_name = [ 'Low $ t_{\\mathrm{age}} $ $ \\mid M_{\\ast}^{\\mathrm{BCG}} $', 
+# 			 'High $ t_{\\mathrm{age}} $ $ \\mid M_{\\ast}^{\\mathrm{BCG}} $' ]
+# file_s = 'age_bin_fixed_BCG_M'
+# cat_path = '/home/xkchen/tmp_run/data_files/figs/'
+
+
+BG_path = '/home/xkchen/figs/re_measure_SBs/BGs/'
+out_path = '/home/xkchen/figs/re_measure_SBs/SM_profile/'
 
 
 #... SB profile
@@ -126,6 +128,49 @@ lo_gi = signal.savgol_filter( lo_gi, 7, 3)
 lo_c_r = lo_c_r / 1e3
 
 
+##...extinction on BCG position
+if file_s == 'age_bin_fixed_BCG_M':
+	gE_dat = pds.read_csv('/home/xkchen/figs/sat_color/aveg_clust_EBV/BCG-age_bin_gri-common-cat_g-band_dust_value.csv')
+
+if file_s == 'BCG_Mstar_bin':
+	gE_dat = pds.read_csv('/home/xkchen/figs/sat_color/aveg_clust_EBV/BCG-Mstar_bin_gri-common-cat_g-band_dust_value.csv')
+
+if file_s == 'rich_bin_fixed_BCG_M':
+	gE_dat = pds.read_csv('/home/xkchen/figs/sat_color/aveg_clust_EBV/clust-rich_gri-common-cat_g-band_dust_value.csv')
+
+samp_dex = np.array( gE_dat['orin_dex'] )
+A_g = np.array( gE_dat['A_l'] )
+
+idv = samp_dex == 1
+
+A_g_lo = A_g[ idv ]
+mA_g_lo = np.median( A_g[ idv ] )
+
+A_g_hi = A_g[ idv == False ]
+mA_g_hi = np.median( A_g[ idv == False ] )
+
+
+if file_s == 'age_bin_fixed_BCG_M':
+	rE_dat = pds.read_csv('/home/xkchen/figs/sat_color/aveg_clust_EBV/BCG-age_bin_gri-common-cat_r-band_dust_value.csv')
+
+if file_s == 'BCG_Mstar_bin':
+	rE_dat = pds.read_csv('/home/xkchen/figs/sat_color/aveg_clust_EBV/BCG-Mstar_bin_gri-common-cat_r-band_dust_value.csv')
+
+if file_s == 'rich_bin_fixed_BCG_M':
+	rE_dat = pds.read_csv('/home/xkchen/figs/sat_color/aveg_clust_EBV/clust-rich_gri-common-cat_r-band_dust_value.csv')
+
+samp_dex = np.array( rE_dat['orin_dex'] )
+A_r = np.array( rE_dat['A_l'] )
+
+idv = samp_dex == 1
+
+A_r_lo = A_r[ idv ]
+mA_r_lo = np.median( A_r[ idv ] )
+
+A_r_hi = A_r[ idv == False ]
+mA_r_hi = np.median( A_r[ idv == False ] )
+
+
 #...color slope
 c_dat = pds.read_csv( BG_path + '%s_color_slope.csv' % cat_lis[0],)
 lo_dgr, lo_dgr_err = np.array( c_dat['d_gr'] ), np.array( c_dat['d_gr_err'] )
@@ -149,26 +194,19 @@ lo_lgM, lo_age = np.array( lo_dat['lg_Mstar']), np.array( lo_dat['BCG_age'] )
 
 
 #... fitting test
-# band_str = 'gri'
-out_path = '/home/xkchen/tmp_run/data_files/figs/M2L_fit_test_M/'
+band_str = 'gri'
 
 #...Mass profile
-# dat = pds.read_csv( BG_path + '%s_gi-band-based_corrected_aveg-jack_mass-Lumi.csv' % cat_lis[0] )
 dat = pds.read_csv( out_path + '%s_gri-band-based_corrected_aveg-jack_mass-Lumi.csv' % cat_lis[0] )
-lo_R, lo_surf_M, lo_surf_M_err = np.array( dat['R'] ), np.array( dat['correct_surf_M'] ), np.array( dat['surf_M_err'] )
+lo_R, lo_surf_M, lo_surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
 lo_R = lo_R / 1e3
 
-# dat = pds.read_csv( BG_path + '%s_gi-band-based_corrected_aveg-jack_mass-Lumi.csv' % cat_lis[1] )
 dat = pds.read_csv( out_path + '%s_gri-band-based_corrected_aveg-jack_mass-Lumi.csv' % cat_lis[1] )
-hi_R, hi_surf_M, hi_surf_M_err = np.array( dat['R'] ), np.array( dat['correct_surf_M'] ), np.array( dat['surf_M_err'] )
+hi_R, hi_surf_M, hi_surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
 hi_R = hi_R / 1e3
 
 
 #... total sample for comparison
-# dat = pds.read_csv( '/home/xkchen/tmp_run/data_files/jupyter/total_bcgM/BGs/' + 
-# 	'photo-z_tot-BCG-star-Mass_gi-band-based_corrected_aveg-jack_mass-Lumi.csv')
-# tot_R, tot_surf_m, tot_surf_m_err = np.array( dat['R'] ), np.array( dat['correct_surf_M'] ), np.array( dat['surf_M_err'] )
-
 dat = pds.read_csv( out_path + 'photo-z_tot-BCG-star-Mass_gri-band-based_aveg-jack_mass-Lumi.csv',)
 tot_R = np.array(dat['R'])
 tot_surf_m, tot_surf_m_err = np.array(dat['surf_mass']), np.array(dat['surf_mass_err'])
@@ -177,67 +215,17 @@ tot_R  = tot_R / 1e3
 #... estimate ratio between sub-sample and total samples
 interp_M_f = interp.interp1d( tot_R, tot_surf_m, kind = 'linear',)
 
-# calib_cat = pds.read_csv( '/home/xkchen/tmp_run/data_files/figs/%s_gi-band-based_M_calib-f.csv' % file_s )
-# lo_shift, hi_shift = np.array(calib_cat['low_mean_devi'])[0], np.array(calib_cat['high_mean_devi'])[0]
 
 calib_cat = pds.read_csv( out_path + '%s_gri-band-based_M_calib-f.csv' % file_s )
 lo_shift, hi_shift = np.array(calib_cat['low_medi_devi'])[0], np.array(calib_cat['high_medi_devi'])[0]
 
 M_offset = [ lo_shift, hi_shift ]
-"""
-for mm in range( 2 ):
 
-	N_samples = 30
 
-	# jk_sub_m_file = BG_path + '%s_gi-band-based_' % cat_lis[mm] + 'jack-sub-%d_mass-Lumi.csv'
-	jk_sub_m_file = out_path + '%s_gri-band-based_' % cat_lis[mm] + 'jack-sub-%d_mass-Lumi.csv'
-
-	tmp_r, tmp_ratio = [], []
-
-	for nn in range( N_samples ):
-
-		o_dat = pds.read_csv( jk_sub_m_file % nn,)
-
-		tt_r = np.array( o_dat['R'] )
-		tt_M = np.array( o_dat['surf_mass'] )
-
-		tt_r = tt_r / 1e3
-		tt_M = tt_M * 10**M_offset[mm]
-
-		idx_lim = ( tt_r >= np.nanmin( tot_R ) ) & ( tt_r <= np.nanmax( tot_R ) )
-
-		lim_R = tt_r[ idx_lim ]
-		lim_M = tt_M[ idx_lim ]
-
-		com_M = interp_M_f( lim_R )
-
-		sub_ratio = np.zeros( len(tt_r),)
-		sub_ratio[ idx_lim ] = lim_M / com_M
-
-		sub_ratio[ idx_lim == False ] = np.nan
-
-		tmp_r.append( tt_r * 1e3 )
-		tmp_ratio.append( sub_ratio )
-
-	aveg_R, aveg_ratio, aveg_ratio_err = arr_jack_func( tmp_ratio, tmp_r, N_samples)[:3]
-
-	keys = ['R', 'M/M_tot', 'M/M_tot-err']
-	values = [ aveg_R, aveg_ratio, aveg_ratio_err ]
-	fill = dict(zip( keys, values) )
-	out_data = pds.DataFrame( fill )
-	# out_data.to_csv(BG_path + '%s_gi-band_aveg_M-ratio_to_total-sample.csv' % cat_lis[mm],)
-	out_data.to_csv( out_path + '%s_gri-band_aveg_M-ratio_to_total-sample.csv' % cat_lis[mm],)
-"""
-
-# lo_eat_dat = pds.read_csv( BG_path + '%s_gi-band_aveg_M-ratio_to_total-sample.csv' % cat_lis[0] )
 lo_eat_dat = pds.read_csv( out_path + '%s_gri-band_aveg_M-ratio_to_total-sample.csv' % cat_lis[0] )
-
 lo_eta_R, lo_eta, lo_eta_err = np.array(lo_eat_dat['R']), np.array(lo_eat_dat['M/M_tot']), np.array(lo_eat_dat['M/M_tot-err'])
 
-
-# hi_eat_dat = pds.read_csv( BG_path + '%s_gi-band_aveg_M-ratio_to_total-sample.csv' % cat_lis[1] )
 hi_eat_dat = pds.read_csv( out_path + '%s_gri-band_aveg_M-ratio_to_total-sample.csv' % cat_lis[1] )
-
 hi_eta_R, hi_eta, hi_eta_err = np.array(hi_eat_dat['R']), np.array(hi_eat_dat['M/M_tot']), np.array(hi_eat_dat['M/M_tot-err'])
 
 
@@ -282,7 +270,8 @@ if file_s == 'BCG_Mstar_bin':
 	norm = mpl.colors.Normalize( vmin = 1, vmax = 11 )
 
 	c_ticks = np.array([1, 3, 5, 7, 9, 11])
-	cbs = mpl.colorbar.ColorbarBase( ax = sub_ax1, cmap = cmap, norm = norm, extend = 'neither', ticks = c_ticks, orientation = 'horizontal',)
+	cbs = mpl.colorbar.ColorbarBase( ax = sub_ax1, cmap = cmap, norm = norm, extend = 'neither', ticks = c_ticks, 
+									orientation = 'horizontal',)
 	cbs.set_label( '$ t_{\\mathrm{age}} \; [\\mathrm{G}yr] $', fontsize = 14,)
 
 	cmap.set_under('cyan')
@@ -337,7 +326,8 @@ if file_s == 'BCG_age_bin':
 
 	c_ticks = sub_ax0.get_xticks()
 
-	cbs = mpl.colorbar.ColorbarBase( ax = sub_ax1, cmap = cmap, norm = norm, extend = 'neither', ticks = c_ticks, orientation = 'horizontal',)
+	cbs = mpl.colorbar.ColorbarBase( ax = sub_ax1, cmap = cmap, norm = norm, extend = 'neither', ticks = c_ticks, 
+									orientation = 'horizontal',)
 	cbs.set_label( '$ {\\rm \\mathcal{lg} } \, M^{\\mathrm{BCG}}_{\\ast} \; [M_{\\odot} \, / \, h^2] $', fontsize = 14,)
 
 	cmap.set_under('cyan')
@@ -388,7 +378,8 @@ if file_s == 'rich_bin_fixed_BCG_M':
 	norm = mpl.colors.Normalize( vmin = 1, vmax = 11 )
 
 	c_ticks = np.array([1, 3, 5, 7, 9, 11])
-	cbs = mpl.colorbar.ColorbarBase( ax = sub_ax1, cmap = cmap, norm = norm, extend = 'neither', ticks = c_ticks, orientation = 'horizontal',)
+	cbs = mpl.colorbar.ColorbarBase( ax = sub_ax1, cmap = cmap, norm = norm, extend = 'neither', ticks = c_ticks, 
+									orientation = 'horizontal',)
 	cbs.set_label( '$ t_{\\mathrm{age}} \; [\\mathrm{G}yr] $', fontsize = 14,)
 
 	cmap.set_under('cyan')
@@ -614,11 +605,11 @@ ax2.set_xticklabels( [] )
 # ax2.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 18,)
 
 
-ax3.plot( lo_c_r, lo_gr, ls = '--', color = 'b', alpha = 0.75, label = fig_name[0] )
-ax3.fill_between( lo_c_r, y1 = lo_gr - lo_gr_err, y2 = lo_gr + lo_gr_err, color = 'b', alpha = 0.15,)
+ax3.plot( lo_c_r, lo_gr + (mA_r_lo - mA_g_lo), ls = '--', color = 'b', alpha = 0.75, label = fig_name[0] )
+ax3.fill_between( lo_c_r, y1 = lo_gr + (mA_r_lo - mA_g_lo) - lo_gr_err, y2 = lo_gr + (mA_r_lo - mA_g_lo) + lo_gr_err, color = 'b', alpha = 0.15,)
 
-ax3.plot( hi_c_r, hi_gr, ls = '-', color = 'r', alpha = 0.75, label = fig_name[1] )
-ax3.fill_between( hi_c_r, y1 = hi_gr - hi_gr_err, y2 = hi_gr + hi_gr_err, color = 'r', alpha = 0.15,)
+ax3.plot( hi_c_r, hi_gr + (mA_r_hi - mA_g_hi), ls = '-', color = 'r', alpha = 0.75, label = fig_name[1] )
+ax3.fill_between( hi_c_r, y1 = hi_gr + (mA_r_hi - mA_g_hi) - hi_gr_err, y2 = hi_gr + (mA_r_hi - mA_g_hi) + hi_gr_err, color = 'r', alpha = 0.15,)
 
 ax3.legend( loc = 3, frameon = False, fontsize = 18,)
 ax3.set_ylim( 0.8, 1.55 )

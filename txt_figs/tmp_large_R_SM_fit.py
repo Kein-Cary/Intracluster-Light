@@ -134,13 +134,30 @@ Dl_ref = Test_model.luminosity_distance( z_ref ).value
 a_ref = 1 / (z_ref + 1)
 
 ## ... satellite number density
-bin_R, siglow, errsiglow, sighig, errsighig, highoverlow, errhighoverlow = np.genfromtxt('/home/xkchen/tmp_run/data_files/figs/result_high_over_low.txt', unpack = True)
+"""
+bin_R, siglow, errsiglow, sighig, errsighig, highoverlow, errhighoverlow = np.genfromtxt(
+															'/home/xkchen/tmp_run/data_files/figs/result_high_over_low.txt', unpack = True)
+#. convert to physical coordinate and using 'kpc' as Length unit
 bin_R = bin_R * 1e3 * a_ref / h
-siglow, errsiglow, sighig, errsighig = np.array( [ siglow * h**2 / 1e6, errsiglow * h**2 / 1e6, sighig * h**2 / 1e6, errsighig * h**2 / 1e6 ] ) / a_ref**2
+siglow, errsiglow, sighig, errsighig = np.array( [siglow * h**2 / 1e6, errsiglow * h**2 / 1e6, 
+													sighig * h**2 / 1e6, errsighig * h**2 / 1e6] ) / a_ref**2
 
 id_nan = np.isnan( bin_R )
 bin_R = bin_R[ id_nan == False]
-siglow, errsiglow, sighig, errsighig = siglow[ id_nan == False], errsiglow[ id_nan == False], sighig[ id_nan == False], errsighig[ id_nan == False]
+siglow, errsiglow, sighig, errsighig = [ siglow[ id_nan == False], errsiglow[ id_nan == False], sighig[ id_nan == False], 
+										errsighig[ id_nan == False] ]
+"""
+lo_Ng_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/data_Zhiwei/' + 'g2r_all_sample/data/g-r_deext/low-BCG_g-r_deext_allinfo_noRG.csv')
+lo_n_rp, lo_Ng, lo_Ng_err = np.array(lo_Ng_dat['rbins']), np.array(lo_Ng_dat['sigma']), np.array(lo_Ng_dat['sigma_err'])
+
+siglow, errsiglow = lo_Ng * h**2 / a_ref**2 / 1e6, lo_Ng_err * h**2 / a_ref**2 / 1e6 # unit, '/kpc^{-2}'
+bin_R = lo_n_rp * 1e3 / h / (1 + z_ref)
+
+hi_Ng_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/data_Zhiwei/' + 'g2r_all_sample/data/g-r_deext/hi-BCG_g-r_deext_allinfo_noRG.csv')
+hi_n_rp, hi_Ng, hi_Ng_err = np.array(hi_Ng_dat['rbins']), np.array(hi_Ng_dat['sigma']), np.array(hi_Ng_dat['sigma_err'])
+
+sighig, errsighig = hi_Ng * h**2 / a_ref**2 / 1e6, hi_Ng_err * h**2 / a_ref**2 / 1e6
+
 
 lo_Ng_int_F = interp.interp1d( bin_R, siglow, kind = 'linear', fill_value = 'extrapolate',)
 hi_Ng_int_F = interp.interp1d( bin_R, sighig, kind = 'linear', fill_value = 'extrapolate',)
@@ -170,59 +187,68 @@ hi_xi2M_2Mpc = hi_interp_F( 2e3 )
 
 
 ##... SM(r)
-BG_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_rich/BCG_M_bin/BGs/'
-path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_rich/BCG_M_bin/SBs/'
-
 cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
-fig_name = ['Low $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $', 'High $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $']
+fig_name = ['Low $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $', 
+			'High $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $']
 
-color_s = ['r', 'g', 'b']
+color_s = [ 'r', 'g', 'darkred' ]
 line_c = ['b', 'r']
 mark_s = ['s', 'o']
 
-## miscen params for high mass
+
+###...### subsamples
+"""
+## ... miscen params
 v_m = 200 # rho_mean = 200 * rho_c * omega_m
 c_mass = [5.87, 6.95]
 Mh0 = [14.24, 14.24]
 off_set = [230, 210] # in unit kpc / h
 f_off = [0.37, 0.20]
 
-fit_path = '/home/xkchen/tmp_run/data_files/figs/mass_pro_fit/'
-###... subsamples
-"""
-base_lis = ['gi', 'ri', 'gri', 'gr', 'ir', 'gir', 'ig', 'rg', 'rig']
-line_name = ['g-i + $L_{i}$', 'r-i + $L_{i}$', 'g-r + $L_{i}$', 
-			 'g-r + $L_{r}$', 'r-i + $L_{r}$', 'g-i + $L_{r}$', 
-			 'g-i + $L_{g}$', 'g-r + $L_{g}$', 'r-i + $L_{g}$' ]
-
 ## fitting outer region
 # icl_mode = 'misNFW'
-# icl_mode = 'xi2M'
-icl_mode = 'SG_N'
+icl_mode = 'xi2M'
+# icl_mode = 'SG_N'
 
-out_path = '/home/xkchen/tmp_run/data_files/figs/M2L_fit_test_M/' ## test files
+out_lim_R = [300, 350, 400] # 300, 350, 400 kpc
+
+BG_path = '/home/xkchen/figs/re_measure_SBs/BGs/'
+out_path = '/home/xkchen/figs/re_measure_SBs/SM_profile/'
+fit_path = '/home/xkchen/figs/re_measure_SBs/SM_pro_fit/'
+
+id_dered = True
+dered_str = '_with-dered'
+
+# id_dered = False
+# dered_str = ''
 
 for mm in range( 2 ):
 
 	lg_fb_arr = []
 
-	for tt in range( 2,3 ):
-		band_str = base_lis[ tt ]
+	for tt in range( 3 ):
 
-		# dat = pds.read_csv( BG_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi.csv' % (cat_lis[mm], band_str) )
-		# obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['correct_surf_M'] ), np.array( dat['surf_M_err'] )
+		if id_dered == False:
 
-		dat = pds.read_csv( out_path + '%s_%s-band-based_aveg-jack_mass-Lumi.csv' % (cat_lis[mm], band_str),)
-		obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['surf_mass'] ), np.array( dat['surf_mass_err'] )
+			dat = pds.read_csv( out_path + '%s_gri-band-based_corrected_aveg-jack_mass-Lumi.csv' % cat_lis[mm],)
+			obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
+
+			##.. cov_arr
+			with h5py.File( out_path + '%s_gri-band-based_aveg-jack_log-surf-mass_cov_arr.h5' % cat_lis[mm], 'r') as f:
+				cov_arr = np.array( f['cov_MX'] )
+				cor_arr = np.array( f['cor_MX'] )
+
+		if id_dered == True:
+			dat = pds.read_csv( out_path + '%s_gri-band-based_corrected_aveg-jack_mass-Lumi_with-dered.csv' % cat_lis[mm],)
+			obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
+
+			##.. cov_arr
+			with h5py.File( out_path + '%s_gri-band-based_aveg-jack_log-surf-mass_cov_arr_with-dered.h5' % cat_lis[mm], 'r') as f:
+				cov_arr = np.array( f['cov_MX'] )
+				cor_arr = np.array( f['cor_MX'] )
 
 		id_rx = obs_R >= 9
 		obs_R, surf_M, surf_M_err = obs_R[id_rx], surf_M[id_rx], surf_M_err[id_rx]
-
-		##.. cov_arr
-		# with h5py.File( BG_path + '%s_%s-band-based_aveg-jack_log-surf-mass_cov_arr.h5' % (cat_lis[mm], band_str), 'r') as f:
-		with h5py.File( out_path + '%s_%s-band-based_aveg-jack_log-surf-mass_cov_arr.h5' % (cat_lis[mm], band_str), 'r') as f:
-			cov_arr = np.array( f['cov_MX'] )
-			cor_arr = np.array( f['cor_MX'] )
 
 		id_cov = np.where( id_rx )[0][0]
 		cov_arr = cov_arr[id_cov:, id_cov:]
@@ -260,8 +286,8 @@ for mm in range( 2 ):
 			sigma_2Mpc = sig_rho_f( 2e3 )
 			lg_M_sigma = np.log10( misNFW_sigma - sigma_2Mpc )
 
-		out_lim_R = 250 # 200, 250, 300 kpc
-		idx_lim = obs_R >= out_lim_R
+		# out_lim_R = 350 # 300, 350, 400 kpc
+		idx_lim = obs_R >= out_lim_R[ tt ]
 		id_dex = np.where( idx_lim == True )[0][0]
 
 		fit_R = obs_R[idx_lim]
@@ -305,7 +331,7 @@ for mm in range( 2 ):
 
 		plt.figure()
 		ax = plt.subplot(111)
-		ax.set_title( fig_name[mm] + ',%s-band based' % band_str)
+		ax.set_title( fig_name[mm])
 
 		ax.errorbar( obs_R, lg_M, yerr = lg_M_err, xerr = None, color = 'r', marker = '.', ls = 'none', ecolor = 'r', 
 			alpha = 0.75, mec = 'r', mfc = 'r', label = 'observed')
@@ -313,7 +339,7 @@ for mm in range( 2 ):
 		ax.plot( new_R, np.log10( fit_out_M ), ls = '-', color = 'b', alpha = 0.75, 
 			label = 'scaled $NFW_{projected}^{miscentering}$',)
 
-		ax.text( 1e1, 3.5, s = '$\\lgf{=}%.5f \; [R>=%dkpc]$' % (bf_fit, out_lim_R), color = 'k',)
+		ax.text( 1e1, 3.5, s = '$\\lgf{=}%.5f \; [R>=%dkpc]$' % (bf_fit, out_lim_R[ tt ]), color = 'k',)
 
 		ax.legend( loc = 1, )
 		ax.set_ylim( 3, 8.5)
@@ -322,48 +348,63 @@ for mm in range( 2 ):
 		ax.set_xlim( 1e1, 3e3)
 		ax.set_xlabel( 'R [kpc]')
 		ax.set_xscale( 'log' )
-		plt.savefig('/home/xkchen/%s_%s-band-based_beyond-%dkpc_fit_test.png' % (cat_lis[mm], band_str, out_lim_R), dpi = 300)
+		plt.savefig('/home/xkchen/%s_beyond-%dkpc_fit_test.png' % (cat_lis[mm], out_lim_R[ tt ] ), dpi = 300)
 		plt.close()
 
-	# keys = ['lg_fb_gi', 'lg_fb_ri', 'lg_fb_gri', 'lg_fb_gr', 'lg_fb_ir', 'lg_fb_gir', 'lg_fb_ig', 'lg_fb_rg', 'lg_fb_rig']
-	# values = [ ]
-	# for oo in range( 9 ):
-	# 	values.append( lg_fb_arr[oo] )
-	# fill = dict( zip( keys, values) )
-	# out_data = pds.DataFrame( fill, index = ['k', 'v'])
-	# out_data.to_csv( fit_path + '%s_all-color-to-M_beyond-%dkpc_%s-fit.csv' % (cat_lis[mm], out_lim_R, icl_mode),)
+	keys = ['lg_fb_300', 'lg_fb_350', 'lg_fb_400']
+	values = [ ]
+	for oo in range( 3 ):
+		values.append( lg_fb_arr[oo] )
+
+	fill = dict( zip( keys, values) )
+	out_data = pds.DataFrame( fill, index = ['k', 'v'])
+	out_data.to_csv( fit_path + '%s_all-color-to-M_%s-fit%s.csv' % (cat_lis[mm], icl_mode, dered_str),)
+
 """
 
-
-### ... total sample
-base_lis = ['gi', 'gr', 'ri']
-
+###...### total sample
 # icl_mode = 'xi2M'
 icl_mode = 'SG_N'
 
-BG_path = '/home/xkchen/tmp_run/data_files/jupyter/total_bcgM/BGs/'
-out_path = '/home/xkchen/tmp_run/data_files/figs/M2L_fit_test_M/' ## test files
+#. 
+out_path = '/home/xkchen/figs/re_measure_SBs/SM_profile/'
+fit_path = '/home/xkchen/figs/re_measure_SBs/SM_pro_fit/'
 
-lg_fb_arr = []
 
-for tt in range( 3 ):
+#. mass estimation with deredden or not
+# id_dered = True
+# dered_str = 'with-dered_'
 
-	band_str = base_lis[ tt ]
+id_dered = False
+dered_str = ''
 
-	# dat = pds.read_csv( BG_path + 'photo-z_tot-BCG-star-Mass_%s-band-based_corrected_aveg-jack_mass-Lumi.csv' % band_str )
-	# obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['correct_surf_M'] ), np.array( dat['surf_M_err'] )
+out_lim_R = [ 300, 350, 400 ]
+band_str = 'gri'
 
-	dat = pds.read_csv( out_path + 'photo-z_tot-BCG-star-Mass_gri-band-based_aveg-jack_mass-Lumi.csv')
-	obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['surf_mass'] ), np.array( dat['surf_mass_err'] )
+for pp in range( 3 ):
+	if id_dered == False:
 
-	id_rx = obs_R >= 9
+		dat = pds.read_csv( out_path + 'photo-z_tot-BCG-star-Mass_gri-band-based_aveg-jack_mass-Lumi.csv')
+		obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['surf_mass'] ), np.array( dat['surf_mass_err'] )
+
+		##.. cov_arr
+		with h5py.File( out_path + 'photo-z_tot-BCG-star-Mass_gri-band-based_aveg-jack_log-surf-mass_cov_arr.h5', 'r') as f:
+			cov_arr = np.array( f['cov_MX'] )
+			cor_arr = np.array( f['cor_MX'] )
+
+	if id_dered == True:
+
+		dat = pds.read_csv( out_path + 'photo-z_tot-BCG-star-Mass_gri-band-based_aveg-jack_mass-Lumi_with-dered.csv' )
+		obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['surf_mass'] ), np.array( dat['surf_mass_err'] )
+
+		##.. cov_arr
+		with h5py.File( out_path + 'photo-z_tot-BCG-star-Mass_gri-band-based_aveg-jack_log-surf-mass_cov_arr_with-dered.h5', 'r') as f:
+			cov_arr = np.array( f['cov_MX'] )
+			cor_arr = np.array( f['cor_MX'] )
+
+
+	id_rx = obs_R >= 10 # 9, 10
 	obs_R, surf_M, surf_M_err = obs_R[id_rx], surf_M[id_rx], surf_M_err[id_rx]
-
-	##.. cov_arr
-	# with h5py.File( BG_path + 'photo-z_tot-BCG-star-Mass_%s-band-based_aveg-jack_log-surf-mass_cov_arr.h5' % band_str, 'r') as f:
-	with h5py.File( out_path + 'photo-z_tot-BCG-star-Mass_gri-band-based_aveg-jack_log-surf-mass_cov_arr.h5', 'r') as f:
-		cov_arr = np.array( f['cov_MX'] )
-		cor_arr = np.array( f['cor_MX'] )
 
 	id_cov = np.where( id_rx )[0][0]
 	cov_arr = cov_arr[id_cov:, id_cov:]
@@ -372,7 +413,6 @@ for tt in range( 3 ):
 
 	if icl_mode == 'xi2M':
 		## .. use xi_hm for sigma estimation
-
 		xi_rp = (lo_xi + hi_xi) / 2
 
 		tot_rho_m = ( xi_rp * 1e3 * rho_m ) / a_ref**2 * h
@@ -392,8 +432,7 @@ for tt in range( 3 ):
 		sigma_2Mpc = sig_rho_f( 2e3 )
 		lg_M_sigma = np.log10( misNFW_sigma - sigma_2Mpc )
 
-	out_lim_R = 250 # 200, 250, 300, 350, 400
-	idx_lim = obs_R >= out_lim_R
+	idx_lim = obs_R >= out_lim_R[ pp ]
 	id_dex = np.where( idx_lim == True )[0][0]
 
 	fit_R = obs_R[idx_lim]
@@ -406,18 +445,20 @@ for tt in range( 3 ):
 	if icl_mode != 'SG_N':
 		po = -2.5
 		bounds = [ [-4, -2] ]
-		E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_M, po_param, fit_Merr), method = 'L-BFGS-B', bounds = bounds,)
+		E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_M, po_param, fit_Merr), 
+			method = 'L-BFGS-B', bounds = bounds,)
 
 	else:
 		po = 10.7
 		bounds = [ [9, 11] ]
-		E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_M, po_param, fit_Merr), method = 'L-BFGS-B', bounds = bounds,)
+		E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_M, po_param, fit_Merr), 
+			method = 'L-BFGS-B', bounds = bounds,)
 
 	print(E_return)
 	popt = E_return.x
 	bf_fit = popt
 
-	lg_fb_arr.append( bf_fit )
+	lg_fb_arr = bf_fit + 0.
 
 	_out_M = 10**lg_M_sigma * 10** bf_fit
 	_sum_fit = np.log10( _out_M )
@@ -442,7 +483,7 @@ for tt in range( 3 ):
 	if icl_mode == 'xi2M':
 		ax.plot( new_R, np.log10( fit_out_M ), ls = '-', color = 'b', alpha = 0.75, 
 			label = '$\\lg \\Sigma_{dm} + lgf$',)
-		ax.text( 1e1, 3.5, s = '$\\lgf{=}%.5f \; [R>=%dkpc]$' % (bf_fit, out_lim_R), color = 'k',)
+		ax.text( 1e1, 3.5, s = '$\\lgf{=}%.5f \; [R>=%dkpc]$' % (bf_fit, out_lim_R[ pp ]), color = 'k',)
 
 	if icl_mode == 'SG_N':
 		ax.plot( new_R, np.log10( fit_out_M ), ls = '-', color = 'b', alpha = 0.75, 
@@ -452,20 +493,18 @@ for tt in range( 3 ):
 	ax.set_ylim( 3, 8.5)
 	ax.set_ylabel( '$ lg \\Sigma [M_{\\odot} / kpc^2]$' )
 
-	ax.axvline( x = out_lim_R, ls = '--', color = 'g',)
+	ax.axvline( x = out_lim_R[ pp ], ls = '--', color = 'g',)
 
 	ax.set_xlim( 1e1, 3e3)
 	ax.set_xlabel( 'R [kpc]')
 	ax.set_xscale( 'log' )
-	plt.savefig('/home/xkchen/total_%s-band-based_beyond-%dkpc_%s-fit.png' % (band_str, out_lim_R, icl_mode), dpi = 300)
+	plt.savefig('/home/xkchen/%stotal_%s-band-based_beyond-%dkpc_%s-fit.png' % (dered_str, band_str, out_lim_R[ pp ], icl_mode), dpi = 300)
 	plt.close()
 
-keys = ['lg_fb_gi', 'lg_fb_gr', 'lg_fb_ri']
-values = [ ]
-for oo in range( 3 ):
-	values.append( lg_fb_arr[oo] )
-fill = dict( zip( keys, values) )
-out_data = pds.DataFrame( fill, index = ['k', 'v'])
-# out_data.to_csv( fit_path + 'total_all-color-to-M_beyond-%dkpc_%s-fit.csv' % (out_lim_R, icl_mode) )
-out_data.to_csv( out_path + 'total_all-color-to-M_beyond-%dkpc_%s-fit.csv' % (out_lim_R, icl_mode) )
+
+	keys = ['lg_fb_gi', 'lg_fb_gr', 'lg_fb_ri']
+	values = [ lg_fb_arr, lg_fb_arr, lg_fb_arr ]
+	fill = dict( zip( keys, values) )
+	out_data = pds.DataFrame( fill, index = ['k', 'v'])
+	out_data.to_csv( fit_path + '%stotal_all-color-to-M_beyond-%dkpc_%s-fit.csv' % (dered_str, out_lim_R[ pp ], icl_mode) )
 

@@ -43,10 +43,6 @@ Dl_ref = Test_model.luminosity_distance( z_ref ).value
 Da_ref = Test_model.angular_diameter_distance( z_ref ).value
 phyR_psf = np.array( psf_FWHM ) * Da_ref * 10**3 / rad2asec
 
-###... load data
-cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
-cat_path = '/home/xkchen/mywork/ICL/data/BCG_stellar_mass_cat/photo_z_gri_common/'
-
 
 ### === M/L - color
 def lg_linea_func( x, a, b):
@@ -60,20 +56,25 @@ def resi_func( po, x, y):
 	delta = lg_m2l - y
 	return delta
 
-def lg_bi_linear_func(x, A, B, C0, D0):
+def lg_bi_linear_func( x, A, B, C0 ):
 	"""
-	x_arr : g-r, r-i, luminosity
+	x_arr : r-i, i_luminosity
 	"""
-	x_gr, x_ri, x_lgL = x[0], x[1], x[2]
-	y = A * x_gr + B * x_ri + C0 * x_lgL + D0
+	x_ri, x_lgL = x[0], x[1]
+	y = A * x_ri + B * x_lgL + C0
 	return y
 
 def resi_bi_line_func( po, x, y):
 
-	A, B, C0, D0 = po[:]
-	pre_y = lg_bi_linear_func(x, A, B, C0, D0)
+	A, B, C0 = po[:]
+	pre_y = lg_bi_linear_func( x, A, B, C0 )
 	delta = pre_y - y
 	return delta
+
+
+###... load data
+cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
+cat_path = '/home/xkchen/mywork/ICL/data/BCG_stellar_mass_cat/photo_z_gri_common/'
 
 dpt_lgM = []
 dpt_i_lumi, dpt_r_lumi, dpt_g_lumi = [], [], []
@@ -128,9 +129,10 @@ r_Mag = np.r_[ dpt_r_cMag[0], dpt_r_cMag[1] ]
 
 gr_arr = np.r_[ dpt_g2r[0], dpt_g2r[1] ]
 ri_arr = np.r_[ dpt_r2i[0], dpt_r2i[1] ]
-lg_Mstar = np.r_[ dpt_lgM[0], dpt_lgM[1] ]
+lg_Mstar = np.r_[ dpt_lgM[0], dpt_lgM[1] ] # mass unit : M_sun / h^2
 
-### === fit M = f( g-r, g-i, L_i)
+
+### === fit M = f( r-i, L_i)
 def points_select():
 
 	based_str = 'i'
@@ -139,7 +141,6 @@ def points_select():
 	sum_dex = np.sum( id_R_lim )
 	kk = 0
 
-	cp_gr_arr = gr_arr + 0.
 	cp_ri_arr = ri_arr + 0.
 	cp_lgLi_arr = np.log10( L_i )
 	cp_lg_Mstar = lg_Mstar - 2 * np.log10( h )
@@ -149,23 +150,24 @@ def points_select():
 
 	while sum_dex > 0:
 
-		put_x = np.array([ cp_gr_arr, cp_ri_arr, cp_lgLi_arr ])
+		put_x = np.array([ cp_ri_arr, cp_lgLi_arr ])
 
-		p0 = [ -0.05, 0.5, 0.02, 0.2 ]
+		p0 = [ -0.05, 0.5, 0.2 ]
 		res_lsq = optimize.least_squares( resi_bi_line_func, x0 = np.array( p0 ), loss = 'cauchy', 
 			f_scale = 0.1, args = ( put_x, cp_lg_Mstar),)
 
 		a_fit = res_lsq.x[0]
 		b_fit = res_lsq.x[1]
 		c_fit = res_lsq.x[2]
-		d_fit = res_lsq.x[3]
+
 
 		#... fitting lg_Mstar
-		fit_M2L = lg_bi_linear_func( put_x, a_fit, b_fit, c_fit, d_fit)
+		fit_M2L = lg_bi_linear_func( put_x, a_fit, b_fit, c_fit )
 
 		Var = np.sum( (fit_M2L - cp_lg_Mstar)**2 ) / len( cp_lg_Mstar )
 		sigma = np.sqrt( Var )
 		sp_R = sts.spearmanr( fit_M2L, cp_lg_Mstar)[0]
+
 
 		#... fit relation between fitting and obs.
 		po = [0.9, 10]
@@ -176,7 +178,9 @@ def points_select():
 		dR_com_l = np.abs( _b0 * fit_M2L + _a0 - cp_lg_Mstar) / np.sqrt(1 + _b0**2)
 		id_R_lim = dR_com_l >= 2 * sigma
 
+		#. sum of residual
 		sum_dex = np.sum( id_R_lim )
+
 
 		plt.figure()
 		ax = plt.subplot(111)
@@ -191,48 +195,50 @@ def points_select():
 		plt.savefig('/home/xkchen/lgM_diag_selected_%d.png' % kk, dpi = 300)
 		plt.close()
 
-		cp_gr_arr = cp_gr_arr[ id_R_lim == False ]
+
 		cp_ri_arr = cp_ri_arr[ id_R_lim == False ]
 		cp_lgLi_arr = cp_lgLi_arr[ id_R_lim == False ]
 		cp_lg_Mstar = cp_lg_Mstar[ id_R_lim == False ]
 
 		kk += 1
 
-		out_arr = np.array([ cp_gr_arr, cp_ri_arr, cp_lg_Mstar, cp_lgLi_arr ]).T
-		np.savetxt( '/home/xkchen/tmp_run/data_files/figs/M2L_Lumi_selected/M2L%s_selected_points.txt' % based_str, 
-			out_arr, fmt = '%.8f, %.8f, %.8f, %.8f',)
+		out_arr = np.array([ cp_ri_arr, cp_lg_Mstar, cp_lgLi_arr ]).T
+		np.savetxt( '/home/xkchen/figs/L_Cri_M_test/M2L%s_selected_points.txt' % based_str, 
+			out_arr, fmt = '%.8f, %.8f, %.8f',)
 
 # points_select()
 
 
+### === ### estimate overall sample scatter
 based_str = 'i'
-points = np.loadtxt('/home/xkchen/tmp_run/data_files/figs/M2L_Lumi_selected/M2L%s_selected_points.txt' % based_str, delimiter = ',')
-cp_gr_arr = points[:,0]
-cp_ri_arr = points[:,1]
-cp_lg_Mstar = points[:,2]
-cp_lg_Lumi = points[:,3]
+points = np.loadtxt( '/home/xkchen/figs/L_Cri_M_test/M2L%s_selected_points.txt' % based_str, delimiter = ',')
 
-put_x = np.array([ cp_gr_arr, cp_ri_arr, cp_lg_Lumi ])
-p0 = [ -0.05, 0.5, 0.02, 0.2 ]
+cp_ri_arr = points[:,0]
+cp_lg_Mstar = points[:,1] # mass unit : M_sun
+cp_lg_Lumi = points[:,2]
+
+put_x = np.array([ cp_ri_arr, cp_lg_Lumi ])
+p0 = [ -0.05, 0.5, 0.2 ]
 res_lsq = optimize.least_squares( resi_bi_line_func, x0 = np.array( p0 ), loss = 'cauchy', 
 	f_scale = 0.1, args = ( put_x, cp_lg_Mstar),)
 
 a_fit = res_lsq.x[0]
 b_fit = res_lsq.x[1]
 c_fit = res_lsq.x[2]
-d_fit = res_lsq.x[3]
 
-keys = ['a', 'b', 'c', 'd']
-values = [ a_fit, b_fit, c_fit, d_fit ]
+
+keys = [ 'a', 'b', 'c' ]
+values = [ a_fit, b_fit, c_fit ]
 fill = dict( zip( keys, values) )
 out_data = pds.DataFrame( fill, index = ['k', 'v'])
-out_data.to_csv('/home/xkchen/tmp_run/data_files/figs/M2L_Lumi_selected/least-square_M-to-%s-band-Lumi&color.csv' % based_str )
+out_data.to_csv('/home/xkchen/figs/L_Cri_M_test/least-square_M-to-%s-band-Lumi&color.csv' % based_str )
+
 
 _lg_Lumi = np.log10( L_i )
-put_x = np.array( [ gr_arr, ri_arr, _lg_Lumi ] )
+put_x = np.array( [ ri_arr, _lg_Lumi ] )
 
 #... fitting lg_Mstar
-fit_M2L = lg_bi_linear_func( put_x, a_fit, b_fit, c_fit, d_fit)
+fit_M2L = lg_bi_linear_func( put_x, a_fit, b_fit, c_fit )
 
 _lg_M = lg_Mstar - 2 * np.log10( h )
 Var = np.sum( (fit_M2L - _lg_M)**2 ) / len( _lg_M )
@@ -259,22 +265,20 @@ plt.figure()
 ax = plt.subplot(111)
 ax.set_title('least square')
 
-# ax.scatter( fit_M2L, cp_lg_Mstar, marker = 'o', s = 1.5, color = 'k', alpha = 0.15, zorder = 100)
-# ax.hist2d( fit_M2L, cp_lg_Mstar, bins = 50, density = True, cmap = 'rainbow', norm = mpl.colors.LogNorm(),)
-
 ax.scatter( fit_M2L, _lg_M, marker = 'o', s = 1.5, color = 'k', alpha = 0.15, zorder = 100)
 ax.plot( fit_M2L, fit_M2L, 'b--',)
 
 ax.errorbar( bin_cen[bin_Ng > 1], bin_medi[bin_Ng > 1], yerr = bin_std[bin_Ng > 1], color = 'g', marker = 'o', capsize = 2.5,)
 
 ax.annotate( text = '$\\sigma = %.3f\, ; \; R = %.3f$' % (sigma, sp_R), xy = (0.65, 0.05), xycoords = 'axes fraction',)
-ax.annotate( text = 'a = %.3f' % a_fit + '\n' + 'b = %.3f' % b_fit + '\n' + 'c = %.3f' % c_fit + 
-	'\n' + 'd = %.3f' % d_fit, xy = (0.10, 0.75), xycoords = 'axes fraction',)
+ax.annotate( text = 'a = %.3f' % a_fit + '\n' + 'b = %.3f' % b_fit + '\n' + 'c = %.3f' % c_fit, 
+			xy = (0.10, 0.75), xycoords = 'axes fraction',)
 ax.set_xlabel(
-	'$ \\lg \, (M_{\\ast}) = a \\cdot (g-r) + b \\cdot (r-i) + c \\cdot \\lg(L_{%s}) + d $' % (based_str),)
+	'$ \\lg \, (M_{\\ast}) = a \\cdot (r-i) + b \\cdot \\lg(L_{%s}) + c $' % (based_str),)
 ax.set_ylabel('$ \\lg \, (M_{\\ast}) $' )
 ax.set_xlim(10.80, 12.25)
 ax.set_ylim(10.50, 12.50)
 plt.savefig('/home/xkchen/M-to-L_estimate.png', dpi = 300)
 plt.close()
+
 

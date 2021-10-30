@@ -2,6 +2,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
+from matplotlib import ticker
+from matplotlib.ticker import MultipleLocator, AutoMinorLocator
+
 import h5py
 import numpy as np
 import pandas as pds
@@ -51,31 +54,14 @@ line_s = [ '--', '-' ]
 cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
 fig_name = ['Low $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $', 'High $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $']
 file_s = 'BCG_Mstar_bin'
-BG_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_rich/BCG_M_bin/BGs/'
-img_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_rich/BCG_M_bin/'
 
-# cat_lis = ['younger', 'older']
-# fig_name = ['Low $ t_{\\mathrm{age}} $ $ \\mid \\lambda $', 'High $ t_{\\mathrm{age}} $ $ \\mid \\lambda $']
-# file_s = 'BCG_age_bin'
-# BG_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_rich/age_bin_SBs/BGs/'
-# img_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_rich/age_bin_SBs/'
-
-## fixed BCG Mstar samples
-# cat_lis = [ 'low-rich', 'hi-rich' ]
-# fig_name = [ 'Low $ \\lambda $ $ \\mid M_{\\ast}^{\\mathrm{BCG}} $', 'High $ \\lambda $ $ \\mid M_{\\ast}^{\\mathrm{BCG}} $']
-# file_s = 'rich_bin_fixed_BCG_M'
-# BG_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_BCG_M/rich_bin_SBs/BGs/'
-# img_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_BCG_M/rich_bin_SBs/'
-
-# cat_lis = [ 'low-age', 'hi-age' ]
-# fig_name = [ 'Low $ t_{\\mathrm{age}} $ $ \\mid M_{\\ast}^{\\mathrm{BCG}} $', 'High $ t_{\\mathrm{age}} $ $ \\mid M_{\\ast}^{\\mathrm{BCG}} $' ]
-# file_s = 'age_bin_fixed_BCG_M'
-# BG_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_BCG_M/age_bin/BGs/'
-# img_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_BCG_M/age_bin/'
+#. flux scaling correction
+BG_path = '/home/xkchen/figs/re_measure_SBs/BGs/'
+img_path = '/home/xkchen/figs/re_measure_SBs/SBs/'
+rand_path = '/home/xkchen/figs/re_measure_SBs/random_ref_SB/'
 
 
 ### === load data
-rand_path = '/home/xkchen/tmp_run/data_files/jupyter/random_ref_SB/'
 rand_r, rand_sb, rand_err = [], [], []
 
 for ii in range( 3 ):
@@ -143,8 +129,10 @@ n200 = 200 / L_pix
 def tot_signal_f():
 
 	kk = 0
-	tot_img_path = '/home/xkchen/tmp_run/data_files/jupyter/total_bcgM/'
-	tot_BG_path = '/home/xkchen/tmp_run/data_files/jupyter/total_bcgM/BGs/'
+
+	tot_img_path = '/home/xkchen/figs/re_measure_SBs/SBs/'
+	tot_BG_path = '/home/xkchen/figs/re_measure_SBs/BGs/'
+
 
 	with h5py.File( tot_img_path + 'photo-z_match_tot-BCG-star-Mass_%s-band_Mean_jack_img_z-ref.h5' % band[kk], 'r') as f:
 		tmp_img = np.array( f['a'])
@@ -337,12 +325,12 @@ for ll in ( 1, 0 ):
 	# ax.contour( tot_mag_4, origin = 'lower', levels = [30, 100], colors = [ color_str[6], 'w'], linewidths = 0.75, linestyles = '--',)
 	# ax.contour( tot_mag_5, origin = 'lower', levels = [31, 32], colors = [ color_str[8], color_str[10] ], linewidths = 0.75, linestyles = '--',)
 
-	cntr2 = ax.contour( tot_mag_0, origin = 'lower', levels = [26, 100], colors = [ color_str[0], 'w'], linewidths = 2.5, linestyles = '-', alpha = 0.65,)
-	ax.contour( tot_mag_1, origin = 'lower', levels = [27, 100], colors = [ color_str[2], 'w'], linewidths = 2.5, linestyles = '-', alpha = 0.65,)
-	ax.contour( tot_mag_2, origin = 'lower', levels = [28, 100], colors = [ color_str[3], 'w'], linewidths = 2.5, linestyles = '-', alpha = 0.65,)
-	ax.contour( tot_mag_3, origin = 'lower', levels = [29, 100], colors = [ color_str[4], 'w'], linewidths = 2.5, linestyles = '-', alpha = 0.65,)
-	ax.contour( tot_mag_4, origin = 'lower', levels = [30, 100], colors = [ color_str[6], 'w'], linewidths = 2.5, linestyles = '-', alpha = 0.65,)
-	ax.contour( tot_mag_5, origin = 'lower', levels = [31, 32], colors = [ color_str[8], color_str[10] ], linewidths = 2.5, linestyles = '-', alpha = 0.65,)
+	cntr2 = ax.contour( tot_mag_0, origin = 'lower', levels = [26, 100], colors = [ color_str[0], 'w'],  linestyles = '-', alpha = 0.65,)
+	ax.contour( tot_mag_1, origin = 'lower', levels = [27, 100], colors = [ color_str[2], 'w'],  linestyles = '-', alpha = 0.65,)
+	ax.contour( tot_mag_2, origin = 'lower', levels = [28, 100], colors = [ color_str[3], 'w'],  linestyles = '-', alpha = 0.65,)
+	ax.contour( tot_mag_3, origin = 'lower', levels = [29, 100], colors = [ color_str[4], 'w'],  linestyles = '-', alpha = 0.65,)
+	ax.contour( tot_mag_4, origin = 'lower', levels = [30, 100], colors = [ color_str[6], 'w'],  linestyles = '-', alpha = 0.65,)
+	ax.contour( tot_mag_5, origin = 'lower', levels = [31, 32], colors = [ color_str[8], color_str[10] ],  linestyles = '-', alpha = 0.65,)
 
 
 	ax.set_xticklabels( labels = [] )
@@ -394,7 +382,7 @@ norm = mpl.colors.BoundaryNorm( c_bounds, me_map.N )
 
 cbs = mpl.colorbar.ColorbarBase( ax = sub_ax2, cmap = me_map, norm = norm, extend = 'neither', ticks = [26, 27, 28, 29, 30, 31, 32], 
 	spacing = 'proportional', orientation = 'vertical',)
-cbs.set_label( '$ \\mu_{%s, \, z{=}0.25} \; [mag \, / \, arcsec^2] $' % band[kk], fontsize = 15,)
+cbs.set_label( '$ \\mu_{%s} \; [mag \, / \, arcsec^2] $' % band[kk], fontsize = 15,)
 cbs.ax.set_yticklabels( ['26', '27', '28', '29', '30', '31', '32'], fontsize = 15)
 cbs.ax.invert_yaxis()
 

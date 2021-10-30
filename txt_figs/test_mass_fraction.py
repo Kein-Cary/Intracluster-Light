@@ -49,13 +49,15 @@ def sersic_func(r, Ie, re, ndex):
 	Ir = Ie * np.exp( fn )
 	return Ir
 
-def log_norm_func(r, Im, R_pk, L_trans):
+"""
+def log_norm_func( r, Im, R_pk, L_trans, _eta_pk ):
 
 	#... scaled version
 	scl_r = r / R_pk       # r / R_crit
 	scl_L = L_trans / R_pk # L_trans / R_crit
 
-	cen_p = 0.25 # R_crit / R_pk
+	# cen_p = 0.25 # 0.10, 0.25 # R_crit / R_pk
+	cen_p = _eta_pk
 
 	f1 = 1 / ( scl_r * scl_L * np.sqrt(2 * np.pi) )
 	f2 = np.exp( -0.5 * (np.log( scl_r ) - cen_p )**2 / scl_L**2 )
@@ -63,23 +65,14 @@ def log_norm_func(r, Im, R_pk, L_trans):
 	Ir = 10**Im * f1 * f2
 	return Ir
 
-def lg_norm_err_fit_f(p, x, y, params, yerr):
+"""
+def log_norm_func( r, lg_SM0, Rt, sigm_tt ):
 
-	cov_mx = params[0]
+	lg_A0 = np.log10( r ) + np.log10( sigm_tt ) + np.log10( 2 * np.pi ) / 2
+	lg_A1 = np.log10( np.e) * (np.log( r ) - np.log( Rt ) )**2 / ( 2 * sigm_tt**2 )
+	lg_M = lg_SM0 - lg_A0 - lg_A1
 
-	_Ie, _R_pk, L_trans = p[:]
-
-	_mass_cen = log_norm_func( x, _Ie, _R_pk, L_trans )
-	_mass_2Mpc = log_norm_func( 2e3, _Ie, _R_pk, L_trans )
-	_sum_mass = np.log10( _mass_cen - _mass_2Mpc )
-
-	delta = _sum_mass - y
-	cov_inv = np.linalg.pinv( cov_mx )
-	chi2 = delta.T.dot( cov_inv ).dot(delta)
-
-	if np.isfinite( chi2 ):
-		return chi2
-	return np.inf
+	return 10**lg_M
 
 ### === ### miscentering nfw profile (Zu et al. 2020, section 3.)
 def mis_p_func( r_off, sigma_off):
@@ -124,7 +117,7 @@ def misNFW_sigma_func( rp, sigma_off, z, c_mass, lgM, v_m):
 
 		## integration on theta
 		medi_surf_dens = ( surf_dens_arr[:,1:] + surf_dens_arr[:,:-1] ) / 2
-		sum_theta_fdens = np.sum( medi_surf_dens * d_theta, axis = 1) / ( 2 * np.pi )
+		sum_theta_fdens = np.sum( medi_surf_dens * d_theta, axis = 1 ) / ( 2 * np.pi )
 
 		## integration on r_off
 		integ_f = sum_theta_fdens * off_pdf
@@ -200,7 +193,7 @@ def M2mpc_sub_fraction():
 	int_M0 = cumu_mass_func( test_R[id_x], sigma_dm[id_x], N_grid = N_grid,)
 	int_M1 = cumu_mass_func( test_R[id_x], sub_M1[id_x], N_grid = N_grid,)
 	eta_mis = (mis_M1 - mis_M0) / mis_M1
-	eta = (int_M1 - int_M0) / int_M1	
+	eta = (int_M1 - int_M0) / int_M1
 
 	return test_R, eta, eta_mis
 
@@ -209,17 +202,6 @@ z_ref = 0.25
 Dl_ref = Test_model.luminosity_distance( z_ref ).value
 a_ref = 1 / (z_ref + 1)
 
-## ... satellite number density
-bin_R, siglow, errsiglow, sighig, errsighig, highoverlow, errhighoverlow = np.genfromtxt('/home/xkchen/tmp_run/data_files/figs/result_high_over_low.txt', unpack = True)
-bin_R = bin_R * 1e3 * a_ref / h
-siglow, errsiglow, sighig, errsighig = np.array( [siglow * h**2 / 1e6, errsiglow * h**2 / 1e6, sighig * h**2 / 1e6, errsighig * h**2 / 1e6] ) / a_ref**2
-
-id_nan = np.isnan( bin_R )
-bin_R = bin_R[ id_nan == False]
-siglow, errsiglow, sighig, errsighig = siglow[ id_nan == False], errsiglow[ id_nan == False], sighig[ id_nan == False], errsighig[ id_nan == False]
-
-lo_Ng_int_F = interp.interp1d( bin_R, siglow, kind = 'linear', fill_value = 'extrapolate')
-hi_Ng_int_F = interp.interp1d( bin_R, sighig, kind = 'linear', fill_value = 'extrapolate')
 
 ## ... DM mass profile
 lo_xi_file = '/home/xkchen/tmp_run/data_files/figs/low_BCG_M_xi-rp.txt'
@@ -236,12 +218,6 @@ hi_dat = np.loadtxt( hi_xi_file )
 hi_rp, hi_xi = hi_dat[:,0], hi_dat[:,1]
 hi_rho_m = ( hi_xi * 1e3 * rho_m ) * h / a_ref**2
 hi_rp = hi_rp * 1e3 * a_ref / h
-
-lo_interp_F = interp.interp1d( lo_rp, lo_rho_m, kind = 'cubic',)
-hi_interp_F = interp.interp1d( hi_rp, hi_rho_m, kind = 'cubic',)
-
-lo_xi2M_2Mpc = lo_interp_F( 2e3 )
-hi_xi2M_2Mpc = hi_interp_F( 2e3 )
 
 
 #... cluster mass and radius 
@@ -267,6 +243,7 @@ for mm in range( 2 ):
 
 M200m, R200m = rich2R_Simet( dd_z_obs, dd_rich,)
 
+
 #...
 xi_rp = (lo_xi + hi_xi) / 2
 tot_rho_m = ( xi_rp * 1e3 * rho_m ) / a_ref**2 * h
@@ -276,61 +253,48 @@ misNFW_sigma = xi_to_Mf( lo_rp )
 sigma_2Mpc = xi_to_Mf( 2e3 )
 lg_M_sigma = np.log10( misNFW_sigma - sigma_2Mpc )
 
-#...
-sig_aveg = (siglow + sighig) / 2
-err_aveg = np.sqrt( errsiglow**2 / 4 + errsighig**2 / 4)
-sig_rho_f = interp.interp1d( bin_R, sig_aveg, kind = 'linear', fill_value = 'extrapolate',)
-
-Ng_sigma = sig_rho_f( bin_R )
-Ng_2Mpc = sig_rho_f( 2e3 )
-
-N_grid = 500
-integ_Ng = cumu_mass_func( bin_R, Ng_sigma, N_grid = N_grid )
-fun_Ng = interp.interp1d( bin_R, integ_Ng, kind = 'linear', fill_value = 'extrapolate',)
-N_sat = fun_Ng( np.median( R200m ) )
-
-# test_R, eta, eta_mis = M2mpc_sub_fraction()
-# interp_eta_F = interp.interp1d( test_R[:-1], eta_mis, kind = 'linear', fill_value = 'extrapolate',)
 
 ### === profile integration
-BG_path = '/home/xkchen/tmp_run/data_files/figs/M2L_fit_test_M/'
-fit_path = '/home/xkchen/tmp_run/data_files/figs/M2L_fit_test_M/'
+id_dered = True
+dered_str = 'with-dered_'
+
+# id_dered = False
+# dered_str = ''
+
+#. path of obs. data
 band_str = 'gri'
+BG_path = '/home/xkchen/figs/re_measure_SBs/SM_profile/'
+fit_path = '/home/xkchen/figs/re_measure_SBs/SM_pro_fit/'
 
-# SM(r)
-dat = pds.read_csv( BG_path + 'photo-z_tot-BCG-star-Mass_%s-band-based_aveg-jack_mass-Lumi.csv' % band_str,)
-obs_R, surf_M, surf_M_err = np.array(dat['R']), np.array(dat['surf_mass']), np.array(dat['surf_mass_err'])
+if id_dered	== False:
+	dat = pds.read_csv( BG_path + 'photo-z_tot-BCG-star-Mass_%s-band-based_aveg-jack_mass-Lumi.csv' % band_str,)
+	obs_R, surf_M, surf_M_err = np.array(dat['R']), np.array(dat['surf_mass']), np.array(dat['surf_mass_err'])
 
-id_rx = obs_R >= 9
+if id_dered == True:
+	dat = pds.read_csv( BG_path + 'photo-z_tot-BCG-star-Mass_%s-band-based_aveg-jack_mass-Lumi_with-dered.csv' % band_str,)
+	obs_R, surf_M, surf_M_err = np.array(dat['R']), np.array(dat['surf_mass']), np.array(dat['surf_mass_err'])	
+
+
+id_rx = obs_R >= 1
 obs_R, surf_M, surf_M_err = obs_R[id_rx], surf_M[id_rx], surf_M_err[id_rx]
 lg_M, lg_M_err = np.log10( surf_M ), surf_M_err / ( np.log(10) * surf_M )
 
-# cov_arr
-with h5py.File( BG_path + 'photo-z_tot-BCG-star-Mass_%s-band-based_aveg-jack_log-surf-mass_cov_arr.h5' % band_str, 'r') as f:
-	cov_arr = np.array( f['cov_MX'] )
-	cor_arr = np.array( f['cor_MX'] )
-
-id_cov = np.where( id_rx )[0][0]
-cov_arr = cov_arr[id_cov:, id_cov:]
 
 # central part
-p_dat = pds.read_csv( fit_path + 'total-sample_%s-band-based_mass-profile_cen-deV_fit.csv' % band_str )
+p_dat = pds.read_csv( fit_path + '%stotal-sample_%s-band-based_mass-profile_cen-deV_fit.csv' % (dered_str, band_str),)
 c_Ie, c_Re, c_ne = np.array( p_dat['Ie'] )[0], np.array( p_dat['Re'] )[0], np.array( p_dat['ne'] )[0]
 
-# parameters of scaled relation
-out_lim_R = 400
+#... trans part fitting
+mid_pat = pds.read_csv( fit_path + '%stotal_%s-band-based_xi2-sigma_mid-region_Lognorm-mcmc-fit.csv' % (dered_str, band_str),)
+lg_SM_fit, Rt_fit, sigm_tt_fit = np.array( mid_pat['lg_M0'] )[0], np.array( mid_pat['R_t'] )[0], np.array( mid_pat['sigma_t'] )[0]
 
-c_dat = pds.read_csv( fit_path + 'total_all-color-to-M_beyond-%dkpc_xi2M-fit.csv' % out_lim_R,)
+# parameters of scaled relation
+out_lim_R = 350 # 400
+
+c_dat = pds.read_csv( fit_path + '%stotal_all-color-to-M_beyond-%dkpc_xi2M-fit.csv' % (dered_str, out_lim_R),)
 lg_fb_gi = np.array( c_dat['lg_fb_gi'] )[0]
 lg_fb_gr = np.array( c_dat['lg_fb_gr'] )[0]
 lg_fb_ri = np.array( c_dat['lg_fb_ri'] )[0]
-
-c_dat = pds.read_csv( fit_path + 'total_all-color-to-M_beyond-%dkpc_SG_N-fit.csv' % out_lim_R,)
-lg_Ng_gi = np.array( c_dat['lg_fb_gi'] )[0]
-lg_Ng_gr = np.array( c_dat['lg_fb_gr'] )[0]
-lg_Ng_ri = np.array( c_dat['lg_fb_ri'] )[0]
-
-const = 10**(-1 * lg_fb_gi)
 
 
 #...trans part
@@ -339,55 +303,24 @@ cen_2Mpc = sersic_func( 2e3, 10**c_Ie, c_Re, c_ne)
 fit_cen_M = sersic_func( new_R, 10**c_Ie, c_Re, c_ne) - cen_2Mpc
 
 devi_M = surf_M - ( xi_to_Mf( obs_R) - sigma_2Mpc ) * 10**lg_fb_gi - ( sersic_func( obs_R, 10**c_Ie, c_Re, c_ne) - cen_2Mpc )
+
 devi_lgM = np.log10( devi_M )
-devi_err = surf_M_err
-
-id_nan = np.isnan( devi_lgM )
-id_M_lim = devi_lgM < 4.5
-
-id_lim = id_nan | id_M_lim
-lis_x = np.where( id_lim )[0]
-
-mid_cov = np.delete( cov_arr, tuple(lis_x), axis = 1)
-mid_cov = np.delete( mid_cov, tuple(lis_x), axis = 0)
-
-devi_R = obs_R[ id_lim == False ]
-devi_lgM = devi_lgM[ id_lim == False ]
-devi_err = lg_M_err[ id_lim == False ]
-
-po_param = [ mid_cov ]
-
-# Log-norm fit
-po = [ 6.5, 50, 50 ]
-bounds = [ [3.5, 9.5], [5, 500], [5, 1000] ]
-E_return = optimize.minimize( lg_norm_err_fit_f, x0 = np.array( po ), args = ( devi_R, devi_lgM, po_param, devi_err), 
-	method = 'L-BFGS-B', bounds = bounds,)
-
-popt = E_return.x
-Ie_min, Rpk_min, L_tran_min = popt
-fit_cross = np.log10( log_norm_func( obs_R, Ie_min, Rpk_min, L_tran_min ) - log_norm_func( 2e3, Ie_min, Rpk_min, L_tran_min ) )
-
-plt.figure()
-plt.plot( obs_R, fit_cross, ls = '--', color = 'k',)
-plt.errorbar( devi_R, devi_lgM, yerr = devi_err, xerr = None, color = 'r', marker = '^', ms = 4, ls = 'none', 
-	ecolor = 'r', mec = 'r', mfc = 'none', capsize = 3,)
-plt.xlim( 3e1, 4e2)
-plt.xscale( 'log' )
-plt.ylim( 4.5, 6.0)
-plt.savefig( '/home/xkchen/mass-profile_mid-region_fit-test.png', dpi = 300)
-plt.close()
+devi_err = lg_M_err
+devi_R = obs_R
 
 
 # mass ration within given radius
 tot_interp_F = interp.interp1d( obs_R, surf_M, kind = 'linear', fill_value = 'extrapolate',)
 cc_tot_M = tot_interp_F( new_R )
 
-mid_M = log_norm_func( new_R, Ie_min, Rpk_min, L_tran_min ) - log_norm_func( 2e3, Ie_min, Rpk_min, L_tran_min )
+mid_M = log_norm_func( new_R, lg_SM_fit, Rt_fit, sigm_tt_fit ) - log_norm_func( 2e3, lg_SM_fit, Rt_fit, sigm_tt_fit )
+
+
 #. set mid_M < 0 case as zero
 id_zeros = mid_M < 0.
 mid_M[ id_zeros ] = 0.
 
-cc_out_M = ( xi_to_Mf( new_R ) - sigma_2Mpc ) * 10**lg_fb_gi
+cc_out_M = xi_to_Mf( new_R ) * 10**lg_fb_gi
 cc_DM_M = xi_to_Mf( new_R ) - sigma_2Mpc
 
 all_M_no_sub = xi_to_Mf( new_R )
@@ -398,6 +331,7 @@ tot_integ_M = cumu_mass_func( new_R, cc_tot_M, N_grid = N_grid ) # BCG + ICL
 cen_integ_M = cumu_mass_func( new_R, fit_cen_M, N_grid = N_grid )
 out_integ_M = cumu_mass_func( new_R, cc_out_M, N_grid = N_grid )
 mid_integ_M = cumu_mass_func( new_R, mid_M, N_grid = N_grid )
+
 DM_integ_M = cumu_mass_func( new_R, cc_DM_M, N_grid = N_grid ) # stellar + gas + DM
 all_integ_M = cumu_mass_func( new_R, all_M_no_sub, N_grid = N_grid ) # stellar + gas + DM, No 'background subtraction'
 
@@ -405,6 +339,7 @@ fun_tot_M = interp.interp1d( new_R, tot_integ_M, kind = 'linear', fill_value = '
 fun_cen_M = interp.interp1d( new_R, cen_integ_M, kind = 'linear', fill_value = 'extrapolate',)
 fun_mid_M = interp.interp1d( new_R, mid_integ_M, kind = 'linear', fill_value = 'extrapolate',)
 fun_out_M = interp.interp1d( new_R, out_integ_M, kind = 'linear', fill_value = 'extrapolate',)
+
 fun_DM_M = interp.interp1d( new_R, DM_integ_M, kind = 'linear', fill_value = 'extrapolate',)
 fun_all_M = interp.interp1d( new_R, all_integ_M, kind = 'linear', fill_value = 'extrapolate',)
 
@@ -413,15 +348,35 @@ eta_cen_M = cen_integ_M / DM_integ_M
 eta_mid_M = mid_integ_M / DM_integ_M
 eta_out_M = out_integ_M / DM_integ_M
 
+#. mass estimates
+medi_R200m = np.median( R200m )
+mean_R200m = np.mean( R200m )
 
-#... figs
-# plt.figure()
-# plt.plot( obs_R, surf_M, ls = '-', color = 'r',)
-# plt.fill_between( obs_R, y1 = surf_M - surf_M_err, y2 = surf_M + surf_M_err, color = 'r', alpha = 0.5,)
-# plt.plot( new_R, fit_cen_M, 'b--', alpha = 0.5,)
-# plt.xscale('log')
-# plt.yscale('log')
-# plt.show()
+medi_M200m = np.median( M200m )
+mean_M200m = np.mean( M200m )
+
+#. aperture size estimation
+fix_R_dat = pds.read_csv( BG_path + 'BCGM-match_R.csv' )
+R_fixed_M = np.array( fix_R_dat[ 'R_fixed_medi_M' ] )[0]
+
+mod_M_bcg = np.log10( fun_cen_M( R_fixed_M ) )
+mod_all_M = np.log10( fun_all_M( medi_R200m ) )
+
+mod_trans_M = np.log10( fun_mid_M( medi_R200m ) )
+mod_out_ICL_M = np.log10( fun_out_M( medi_R200m ) )
+mod_ICL_M = np.log10( fun_mid_M( medi_R200m ) + fun_out_M( medi_R200m ) )
+
+mod_all_M_BG_sub = np.log10( fun_DM_M( medi_R200m ) )
+
+obs_bcg_ICL_M = np.log10( fun_tot_M( medi_R200m ) )
+
+#. 
+keys = ['lg_M_bcg', 'lg_M_ICL', 'lg_M_trans', 'lg_M_out_ICL', 'lg_M_all', 'lg_M_all_BG_sub', 'obs_lg_M_bcg&ICL']
+values = [ mod_M_bcg, mod_ICL_M, mod_trans_M, mod_out_ICL_M, mod_all_M, mod_all_M_BG_sub, obs_bcg_ICL_M ]
+fill = dict( zip( keys, values) )
+out_data = pds.DataFrame( fill, index = ['k', 'v'])
+out_data.to_csv( fit_path + '%smass_contribution_estimator.csv' % dered_str )
+
 
 plt.figure()
 ax = plt.subplot(111)
@@ -432,9 +387,9 @@ ax.plot( new_R, eta_out_M, 'b--', label = 'ICL_out')
 ax.plot( new_R, eta_bcg_ICL, 'b-', label = 'BCG + ICL')
 
 ax.set_xscale('log')
-ax.set_xlim(9, 1.1e3)
+ax.set_xlim(3, 1.1e3)
 ax.set_yscale('log')
 ax.set_ylim(1e-4, 1e0)
 ax.legend( loc = 1)
-plt.savefig('/home/xkchen/mass_ratio.png', dpi = 300)
-plt.show()
+plt.savefig('/home/xkchen/%smass_ratio.png' % dered_str, dpi = 300)
+plt.close()

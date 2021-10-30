@@ -62,6 +62,8 @@ print('high, N = ', len(hi_ra) )
 cat = pds.read_csv( home + 'cat_z_form/clslowz_z0.17-0.30_bc03_cat.csv' )
 ra, dec, z = np.array(cat['ra']), np.array(cat['dec']), np.array(cat['z'])
 rich, z_form = np.array(cat['lambda']), np.array(cat['z_form'])
+
+#. mass unit : M_sun / h^2
 lg_Mstar_z_phot = np.array( cat['lg_M*_photo_z'] )
 origin_ID = np.arange( 0, len(z), )
 

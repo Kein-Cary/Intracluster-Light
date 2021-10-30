@@ -13,7 +13,6 @@ import astropy.io.ascii as asc
 
 from astropy import cosmology as apcy
 
-from BCG_SB_pro_stack import BCG_SB_pros_func, single_img_SB_func
 from fig_out_module import arr_jack_func
 from fig_out_module import color_func
 from light_measure import light_measure_weit
@@ -23,7 +22,7 @@ from fig_out_module import zref_BCG_pos_func
 from light_measure import flux_recal
 from resample_modelu import sum_samp, down_samp
 
-from img_jack_stack import jack_main_func, zref_lim_SB_adjust_func
+from img_jack_stack import jack_main_func
 from img_jack_stack import SB_pros_func
 
 from img_sky_jack_stack import sky_jack_main_func
@@ -106,25 +105,27 @@ if band_str == 'g':
 	out_dec = [ '38.731', '11.376', '1.767', ]
 	out_z = [ '0.295', '0.288', '0.272', ]
 
-d_file = '/home/xkchen/project/tmp/resamp_img/photo-z_resamp_%s_ra%.3f_dec%.3f_z%.3f.fits'
+d_file = home + '/photo_files/pos_offset_correct_imgs/resamp_img/photo-z_resamp_%s_ra%.3f_dec%.3f_z%.3f.fits'
 
 #..fixed BCG stellar mass sub-sammples
-# cat_lis = [ 'low-age', 'hi-age' ]
+cat_lis = [ 'low-age', 'hi-age' ]
 # cat_lis = [ 'low-rich', 'hi-rich' ]
 
 #..fixed richness mass sub-samples
 # cat_lis = [ 'younger', 'older' ]
-cat_lis = [ 'low_BCG_star-Mass', 'high_BCG_star-Mass']
-"""
+# cat_lis = [ 'low_BCG_star-Mass', 'high_BCG_star-Mass']
+
+
 for ll in range( 2 ):
 
 	## BCG position offset
-	dat = pds.read_csv( '/home/xkchen/%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[ll], band_str),)
+	dat = pds.read_csv( load + 'pkoffset_cat/' + 
+						'%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[ll], band_str),)
 	ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 	clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
 
 	if band_str != 'i':
-		ref_file = '/home/xkchen/%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[ll], band_str)
+		ref_file = load + 'pkoffset_cat/%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[ll], band_str)
 		order_lis = simple_match( out_ra, out_dec, out_z, ref_file,)
 
 		ra, dec, z = ra[order_lis], dec[order_lis], z[order_lis]
@@ -152,26 +153,30 @@ for ll in range( 2 ):
 		id_cut = True, N_edg = 1, id_Z0 = False, z_ref = 0.25, id_S2N = False, S2N = None, id_sub = True, edg_bins = None,)
 
 	print('%d, %s band finished !' % (ll, band_str) )
-"""
+
+raise
+
 
 ### === fixed richness, low + high BCG stellar mass bin
-lo_dat = pds.read_csv( '/home/xkchen/%s_%s-band_photo-z-match_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[0], band_str),)
+lo_dat = pds.read_csv( load + 'pkoffset_cat/' + 
+						'%s_%s-band_photo-z-match_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[0], band_str),)
 lo_ra, lo_dec, lo_z = np.array(lo_dat.ra), np.array(lo_dat.dec), np.array(lo_dat.z)
 lo_imgx, lo_imgy = np.array(lo_dat.bcg_x), np.array(lo_dat.bcg_y)
 
 if band_str != 'i':
-	ref_file = '/home/xkchen/%s_%s-band_photo-z-match_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[0], band_str)
+	ref_file = load + 'pkoffset_cat/%s_%s-band_photo-z-match_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[0], band_str)
 	order_lis = simple_match( out_ra, out_dec, out_z, ref_file,)
 
 	lo_ra, lo_dec, lo_z = lo_ra[order_lis], lo_dec[order_lis], lo_z[order_lis]
 	lo_imgx, lo_imgy = lo_imgx[order_lis], lo_imgy[order_lis]
 
-hi_dat = pds.read_csv( '/home/xkchen/%s_%s-band_photo-z-match_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[1], band_str),)
+hi_dat = pds.read_csv( load + 'pkoffset_cat/' +  
+						'%s_%s-band_photo-z-match_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[1], band_str),)
 hi_ra, hi_dec, hi_z = np.array(hi_dat.ra), np.array(hi_dat.dec), np.array(hi_dat.z)
 hi_imgx, hi_imgy = np.array(hi_dat.bcg_x), np.array(hi_dat.bcg_y)
 
 if band_str != 'i':
-	ref_file = '/home/xkchen/%s_%s-band_photo-z-match_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[1], band_str)
+	ref_file = load + 'pkoffset_cat/%s_%s-band_photo-z-match_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[1], band_str)
 	order_lis = simple_match( out_ra, out_dec, out_z, ref_file,)
 
 	hi_ra, hi_dec, hi_z = hi_ra[order_lis], hi_dec[order_lis], hi_z[order_lis]
@@ -202,8 +207,7 @@ jack_SB_file = '/home/xkchen/fig_tmp/pkoffset_stack/' + 'photo-z_match_tot-BCG-s
 jack_img = '/home/xkchen/fig_tmp/pkoffset_stack/' + 'photo-z_match_tot-BCG-star-Mass_%s-band' % band_str + '_Mean_jack_img_z-ref.h5'
 jack_cont_arr = '/home/xkchen/fig_tmp/pkoffset_stack/' + 'photo-z_match_tot-BCG-star-Mass_%s-band' % band_str + '_Mean_jack_pix-cont_z-ref.h5'
 
-jack_main_func(id_cen, N_bin, n_rbins, ra, dec, z, clus_x, clus_y, d_file, band_str, sub_img,
-	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
-	id_cut = True, N_edg = 1, id_Z0 = False, z_ref = z_ref, id_S2N = False, S2N = None, id_sub = True, edg_bins = None,)
-
+jack_main_func(id_cen, N_bin, n_rbins, ra, dec, z, clus_x, clus_y, d_file, band_str, sub_img, sub_pix_cont, 
+				sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr, 
+				id_cut = True, N_edg = 1, id_Z0 = False, z_ref = z_ref, id_S2N = False, S2N = None, id_sub = True, edg_bins = None,)
 

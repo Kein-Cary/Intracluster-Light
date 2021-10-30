@@ -26,6 +26,7 @@ from fig_out_module import cc_grid_img, grid_img
 
 ##### cosmology model
 Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
+
 H0 = Test_model.H0.value
 h = H0 / 100
 Omega_m = Test_model.Om0
@@ -43,20 +44,7 @@ pixel = 0.396
 z_ref = 0.25
 band = ['r', 'g', 'i']
 
-path = '/home/xkchen/mywork/ICL/data/'
-
-### === ### origin mass-bin sample
-cat = pds.read_csv( path + 'cat_z_form/clslowz_z0.17-0.30_bc03_cat.csv' )
-ra, dec, z = np.array(cat['ra']), np.array(cat['dec']), np.array(cat['z'])
-rich, z_form = np.array(cat['lambda']), np.array(cat['z_form'])
-lg_Mstar = np.array( cat['lg_M*_photo_z'] )
-
-lb_time_0 = Test_model.lookback_time( z ).value
-lb_time_1 = Test_model.lookback_time( z_form ).value
-age_time = lb_time_1 - lb_time_0
-
-origin_ID = np.arange( 0, len(z), )
-
+##### split function
 def rich_binned_func(M_bins, data_arr, out_file_hi, out_file_low, divid_f):
 
 	high_z_form = np.array( [] )
@@ -168,8 +156,14 @@ def age_binned_func( M_bins, data_arr, out_file_hi, out_file_low, divid_f):
 
 		id_lim = (lg_Mstar >= bins_lgM[ii] ) & (lg_Mstar < bins_lgM[ii+1] )
 
-		axis_lgM = np.log10( (10**bins_lgM[ii] + 10**bins_lgM[ii+1]) / 2 )
-		thresh_age = 10**divid_f( axis_lgM )
+		#. directly age-bin
+		# axis_lgM = np.log10( (10**bins_lgM[ii] + 10**bins_lgM[ii+1]) / 2 )
+		# thresh_age = 10**divid_f( axis_lgM )
+
+		#. fixed-z age-bin separation
+		axis_lgM = ( bins_lgM[ii] + bins_lgM[ii+1] ) / 2
+		thresh_age = divid_f( axis_lgM )
+
 
 		lim_rich = rich[ id_lim ]
 		lim_ra, lim_dec, lim_zc = ra[id_lim], dec[id_lim], z[id_lim]
@@ -230,6 +224,23 @@ def age_binned_func( M_bins, data_arr, out_file_hi, out_file_low, divid_f):
 	data.to_csv( out_file_low )
 
 	return
+
+
+### === ### origin mass-bin sample
+path = '/home/xkchen/mywork/ICL/data/'
+
+cat = pds.read_csv( path + 'cat_z_form/clslowz_z0.17-0.30_bc03_cat.csv' )
+ra, dec, z = np.array(cat['ra']), np.array(cat['dec']), np.array(cat['z'])
+rich, z_form = np.array(cat['lambda']), np.array(cat['z_form'])
+
+#. Mass unit : M_sun / h^2
+lg_Mstar = np.array( cat['lg_M*_photo_z'] )
+
+lb_time_0 = Test_model.lookback_time( z ).value
+lb_time_1 = Test_model.lookback_time( z_form ).value
+age_time = lb_time_1 - lb_time_0
+
+origin_ID = np.arange( 0, len(z), )
 
 ### === ### sample divid
 def rich_divid():
@@ -589,6 +600,7 @@ def age_divid():
 	# Pf = np.poly1d( fit_F )
 	# fit_line = Pf( lgM_x )
 
+
 	## divid_1
 	# idy_lim = np.log10( age_time ) >= 0.6
 
@@ -618,6 +630,7 @@ def age_divid():
 
 	# fit_F = np.polyfit( cen_lgM, medi_age, deg = 1)
 	# Pf = np.poly1d( fit_F )
+
 
 	## divid_2 
 	idy_lim = np.log10( age_time ) >= 0.4
@@ -661,12 +674,12 @@ def age_divid():
 	smoot_line = signal.savgol_filter( fit_line, 3, 1 )
 	Pf_cc = interp.interp1d( new_lgMx, smoot_line, kind = 'linear', fill_value = 'extrapolate',)
 
-	#...save this line
-	keys = [ 'lgM', 'lg_age' ]
-	values = [ new_lgMx, smoot_line ]
-	fill = dict( zip(keys, values) )
-	data = pds.DataFrame( fill )
-	data.to_csv( '/home/xkchen/tmp_run/data_files/figs/age-bin_fixed-BCG-M_divid_line.csv' )
+	# #...save this line
+	# keys = [ 'lgM', 'lg_age' ]
+	# values = [ new_lgMx, smoot_line ]
+	# fill = dict( zip(keys, values) )
+	# data = pds.DataFrame( fill )
+	# data.to_csv( '/home/xkchen/tmp_run/data_files/figs/age-bin_fixed-BCG-M_divid_line.csv' )
 
 
 	plt.figure( )
@@ -690,6 +703,7 @@ def age_divid():
 	plt.savefig('/home/xkchen/M-age_view.png', dpi = 300)
 	plt.close()
 
+	raise
 
 	N_bin = 30
 	bins_lgM = np.linspace( 10, 12, N_bin)
@@ -969,8 +983,9 @@ def age_divid():
 
 	raise
 
-def adjust_age_bin():
-	## limed samples
+def limt_age_bin():
+
+	## limed samples, use clusters within ( 10.75 <= lg_Mstar <= 11.75 )
 	idy_lim = np.log10( age_time ) >= 0.6
 	idx_lim = ( lg_Mstar >= 10.75) & ( lg_Mstar <= 11.75 )
 	id_lim = idx_lim & idy_lim
@@ -1227,12 +1242,358 @@ def adjust_age_bin():
 		plt.savefig('/home/xkchen/%s_band_age_bin_Mstar_compare.png' % band[kk], dpi = 300)
 		plt.close()
 
-	raise
+	return
 
-###..
-rich_divid()
+def adjust_age_bin():
+	"""
+	divide cluster samples based on redshift and stellar mass, and make sure the
+	redshift pdf is the same
+	"""
+	pre_Nz = 10
+
+	bin_zx = np.linspace( z.min(), z.max(), pre_Nz )
+
+	# tmp_Ns = []
+
+	# plt.figure()
+
+	# for ii in range( pre_Nz - 1 ):
+
+	# 	id_zx = ( z >= bin_zx[ii] ) & ( z <= bin_zx[ii+1] )
+
+	# 	lim_lgM = lg_Mstar[ id_zx ]
+	# 	tmp_Ns.append( len( lim_lgM ) )
+
+	# 	plt.hist( lim_lgM, bins = 25, density = True, histtype = 'step', color = mpl.cm.rainbow( ii / pre_Nz ),
+	# 			label = 'z_bin [%.3f -- %.3f]' % (bin_zx[ii], bin_zx[ii + 1]),)
+	# 	plt.axvline( x = np.median( lim_lgM ), ls = '--', color = mpl.cm.rainbow( ii / pre_Nz ), ymin = 0, ymax = 0.35,)
+
+	# plt.xlabel('$\\lg M_{\\ast}$')
+	# plt.legend( loc = 2 )
+	# plt.savefig('/home/xkchen/pre_lgM_pdf_compare.png', dpi = 300)
+	# plt.close()
+
+	### === divide cluster sample with BCG stellar mass
+	out_path = '/home/xkchen/figs/fixz_age_bin_test/'
+	'''
+	for ii in range( pre_Nz - 1 ):
+
+		id_zx = ( z >= bin_zx[ii] ) & ( z <= bin_zx[ii+1] )
+
+		lim_lgM = lg_Mstar[ id_zx ]
+		lim_ra,  lim_dec, lim_z = ra[ id_zx ], dec[ id_zx ], z[ id_zx ]
+		
+		lim_rich, lim_age = rich[ id_zx ], age_time[ id_zx ]
+		lim_z_f = z_form[ id_zx ]
+
+		lim_ordex = origin_ID[ id_zx ]
+
+		#. lg_Mstar binned sub-sample
+		ii_Nx = 7
+
+		bin_lgMx = np.linspace( 10.5, 11.75, ii_Nx )
+		bin_lgMx = np.r_[ 10, bin_lgMx ]
+
+		cen_lgMx = 0.5 * ( bin_lgMx[1:] + bin_lgMx[:-1] )
+		medi_age = []
+
+		for kk in range( ii_Nx ):
+
+			id_vx = ( lim_lgM > bin_lgMx[ kk ] ) & ( lim_lgM <= bin_lgMx[ kk + 1 ] )
+
+			_kk_age = lim_age[ id_vx ]
+			medi_age.append( np.median( _kk_age ) )
+
+		medi_age = np.array( medi_age )
+
+		#. fitting the median point
+		new_lgMx = np.linspace(10, 12, 30)
+
+		id_nul = np.isnan( medi_age )
+		id_lowx = cen_lgMx >= 10.5
+		id_vx = (id_nul == False) & id_lowx
+
+		Pf = interp.interp1d( cen_lgMx[ id_vx ], medi_age[ id_vx ], kind = 'linear', fill_value = 'extrapolate',)
+		fit_line = Pf( new_lgMx )
+
+		smoot_line = signal.savgol_filter( fit_line, 3, 1 )
+		Pf_cc = interp.interp1d( new_lgMx, smoot_line, kind = 'linear', fill_value = 'extrapolate',)
+
+
+		plt.figure( )
+		ax = plt.subplot(111)
+		tf = ax.scatter( lim_lgM, lim_age, s = 10, c = 'k', alpha = 0.5,)
+
+		for kk in range( ii_Nx ):
+			ax.axvline( x = bin_lgMx[ kk ], ls = '--', color = 'r', alpha = 0.5,)
+
+		ax.plot( cen_lgMx, medi_age, 'bs', alpha = 0.5,)
+		ax.plot( new_lgMx, smoot_line, '-', color = 'b', alpha = 0.5,) 
+
+		ax.set_ylabel('$ t_{age} [Gyr] $')
+		ax.set_xlabel('$ lg M_{\\ast} $')
+		ax.set_ylim( 1, 11 )
+		ax.set_xlim( 10, 12 )
+
+		plt.savefig('/home/xkchen/sub-%d_M-age_divi.png' % ii, dpi = 300)
+		plt.close()
+
+
+		##. subsample record and match to image catalog
+		N_bin = 30
+		bins_lgM = np.linspace( 10, 12, N_bin )
+
+		data_arr = [ lim_ra, lim_dec, lim_z, lim_z_f, lim_rich, lim_age, lim_lgM, lim_ordex ]
+		out_file_hi = out_path + 'sub_z_bin/clslowz_sub-%d_z-bin_hi-age_cat.csv' % ii
+		out_file_low = out_path + 'sub_z_bin/clslowz_sub-%d_z-bin_low-age_cat.csv' % ii
+
+		age_binned_func( bins_lgM, data_arr, out_file_hi, out_file_low, Pf_cc)
+	
+	'''
+
+	set_lo_ra, set_lo_dec, set_lo_z = np.array([]), np.array([]), np.array([])
+	set_lo_ordex = np.array([])
+
+	set_hi_ra, set_hi_dec, set_hi_z = np.array([]), np.array([]), np.array([])
+	set_hi_ordex = np.array([])
+
+	for ii in range( pre_Nz - 1 ):
+
+		lo_ii_cat = pds.read_csv( out_path + 'sub_z_bin/clslowz_sub-%d_z-bin_low-age_cat.csv' % ii )
+		lo_ra, lo_dec, lo_z = np.array( lo_ii_cat['ra'] ), np.array( lo_ii_cat['dec'] ), np.array( lo_ii_cat['z'] )
+		lo_index = np.array( lo_ii_cat['origin_ID'] )
+
+		hi_ii_cat = pds.read_csv( out_path + 'sub_z_bin/clslowz_sub-%d_z-bin_hi-age_cat.csv' % ii )
+		hi_ra, hi_dec, hi_z = np.array( hi_ii_cat['ra'] ), np.array( hi_ii_cat['dec'] ), np.array( hi_ii_cat['z'] )
+		hi_index = np.array( hi_ii_cat['origin_ID'] )
+
+		set_lo_ra = np.r_[ set_lo_ra, lo_ra ]
+		set_lo_dec = np.r_[ set_lo_dec, lo_dec ]
+		set_lo_z = np.r_[ set_lo_z, lo_z ]
+		set_lo_ordex = np.r_[ set_lo_ordex, lo_index ]
+
+		set_hi_ra = np.r_[ set_hi_ra, hi_ra ]
+		set_hi_dec = np.r_[ set_hi_dec, hi_dec ]
+		set_hi_z = np.r_[ set_hi_z, hi_z ]
+		set_hi_ordex = np.r_[ set_hi_ordex, hi_index ]
+
+	keys = ['ra', 'dec', 'z', 'origin_ID']
+	values = [set_lo_ra, set_lo_dec, set_lo_z, set_lo_ordex]
+	fill = dict( zip(keys, values) )
+	data = pds.DataFrame(fill)
+	data.to_csv( out_path + 'fix-z_low-age_cat.csv' )
+
+	keys = ['ra', 'dec', 'z', 'origin_ID']
+	values = [set_hi_ra, set_hi_dec, set_hi_z, set_hi_ordex]
+	fill = dict( zip(keys, values) )
+	data = pds.DataFrame(fill)
+	data.to_csv( out_path + 'fix-z_hi-age_cat.csv' )
+
+
+	### === match to image catalog
+	load = '/home/xkchen/mywork/ICL/data/photo_cat/'
+
+	lo_dat = pds.read_csv( out_path + 'fix-z_low-age_cat.csv' )
+	lo_ra, lo_dec, lo_z = np.array( lo_dat.ra), np.array( lo_dat.dec), np.array( lo_dat.z)
+
+	lo_origin_ID = np.array( lo_dat.origin_ID )
+	lo_origin_ID = lo_origin_ID.astype( int )
+
+	lo_rich, lo_z_form = rich[ lo_origin_ID ], z_form[ lo_origin_ID ]
+	lo_age = age_time[ lo_origin_ID ]
+	lo_lgM = lg_Mstar[ lo_origin_ID ]
+
+	hi_dat = pds.read_csv( out_path + 'fix-z_hi-age_cat.csv' )
+	hi_ra, hi_dec, hi_z = np.array( hi_dat.ra), np.array( hi_dat.dec), np.array( hi_dat.z)
+
+	hi_origin_ID = np.array( hi_dat.origin_ID )
+	hi_origin_ID = hi_origin_ID.astype( int )	
+
+	hi_rich, hi_z_form = rich[ hi_origin_ID ], z_form[ hi_origin_ID ]
+	hi_age = age_time[ hi_origin_ID ]
+	hi_lgM = lg_Mstar[ hi_origin_ID ]
+
+
+	sf_len = 5
+	f2str = '%.' + '%df' % sf_len
+	for kk in range( 3 ):
+
+		pdat = pds.read_csv( load + 'photo-z_%s-band_tot_remain_cat_set_200-grid_6.0-sigma.csv' % band[ kk ],)
+		p_ra, p_dec, p_z = np.array(pdat['ra']), np.array(pdat['dec']), np.array(pdat['z'])
+		bcg_x, bcg_y = np.array(pdat['bcg_x']), np.array(pdat['bcg_y'])
+
+		out_ra = [ f2str % ll for ll in lo_ra]
+		out_dec = [ f2str % ll for ll in lo_dec]
+		out_z = [ f2str % ll for ll in lo_z ]
+
+		match_ra, match_dec, match_z, match_x, match_y, input_id = extra_match_func(out_ra, out_dec, out_z, p_ra, p_dec, p_z, bcg_x, bcg_y,)
+
+		tt_lo_lgM = lo_lgM[ input_id ]
+		tt_lo_rich = lo_rich[ input_id ]
+		tt_lo_age = lo_age[ input_id ]
+		tt_lo_z = z[ input_id ]
+
+		print( '%s band, low' % band[kk], len(match_ra) )
+
+		keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y', 'origin_ID', 'lg_Mstar', 'rich', 'age']
+		values = [ match_ra, match_dec, match_z, match_x, match_y, lo_origin_ID[input_id], tt_lo_lgM, tt_lo_rich, tt_lo_age ]
+		fill = dict(zip(keys, values))
+		data = pds.DataFrame(fill)
+		data.to_csv( out_path + 'low-age_%s-band_photo-z-match_BCG-pos_cat.csv' % band[ kk ] )
+
+		out_ra = [ f2str % ll for ll in hi_ra]
+		out_dec = [ f2str % ll for ll in hi_dec]
+		out_z = [ f2str % ll for ll in hi_z ]
+
+		match_ra, match_dec, match_z, match_x, match_y, input_id = extra_match_func(out_ra, out_dec, out_z, p_ra, p_dec, p_z, bcg_x, bcg_y,)
+
+		tt_hi_lgM = hi_lgM[ input_id ]
+		tt_hi_rich = hi_rich[ input_id ]
+		tt_hi_age = hi_age[ input_id ]
+		tt_hi_z = z[ input_id ]
+
+		print( '%s band, high' % band[kk], len(match_ra) )
+
+		keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y', 'origin_ID', 'lg_Mstar', 'rich', 'age']
+		values = [ match_ra, match_dec, match_z, match_x, match_y, hi_origin_ID[input_id], tt_hi_lgM, tt_hi_rich, tt_hi_age ]
+		fill = dict(zip(keys, values))
+		data = pds.DataFrame(fill)
+		data.to_csv( out_path + 'hi-age_%s-band_photo-z-match_BCG-pos_cat.csv' % band[ kk ] )
+
+
+		# plt.figure()
+		# plt.hist( tt_lo_z, bins = 50, density = True, histtype = 'step', color = 'b', alpha = 0.5, label = 'Low $t_{age}$')
+		# plt.axvline( x = np.median(tt_lo_z), ls = '-', color = 'b', label = 'median')
+		# plt.axvline( x = np.mean(tt_lo_z), ls = '--', color = 'b', label = 'mean')
+		# plt.hist( tt_hi_z, bins = 50, density = True, histtype = 'step', color = 'r', alpha = 0.5, label = 'High $t_{age}$')
+		# plt.axvline( x = np.median( tt_hi_z), ls = '-', color = 'r',)
+		# plt.axvline( x = np.mean(tt_hi_z), ls = '--', color = 'r',)
+		# plt.legend( loc = 1)
+		# plt.xlabel('z')
+		# plt.ylabel('pdf')
+		# plt.savefig('/home/xkchen/%s-band_redshift_compare.png' % band[kk], dpi = 300)
+		# plt.close()
+
+		# plt.figure()
+		# plt.hist( tt_lo_lgM, bins = 50, density = True, histtype = 'step', color = 'b', label = 'Low $t_{age}$')
+		# plt.axvline( x = np.median(tt_lo_lgM), ls = '-', color = 'b', label = 'median')
+		# plt.axvline( x = np.mean(tt_lo_lgM), ls = '--', color = 'b', label = 'mean')
+		# plt.hist( tt_hi_lgM, bins = 50, density = True, histtype = 'step', color = 'r', label = 'High $t_{age}$')
+		# plt.axvline( x = np.median(tt_hi_lgM), ls = '-', color = 'r',)
+		# plt.axvline( x = np.mean(tt_hi_lgM), ls = '--', color = 'r',)
+		# plt.legend( loc = 1)
+		# plt.xlim( 10, 12 )
+		# plt.xlabel('$\\lg [ M_{\\ast} h^{2} / M_{\\odot}]$')
+		# plt.ylabel('pdf')
+		# plt.savefig('/home/xkchen/%s-band_lgM_compare.png' % band[kk], dpi = 300)
+		# plt.close()
+
+		# plt.figure()
+		# plt.hist( tt_lo_rich, bins = 50, density = True, histtype = 'step', color = 'b', label = 'Low $t_{age}$')
+		# plt.axvline( x = np.median(tt_lo_rich), ls = '-', color = 'b', label = 'median')
+		# plt.axvline( x = np.mean(tt_lo_rich), ls = '--', color = 'b', label = 'mean')
+		# plt.hist( tt_hi_rich, bins = 50, density = True, histtype = 'step', color = 'r', label = 'High $t_{age}$')
+		# plt.axvline( x =np.median(tt_hi_rich), ls = '-', color = 'r',)
+		# plt.axvline( x = np.mean(tt_hi_rich), ls = '--', color = 'r',)
+		# plt.legend( loc = 1)
+		# plt.xlim( 20, 200 )
+		# plt.xlabel('$\\lambda$')
+		# plt.ylabel('pdf')
+		# plt.yscale('log')
+		# plt.savefig('/home/xkchen/%s-band_rich_compare.png' % band[kk], dpi = 300)
+		# plt.close()
+
+	cat_lis = [ 'low-age', 'hi-age' ]
+
+	for mm in range( 2 ):
+
+		r_band_file = out_path + '%s_r-band_photo-z-match_BCG-pos_cat.csv' % cat_lis[ mm ]
+		g_band_file = out_path + '%s_g-band_photo-z-match_BCG-pos_cat.csv' % cat_lis[ mm ]
+		i_band_file = out_path + '%s_i-band_photo-z-match_BCG-pos_cat.csv' % cat_lis[ mm ]
+
+		medi_r_file = out_path + '%s_r-band_photo-z-match_rg-common_BCG-pos_cat.csv' % cat_lis[ mm ]
+		medi_g_file = out_path + '%s_g-band_photo-z-match_rg-common_BCG-pos_cat.csv' % cat_lis[ mm ]
+
+		out_r_file = out_path + '%s_r-band_photo-z-match_rgi-common_BCG-pos_cat.csv' % cat_lis[ mm ]
+		out_g_file = out_path + '%s_g-band_photo-z-match_rgi-common_BCG-pos_cat.csv' % cat_lis[ mm ]
+		out_i_file = out_path + '%s_i-band_photo-z-match_rgi-common_BCG-pos_cat.csv' % cat_lis[ mm ]
+
+		gri_common_cat_func(r_band_file, g_band_file, i_band_file, medi_r_file, medi_g_file, out_r_file, out_g_file, out_i_file,)
+
+	#. properties compare
+	dat = pds.read_csv( out_path + '%s_r-band_photo-z-match_rgi-common_BCG-pos_cat.csv' % cat_lis[0])
+	cc_lo_z, cc_lo_ordex = np.array( dat['z'] ), np.array( dat['origin_ID'] )
+	cc_lo_ra, cc_lo_dec = np.array( dat['ra']), np.array( dat['dec'] )
+
+	keys = ['ra', 'dec', 'z', 'rich', 'lg_Mstar', 'BCG_age']
+	values = [ cc_lo_ra, cc_lo_dec, cc_lo_z, rich[ cc_lo_ordex ], lg_Mstar[ cc_lo_ordex ], age_time[ cc_lo_ordex ] ]
+	fill = dict( zip(keys, values) )
+	data = pds.DataFrame(fill)
+	data.to_csv( out_path + '%s_photo-z-match_rgi-common-cat_params.csv' % cat_lis[0],)
+
+
+	dat = pds.read_csv( out_path + '%s_r-band_photo-z-match_rgi-common_BCG-pos_cat.csv' % cat_lis[1])
+	cc_hi_z, cc_hi_ordex = np.array( dat['z'] ), np.array( dat['origin_ID'] )
+	cc_hi_ra, cc_hi_dec = np.array( dat['ra']), np.array( dat['dec'] )
+	keys = ['ra', 'dec', 'z', 'rich', 'lg_Mstar', 'BCG_age']
+	values = [ cc_hi_ra, cc_hi_dec, cc_hi_z, rich[ cc_hi_ordex ], lg_Mstar[ cc_hi_ordex ], age_time[ cc_hi_ordex ] ]
+	fill = dict( zip(keys, values) )
+	data = pds.DataFrame(fill)
+	data.to_csv( out_path + '%s_photo-z-match_rgi-common-cat_params.csv' % cat_lis[1],)
+
+
+	plt.figure()
+	plt.hist( cc_lo_z, bins = 50, density = True, histtype = 'step', color = 'b', alpha = 0.5, label = 'Low $t_{age}$')
+	plt.axvline( x = np.median( cc_lo_z), ls = '-', color = 'b', label = 'median')
+	plt.axvline( x = np.mean( cc_lo_z), ls = '--', color = 'b', label = 'mean')
+	plt.hist( cc_hi_z, bins = 50, density = True, histtype = 'step', color = 'r', alpha = 0.5, label = 'High $t_{age}$')
+	plt.axvline( x = np.median( cc_hi_z), ls = '-', color = 'r',)
+	plt.axvline( x = np.mean( cc_hi_z), ls = '--', color = 'r',)
+	plt.legend( loc = 1)
+	plt.xlabel('z')
+	plt.ylabel('pdf')
+	plt.savefig('/home/xkchen/redshift_compare.png', dpi = 300)
+	plt.close()
+
+	plt.figure()
+	plt.hist( lg_Mstar[ cc_lo_ordex ], bins = 50, density = True, histtype = 'step', color = 'b', label = 'Low $t_{age}$')
+	plt.axvline( x = np.median( lg_Mstar[ cc_lo_ordex ] ), ls = '-', color = 'b', label = 'median')
+	plt.axvline( x = np.mean( lg_Mstar[ cc_lo_ordex ] ), ls = '--', color = 'b', label = 'mean')
+	plt.hist( lg_Mstar[ cc_hi_ordex ], bins = 50, density = True, histtype = 'step', color = 'r', label = 'High $t_{age}$')
+	plt.axvline( x = np.median( lg_Mstar[ cc_hi_ordex ] ), ls = '-', color = 'r',)
+	plt.axvline( x = np.mean( lg_Mstar[ cc_hi_ordex ] ), ls = '--', color = 'r',)
+	plt.legend( loc = 1)
+	plt.xlim( 10, 12 )
+	plt.xlabel('$\\lg [ M_{\\ast} h^{2} / M_{\\odot}]$')
+	plt.ylabel('pdf')
+	plt.savefig('/home/xkchen/lgM_compare.png', dpi = 300)
+	plt.close()
+
+	plt.figure()
+	plt.hist( rich[ cc_lo_ordex ], bins = 50, density = True, histtype = 'step', color = 'b', label = 'Low $t_{age}$')
+	plt.axvline( x = np.median( rich[ cc_lo_ordex ] ), ls = '-', color = 'b', label = 'median')
+	plt.axvline( x = np.mean( rich[ cc_lo_ordex ] ), ls = '--', color = 'b', label = 'mean')
+	plt.hist( rich[ cc_hi_ordex ], bins = 50, density = True, histtype = 'step', color = 'r', label = 'High $t_{age}$')
+	plt.axvline( x =np.median( rich[ cc_hi_ordex ] ), ls = '-', color = 'r',)
+	plt.axvline( x = np.mean( rich[ cc_hi_ordex ] ), ls = '--', color = 'r',)
+	plt.legend( loc = 1)
+	plt.xlim( 20, 200 )
+	plt.xlabel('$\\lambda$')
+	plt.ylabel('pdf')
+	plt.yscale('log')
+	plt.savefig('/home/xkchen/rich_compare.png', dpi = 300)
+	plt.close()
+
+	return
+
+###... Zu21 low-z sample division
+
+# rich_divid()
 
 # age_divid()
 
-# adjust_age_bin()
+# limt_age_bin()
+
+#... age bin at fixed stellar mass, splitting in narrow z-bin
+adjust_age_bin()
 

@@ -296,7 +296,7 @@ def tractor_peak_pos( img_file, gal_cat ):
 ### === ### 
 load = '/home/xkchen/fig_tmp/'
 home = '/home/xkchen/data/SDSS/'
-out_path = '/home/xkchen/project/tmp/offset/'
+out_path = home + 'photo_files/pos_offset_correct_imgs/'
 
 # band_str = band[ rank ]
 """
@@ -316,8 +316,7 @@ for mm in range( 2 ):
 	for jj in range( Ns ):
 
 		ra_g, dec_g, z_g = ra[jj], dec[jj], z[jj]
-
-		img_file = '/home/xkchen/project/tmp/mask_img/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
+		img_file = out_path + 'mask_img/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
 
 		try:
 			img_data = fits.open( img_file % (band_str, ra_g, dec_g, z_g),)
@@ -334,7 +333,7 @@ for mm in range( 2 ):
 	values = [ tmp_ra, tmp_dec, tmp_z ]
 	fill = dict( zip( keys, values ) )
 	data = pds.DataFrame( fill )
-	data.to_csv('/home/xkchen/%s_%s-band_no-corrected_yet.csv' % (cat_lis[mm], band_str,),)
+	data.to_csv( load + 'pkoffset_cat/%s_%s-band_no-corrected_yet.csv' % (cat_lis[mm], band_str,),)
 
 #...
 cat_lis = [ 'low-age', 'hi-age' ]
@@ -352,8 +351,7 @@ for mm in range( 2 ):
 	for jj in range( Ns ):
 
 		ra_g, dec_g, z_g = ra[jj], dec[jj], z[jj]
-
-		img_file = '/home/xkchen/project/tmp/mask_img/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
+		img_file = out_path + 'mask_img/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
 
 		try:
 			img_data = fits.open( img_file % (band_str, ra_g, dec_g, z_g),)
@@ -370,7 +368,7 @@ for mm in range( 2 ):
 	values = [ tmp_ra, tmp_dec, tmp_z ]
 	fill = dict( zip( keys, values ) )
 	data = pds.DataFrame( fill )
-	data.to_csv('/home/xkchen/%s_%s-band_no-corrected_yet.csv' % (cat_lis[mm], band_str,),)
+	data.to_csv( load + 'pkoffset_cat/%s_%s-band_no-corrected_yet.csv' % (cat_lis[mm], band_str,),)
 
 #...fixed richness
 cat_lis = [ 'younger', 'older' ]
@@ -388,8 +386,7 @@ for mm in range( 2 ):
 	for jj in range( Ns ):
 
 		ra_g, dec_g, z_g = ra[jj], dec[jj], z[jj]
-
-		img_file = '/home/xkchen/project/tmp/mask_img/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
+		img_file = out_path + 'mask_img/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
 		
 		try:
 			img_data = fits.open( img_file % (band_str, ra_g, dec_g, z_g),)
@@ -406,7 +403,7 @@ for mm in range( 2 ):
 	values = [ tmp_ra, tmp_dec, tmp_z ]
 	fill = dict( zip( keys, values ) )
 	data = pds.DataFrame( fill )
-	data.to_csv('/home/xkchen/%s_%s-band_no-corrected_yet.csv' % (cat_lis[mm], band_str,),)
+	data.to_csv( load + 'pkoffset_cat/%s_%s-band_no-corrected_yet.csv' % (cat_lis[mm], band_str,),)
 
 ##...
 cat_lis = [ 'low_BCG_star-Mass', 'high_BCG_star-Mass']
@@ -424,9 +421,8 @@ for mm in range( 2 ):
 	for jj in range( Ns ):
 
 		ra_g, dec_g, z_g = ra[jj], dec[jj], z[jj]
+		img_file = out_path + 'mask_img/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
 
-		img_file = '/home/xkchen/project/tmp/mask_img/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
-		
 		try:
 			img_data = fits.open( img_file % (band_str, ra_g, dec_g, z_g),)
 			img_arr = img_data[0].data
@@ -442,7 +438,7 @@ for mm in range( 2 ):
 	values = [ tmp_ra, tmp_dec, tmp_z ]
 	fill = dict( zip( keys, values ) )
 	data = pds.DataFrame( fill )
-	data.to_csv('/home/xkchen/%s_%s-band_no-corrected_yet.csv' % (cat_lis[mm], band_str,),)
+	data.to_csv( load + 'pkoffset_cat/%s_%s-band_no-corrected_yet.csv' % (cat_lis[mm], band_str,),)
 """
 
 ### === ### position offset record
@@ -463,7 +459,7 @@ for jj in range( 4 ):
 
 	for mm in range( 2 ):
 
-		dat = pds.read_csv( '/home/xkchen/%s_%s-band_no-corrected_yet.csv' % (cat_lis[mm], band_str),)
+		dat = pds.read_csv( load + 'pkoffset_cat/%s_%s-band_no-corrected_yet.csv' % (cat_lis[mm], band_str),)
 		ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 
 		Ns = len( ra )
@@ -537,15 +533,17 @@ for jj in range( 4 ):
 			values = [ off_cen, off_peak, devi_cenx, devi_ceny, devi_pkx, devi_pky ]
 			fill = dict( zip( keys, values ) )
 			data = pds.DataFrame( fill )
-			data.to_csv( out_path + '%s-band_ra%.3f_dec%.3f_z%.3f_star-pos-offset.csv' % (band_str, ra_g, dec_g, z_g),)
+			data.to_csv( out_path + 'offset/%s-band_ra%.3f_dec%.3f_z%.3f_star-pos-offset.csv' % (band_str, ra_g, dec_g, z_g),)
 
 		keys = [ 'ra', 'dec', 'z', 'bcg_x', 'bcg_y' ]
 		values = [ ra, dec, z, off_pk_x, off_pk_y ]
 		fill = dict( zip(keys, values) )
 		data = pds.DataFrame( fill )
-		data.to_csv('/home/xkchen/%s_%s-band_no-corrected_yet_pk-offset_cat.csv' % (cat_lis[mm], band_str),)
+		data.to_csv( load + 'pkoffset_cat/%s_%s-band_no-corrected_yet_pk-offset_cat.csv' % (cat_lis[mm], band_str),)
 
 		print( '%s band done !' % band_str )
+"""
+
 """
 ### === 
 band_str = band[ rank ]
@@ -584,7 +582,8 @@ for jj in range( 4 ):
 		out_z = [ f2str % ll for ll in z ]
 
 		## gri-common imgs
-		ref_dat = pds.read_csv( '/home/xkchen/%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[mm], band_str),)
+		ref_dat = pds.read_csv( load + 'pkoffset_cat/' + 
+								'%s_%s-band_photo-z-match_rgi-common_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[mm], band_str),)
 		ref_ra_0, ref_dec_0, ref_z_0 = np.array(ref_dat.ra), np.array(ref_dat.dec), np.array(ref_dat.z)
 		ref_imgx_0, ref_imgy_0 = np.array(ref_dat.bcg_x), np.array(ref_dat.bcg_y)
 
@@ -598,11 +597,12 @@ for jj in range( 4 ):
 		sub_imgy = np.r_[ sub_imgy, match_y ]
 
 		## no-common imgs
-		z0_file = '/home/xkchen/%s_%s-band_no-corrected_yet_pk-offset_cat.csv' % (cat_lis[mm], band_str)
-		zref_file = '/home/xkchen/%s_%s-band_no-corrected_yet_pk-offset_cat_z-ref.csv' % (cat_lis[mm], band_str)
+		z0_file = load + 'pkoffset_cat/%s_%s-band_no-corrected_yet_pk-offset_cat.csv' % (cat_lis[mm], band_str)
+		zref_file = load + 'pkoffset_cat/%s_%s-band_no-corrected_yet_pk-offset_cat_z-ref.csv' % (cat_lis[mm], band_str)
 		zref_BCG_pos_func( z0_file, z_ref, zref_file, pixel)
 
-		ref_dat = pds.read_csv('/home/xkchen/%s_%s-band_no-corrected_yet_pk-offset_cat_z-ref.csv' % (cat_lis[mm], band_str),)
+		ref_dat = pds.read_csv( load + 'pkoffset_cat/' + 
+								'%s_%s-band_no-corrected_yet_pk-offset_cat_z-ref.csv' % (cat_lis[mm], band_str),)
 		ref_ra_1, ref_dec_1, ref_z_1 = np.array(ref_dat.ra), np.array(ref_dat.dec), np.array(ref_dat.z)
 		ref_imgx_1, ref_imgy_1 = np.array(ref_dat.bcg_x), np.array(ref_dat.bcg_y)
 
@@ -620,11 +620,11 @@ for jj in range( 4 ):
 		values = [ sub_ra, sub_dec, sub_z, sub_imgx, sub_imgy ]
 		fill = dict( zip(keys, values) )
 		data = pds.DataFrame( fill )
-		data.to_csv('/home/xkchen/%s_%s-band_photo-z-match_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[mm], band_str),)
+		data.to_csv( load + 'pkoffset_cat/%s_%s-band_photo-z-match_pk-offset_BCG-pos_cat_z-ref.csv' % (cat_lis[mm], band_str),)
 
 		print( '%s band done !' % band_str )
-
 """
+
 ### === ### masking and resampling
 for jj in range( 4 ):
 
@@ -646,7 +646,7 @@ for jj in range( 4 ):
 
 		for mm in range( 2 ):
 
-			dat = pds.read_csv('/home/xkchen/%s_%s-band_no-corrected_yet_pk-offset_cat.csv' % (cat_lis[mm], band_str),)
+			dat = pds.read_csv(load + 'pkoffset_cat/%s_%s-band_no-corrected_yet_pk-offset_cat.csv' % (cat_lis[mm], band_str),)
 			ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 			clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
 
@@ -661,51 +661,50 @@ for jj in range( 4 ):
 			set_z, set_ra, set_dec = z[N_sub0 : N_sub1], ra[N_sub0 : N_sub1], dec[N_sub0 : N_sub1]
 			set_imgx, set_imgy = clus_x[N_sub0 : N_sub1], clus_y[N_sub0 : N_sub1]
 
-			#.. masking
-			d_file = home + 'photo_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
-			cat_file = home + 'photo_files/star_cats/source_SQL_Z%.3f_ra%.3f_dec%.3f.csv'
-			offset_file = '/home/xkchen/project/tmp/offset/%s-band_ra%.3f_dec%.3f_z%.3f_star-pos-offset.csv'
+			# #.. masking
+			# d_file = home + 'photo_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
+			# cat_file = home + 'photo_files/star_cats/source_SQL_Z%.3f_ra%.3f_dec%.3f.csv'
+			# offset_file = home + 'photo_files/pos_offset_correct_imgs/offset/%s-band_ra%.3f_dec%.3f_z%.3f_star-pos-offset.csv'
 
-			gal_file = home + 'photo_files/detect_source_cat/photo-z_img_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
-			bcg_photo_file = home + 'photo_files/BCG_photometry/BCG_photo_Z%.3f_ra%.3f_dec%.3f.txt'
+			# gal_file = home + 'photo_files/detect_source_cat/photo-z_img_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
+			# bcg_photo_file = home + 'photo_files/BCG_photometry/BCG_photo_Z%.3f_ra%.3f_dec%.3f.txt'
 
-			out_file = '/home/xkchen/project/tmp/mask_img/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
+			# out_file = home + 'photo_files/pos_offset_correct_imgs/mask_img/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
 
-			bcg_mask = 0
+			# bcg_mask = 0
 
-			if band_str == 'r':
-				extra_cat = [ home + 'photo_files/detect_source_cat/photo-z_img_g-band_mask_ra%.3f_dec%.3f_z%.3f.cat', 
-							  home + 'photo_files/detect_source_cat/photo-z_img_i-band_mask_ra%.3f_dec%.3f_z%.3f.cat']
+			# if band_str == 'r':
+			# 	extra_cat = [ home + 'photo_files/detect_source_cat/photo-z_img_g-band_mask_ra%.3f_dec%.3f_z%.3f.cat', 
+			# 				  home + 'photo_files/detect_source_cat/photo-z_img_i-band_mask_ra%.3f_dec%.3f_z%.3f.cat']
 
-				extra_img = [ home + 'photo_data/frame-g-ra%.3f-dec%.3f-redshift%.3f.fits.bz2',
-							  home + 'photo_data/frame-i-ra%.3f-dec%.3f-redshift%.3f.fits.bz2']
+			# 	extra_img = [ home + 'photo_data/frame-g-ra%.3f-dec%.3f-redshift%.3f.fits.bz2',
+			# 				  home + 'photo_data/frame-i-ra%.3f-dec%.3f-redshift%.3f.fits.bz2']
 
-			if band_str == 'g':
-				extra_cat = [ home + 'photo_files/detect_source_cat/photo-z_img_r-band_mask_ra%.3f_dec%.3f_z%.3f.cat', 
-							  home + 'photo_files/detect_source_cat/photo-z_img_i-band_mask_ra%.3f_dec%.3f_z%.3f.cat']
+			# if band_str == 'g':
+			# 	extra_cat = [ home + 'photo_files/detect_source_cat/photo-z_img_r-band_mask_ra%.3f_dec%.3f_z%.3f.cat', 
+			# 				  home + 'photo_files/detect_source_cat/photo-z_img_i-band_mask_ra%.3f_dec%.3f_z%.3f.cat']
 
-				extra_img = [ home + 'photo_data/frame-r-ra%.3f-dec%.3f-redshift%.3f.fits.bz2',
-							  home + 'photo_data/frame-i-ra%.3f-dec%.3f-redshift%.3f.fits.bz2']
+			# 	extra_img = [ home + 'photo_data/frame-r-ra%.3f-dec%.3f-redshift%.3f.fits.bz2',
+			# 				  home + 'photo_data/frame-i-ra%.3f-dec%.3f-redshift%.3f.fits.bz2']
 
-			if band_str == 'i':
-				extra_cat = [ home + 'photo_files/detect_source_cat/photo-z_img_r-band_mask_ra%.3f_dec%.3f_z%.3f.cat',
-							  home + 'photo_files/detect_source_cat/photo-z_img_g-band_mask_ra%.3f_dec%.3f_z%.3f.cat']
+			# if band_str == 'i':
+			# 	extra_cat = [ home + 'photo_files/detect_source_cat/photo-z_img_r-band_mask_ra%.3f_dec%.3f_z%.3f.cat',
+			# 				  home + 'photo_files/detect_source_cat/photo-z_img_g-band_mask_ra%.3f_dec%.3f_z%.3f.cat']
 
-				extra_img = [ home + 'photo_data/frame-r-ra%.3f-dec%.3f-redshift%.3f.fits.bz2',
-							  home + 'photo_data/frame-g-ra%.3f-dec%.3f-redshift%.3f.fits.bz2']
+			# 	extra_img = [ home + 'photo_data/frame-r-ra%.3f-dec%.3f-redshift%.3f.fits.bz2',
+			# 				  home + 'photo_data/frame-g-ra%.3f-dec%.3f-redshift%.3f.fits.bz2']
 
-			adjust_mask_func( d_file, cat_file, set_z, set_ra, set_dec, band_str, gal_file, out_file, bcg_mask,
-				offset_file = offset_file, bcg_photo_file = bcg_photo_file, extra_cat = extra_cat, extra_img = extra_img,)
+			# adjust_mask_func( d_file, cat_file, set_z, set_ra, set_dec, band_str, gal_file, out_file, bcg_mask,
+			# 	offset_file = offset_file, bcg_photo_file = bcg_photo_file, extra_cat = extra_cat, extra_img = extra_img,)
 
-			print( '%d, %s band, masking done !' % (mm, band_str),)
+			# print( '%d, %s band, masking done !' % (mm, band_str),)
 
 			#.. pixel resample
-			mask_file = '/home/xkchen/project/tmp/mask_img/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
-			resamp_file = '/home/xkchen/project/tmp/resamp_img/photo-z_resamp_%s_ra%.3f_dec%.3f_z%.3f.fits'
+			mask_file = home + 'photo_files/pos_offset_correct_imgs/mask_img/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
+			resamp_file = home + 'photo_files/pos_offset_correct_imgs/resamp_img/photo-z_resamp_%s_ra%.3f_dec%.3f_z%.3f.fits'
 
 			resamp_func( mask_file, set_z, set_ra, set_dec, set_imgx, set_imgy, band_str, resamp_file, z_ref,
 				stack_info = None, pixel = 0.396, id_dimm = True,)
 
 			print( '%d, %s band, resample done !' % (mm, band_str),)
-"""
 

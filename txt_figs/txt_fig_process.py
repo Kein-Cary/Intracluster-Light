@@ -3,6 +3,7 @@ this file use for figure adjust
 """
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 import matplotlib.gridspec as gridspec
 from matplotlib.patches import Circle, Ellipse, Rectangle
 
@@ -41,7 +42,10 @@ pixel = 0.396
 z_ref = 0.25
 band = ['r', 'g', 'i']
 
-#### ==== #### gravity
+Da_ref = Test_model.angular_diameter_distance(z_ref).value
+L_ref = Da_ref * pixel / rad2asec
+
+#### ==== #### gravity (image overview)
 def gravity():
 
 	### masking, stacking, BG-estimate figs
@@ -179,6 +183,7 @@ def gravity():
 
 # gravity()
 
+
 ### fig test
 import glob
 from img_pre_selection import cat_match_func
@@ -266,8 +271,8 @@ def star_pos_func( star_file, wcs_lis):
 	sub_x0 = x[ic]
 	sub_y0 = y[ic]
 
-	sub_A0 = lr_iso[ic] * 15
-	sub_B0 = sr_iso[ic] * 15
+	sub_A0 = lr_iso[ic] * 30 # 15
+	sub_B0 = sr_iso[ic] * 30 # 15
 	sub_chi0 = set_chi[ic]
 
 	sub_ra0, sub_dec0 = set_ra[ic], set_dec[ic]
@@ -281,8 +286,8 @@ def star_pos_func( star_file, wcs_lis):
 	sub_x2 = x[ipx]
 	sub_y2 = y[ipx]
 
-	sub_A2 = lr_iso[ipx] * 5
-	sub_B2 = sr_iso[ipx] * 5
+	sub_A2 = lr_iso[ipx] * 75 # 5
+	sub_B2 = sr_iso[ipx] * 75 # 5
 	sub_chi2 = set_chi[ipx]
 
 	## stars
@@ -381,7 +386,61 @@ def star_pos_func( star_file, wcs_lis):
 
 	return cm_x0, cm_y0, cm_A0, cm_B0, cm_chi0, cm_x2, cm_y2, cm_A2, cm_B2, cm_chi2
 
-##.. info. match
+def tmp_mask_func( img_file, gal_arr ):
+
+	data = fits.open( img_file )
+	img = data[0].data
+
+	cx, cy, a, b, theta = gal_arr[:]
+
+	major = a / 2
+	minor = b / 2
+	senior = np.sqrt(major**2 - minor**2)
+
+	Numb = len( major )
+
+	mask_path = np.ones((img.shape[0], img.shape[1]), dtype = np.float32)
+	ox = np.linspace(0, img.shape[1] - 1, img.shape[1])
+	oy = np.linspace(0, img.shape[0] - 1, img.shape[0])
+	basic_coord = np.array(np.meshgrid(ox, oy))
+
+	# masking 'galaxies'
+	for k in range( Numb ):
+
+		xc = cx[k]
+		yc = cy[k]
+
+		lr = major[k]
+		sr = minor[k]
+		cr = senior[k]
+		chi = theta[k] * np.pi / 180
+
+		if np.isnan( lr ):
+			continue
+
+		else:
+			set_r = np.int( np.ceil(1.2 * lr) )
+			la0 = np.max( [np.int(xc - set_r), 0])
+			la1 = np.min( [np.int(xc + set_r + 1), img.shape[1] ] )
+			lb0 = np.max( [np.int(yc - set_r), 0] ) 
+			lb1 = np.min( [np.int(yc + set_r + 1), img.shape[0] ] )
+
+			df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - xc) * np.cos(chi) + (basic_coord[1,:][lb0: lb1, la0: la1] - yc) * np.sin(chi)
+			df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - yc) * np.cos(chi) - (basic_coord[0,:][lb0: lb1, la0: la1] - xc) * np.sin(chi)
+			fr = df1**2 / lr**2 + df2**2 / sr**2
+			jx = fr <= 1
+
+			iu = np.where(jx == True)
+			iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float32)
+			iv[iu] = np.nan
+			mask_path[lb0: lb1, la0: la1] = mask_path[lb0: lb1, la0: la1] * iv
+
+	mask_img = mask_path * img
+
+	return mask_img, mask_path
+
+
+##.. info. match (masked images with BCG left)
 ref_cat = '/home/xkchen/mywork/ICL/data/cat_select/match_2_28/cluster_tot-r-band_norm-img_cat.csv'
 img_file = '/home/xkchen/tmp_run/data_files/figs/targ_1/spec-z_r-band_ra*-dec*-z*_compare.png'
 out_cat = '/home/xkchen/tmp_run/data_files/figs/targ_info/tmp_img_cat_1.csv'
@@ -391,19 +450,20 @@ id_choice = True
 
 # img_cat_lis_func(img_file, ref_cat, out_cat, sf_len, id_choice = id_choice,)
 
-#... imgs
-img_path = '/home/xkchen/mywork/ICL/data/sdss_data/'
-galx_cat = '/home/xkchen/tmp_run/data_files/figs/targ_info/cluster_r-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
-star_cat = '/home/xkchen/tmp_run/data_files/figs/targ_info/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
 
-# dat = pds.read_csv('/home/xkchen/tmp_run/data_files/figs/targ_info/tmp_img_cat.csv')
-dat = pds.read_csv('/home/xkchen/tmp_run/data_files/figs/targ_info/tmp_img_cat_1.csv')
-ra, dec, z = np.array( dat['ra'] ), np.array( dat['dec'] ), np.array( dat['z'] )
+
+#... imgs
+img_path = '/home/xkchen/tmp_run/data_files/figs/targ_info/z_photo_cat/'
+galx_cat = '/home/xkchen/tmp_run/data_files/figs/targ_info/z_photo_cat/photo-z_img_r-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
+star_cat = '/home/xkchen/tmp_run/data_files/figs/targ_info/z_photo_cat/source_SQL_Z%.3f_ra%.3f_dec%.3f.csv'
+
+dat = pds.read_csv('/home/xkchen/tmp_run/data_files/figs/targ_info/z_spec_cat/tmp_img_cat_1.csv')
+ra, dec, z_spec = np.array( dat['ra'] ), np.array( dat['dec'] ), np.array( dat['z'] )
 imgx, imgy = np.array( dat['bcg_x'] ), np.array( dat['bcg_y'] )
 
-#... redMaPPer information
+
+#... redMaPPer information (use photo-z matched information)
 inf_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/photo_cat/redMapper_z-photo_cat.csv')
-# inf_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/photo_cat/redMapper_z-spec_cat.csv')
 inf_ra, inf_dec, inf_z = np.array( inf_dat['ra']), np.array( inf_dat['dec']), np.array( inf_dat['z'])
 inf_ID, inf_rich = np.array( inf_dat['objID']), np.array( inf_dat['rich'])
 
@@ -411,33 +471,31 @@ ra_lis = ['%.5f' % ll for ll in inf_ra]
 dec_lis = ['%.5f' % ll for ll in inf_dec]
 z_lis = ['%.5f' % ll for ll in inf_z]
 
-order_dex = extra_match_func( ra_lis, dec_lis, z_lis, ra, dec, z, imgx, imgy,)[-1]
+
+order_dex = extra_match_func( ra_lis, dec_lis, z_lis, ra, dec, z_spec, imgx, imgy,)[-1]
 
 sub_objID = inf_ID[ order_dex ]
-sub_obj_z = inf_z[ order_dex ]
 sub_rich = inf_rich[ order_dex ]
+sub_ra, sub_dec, sub_z = inf_ra[ order_dex ], inf_dec[ order_dex ], inf_z[ order_dex ]
 
-Da_ref = Test_model.angular_diameter_distance(z_ref).value
-L_ref = Da_ref * pixel / rad2asec
-
-
-import matplotlib.image as mpimg
 
 # for ii in range( 22, 23 ):
 # for ii in ( 4, 13, 18, 25 ):
 for ii in range( 4, 5 ):
 
-	ra_g, dec_g, z_g = ra[ii], dec[ii], z[ii]
+	ra_g, dec_g, z_g = sub_ra[ii], sub_dec[ii], sub_z[ii]
 	cen_x, cen_y = imgx[ii], imgy[ii]
 
-	data = fits.open( img_path + 'frame-r-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (ra_g, dec_g, z_g) )
+	data = fits.open( img_path + 'frame-r-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (ra_g, dec_g, z_g),)
 	img = data[0].data
 
 	head = data[0].header
 	wcs_lis = awc.WCS( head )
 
-	data_m = fits.open( '/home/xkchen/tmp_run/data_files/figs/targ_info/' + 'cluster_mask_r_ra%.3f_dec%.3f_z%.3f.fits' % (ra_g, dec_g, z_g),)
+	data_m = fits.open( '/home/xkchen/tmp_run/data_files/figs/targ_info/z_photo_cat/' + 
+						'photo-z_mask_r_ra%.3f_dec%.3f_z%.3f.fits' % (ra_g, dec_g, z_g),)
 	img_m = data_m[0].data
+
 	ref_img = mpimg.imread( '/home/xkchen/tmp_run/data_files/figs/frame-irg-002189-4-0142_cc.jpg' )
 
 	## obj_cat
@@ -482,8 +540,8 @@ for ii in range( 4, 5 ):
 	sub_x0 = x[ic]
 	sub_y0 = y[ic]
 
-	sub_A0 = lr_iso[ic] * 15
-	sub_B0 = sr_iso[ic] * 15
+	sub_A0 = lr_iso[ic] * 30
+	sub_B0 = sr_iso[ic] * 30
 	sub_chi0 = set_chi[ic]
 
 	sub_ra0, sub_dec0 = set_ra[ic], set_dec[ic]
@@ -507,6 +565,14 @@ for ii in range( 4, 5 ):
 	pos_arr = star_pos_func( star_file, wcs_lis)
 	cm_x0, cm_y0, cm_A0, cm_B0, cm_chi0, cm_x2, cm_y2, cm_A2, cm_B2, cm_chi2 = pos_arr[:]
 
+	#. capture the merger mask of saturated pixels
+	tmp_gal_arr = [ cm_x2, cm_y2, cm_A2, cm_B2, cm_chi2 ]
+	tmp_files = img_path + 'frame-r-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (ra_g, dec_g, z_g)
+	tmp_mark_img, tmp_mark_arr = tmp_mask_func( tmp_files, tmp_gal_arr )
+
+	id_Nul = np.isnan( tmp_mark_arr )
+	tmp_mark_arr[ id_Nul ] = -100.
+
 
 	Da_z = Test_model.angular_diameter_distance( z_g ).value
 	L_pix = Da_z * 10**3 * pixel / rad2asec
@@ -518,17 +584,11 @@ for ii in range( 4, 5 ):
 	c_map = ['Greys', 'cividis', 'viridis'][0]
 	v_min, v_max = -5e-3, 3e-2
 
-	# fig = plt.figure( figsize = (19.6, 5.2) )
-	# ax2 = fig.add_axes([0.05, 0.08, 0.31, 0.90] )
-	# ax1 = fig.add_axes([0.36, 0.08, 0.31, 0.90] )
-	# ax0 = fig.add_axes([0.67, 0.08, 0.31, 0.90] )
-
 	fig = plt.figure( figsize = (12.8, 9.4) )
 	ax0 = fig.add_axes( [0.08, 0.53, 0.45, 0.46] )
 	ax1 = fig.add_axes( [0.53, 0.53, 0.45, 0.46] )
 	ax2 = fig.add_axes( [0.08, 0.07, 0.45, 0.46] )
 	ax3 = fig.add_axes( [0.53, 0.07, 0.45, 0.46] )
-
 
 	ax0.imshow( ref_img[::-1, :],)
 
@@ -554,15 +614,16 @@ for ii in range( 4, 5 ):
 	ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15, top = True, right = True,)
 
 	ax0.text( 100, 1400, s = '$ \\mathrm{SDSS} \; \; \\mathrm{J132109.53{+}643300.5}$', fontsize = 16, color = 'w',)
-	# ax0.text( 100, 1250, s = '$\\lambda$ : %.3f' % sub_rich[ii] + '   z : %.3f' % sub_obj_z[ii], fontsize = 16, color = 'w',)
-	ax0.text( 100, 1250, s = '$\\lambda$ : %.3f' % sub_rich[ii] + '   z : %.3f' % z_g, fontsize = 16, color = 'w',)
+	ax0.text( 100, 1250, s = '$\\lambda$ : %.1f' % sub_rich[ii] + '   z : %.3f' % z_spec[ii], fontsize = 16, color = 'w',)
 
-	ax0.text( cen_x + 100 / L_pix, cen_y - 30, s = 'BCG', fontsize = 12, color = 'w',)
+	# ax0.text( cen_x + 100 / L_pix, cen_y - 30, s = 'BCG', fontsize = 12, color = 'w',)
 	ax0.text( cen_x - R1Mpc, cen_y, s = '$1\\mathrm{Mpc}$', fontsize = 12, color = 'w',)
 	ax0.text( -50, 1500, s = '(a)', fontsize = 12, color = 'k',)
 
 
-	ax1.imshow( img, origin = 'lower', cmap = c_map, vmin = v_min, vmax = v_max, alpha = 0.75,)
+	# ax1.imshow( img, origin = 'lower', cmap = c_map, vmin = v_min, vmax = v_max, alpha = 0.75,)
+	ax1.imshow( img, origin = 'lower', cmap = c_map, vmin = -1e-3, vmax = 1e0, 
+				norm = mpl.colors.SymLogNorm( linthresh = 0.001, linscale = 0.1, base = 10),)
 
 	clust = Circle( xy = (cen_x, cen_y), radius = R1Mpc, fill = False, ec = 'r', ls = '--', linewidth = 1, alpha = 0.75, label = '1.0 Mpc')
 	ax1.add_patch(clust)
@@ -584,8 +645,9 @@ for ii in range( 4, 5 ):
 	ax1.text( -50, 1500, s = '(b)', fontsize = 12, color = 'k',)
 
 
-	ax2.imshow( img, origin = 'lower', cmap = c_map, vmin = v_min, vmax = v_max, alpha = 0.75,)
-
+	# ax2.imshow( img, origin = 'lower', cmap = c_map, vmin = v_min, vmax = v_max, alpha = 0.75,)
+	ax2.imshow( img, origin = 'lower', cmap = c_map, vmin = -1e-3, vmax = 1e0, 
+			norm = mpl.colors.SymLogNorm( linthresh = 0.001, linscale = 0.1, base = 10),)
 	Ng = len( dd_cx )
 	for ll in range( Ng ):
 		ellips = Ellipse( xy = (dd_cx[ll], dd_cy[ll]), width = dd_a[ll], height = dd_b[ll], angle = dd_chi[ll], fill = False, 
@@ -600,33 +662,13 @@ for ii in range( 4, 5 ):
 		ax2.add_patch( ellips )
 
 
-	Ns2 = len( cm_A2 )
-	for ll in range( Ns2 ):
-		ellips = Ellipse( xy = (cm_x2[ll], cm_y2[ll]), width = cm_A2[ll], height = cm_B2[ll], angle = cm_chi2[ll], fill = False, 
-			ec = 'k', ls = '-', linewidth = 0.75,)
-		ax2.add_patch( ellips )
+	# Ns2 = len( cm_A2 )
+	# for ll in range( Ns2 ):
+	# 	ellips = Ellipse( xy = (cm_x2[ll], cm_y2[ll]), width = cm_A2[ll], height = cm_B2[ll], angle = cm_chi2[ll], fill = False, 
+	# 		ec = 'k', ls = '-', linewidth = 0.75,)
+	# 	ax2.add_patch( ellips )
 
-	## region with saturated pixels
-	# region = Rectangle(xy = (0, 300), width = 200, height = 200, fill = False, ec = 'r', ls = '--', linewidth = 0.75, alpha = 0.75)
-	# ax2.add_patch(region)
-
-	# region = Rectangle(xy = (330, 60), width = 200, height = 200, fill = False, ec = 'r', ls = '--', linewidth = 0.75, alpha = 0.75)
-	# ax2.add_patch(region)
-
-	# region = Rectangle(xy = (300, 640), width = 140, height = 140, fill = False, ec = 'r', ls = '--', linewidth = 0.75, alpha = 0.75)
-	# ax2.add_patch(region)
-
-	# region = Rectangle(xy = (1880, -100), width = 160, height = 200, fill = False, ec = 'r', ls = '--', linewidth = 0.75, alpha = 0.75)
-	# ax2.add_patch(region)
-
-	# region = Rectangle(xy = (1500, 450), width = 200, height = 200, fill = False, ec = 'r', ls = '--', linewidth = 0.75, alpha = 0.75)
-	# ax2.add_patch(region)
-
-	# region = Rectangle(xy = (1940, 970), width = 140, height = 140, fill = False, ec = 'r', ls = '--', linewidth = 0.75, alpha = 0.75)
-	# ax2.add_patch(region)
-
-	# region = Rectangle(xy = (1260, 1240), width = 200, height = 200, fill = False, ec = 'r', ls = '--', linewidth = 0.75, alpha = 0.75)
-	# ax2.add_patch(region)
+	ax2.contour( tmp_mark_arr, origin = 'lower', levels = [1, 100], colors = ['k', 'w'], linestyles = '--', alpha = 0.75,)
 
 	ax2.set_xlim( -100, img.shape[1] + 100 )
 	ax2.set_ylim( -100, img.shape[0] + 100 )
@@ -642,7 +684,9 @@ for ii in range( 4, 5 ):
 	ax2.text( -50, 1500, s = '(c)', fontsize = 12, color = 'k',)
 
 
-	ax3.imshow( img_m, origin = 'lower', cmap = c_map, vmin = v_min, vmax = v_max, alpha = 0.75,)
+	# ax3.imshow( img_m, origin = 'lower', cmap = c_map, vmin = v_min, vmax = v_max, alpha = 0.75,)
+	ax3.imshow( img_m, origin = 'lower', cmap = c_map, vmin = -1e-3, vmax = 1e0, 
+			norm = mpl.colors.SymLogNorm( linthresh = 0.001, linscale = 0.1, base = 10),)
 
 	clust = Circle( xy = (cen_x, cen_y), radius = R1Mpc, fill = False, ec = 'r', ls = '--', linewidth = 1, alpha = 0.75,)
 	ax3.add_patch(clust)
@@ -663,8 +707,8 @@ for ii in range( 4, 5 ):
 	ax3.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15, top = True, right = True,)
 	ax3.text( -50, 1500, s = '(d)', fontsize = 12, color = 'k',)
 
-	# plt.savefig('/home/xkchen/img_process.png', dpi = 200)
-	plt.savefig('/home/xkchen/img_process.pdf', dpi = 100)
+	plt.savefig('/home/xkchen/img_process.png', dpi = 200)
+	# plt.savefig('/home/xkchen/img_process.pdf', dpi = 100)
 	plt.close()
 
 raise

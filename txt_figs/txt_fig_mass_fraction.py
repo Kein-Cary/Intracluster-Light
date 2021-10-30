@@ -1,6 +1,10 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
+from matplotlib import ticker
+from matplotlib.ticker import MultipleLocator, AutoMinorLocator
+from matplotlib.patches import Circle, Ellipse, Rectangle
+
 import h5py
 import numpy as np
 import pandas as pds
@@ -44,44 +48,6 @@ input_cosm_model( get_model = Test_model )
 cosmos_param()
 
 ### === ###
-def sersic_func(r, Ie, re, ndex):
-	belta = 2 * ndex - 0.324
-	fn = -1 * belta * ( r / re )**(1 / ndex) + belta
-	Ir = Ie * np.exp( fn )
-	return Ir
-
-def log_norm_func(r, Im, R_pk, L_trans):
-
-	#... scaled version
-	scl_r = r / R_pk       # r / R_crit
-	scl_L = L_trans / R_pk # L_trans / R_crit
-
-	cen_p = 0.25 # R_crit / R_pk
-
-	f1 = 1 / ( scl_r * scl_L * np.sqrt(2 * np.pi) )
-	f2 = np.exp( -0.5 * (np.log( scl_r ) - cen_p )**2 / scl_L**2 )
-
-	Ir = 10**Im * f1 * f2
-	return Ir
-
-def lg_norm_err_fit_f(p, x, y, params, yerr):
-
-	cov_mx = params[0]
-
-	_Ie, _R_pk, L_trans = p[:]
-
-	_mass_cen = log_norm_func( x, _Ie, _R_pk, L_trans )
-	_mass_2Mpc = log_norm_func( 2e3, _Ie, _R_pk, L_trans )
-	_sum_mass = np.log10( _mass_cen - _mass_2Mpc )
-
-	delta = _sum_mass - y
-	cov_inv = np.linalg.pinv( cov_mx )
-	chi2 = delta.T.dot( cov_inv ).dot(delta)
-
-	if np.isfinite( chi2 ):
-		return chi2
-	return np.inf
-
 def cumu_mass_func(rp, surf_mass, N_grid = 100):
 
 	try:
@@ -123,7 +89,7 @@ def interp_csmf_func( N_norm, norm_lgM, id_norm = False, N_points = 250):
 
 	csmf_dat = pds.read_csv('/home/xkchen/tmp_run/data_files/figs/cc_Yang_CSMF.txt', sep = ',')
 	lgM_star = np.array( csmf_dat['logM_*'] )
-	CSMF = np.array( csmf_dat['[14.2 14.5]'] ) # averaged halo mass 14.33
+	CSMF = np.array( csmf_dat['[14.2 14.5]'] ) # averaged halo mass 14.33, unit of M_sun / h
 	CSMF_err = np.array( csmf_dat['[14.2 14.5]_err'] )
 	d_log_M = 0.05
 
@@ -156,7 +122,7 @@ def interp_csmf_func( N_norm, norm_lgM, id_norm = False, N_points = 250):
 
 	return interp_smf, interp_up_M
 
-'''
+"""
 def aveg_SGs_Mstar_f( low_lim = None, up_lim = None, N_points = 250):
 
 	csmf_dat = pds.read_csv('/home/xkchen/tmp_run/data_files/figs/cc_Yang_CSMF.txt', sep = ',')
@@ -263,7 +229,8 @@ def shift_aveg_SGs_Mstar_f(N_norm, norm_lgM, low_lim = None, up_lim = None, N_po
 
 	return _all_M, _all_N, _aveg_M
 
-'''
+"""
+
 def Schechter_func(x, M_pov, phi_pov, alpha_pov):
 	pf0 = ( x / M_pov )**(alpha_pov + 1)
 	pf1 = np.exp( -1 * x / M_pov)
@@ -291,7 +258,7 @@ def aveg_SGs_Mstar_f( low_lim = None, up_lim = None, N_points = 250 ):
 		low_lgM_x = low_lim + 0.
 
 	if up_lim is None:
-		up_lgM_x = 11.5
+		up_lgM_x = 11.6
 	else:
 		up_lgM_x = up_lim + 0.
 
@@ -334,7 +301,7 @@ def shift_aveg_SGs_Mstar_f(N_norm, norm_lgM, low_lim = None, up_lim = None, N_po
 		low_lgM_x = low_lim + 0.
 
 	if up_lim is None:
-		up_lgM_x = 11.5
+		up_lgM_x = 11.6
 	else:
 		up_lgM_x = up_lim + 0.
 
@@ -347,7 +314,7 @@ def shift_aveg_SGs_Mstar_f(N_norm, norm_lgM, low_lim = None, up_lim = None, N_po
 
 		return _m_pdf
 
-	pre_N0 = integ.romberg( _modi_func, 10**norm_lgM, 10**11.5, args = (M_mode, phi_mode, alpha_mode),)
+	pre_N0 = integ.romberg( _modi_func, 10**norm_lgM, 10**11.6, args = (M_mode, phi_mode, alpha_mode),)
 	c_shift = N_norm / pre_N0
 
 	def cc_modi_func(x, M_pov, phi_pov, alpha_pov, f_scale):
@@ -424,7 +391,7 @@ id_lim = id_lim_0 & id_lim_1
 
 bin_lgM, CSMF, CSMF_err = bin_lgM[id_lim], CSMF[id_lim], CSMF_err[id_lim]
 
-#.Schechter function fitting
+# # .Schechter function fitting
 # po = [10**10.673, 8e-2, -1.2 ]
 # popt, pcov = optimize.curve_fit(Schechter_func, 10**bin_lgM, CSMF, p0 = np.array( po ), sigma = CSMF_err,)
 
@@ -457,16 +424,15 @@ bin_lgM, CSMF, CSMF_err = bin_lgM[id_lim], CSMF[id_lim], CSMF_err[id_lim]
 
 
 ## ... satellite number density
-bin_R, siglow, errsiglow, sighig, errsighig, highoverlow, errhighoverlow = np.genfromtxt('/home/xkchen/tmp_run/data_files/figs/result_high_over_low.txt', unpack = True)
+bin_R, siglow, errsiglow, sighig, errsighig, highoverlow, errhighoverlow = np.genfromtxt(
+																			'/home/xkchen/tmp_run/data_files/figs/result_high_over_low.txt', unpack = True)
+#. Physical coordinate
 bin_R = bin_R * 1e3 * a_ref / h
 siglow, errsiglow, sighig, errsighig = np.array( [siglow * h**2 / 1e6, errsiglow * h**2 / 1e6, sighig * h**2 / 1e6, errsighig * h**2 / 1e6] ) / a_ref**2
 
 id_nan = np.isnan( bin_R )
 bin_R = bin_R[ id_nan == False]
 siglow, errsiglow, sighig, errsighig = siglow[ id_nan == False], errsiglow[ id_nan == False], sighig[ id_nan == False], errsighig[ id_nan == False]
-
-lo_Ng_int_F = interp.interp1d( bin_R, siglow, kind = 'linear', fill_value = 'extrapolate')
-hi_Ng_int_F = interp.interp1d( bin_R, sighig, kind = 'linear', fill_value = 'extrapolate')
 
 
 ## ... DM mass profile
@@ -554,10 +520,13 @@ mean_ri = 0.5
 #. faint galaxies mass estimation (low limitation of dwarf galaxy)
 dwf_g_M = 1e7 * h**2 # M_sun / h^2
 
-#. limit from satellites number density profile
-lim_i_cmag = 21 # mag
-lim_i_Mag = lim_i_cmag - 5 * np.log10( Dl_ref * 1e6 ) + 5
+# #. limit from satellites number density profile
+# lim_i_cmag = 21 # mag
+# lim_i_Mag = lim_i_cmag - 5 * np.log10( Dl_ref * 1e6 ) + 5
+
+lim_i_Mag = -19.43 + 5 * np.log10( h )
 lim_Li = 10**( -0.4 * ( lim_i_Mag - Mag_sun[2] ) )
+
 
 m_lg_M = a_fit * mean_gr + b_fit * mean_ri + c_fit * np.log10(lim_Li) + d_fit
 lim_Mi = 10**m_lg_M * h**2
@@ -581,13 +550,40 @@ sum_dwf_M, N_dwf, aveg_dwf_M = shift_aveg_SGs_Mstar_f( N_sat, np.log10( lim_Mi )
 lg_sum_dwf_M = np.log10( sum_dwf_M / h**2 )
 lg_aveg_dwf_M = np.log10( aveg_dwf_M / h**2 )
 
-#. observed profile integrated mass
-M_ICL = 5.4*1e11 # unit : M_sun
-M_tran = 5.76*1e10
-M_BCG = 3.3*1e11
-#. total mass based on fitting profile integration
-M_halo = 2.432 * 1e14
-M_halo_no_sub = 3.13 * 1e14
+#.. observed profile integrated mass
+# M_ICL = 5.4*1e11 # unit : M_sun
+# M_tran = 5.76*1e10
+# M_BCG = 3.4*1e11
+# #. total mass based on fitting profile integration
+# M_halo = 2.432 * 1e14
+# M_halo_no_sub = 3.13 * 1e14
+
+
+#.. flux scaling correction mass
+id_dered = True
+dered_str = 'with-dered_'
+
+# id_dered = False
+# dered_str = ''
+
+
+fit_path = '/home/xkchen/figs/re_measure_SBs/SM_pro_fit/'
+m_dat = pds.read_csv( fit_path + '%smass_contribution_estimator.csv' % dered_str )
+
+lgM_ICL = np.array( m_dat['lg_M_ICL'] )[0]
+M_ICL = 10**lgM_ICL
+
+lgM_bcg = np.array( m_dat['lg_M_bcg'] )[0]
+M_BCG = 10**lgM_bcg
+
+lgM_trans = np.array( m_dat['lg_M_trans'] )[0]
+M_tran = 10**lgM_trans
+
+lgM_halo = np.array( m_dat['lg_M_all'] )[0]
+M_halo = 10**lgM_halo
+
+M_halo_BG_sub = 10**np.array( m_dat['lg_M_all_BG_sub'] )[0]
+
 
 sum_Mstar = M_ICL + M_BCG + 10**lg_sum_M
 pure_ICL = M_ICL - 10**lg_sum_dwf_M
@@ -603,99 +599,115 @@ eta_Mtot_1 = np.array( [10**lg_sum_dwf_M, M_tran] ) / M_halo
 csmf_param = np.loadtxt('/home/xkchen/tmp_run/data_files/figs/Yang_CSMF_fit-params.txt')
 M_mode, phi_mode, alpha_mode = csmf_param
 
-lgM_bins = np.linspace( np.log10( dwf_g_M ), 11.65, 200)
+lgM_bins = np.linspace( np.log10( dwf_g_M ), 11.65, 200) # the mass unit is M_sun / h^2
 
-_csmf_fit = Schechter_func( 10**lgM_bins, M_mode, phi_mode, alpha_mode)
-norm_csmf_ = shift_csmf_func( 10**lgM_bins, M_mode, phi_mode, alpha_mode, scal_F)
+_csmf_fit = Schechter_func( 10**lgM_bins, M_mode, phi_mode, alpha_mode )
+norm_csmf_ = shift_csmf_func( 10**lgM_bins, M_mode, phi_mode, alpha_mode, scal_F )
 
-fig = plt.figure( figsize = (5.8, 4.8) )
-ax0 = fig.add_axes( [0.155, 0.13, 0.82, 0.82] )
+#. corresponding i_mag for mass bins
+cc_lgM_bins = lgM_bins - 2 * np.log10( h ) # the mass unit is M_sun
 
-# ax0.plot( lgM_bins, _csmf_fit, ls = '--', color = 'r', alpha = 0.5,)
 
-ax0.plot( lgM_bins, norm_csmf_, ls = '-', color = 'darkred', alpha = 0.80, label = '$\\mathrm{Yang}{+}2012$')
-ax0.fill_betweenx( y = np.linspace(1e-4, 1e3, 500), x1 = np.log10( dt_Mi ), x2 = 0, color = 'teal', alpha = 0.15,)
+"""
+fig = plt.figure( figsize = (5.8, 5.4) )
+ax0 = fig.add_axes( [0.155, 0.11, 0.80, 0.80] )
 
-ax0.annotate( text = '$\Sigma M_{\\ast}^{ \\mathrm{unresolved} }{=}10^{%.1f} M_{\\odot}$' % lg_sum_dwf_M, xy = (0.05, 0.25), 
+# ax0.plot( lgM_bins, norm_csmf_, ls = '-', color = 'darkred', alpha = 0.80, label = '$\\mathrm{Yang}{+}2012$')
+# ax0.fill_betweenx( y = np.linspace(1e-4, 1e3, 500), x1 = np.log10( dt_Mi ), x2 = 0, color = 'teal', alpha = 0.15,)
+
+ax0.plot( cc_lgM_bins, norm_csmf_, ls = '-', color = 'k', 
+	label = 'Conditional SMF $({\\rm \\mathcal{lg} } [M_{h} \, / \, M_{\\odot}] = 14.41)$',)
+ax0.fill_betweenx( y = np.linspace(1e-4, 1e3, 500), x1 = dt_lgM, x2 = 0, color = 'grey', alpha = 0.25,)
+
+ax0.annotate( text = '$\\Sigma M_{\\ast}^{ \\mathrm{unmasked} }{=}10^{%.1f} M_{\\odot}$' % lg_sum_dwf_M, xy = (0.03, 0.25), 
 	xycoords = 'axes fraction', fontsize = 14, color = 'k',)
-# ax0.annotate( text = '$\\langle M_{\\ast}^{Sat} \\rangle = 10^{%.1f} M_{\\odot}$' % lg_aveg_M, xy = (0.55, 0.45), 
-# 	xycoords = 'axes fraction', fontsize = 14, color = 'k',)
 
-ax0.legend( loc = 3, frameon = False, fontsize = 14,)
-ax0.set_xlim( 6.5, 11.6 )
-ax0.set_ylim( 1e-2, 2e2 )
-ax0.set_ylabel('${\\rm d} N \, / \, {\\rm d} {\\rm \\mathcal{lg} } M_{\\ast} \; / \; \\mathrm{halo}$', fontsize = 16,)
+ax0.legend( loc = 3, frameon = False, fontsize = 12,)
+ax0.set_xlim( 7.0, 12 )
+ax0.set_ylim( 1e-3, 3e2 )
+
+ax0.set_ylabel('${\\rm d} N \, / \, {\\rm d} {\\rm \\mathcal{lg} } M_{\\ast} \; / \; \\mathrm{halo}$', fontsize = 15,)
 ax0.set_yscale('log')
-ax0.set_xlabel('${\\rm \\mathcal{lg} } \, M_{\\ast}[ M_{\\odot} \, / \, h^2]$', fontsize = 16,)
-ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 16,)
 
-# plt.savefig('/home/xkchen/sat_icl_mass_estimation.png', dpi = 300)
-plt.savefig('/home/xkchen/sat_icl_mass_estimation.pdf', dpi = 300)
+ax0.set_xlabel('${\\rm \\mathcal{lg} } \, [ M_{\\ast} \, / \, M_{\\odot} ]$', fontsize = 15,)
+ax0.xaxis.set_minor_locator( ticker.AutoMinorLocator() )
+ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
+
+sub_ax0 = ax0.twiny()
+sub_ax0.set_xlim( ax0.get_xlim() )
+
+x_ticks = ax0.get_xticks()
+
+#. M_bin_ticks --> i_mag ticks
+cc_lgM_2_Li = ( x_ticks - d_fit - a_fit * mean_gr - b_fit * mean_ri ) / c_fit
+cc_iMag_x = (cc_lgM_2_Li / (-0.4) ) + Mag_sun[2]
+
+label_lis = ['%.0f' % ll for ll in cc_iMag_x ]
+
+sub_ax0.set_xticks( x_ticks )
+sub_ax0.set_xticklabels( label_lis )
+sub_ax0.set_xlabel('$\\mathrm{M}_{\\mathrm{i,\,cModel} }$', fontsize = 15,)
+sub_ax0.xaxis.set_minor_locator( ticker.AutoMinorLocator() )
+sub_ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
+
+plt.savefig('/home/xkchen/sat_icl_mass_estimation.png', dpi = 300)
+# plt.savefig('/home/xkchen/sat_icl_mass_estimation.pdf', dpi = 300)
 plt.close()
+"""
 
 
 bar_x = np.array([ 1, 4, 2.5])
-modi_lim = np.median( eta_Mstar / (100 * eta_Mtot) )
+sum_eta_0 = np.sum( eta_Mstar ) + np.sum( eta_Mstar_1)
+sum_eta_1 = np.sum( eta_Mtot ) + np.sum( eta_Mtot_1)
+modi_lim = sum_eta_0 / ( 100 * sum_eta_1 )
+
 
 fig = plt.figure( figsize = (6.1, 5.4) )
 ax = fig.add_axes( [0.13, 0.08, 0.75, 0.85] )
 
-ax.bar( bar_x, height = eta_Mstar, width = 1, color = 'teal', alpha = 0.25,)
-ax.bar( bar_x[1], height = eta_Mstar_1[0], width = 1, bottom = eta_Mstar[1], color = 'salmon', alpha = 0.25,)
-ax.bar( bar_x[2], height = eta_Mstar_1[1], width = 1, bottom = eta_Mstar[2], color = 'crimson', alpha = 0.35,)
+ax.bar( bar_x, height = eta_Mstar, width = 1, color = 'none', edgecolor = 'k',)
+ax.bar( bar_x[1], height = eta_Mstar_1[0], width = 1, bottom = eta_Mstar[1], color = 'dimgrey', edgecolor = 'dimgrey',)
+ax.bar( bar_x[0], height = eta_Mstar_1[1], width = 1, bottom = eta_Mstar[0], color = 'dimgrey', edgecolor = 'dimgrey',)
 
-ax.text( 3.5, 0.775, s = 'unresolved', fontsize = 13.5, color = 'salmon',)
-ax.text( 2, 0.135, s = 'transition', fontsize = 13.5, color = 'crimson',)
+ax.text( 3.5, 0.83, s = 'unmasked', fontsize = 15, color = 'dimgrey',)
+ax.text( 0.5, 0.11, s = 'transition', fontsize = 15, color = 'dimgrey',)
+
+#. '%.2f%%'
+ax.text( 1.0, 0.18, s = '%.1f%%' % ( (eta_Mstar[0] + eta_Mstar_1[1]) * 100 ), fontsize = 15, horizontalalignment = 'center',)
+ax.text( 2.5, 0.14, s = '%.1f%%' % (eta_Mstar[2] * 100), fontsize = 15, horizontalalignment = 'center',)
+ax.text( 4.0, 0.9, s = '%.1f%%' % ( (eta_Mstar[1] + eta_Mstar_1[0]) * 100), fontsize = 15, horizontalalignment = 'center',)
+
+# ax.text( 1.0, 0.18, s = '8.7%', fontsize = 15, horizontalalignment = 'center',)
+# ax.text( 2.5, 0.14, s = '9.4%', fontsize = 15, horizontalalignment = 'center',)
+# ax.text( 4.0, 0.9, s = '81.9%', fontsize = 15, horizontalalignment = 'center',)
 
 ax.set_xticks( bar_x )
-ax.set_xticklabels(labels = ['BCG', 'Satellite', 'ICL'])
-top_y = 1.062
+ax.set_xticklabels(labels = ['BCG', 'Satellites', 'ICL'])
+
+top_y = 1.1
 ax.set_ylim(0, top_y)
+
 ax.axhline( y = 1, ls = '--', color = 'k',)
-ax.set_ylabel('$M_{\\ast} \, / \, M_{\\ast}^{ \\mathrm{total} }$', fontsize = 15,)
-ax.tick_params( axis = 'both', which = 'major', direction = 'in', labelsize = 15,)
-ax.text( 4, 0.96, s = '%.4f' % (1 / modi_lim), fontsize = 14,)
+ax.set_ylabel('$M_{\\ast} \, / \, M_{\\ast}^{tot}$', fontsize = 15,)
+
+ax.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
+ax.xaxis.set_minor_locator( ticker.AutoMinorLocator() )
+ax.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
+
+ax.text( 2, 1.02, s = '$M_{\\ast}^{tot} \, / \, M_{h} \, = \, %.2f $' % (100 * sum_eta_1) + '%', fontsize = 15,)
 
 sub_ax = ax.twinx()
-sub_ax.bar( bar_x, height = 100 * eta_Mtot, width = 1, color = 'teal', alpha = 0.25,)
-sub_ax.bar( bar_x[1], height = 100 * eta_Mtot_1[0], width = 1, bottom = 100 * eta_Mtot[1], color = 'salmon', alpha = 0.25,)
-sub_ax.bar( bar_x[2], height = 100 * eta_Mtot_1[1], width = 1, bottom = 100 * eta_Mtot[2], color = 'crimson', alpha = 0.35,)
 
-sub_ax.tick_params( axis = 'both', which = 'major', direction = 'in', labelsize = 15,)
-sub_ax.set_ylabel('$100{\\times} \, M_{\\ast} \, / \, M_{ \\mathrm{halo} }$', fontsize = 15,)
+sub_ax.bar( bar_x[1], height = 100 * eta_Mtot_1[0], width = 1, bottom = 100 * eta_Mtot[1], color = 'dimgrey', edgecolor = 'dimgrey',)
+sub_ax.bar( bar_x[0], height = 100 * eta_Mtot_1[1], width = 1, bottom = 100 * eta_Mtot[0], color = 'dimgrey', edgecolor = 'dimgrey',)
+sub_ax.bar( bar_x, height = 100 * eta_Mtot, width = 1, color = 'none', edgecolor = 'k',)
+
+sub_ax.set_ylabel('$100{\\times} \, M_{\\ast} \, / \, M_{h}$', fontsize = 15,)
 sub_ax.set_ylim(0, top_y / modi_lim)
+sub_ax.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
+sub_ax.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
 
-# plt.savefig('/home/xkchen/ICL_star_mass_fraction.png', dpi = 300)
+# plt.savefig('/home/xkchen/%sICL_star_mass_fraction.png' % dered_str, dpi = 300)
 plt.savefig('/home/xkchen/ICL_star_mass_fraction.pdf', dpi = 300)
 plt.close()
 
-raise
-
-# fig = plt.figure( figsize = (6.4, 4.8) )
-# ax0 = fig.add_axes( [0.15, 0.13, 0.75, 0.82] )
-
-# ax0.plot( bin_lgM, CSMF, 'r--', alpha = 0.50, label = '$\\mathrm{Yang}{+}2012$')
-# ax0.fill_between( bin_lgM, y1 = CSMF - CSMF_err, y2 = CSMF + CSMF_err, color = 'r', alpha = 0.15,)
-
-# ax0.plot( lgM_bin, new_csmf, ls = '-', color = 'darkred', alpha = 0.80, label = 'Normalized with $N_{g}$')
-
-# ax0.axvline( np.log10( lim_Mi ), ls = ':', color = 'k', ymin = 0.85, ymax = 1.0, alpha = 0.75, linewidth = 1.25,
-# 	label = '$M_{\\ast}^{cut} \; in \; N_{g}({\\rm cModelMag \\_i }{=}21 \,mag)$' % np.log10(lim_Mi),)
-# ax0.fill_betweenx( y = np.linspace(1e-4, 1e3, 500), x1 = np.log10( dt_Mi ), x2 = 0, color = 'teal', alpha = 0.12,)
-
-# ax0.annotate( text = '$\Sigma M_{\\ast}^{unresolved} = 10^{%.1f} M_{\\odot}$' % lg_sum_dwf_M, xy = (0.05, 0.45), 
-# 	xycoords = 'axes fraction', fontsize = 14, color = 'k',)
-# ax0.annotate( text = '$\\langle M_{\\ast}^{Sat} \\rangle = 10^{%.1f} M_{\\odot}$' % lg_aveg_M, xy = (0.55, 0.45), 
-# 	xycoords = 'axes fraction', fontsize = 14, color = 'k',)
-
-# ax0.legend( loc = 3, frameon = False, fontsize = 14,)
-# ax0.set_xlim( 6.5, 11.6 )
-# ax0.set_ylim( 1e-2, 2e2 )
-# ax0.set_ylabel('${\\rm d} N \, / \, {\\rm d} {\\rm \\mathcal{lg} } M_{\\ast}$', fontsize = 16,)
-# ax0.set_yscale('log')
-# ax0.set_xlabel('${\\rm \\mathcal{lg} } \, M_{\\ast}[ M_{\\odot} \, / \, h^2]$', fontsize = 16,)
-# ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 16,)
-
-# plt.savefig('/home/xkchen/sat_icl_mass_estimation.png', dpi = 300)
-# # plt.savefig('/home/xkchen/Sat_icl_mass_estimation.pdf', dpi = 300)
-# plt.close()
