@@ -37,6 +37,14 @@ l_wave = np.array( [6166, 4686, 7480] )
 Mag_sun = [ 4.65, 5.11, 4.53 ]
 
 ### === color to mass (my fitting)
+def ri_band_c2m_func(r2i_arr, i_lumi_arr, fit_params):
+	a_i, b_i, c_i = fit_params[:]
+	lg_Lumi = np.log10( i_lumi_arr )
+
+	fit_lg_m = a_i * r2i_arr + b_i * lg_Lumi + c_i
+	M = 10**fit_lg_m
+	return M
+
 def gr_ri_band_c2m_func(g2r_arr, r2i_arr, i_lumi_arr, fit_params):
 
 	a_i, b_i, c_i, d_i = fit_params[:]
@@ -99,16 +107,28 @@ def get_c2mass_func(r_arr, band_str, sb_arr, color_arr, z_obs, fit_file, N_grid 
 	t_Lumi = SB_to_Lumi_func( sb_arr, z_obs, band[ band_id ] ) ## in unit L_sun / pc^2
 	t_Lumi = 1e6 * t_Lumi ## in unit L_sun / kpc^2
 
-	fit_dat = pds.read_csv( fit_file )
-	a_fit = np.array( fit_dat['a'] )[0]
-	b_fit = np.array( fit_dat['b'] )[0]
-	c_fit = np.array( fit_dat['c'] )[0]
-	d_fit = np.array( fit_dat['d'] )[0]
-
-	fit_params = [ a_fit, b_fit, c_fit, d_fit ]
-	# print( fit_params )
 	g2r_arr, r2i_arr = color_arr[0], color_arr[1]
-	t_mass = gr_ri_band_c2m_func(g2r_arr, r2i_arr, t_Lumi, fit_params)
+
+
+	if band_str == 'gri':
+		fit_dat = pds.read_csv( fit_file )
+		a_fit = np.array( fit_dat['a'] )[0]
+		b_fit = np.array( fit_dat['b'] )[0]
+		c_fit = np.array( fit_dat['c'] )[0]
+		d_fit = np.array( fit_dat['d'] )[0]
+
+		fit_params = [ a_fit, b_fit, c_fit, d_fit ]
+		t_mass = gr_ri_band_c2m_func( g2r_arr, r2i_arr, t_Lumi, fit_params )
+
+	if band_str == 'ri':
+		fit_dat = pds.read_csv( fit_file )
+		a_fit = np.array( fit_dat['a'] )[0]
+		b_fit = np.array( fit_dat['b'] )[0]
+		c_fit = np.array( fit_dat['c'] )[0]
+
+		fit_params = [ a_fit, b_fit, c_fit ]
+		t_mass = ri_band_c2m_func( r2i_arr, t_Lumi, fit_params )		
+
 
 	## cumulative mass
 	cumu_mass = cumu_mass_func( r_arr, t_mass, N_grid = N_grid )
@@ -166,7 +186,7 @@ def jk_sub_SB_func(N_samples, jk_sub_sb, BG_file, out_sub_sb):
 
 	return
 
-def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_file, Dl, z_obs, fit_file, sub_SB_file_item = None,):
+def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_file, Dl, z_obs, fit_file, sub_SB_file_item = None):
 	### measure surface mass of sub sample
 	# Dl : the luminosity distance
 
@@ -188,6 +208,7 @@ def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_
 
 		r_R, r_sb, r_sb_err = r_R[ id_lim ], r_sb[ id_lim ], r_sb_err[ id_lim ]
 
+
 		#... g-band
 		g_dat = pds.read_csv( sub_SB_file % ('g', nn),)
 		g_R, g_sb, g_sb_err = np.array( g_dat[ R_item ]), np.array( g_dat[ SB_item ]), np.array( g_dat[ sb_err_item ])
@@ -197,6 +218,7 @@ def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_
 		id_lim = (idnan == False) & ( idx_lim )
 
 		g_R, g_sb, g_sb_err = g_R[ id_lim ], g_sb[ id_lim ], g_sb_err[ id_lim ]
+
 
 		#... i-band
 		i_dat = pds.read_csv( sub_SB_file % ('i', nn),)
@@ -223,6 +245,7 @@ def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_
 
 		r_nd, sb_nd, err_nd = r_nd[ id_lim], sb_nd[ id_lim], err_nd[ id_lim]
 
+		#. abs-Mag for luminosity estimation
 		mag_arr = 22.5 - 2.5 * np.log10( sb_nd )
 		Mag_arr = mag_arr - 5 * np.log10( Dl * 10**6 / 10)
 
@@ -294,4 +317,3 @@ def aveg_mass_pro_func(N_samples, band_str, jk_sub_m_file, jk_aveg_m_file, lgM_c
 			f['cor_MX'] = np.array( cor_MX )
 
 	return
-

@@ -75,9 +75,10 @@ def sersic_func(r, Ie, re):
 
 	ndex = 2.1
 
-	belta = 3 * ndex - 0.324
+	belta = 2 * ndex - 0.324
 	fn = -1 * belta * ( r / re )**(1 / ndex) + belta
 	Ir = Ie * np.exp( fn )
+
 	return Ir
 
 def err_fit_func(p, x, y, params, yerr):

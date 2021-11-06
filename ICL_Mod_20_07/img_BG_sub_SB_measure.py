@@ -80,8 +80,10 @@ def BG_sub_sb_func(N_sample, jk_sub_sb, sb_out_put, band_str, BG_file, trunk_R =
     return
 
 ### === ### surface mass, color, and gradient profiles
-def sub_color_func( N_samples, tt_r_file, tt_g_file, tt_i_file, sub_color_file, aveg_C_file ):
-
+def sub_color_func( N_samples, tt_r_file, tt_g_file, tt_i_file, sub_color_file, aveg_C_file, id_dered = False, Al_arr = None):
+    """
+    Al_arr : extinction array, in order r-band, g-band, i-band
+    """
     tmp_r, tmp_gr, tmp_gi, tmp_ri = [], [], [], []
 
     for ll in range( N_samples ):
@@ -108,6 +110,13 @@ def sub_color_func( N_samples, tt_r_file, tt_g_file, tt_i_file, sub_color_file, 
         gr_arr, gr_err = color_func( tt_g_sb, tt_g_err, tt_r_sb, tt_r_err )
         gi_arr, gi_err = color_func( tt_g_sb, tt_g_err, tt_i_sb, tt_i_err )
         ri_arr, ri_err = color_func( tt_r_sb, tt_r_err, tt_i_sb, tt_i_err )
+
+        if id_dered == True:
+            Al_r, Al_g, Al_i = Al_arr[:]
+
+            gr_arr = gr_arr + np.nanmedian( Al_r ) - np.nanmedian( Al_g )
+            gi_arr = gi_arr + np.nanmedian( Al_i ) - np.nanmedian( Al_g )
+            ri_arr = ri_arr + np.nanmedian( Al_i ) - np.nanmedian( Al_r )
 
         keys = [ 'R', 'g-r', 'g-r_err', 'g-i', 'g-i_err', 'r-i', 'r-i_err']
         values = [ tt_g_R, gr_arr, gr_err, gi_arr, gi_err, ri_arr, ri_err ]
@@ -316,4 +325,5 @@ def M2L_slope_func( N_samples, sub_sm_file, sub_m2l_file, aveg_m2l_file, wind_L,
     out_data.to_csv( aveg_m2l_file,)
 
     return
+
 

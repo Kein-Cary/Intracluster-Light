@@ -68,7 +68,7 @@ def resamp_func(d_file, z_set, ra_set, dec_set, img_x, img_y, band, out_file, z_
 
 		#. observation angle and flux factor at z_ref
 		pixel_ref = pixel * ( Da_g / Da_ref )
-		eta_flux = Dl_g**2 / Dl_ref**2
+		eta_flux = Dl_g**2 / Dl_ref**2       #... flux change due to distance
 
 		eta_pix = pixel / pixel_ref
 

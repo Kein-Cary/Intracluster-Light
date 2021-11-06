@@ -333,7 +333,7 @@ def jk_sub_SB_func(N_samples, jk_sub_sb, BG_file, out_sub_sb):
 	return
 
 def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_file, Dl, z_obs, 
-	c_inv = False, sub_SB_file_item = None,):
+	c_inv = False, sub_SB_file_item = None ):
 	# sub_SB_file_item : the columns name of sub SB profile .csv files
 	# Dl : the luminosity distance
 	# c_inv : if change the position of the order of the two SB profile array
@@ -394,6 +394,7 @@ def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_
 
 		r_nd, sb_nd, err_nd = r_nd[ id_lim], sb_nd[ id_lim], err_nd[ id_lim]
 
+		#. use apparent magnitude for luminosity estimate
 		mag_arr = 22.5 - 2.5 * np.log10( sb_nd )
 		Mag_arr = mag_arr + 0.
 

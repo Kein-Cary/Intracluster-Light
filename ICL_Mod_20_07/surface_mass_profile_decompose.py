@@ -40,27 +40,10 @@ cosmos_param()
 
 ### ... minimize func.
 def sersic_func(r, Ie, re, ndex):
+
 	belta = 2 * ndex - 0.324
 	fn = -1 * belta * ( r / re )**(1 / ndex) + belta
 	Ir = Ie * np.exp( fn )
-	return Ir
-
-def log_norm_func(r, Im, R_pk, L_trans):
-
-	# f1 = 1 / ( r * L_trans * np.sqrt(2 * np.pi) )
-	# f2 = np.exp( -0.5 * (np.log(r) - R_crit)**2 / L_trans**2 )
-
-	#... scaled version
-	scl_r = r / R_pk       # r / R_crit
-	scl_L = L_trans / R_pk # L_trans / R_crit
-
-	cen_p = 0.25 # R_crit / R_pk
-
-	f1 = 1 / ( scl_r * scl_L * np.sqrt(2 * np.pi) )
-	f2 = np.exp( -0.5 * (np.log( scl_r ) - cen_p )**2 / scl_L**2 )
-
-	Ir = 10**Im * f1 * f2
-
 	return Ir
 
 def sersic_err_fit_f(p, x, y, params, yerr):
@@ -82,40 +65,22 @@ def sersic_err_fit_f(p, x, y, params, yerr):
 		return chi2
 	return np.inf
 
-def lg_norm_err_fit_f(p, x, y, params, yerr):
+### ...mcmc fit
+### === ### fitting center region
+def cen_like_func(p, x, y, params, yerr):
 
-	cov_mx = params[0]
+	cov_mx, _ne = params[:]
 
-	_Ie, _R_pk, L_trans = p[:]
+	_Ie, _Re = p[:]
+	_mass_cen = sersic_func( x, 10**_Ie, _Re, _ne)
+	_mass_2Mpc = sersic_func( 2e3, 10**_Ie, _Re, _ne)
 
-	_mass_cen = log_norm_func( x, _Ie, _R_pk, L_trans )
-	_mass_2Mpc = log_norm_func( 2e3, _Ie, _R_pk, L_trans )
 	_sum_mass = np.log10( _mass_cen - _mass_2Mpc )
 
 	delta = _sum_mass - y
 	cov_inv = np.linalg.pinv( cov_mx )
 	chi2 = delta.T.dot( cov_inv ).dot(delta)
 	# chi2 = np.sum( delta**2 / yerr**2 )
-
-	if np.isfinite( chi2 ):
-		return chi2
-	return np.inf
-
-### ...mcmc fit
-### === ### fitting center region
-def cen_like_func(p, x, y, params, yerr):
-
-	_Ie, _Re = p[:]
-
-	cov_mx, _ne = params[:]
-
-	_mass_cen = sersic_func( x, 10**_Ie, _Re, _ne)
-
-	_sum_mass = np.log10( _mass_cen )
-
-	delta = _sum_mass - y
-	cov_inv = np.linalg.pinv( cov_mx )
-	chi2 = delta.T.dot( cov_inv ).dot(delta)
 
 	if np.isfinite( chi2 ):
 		return -0.5 * chi2
@@ -125,7 +90,7 @@ def cen_prior_p_func( p ):
 
 	_Ie, _Re = p[:]
 
-	identi = (10**5.5 <= 10**_Ie <= 10**9.5) & ( 5 < _Re < 30 )
+	identi = (10**3.5 <= 10**_Ie <= 10**9.5) & ( 5 < _Re < 30 )
 
 	if identi:
 		return 0
@@ -196,20 +161,49 @@ def outer_err_fit_func(p, x, y, params, yerr):
 	return np.inf
 
 ### === ### fitting mid-region
+#...logNormal function
+def log_norm_func( r, lg_SM0, Rt, sigm_tt ):
+
+	lg_A0 = np.log10( r ) + np.log10( sigm_tt ) + np.log10( 2 * np.pi ) / 2
+	lg_A1 = np.log10( np.e) * (np.log( r ) - np.log( Rt ) )**2 / ( 2 * sigm_tt**2 )
+	lg_M = lg_SM0 - lg_A0 - lg_A1
+
+	return 10**lg_M
+
+def lg_norm_err_fit_f(p, x, y, params, yerr):
+
+	cov_mx = params[0]
+
+	_lg_SM0, _R_t, _sigm_tt = p[:]
+
+	_mass_cen = log_norm_func( x, _lg_SM0, _R_t, _sigm_tt )
+	_mass_2Mpc = log_norm_func( 2e3, _lg_SM0, _R_t, _sigm_tt )
+
+	_sum_mass = np.log10( _mass_cen - _mass_2Mpc )
+
+	delta = _sum_mass - y
+	cov_inv = np.linalg.pinv( cov_mx )
+	chi2 = delta.T.dot( cov_inv ).dot(delta)
+
+	if np.isfinite( chi2 ):
+		return chi2
+	return np.inf
+
+### === 
 def mid_like_func(p, x, y, params, yerr):
 
 	cov_mx = params[0]
 
-	_Ie, _R_pk, L_trans = p[:]
-	M_x = log_norm_func( x, _Ie, _R_pk, L_trans)
-	M_2Mpc = log_norm_func( 2e3, _Ie, _R_pk, L_trans)
+	_lg_SM0, _R_t, _sigm_tt = p[:]
 
-	cros_M = np.log10( M_x - M_2Mpc )
+	_mass_cen = log_norm_func( x, _lg_SM0, _R_t, _sigm_tt )
+	_mass_2Mpc = log_norm_func( 2e3, _lg_SM0, _R_t, _sigm_tt )
 
-	delta = cros_M - y
+	_sum_mass = np.log10( _mass_cen - _mass_2Mpc )
 
+	delta = _sum_mass - y
 	cov_inv = np.linalg.pinv( cov_mx )
-	chi2 = delta.T.dot( cov_inv ).dot( delta )
+	chi2 = delta.T.dot( cov_inv ).dot(delta)
 
 	if np.isfinite( chi2 ):
 		return -0.5 * chi2
@@ -217,8 +211,8 @@ def mid_like_func(p, x, y, params, yerr):
 
 def mid_prior_p_func( p ):
 
-	_Ie, _R_pk, L_trans = p[:]
-	identi = ( 10**5.0 <= 10**_Ie <= 10**6.5 ) & ( 10 <= _R_pk <= 90 ) & ( 10 <= L_trans <= 90 )
+	_lg_SM0, _R_t, _sigm_tt = p[:]
+	identi = ( 3.5 <= _lg_SM0 <= 9.5 ) & ( 10 <= _R_t <= 500 ) & ( 0.1 <= _sigm_tt <= 3 )
 
 	if identi:
 		return 0

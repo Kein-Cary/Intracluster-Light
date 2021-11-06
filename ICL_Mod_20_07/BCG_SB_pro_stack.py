@@ -97,7 +97,9 @@ def fdens_deriv(r_angle, obs_r, obs_fmean, ):
 	return sb_f
 
 def BCG_SB_pros_func(band_str, set_z, set_ra, set_dec, pros_file, z_ref, out_file, r_bins,):
-
+	"""
+	The return varable is surface brightness profile
+	"""
 	band_id = band.index( band_str )
 
 	if band_id == 0:
@@ -154,7 +156,9 @@ def BCG_SB_pros_func(band_str, set_z, set_ra, set_dec, pros_file, z_ref, out_fil
 
 ### for single image
 def single_img_SB_func(band_str, set_z, set_ra, set_dec, pros_file, r_bins, z_ref = None):
-
+	"""
+	The return varable is surface brightness profile
+	"""
 	band_id = band.index( band_str )
 
 	if band_id == 0:

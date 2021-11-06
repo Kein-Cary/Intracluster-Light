@@ -81,51 +81,6 @@ N_samples = 30
 
 def mass_pro_func():
 
-	'''
-	### measure BG-sub SB for jack-sub sample
-	for mm in range( 2 ):
-
-		for kk in range( 3 ):
-
-			for nn in range( N_samples ):
-
-				#jk_sub_sb = path + 'mass_bin/photo-z_match_gri-common_%s_%s-band_jack-sub-%d_SB-pro_z-ref.h5' % (cat_lis[mm], band[kk], nn)
-				jk_sub_sb = path + 'photo-z_match_gri-common_%s_%s-band_jack-sub-%d_SB-pro_z-ref.h5' % (cat_lis[mm], band[kk], nn)
-				with h5py.File( jk_sub_sb, 'r') as f:
-					c_r_arr = np.array(f['r'])
-					c_sb_arr = np.array(f['sb'])
-					c_sb_err = np.array(f['sb_err'])
-					npix = np.array(f['npix'])
-
-				id_Nul = npix < 1
-				c_r_arr[ id_Nul ] = np.nan
-				c_sb_arr[ id_Nul ] = np.nan
-				c_sb_err[ id_Nul ] = np.nan
-
-				## BG_file
-				BG_file = BG_path + 'photo-z_%s_%s-band_BG-profile_params_diag-fit.csv' % (cat_lis[ mm ], band[kk])
-
-				cat = pds.read_csv(BG_file)
-				( e_a, e_b, e_x0, e_A, e_alpha, e_B, offD) = ( np.array(cat['e_a'])[0], np.array(cat['e_b'])[0], 
-						np.array(cat['e_x0'])[0], np.array(cat['e_A'])[0], np.array(cat['e_alpha'])[0], 
-						np.array(cat['e_B'])[0], np.array(cat['offD'])[0] )
-
-				I_e, R_e = np.array(cat['I_e'])[0], np.array(cat['R_e'])[0]
-				sb_2Mpc = sersic_func( 2e3, I_e, R_e, 2.1)
-
-				full_r_fit = cc_rand_sb_func(c_r_arr, e_a, e_b, e_x0, e_A, e_alpha, e_B)
-				full_BG = full_r_fit - offD + sb_2Mpc
-				devi_sb = c_sb_arr - full_BG
-
-				out_files = BG_path + '%s_%s-band_jack-sub-%d_BG-sub_SB.csv' % (cat_lis[mm], band[kk], nn)
-
-				keys = ['R', 'BG_sub_SB', 'sb_err']
-				values = [ c_r_arr, devi_sb, c_sb_err ]
-				fill = dict(zip( keys, values) )
-				out_data = pds.DataFrame( fill )
-				out_data.to_csv( out_files )
-	'''
-
 	### measure mass for jack-sub sample
 	for mm in range( 2 ):
 
