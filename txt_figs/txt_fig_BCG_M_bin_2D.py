@@ -39,7 +39,7 @@ z_ref = 0.25
 band = ['r', 'g', 'i']
 
 def sersic_func(r, Ie, re, ndex):
-	belta = 3 * ndex - 0.324
+	belta = 2 * ndex - 0.324
 	fn = -1 * belta * ( r / re )**(1 / ndex) + belta
 	Ir = Ie * np.exp( fn )
 	return Ir
@@ -73,49 +73,6 @@ for ii in range( 3 ):
 	rand_r.append( tt_r )
 	rand_sb.append( tt_sb )
 	rand_err.append( tt_err )
-
-"""
-### === 1D signal
-nbg_low_r, nbg_low_sb, nbg_low_err = [], [], []
-nbg_low_mag, nbg_low_mag_err = [], []
-
-for kk in range( 3 ):
-
-	with h5py.File( BG_path + 'photo-z_%s_%s-band_BG-sub_SB.h5' % (cat_lis[0], band[kk]), 'r') as f:
-		tt_r = np.array(f['r'])
-		tt_sb = np.array(f['sb'])
-		tt_err = np.array(f['sb_err'])
-
-	nbg_low_r.append( tt_r )
-	nbg_low_sb.append( tt_sb )
-	nbg_low_err.append( tt_err )
-
-	mag_arr = 22.5 - 2.5 * np.log10( tt_sb )
-	mag_err = 2.5 * tt_err / ( np.log(10) * tt_sb )
-
-	nbg_low_mag.append( mag_arr )
-	nbg_low_mag_err.append( mag_err )
-
-nbg_hi_r, nbg_hi_sb, nbg_hi_err = [], [], []
-nbg_hi_mag, nbg_hi_mag_err = [], []
-
-for kk in range( 3 ):
-
-	with h5py.File( BG_path + 'photo-z_%s_%s-band_BG-sub_SB.h5' % (cat_lis[1], band[kk]), 'r') as f:
-		tt_r = np.array(f['r'])
-		tt_sb = np.array(f['sb'])
-		tt_err = np.array(f['sb_err'])
-
-	nbg_hi_r.append( tt_r )
-	nbg_hi_sb.append( tt_sb )
-	nbg_hi_err.append( tt_err )
-
-	mag_arr = 22.5 - 2.5 * np.log10( tt_sb )
-	mag_err = 2.5 * tt_err / ( np.log(10) * tt_sb )
-
-	nbg_hi_mag.append( mag_arr )
-	nbg_hi_mag_err.append( mag_err )
-"""
 
 ### === 2D signal contour (focus on center region)
 L_pix = Da_ref * 10**3 * pixel / rad2asec
@@ -278,11 +235,6 @@ for ll in ( 1, 0 ):
 	filt_BG_sub_img = ndimage.gaussian_filter( cen_region, sigma = 29,)
 	filt_BG_sub_mag = 22.5 - 2.5 * np.log10( filt_BG_sub_img )
 	xp, yp = np.int( cen_region.shape[1] / 2 ), np.int( cen_region.shape[0] / 2 )
-
-	# dd_lis = np.arange(26, 33, 0.5)
-	# color_lis = []
-	# for jj in np.arange( len(dd_lis) ):
-	# 	color_lis.append( mpl.cm.rainbow_r( jj / len(dd_lis)) )
 
 	dd_lis = np.arange(26, 33, 1)
 

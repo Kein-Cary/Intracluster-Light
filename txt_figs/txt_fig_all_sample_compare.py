@@ -336,13 +336,14 @@ for oo in range( len(bin_mx) - 1):
 	bin_medi_lgM = np.r_[ bin_medi_lgM, np.median( sub_lgM ) ]
 	bin_lgM_std = np.r_[ bin_lgM_std, np.std( sub_lgM ) ]
 
+sp_R, Ps = sts.spearmanr( tot_lgM, tot_fit_lgM )
+lgM_fit_Var = np.sum( (tot_fit_lgM - tot_lgM )**2) / len( tot_lgM )
+lgM_fit_sigma = np.sqrt( lgM_fit_Var )
+
+
 #. sub-binning mass-to-light ratio
 obs_M2L = tot_lgM - tot_lg_Li
 fit_M2L = tot_fit_lgM - tot_lg_Li
-
-sp_R, Ps = sts.spearmanr(obs_M2L, fit_M2L)
-Var = np.sum( (fit_M2L - obs_M2L )**2 ) / len( tot_lgM )
-sigma = np.sqrt( Var )
 
 bin_x = np.linspace(0.14, 0.48, 11)
 bin_x = np.r_[ -0.2, bin_x ]
@@ -565,8 +566,6 @@ delt_sigm_1 = ( R_aveg_sigma_1 - misNFW_sigma ) * 1e-6 # no weight
 
 
 #### === ##### figs
-phyR_psf = phyR_psf / 1e3 # unit : Mpc
-
 _cmap_lis = []
 for ii in range( 9 ):
 	sub_color = mpl.cm.Greys_r( ii / 8 )
@@ -605,39 +604,40 @@ for ii in range( 9 ):
 # plt.close()
 
 
-# fig_tx = plt.figure( figsize = (5.8, 5.8) )
-# ax0 = fig_tx.add_axes( [0.15, 0.11, 0.83, 0.83] )
+fig_tx = plt.figure( figsize = (5.8, 5.8) )
+ax0 = fig_tx.add_axes( [0.15, 0.11, 0.83, 0.83] )
 
-# ax0.scatter( tot_fit_lgM, tot_lgM, marker = '.', s = 5.0, color = 'grey', alpha = 0.5,)
-# ax0.plot( tot_fit_lgM, tot_fit_lgM, ls = '-', color = 'k',)
+ax0.scatter( tot_fit_lgM, tot_lgM, marker = '.', s = 5.0, color = 'grey', alpha = 0.5,)
+ax0.plot( tot_fit_lgM, tot_fit_lgM, ls = '-', color = 'k',)
 
-# ax0.errorbar( bin_mc, bin_medi_lgM, yerr = bin_lgM_std, color = 'k', marker = 'o', capsize = 2.5, linestyle = 'none',)
+ax0.errorbar( bin_mc, bin_medi_lgM, yerr = bin_lgM_std, color = 'k', marker = 'o', capsize = 2.5, linestyle = 'none',)
 
-# ax0.set_ylim( 10.5, 12.25 )
-# ax0.set_xlim( 10.8, 12.25 )
+ax0.set_ylim( 10.5, 12.25 )
+ax0.set_xlim( 10.8, 12.25 )
 
-# x_tick_arr = np.arange(10.8, 12.4, 0.2)
-# tick_lis = [ '%.1f' % pp for pp in x_tick_arr ]
-# ax0.set_xticks( x_tick_arr )
-# ax0.get_xaxis().set_major_formatter( ticker.FixedFormatter( tick_lis ) )
+x_tick_arr = np.arange(10.8, 12.4, 0.2)
+tick_lis = [ '%.1f' % pp for pp in x_tick_arr ]
+ax0.set_xticks( x_tick_arr )
+ax0.get_xaxis().set_major_formatter( ticker.FixedFormatter( tick_lis ) )
 
-# ax0.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
-# ax0.xaxis.set_minor_locator( ticker.AutoMinorLocator() )
+ax0.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
+ax0.xaxis.set_minor_locator( ticker.AutoMinorLocator() )
 
-# ax0.set_ylabel('$ {\\rm \\mathcal{lg} } \, M_{\\ast}^{ \\mathrm{BCG} } $', fontsize = 15,)
-# ax0.set_xlabel('$ \\langle {\\rm \\mathcal{lg} } \, M_{\\ast}^{\\mathrm{BCG} } \\rangle {=} a \\times (g-r)$' + 
-# 	'${+} b \\times (r-i) {+} c \\times {\\rm \\mathcal{lg} } L_{i} {+} d$', fontsize = 15,)
+ax0.set_ylabel('$ {\\rm \\mathcal{lg} } \, M_{\\ast}^{ \\mathrm{BCG} } \; [M_{\\odot}]$', fontsize = 15,)
+ax0.set_xlabel('$ \\langle {\\rm \\mathcal{lg} } \, M_{\\ast}^{\\mathrm{BCG} } \\rangle {=} a \\times (g-r)$' + 
+	'${+} b \\times (r-i) {+} c \\times {\\rm \\mathcal{lg} } L_{i} {+} d$', fontsize = 15,)
 
-# ax0.annotate( text = '$\\mathcal{a} = \; \; \; %.3f$' % all_a_ + '\n' + '$\\mathcal{b} = \; \; \; %.3f$' % all_b_ + '\n' + 
-# 	'$\\mathcal{c} = \; \; \; %.3f$' % ( all_c_ ) + '\n' + '$\\mathcal{d}{=}{-}%.3f$' % np.abs(all_d_), xy = (0.70, 0.05), 
-# 	fontsize = 15, xycoords = 'axes fraction', color = 'k',)
+ax0.annotate( text = '$\\mathcal{a} = \; \; \; %.2f$' % all_a_ + '\n' + '$\\mathcal{b} = \; \; \; %.2f$' % all_b_ + '\n' + 
+	'$\\mathcal{c} = \; \; \; %.2f$' % ( all_c_ ) + '\n' + '$\\mathcal{d}{=}{-}%.2f$' % np.abs(all_d_), xy = (0.05, 0.75), 
+	fontsize = 15, xycoords = 'axes fraction', color = 'k',)
 
-# ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
+ax0.annotate( text = '$\\sigma = %.2f$' % lgM_fit_sigma, xy = (0.75, 0.10), fontsize = 18, xycoords = 'axes fraction', color = 'k',)
 
-# # plt.savefig('/home/xkchen/Mass-to-Li_estimation.png', dpi = 300)
-# plt.savefig('/home/xkchen/Mass-to-Li_estimation.pdf', dpi = 300)
-# plt.close()
+ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
 
+# plt.savefig('/home/xkchen/Mass-to-Li_estimation.png', dpi = 300)
+plt.savefig('/home/xkchen/Mass-to-Li_estimation.pdf', dpi = 300)
+plt.close()
 
 
 fig = plt.figure( figsize = ( 15.40, 4.8 ) )
@@ -648,13 +648,10 @@ ax2 = fig.add_axes( [0.71, 0.12, 0.275, 0.85] )
 ax0.errorbar( aveg_R / 1e3, aveg_surf_m, yerr = aveg_surf_m_err, ls = 'none', marker = 'o', ms = 8, mec = 'k', mfc = 'none', alpha = 0.85, 
 	capsize = 3, ecolor = 'k', label = '$\\mathrm{ {BCG} \, {+} \, {ICL} }$',)
 
-# ax0.plot( lo_rp / 1e3, 10**lg_M_sigma * 10**lg_fb_gi, ls = '-', color = 'k', alpha = 0.65, 
-# 	label = '$ \\Sigma_{m} \, / \, {%.0f} $' % const,)
-
 ax0.plot( lo_rp / 1e3, 10**lg_M_sigma * 10**lg_fb_gi, ls = '-', color = 'k', alpha = 0.65, 
 	label = '$ \\gamma \, \\Sigma_{m} $',)
 ax0.plot( bin_R / 1e3, (Ng_sigma - Ng_2Mpc) * 10**lg_Ng_gi, ls = '--', color = 'k', alpha = 0.75, 
-	label = '$ 10^{\\mathrm{%.1f}}\, M_{\\odot} \\times \\Sigma_{g} $' % lg_Ng_gi,)
+	label = '$ M_{\\ast}^{\\mathrm{loss} } \\times \\Sigma_{g} $' % lg_Ng_gi,)
 
 ax0.set_xlim( 9e-3, 2e0)
 ax0.set_xscale('log')
@@ -666,8 +663,6 @@ ax0.legend( loc = 3, frameon = False, fontsize = 15,)
 
 ax0.set_xticks([ 1e-2, 1e-1, 1e0, 2e0])
 ax0.set_xticklabels( labels = ['$\\mathrm{0.01}$','$\\mathrm{0.1}$', '$\\mathrm{1}$', '$\\mathrm{2}$'] )
-
-ax0.fill_betweenx( y = np.logspace(3, 9.8, 200), x1 = phyR_psf, x2 = 0, color = 'k', alpha = 0.12,)
 ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
 
 
@@ -676,7 +671,7 @@ ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15
 
 ax1.errorbar( lo_obs_R[1:] / (1 + z_ref) / h, aveg_Delta_sigm[1:] * h / a_ref**2, yerr = aveg_delta_err[1:] * h / a_ref**2, xerr = None, ms = 8, color = 'k', 
 	marker = 's', ls = 'none', ecolor = 'k', alpha = 0.75, mec = 'k', mfc = 'none', capsize = 2, label = '$\\mathrm{ {Weak} \; {Lensing} }$',)
-ax1.plot( lo_rp / 1e3, delt_sigm_1, ls = '-', color = 'k', label = '$\\mathrm{ \\mathcal{lg} } \, [ M_{h} \, / \, M_{\\odot} ] = 14.41$',)
+ax1.plot( lo_rp / 1e3, delt_sigm_1, ls = '-', color = 'k', label = '$M_{h} = 10^{14.41} \, M_{\\odot}$',)
 
 ax1.set_xlim( 9e-3, 2e1)
 ax1.set_xscale('log')
@@ -691,13 +686,14 @@ ax1.set_xticks([ 1e-2, 1e-1, 1e0, 1e1, 2e1])
 ax1.set_xticklabels( labels = ['$\\mathrm{0.01}$','$\\mathrm{0.1}$', '$\\mathrm{1}$', '$\\mathrm{10}$', '$\\mathrm{20}$'])
 
 ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
-ax1.fill_betweenx( y = np.logspace(0, 3, 200), x1 = phyR_psf, x2 = 0, color = 'k', alpha = 0.12,)
 
 
 # ax2.plot( bin_R / 1e3, Ng_sigma * 1e6, ls = '--', color = 'k', alpha = 0.75,)
 # ax2.fill_between( bin_R / 1e3, y1 = ( Ng_sigma - err_aveg ) * 1e6, y2 = ( Ng_sigma + err_aveg ) * 1e6, color = 'k', alpha = 0.15,)
+
+#. M_i - 5 * log h < -19.43 is the galaxies Lumi. limit in number density profile measurement
 ax2.errorbar( bin_R / 1e3, Ng_sigma * 1e6, yerr = err_aveg * 1e6, xerr = None, color = 'k', marker = 's', ms = 8, ls = 'none', 
-	ecolor = 'k', alpha = 0.75, mec = 'k', mfc = 'none', capsize = 2, label = 'Galaxies $(M_{i} \, < \, %.3f)$' % (-19.43 + 5 * np.log10(h) ),)
+	ecolor = 'k', alpha = 0.75, mec = 'k', mfc = 'none', capsize = 2, label = 'Galaxies ($M_{i}{<}{-}%.2f$)' % np.abs( (-19.43 + 5 * np.log10(h) ) ),)
 
 ax2.set_xlim( 9e-3, 2e1)
 ax2.set_xscale('log')
@@ -709,8 +705,6 @@ ax2.legend( loc = 3, frameon = False, fontsize = 15,)
 
 ax2.set_xticks([ 1e-2, 1e-1, 1e0, 1e1, 2e1])
 ax2.set_xticklabels( labels = ['$\\mathrm{0.01}$','$\\mathrm{0.1}$', '$\\mathrm{1}$', '$\\mathrm{10}$', '$\\mathrm{20}$'])
-
-ax2.fill_betweenx( y = np.logspace(3, 9.8, 200), x1 = phyR_psf, x2 = 0, color = 'k', alpha = 0.12,)
 ax2.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
 
 # plt.savefig('/home/xkchen/%stotal_sample_SB_SM.png' % dered_str, dpi = 300)
@@ -729,8 +723,6 @@ for kk in ( 2, 0, 1 ):
 	ax0.fill_between( nbg_tot_r[kk], y1 = nbg_tot_mag[kk] - nbg_tot_mag_err[kk], 
 		y2 = nbg_tot_mag[kk] + nbg_tot_mag_err[kk], color = color_s[kk], alpha = 0.15,)
 
-	ax0.plot(Z05_r[kk], Z05_mag[kk], ls = '--', color = color_s[kk], alpha = 0.75,)
-
 	if kk == 1:
 		comp_r, comp_sb, comp_err = sdss_r[kk][:-1], sdss_sb[kk][:-1], sdss_err[kk][:-1]
 	else:
@@ -739,14 +731,19 @@ for kk in ( 2, 0, 1 ):
 	ax0.plot( comp_r, comp_sb, ls = ':', color = color_s[kk], alpha = 0.75,)
 	ax0.fill_between( comp_r, y1 = comp_sb - comp_err, y2 = comp_sb + comp_err, color = color_s[kk], alpha = 0.15,)	
 
-legend_1 = ax0.legend( [ 'This work (redMaPPer)', '$\\mathrm{Zibetti}{+}2005$ (maxBCG)', 'SDSS Photometry $(\\mathrm{V5}\_\\mathrm{6})$'], 
+	ax0.plot(Z05_r[kk], Z05_mag[kk], ls = '--', color = color_s[kk], alpha = 0.75,)
+
+legend_1 = ax0.legend( [ 'This work (redMaPPer)', 'SDSS ($ \\mathrm{ \\tt{photo} \, \\tt{v5\_6} }$)', '$\\mathrm{Z05}$ (maxBCG)'], 
 	loc = 1, frameon = False, fontsize = 14, markerfirst = False,)
 legend_0 = ax0.legend( loc = 3, frameon = False, fontsize = 14,)
 
 ax0.add_artist( legend_1 )
 
-ax0.fill_betweenx( np.linspace(19, 36, 100), x1 = phyR_psf, x2 = 0, color = 'k', alpha = 0.12,)
-ax0.text( 3e-3, 27, s = 'PSF', fontsize = 15,)
+# ax0.fill_betweenx( np.linspace(19, 36, 100), x1 = phyR_psf / 1e3, x2 = 0, color = 'k', alpha = 0.12,)
+# ax0.text( 3e-3, 27, s = 'PSF', fontsize = 15,)
+
+ax0.axvline( x = phyR_psf / 1e3, ls = '-.', linewidth = 3.5, color = 'k', alpha = 0.20,)
+ax0.text( 3.1e-3, 27, s = 'PSF', fontsize = 22, rotation = 'vertical', color = 'k', alpha = 0.25, fontstyle = 'italic',)
 
 ax0.set_ylim( 20, 34 )
 ax0.invert_yaxis()
@@ -769,12 +766,16 @@ ax1.plot( sm_tot_r, sm_tot_g2r, ls = '-', color = 'r', alpha = 0.75, label = 'Th
 ax1.fill_between( sm_tot_r, y1 = sm_tot_g2r - sm_tot_g2r_err, y2 = sm_tot_g2r + sm_tot_g2r_err, color = 'r', alpha = 0.12,)
 
 ax1.plot(r_19, g2r_19, ls = '--', color = 'c', alpha = 0.75, label = '$\\mathrm{Zhang}{+}2019$ (DES)')
-ax1.plot(r_05_0, g2r_05, ls = '-.', color = 'k', alpha = 0.75, label = '$\\mathrm{Zibetti}{+}2005$ (SDSS DR1)')
+ax1.plot(r_05_0, g2r_05, ls = '-.', color = 'k', alpha = 0.75, label = '$\\mathrm{Z05}$ (SDSS DR1)')
 
-ax1.fill_betweenx( np.linspace(0, 2, 100), x1 = phyR_psf, x2 = 0, color = 'k', alpha = 0.12,)
+# ax1.fill_betweenx( np.linspace(0, 2, 100), x1 = phyR_psf / 1e3, x2 = 0, color = 'k', alpha = 0.12,)
+
+ax1.axvline( x = phyR_psf / 1e3, ls = '-.', linewidth = 3.5, color = 'k', alpha = 0.20,)
+ax1.text( 3.1e-3, 1.25, s = 'PSF', fontsize = 22, rotation = 'vertical', color = 'k', alpha = 0.25, fontstyle = 'italic',)
+
 ax1.legend( loc = 3, frameon = False, fontsize = 13.5,)
-ax1.set_ylim( 0.95, 1.55 )
 
+ax1.set_ylim( 0.95, 1.55 )
 ax1.set_xlim( 3e-3, 1e0)
 ax1.set_xscale('log')
 ax1.set_ylabel('$ g - r $', fontsize = 17,)

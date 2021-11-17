@@ -507,4 +507,3 @@ for pp in range( 3 ):
 	fill = dict( zip( keys, values) )
 	out_data = pds.DataFrame( fill, index = ['k', 'v'])
 	out_data.to_csv( fit_path + '%stotal_all-color-to-M_beyond-%dkpc_%s-fit.csv' % (dered_str, out_lim_R[ pp ], icl_mode) )
-

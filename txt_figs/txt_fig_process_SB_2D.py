@@ -35,7 +35,7 @@ from img_pre_selection import extra_match_func
 rad2asec = U.rad.to(U.arcsec)
 Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
 H0 = Test_model.H0.value
-h = H0/100
+h = H0 / 100
 Omega_m = Test_model.Om0
 Omega_lambda = 1.-Omega_m
 Omega_k = 1.- (Omega_lambda + Omega_m)
@@ -43,6 +43,11 @@ Omega_k = 1.- (Omega_lambda + Omega_m)
 pixel = 0.396
 z_ref = 0.25
 band = ['r', 'g', 'i']
+
+psf_FWHM = 1.32 # arcsec
+Da_ref = Test_model.angular_diameter_distance( z_ref ).value
+phyR_psf = np.array( psf_FWHM ) * Da_ref * 10**3 / rad2asec
+
 
 ### === ### Background subtraction img
 #. flux scaling correction
@@ -100,7 +105,7 @@ R3Mpc = 3000 / L_pix
 
 ### === ### 2D signal compare
 def sersic_func(r, Ie, re, ndex):
-	belta = 3 * ndex - 0.324
+	belta = 2 * ndex - 0.324
 	fn = -1 * belta * ( r / re )**(1 / ndex) + belta
 	Ir = Ie * np.exp( fn )
 	return Ir
@@ -890,6 +895,9 @@ for kk in range( 0,1 ):
 	ax2.set_ylim( yp - np.ceil(1.11 * n1000), yp + np.ceil(1.11 * n1000 ) )
 
 
+	ax3.plot( tot_r[kk] / 1e3, clus_mag, ls = '--', color = 'b', alpha = 0.5, label = 'BCG + ICL + Background',)
+	ax3.fill_between( tot_r[kk] / 1e3, y1 = clus_mag - clus_mag_err, y2 = clus_mag + clus_mag_err, color = 'b', alpha = 0.12,)
+
 	ax3.plot(nbg_tot_r[kk][ idnn == False ] / 1e3, nbg_clus_mag, ls = '-', color = 'r', alpha = 0.5, label = 'BCG + ICL',)
 	ax3.fill_between(nbg_tot_r[kk][ idnn == False ] / 1e3, y1 = nbg_clus_mag - nbg_clus_mag_err, 
 		y2 = nbg_clus_mag + nbg_clus_mag_err, color = 'r', alpha = 0.12,)
@@ -897,10 +905,11 @@ for kk in range( 0,1 ):
 	ax3.plot( rand_r[kk] / 1e3, modi_rand_mag, ls = ':', color = 'k', alpha = 0.5, label = 'Background',)
 	ax3.fill_between( rand_r[kk] / 1e3, y1 = modi_rand_mag - modi_rand_mag_err, y2 = modi_rand_mag + modi_rand_mag_err, color = 'k', alpha = 0.12,)
 
-	ax3.plot( tot_r[kk] / 1e3, clus_mag, ls = '--', color = 'b', alpha = 0.5, label = 'BCG + ICL + Background',)
-	ax3.fill_between( tot_r[kk] / 1e3, y1 = clus_mag - clus_mag_err, y2 = clus_mag + clus_mag_err, color = 'b', alpha = 0.12,)
+	ax3.legend( loc = 1, fontsize = 14, frameon = False, markerfirst = False,)
+	ax3.annotate( text = 'r-band', xy = (0.20, 0.15), xycoords = 'axes fraction', fontsize = 15,)
 
-	ax3.annotate( text = 'r-band', xy = (0.75, 0.85), xycoords = 'axes fraction', fontsize = 15,)
+	ax3.axvline( x = phyR_psf / 1e3, ls = '-.', linewidth = 3.5, color = 'k', alpha = 0.20,)
+	ax3.text( 3.1e-3, 27, s = 'PSF', fontsize = 22, rotation = 'vertical', color = 'k', alpha = 0.25, fontstyle = 'italic',)
 
 	ax3.set_xlim( 3e-3, 1e0 )
 	ax3.set_ylim( 20, 33 )
@@ -917,7 +926,6 @@ for kk in range( 0,1 ):
 	ax3.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
 
 	ax3.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
-	ax3.legend( loc = 3, fontsize = 14, frameon = False)
 
 	plt.savefig('/home/xkchen/mass-bin_%s-band_BG-sub_2D.png' % band[kk], dpi = 300)
 	plt.close()

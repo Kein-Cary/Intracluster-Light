@@ -616,20 +616,20 @@ ax0 = fig.add_axes( [0.155, 0.11, 0.80, 0.80] )
 # ax0.fill_betweenx( y = np.linspace(1e-4, 1e3, 500), x1 = np.log10( dt_Mi ), x2 = 0, color = 'teal', alpha = 0.15,)
 
 ax0.plot( cc_lgM_bins, norm_csmf_, ls = '-', color = 'k', 
-	label = 'Conditional SMF $({\\rm \\mathcal{lg} } [M_{h} \, / \, M_{\\odot}] = 14.41)$',)
+	label = 'Conditional SMF ($M_{h} = 10^{14.41} \, M_{\\odot}$)',)
 ax0.fill_betweenx( y = np.linspace(1e-4, 1e3, 500), x1 = dt_lgM, x2 = 0, color = 'grey', alpha = 0.25,)
 
 ax0.annotate( text = '$\\Sigma M_{\\ast}^{ \\mathrm{unmasked} }{=}10^{%.1f} M_{\\odot}$' % lg_sum_dwf_M, xy = (0.03, 0.25), 
 	xycoords = 'axes fraction', fontsize = 14, color = 'k',)
 
-ax0.legend( loc = 3, frameon = False, fontsize = 12,)
+ax0.legend( loc = 3, frameon = False, fontsize = 14,)
 ax0.set_xlim( 7.0, 12 )
 ax0.set_ylim( 1e-3, 3e2 )
 
-ax0.set_ylabel('${\\rm d} N \, / \, {\\rm d} {\\rm \\mathcal{lg} } M_{\\ast} \; / \; \\mathrm{halo}$', fontsize = 15,)
+ax0.set_ylabel('${\\rm d} N \, / \, {\\rm d} {\\rm \\mathcal{lg} } M_{\\ast} \; \\mathrm{per} \; \\mathrm{halo}$', fontsize = 15,)
 ax0.set_yscale('log')
 
-ax0.set_xlabel('${\\rm \\mathcal{lg} } \, [ M_{\\ast} \, / \, M_{\\odot} ]$', fontsize = 15,)
+ax0.set_xlabel('${\\rm \\mathcal{lg} } \, M_{\\ast} \; [ M_{\\odot} ]$', fontsize = 15,)
 ax0.xaxis.set_minor_locator( ticker.AutoMinorLocator() )
 ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
 
@@ -650,8 +650,8 @@ sub_ax0.set_xlabel('$\\mathrm{M}_{\\mathrm{i,\,cModel} }$', fontsize = 15,)
 sub_ax0.xaxis.set_minor_locator( ticker.AutoMinorLocator() )
 sub_ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
 
-plt.savefig('/home/xkchen/sat_icl_mass_estimation.png', dpi = 300)
-# plt.savefig('/home/xkchen/sat_icl_mass_estimation.pdf', dpi = 300)
+# plt.savefig('/home/xkchen/sat_icl_mass_estimation.png', dpi = 300)
+plt.savefig('/home/xkchen/sat_icl_mass_estimation.pdf', dpi = 300)
 plt.close()
 """
 
@@ -665,21 +665,16 @@ modi_lim = sum_eta_0 / ( 100 * sum_eta_1 )
 fig = plt.figure( figsize = (6.1, 5.4) )
 ax = fig.add_axes( [0.13, 0.08, 0.75, 0.85] )
 
-ax.bar( bar_x, height = eta_Mstar, width = 1, color = 'none', edgecolor = 'k',)
-ax.bar( bar_x[1], height = eta_Mstar_1[0], width = 1, bottom = eta_Mstar[1], color = 'dimgrey', edgecolor = 'dimgrey',)
-ax.bar( bar_x[0], height = eta_Mstar_1[1], width = 1, bottom = eta_Mstar[0], color = 'dimgrey', edgecolor = 'dimgrey',)
+ax.bar( bar_x, height = eta_Mstar, width = 1, color = 'none', edgecolor = 'k', lw = 0.75,)
+ax.bar( bar_x[1], height = eta_Mstar_1[0], width = 1, bottom = eta_Mstar[1], color = 'dimgrey', edgecolor = 'k', lw = 0.75,)
+ax.bar( bar_x[0], height = eta_Mstar_1[1], width = 1, bottom = eta_Mstar[0], color = 'dimgrey', edgecolor = 'k', lw = 0.75,)
 
-ax.text( 3.5, 0.83, s = 'unmasked', fontsize = 15, color = 'dimgrey',)
-ax.text( 0.5, 0.11, s = 'transition', fontsize = 15, color = 'dimgrey',)
+ax.text( 4.0, 0.81, s = 'unmasked', fontsize = 15, color = 'dimgrey', horizontalalignment = 'center',)
+ax.text( 1.0, 0.09, s = 'transition', fontsize = 15, color = 'dimgrey', horizontalalignment = 'center',)
 
-#. '%.2f%%'
 ax.text( 1.0, 0.18, s = '%.1f%%' % ( (eta_Mstar[0] + eta_Mstar_1[1]) * 100 ), fontsize = 15, horizontalalignment = 'center',)
-ax.text( 2.5, 0.14, s = '%.1f%%' % (eta_Mstar[2] * 100), fontsize = 15, horizontalalignment = 'center',)
+ax.text( 2.5, 0.16, s = '%.1f%%' % (eta_Mstar[2] * 100), fontsize = 15, horizontalalignment = 'center',)
 ax.text( 4.0, 0.9, s = '%.1f%%' % ( (eta_Mstar[1] + eta_Mstar_1[0]) * 100), fontsize = 15, horizontalalignment = 'center',)
-
-# ax.text( 1.0, 0.18, s = '8.7%', fontsize = 15, horizontalalignment = 'center',)
-# ax.text( 2.5, 0.14, s = '9.4%', fontsize = 15, horizontalalignment = 'center',)
-# ax.text( 4.0, 0.9, s = '81.9%', fontsize = 15, horizontalalignment = 'center',)
 
 ax.set_xticks( bar_x )
 ax.set_xticklabels(labels = ['BCG', 'Satellites', 'ICL'])
@@ -698,9 +693,9 @@ ax.text( 2, 1.02, s = '$M_{\\ast}^{tot} \, / \, M_{h} \, = \, %.2f $' % (100 * s
 
 sub_ax = ax.twinx()
 
-sub_ax.bar( bar_x[1], height = 100 * eta_Mtot_1[0], width = 1, bottom = 100 * eta_Mtot[1], color = 'dimgrey', edgecolor = 'dimgrey',)
-sub_ax.bar( bar_x[0], height = 100 * eta_Mtot_1[1], width = 1, bottom = 100 * eta_Mtot[0], color = 'dimgrey', edgecolor = 'dimgrey',)
-sub_ax.bar( bar_x, height = 100 * eta_Mtot, width = 1, color = 'none', edgecolor = 'k',)
+sub_ax.bar( bar_x[1], height = 100 * eta_Mtot_1[0], width = 1, bottom = 100 * eta_Mtot[1], color = 'dimgrey', edgecolor = 'k', lw = 0.75,)
+sub_ax.bar( bar_x[0], height = 100 * eta_Mtot_1[1], width = 1, bottom = 100 * eta_Mtot[0], color = 'dimgrey', edgecolor = 'k', lw = 0.75,)
+sub_ax.bar( bar_x, height = 100 * eta_Mtot, width = 1, color = 'none', edgecolor = 'k', lw = 0.75,)
 
 sub_ax.set_ylabel('$100{\\times} \, M_{\\ast} \, / \, M_{h}$', fontsize = 15,)
 sub_ax.set_ylim(0, top_y / modi_lim)

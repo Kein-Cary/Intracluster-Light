@@ -72,7 +72,7 @@ def cumu_mass_func(rp, surf_mass, N_grid = 100):
 	return cumu_mass
 
 def sersic_func(r, Ie, re, ndex):
-	belta = 3 * ndex - 0.324
+	belta = 2 * ndex - 0.324
 	fn = -1 * belta * ( r / re )**(1 / ndex) + belta
 	Ir = Ie * np.exp( fn )
 	return Ir

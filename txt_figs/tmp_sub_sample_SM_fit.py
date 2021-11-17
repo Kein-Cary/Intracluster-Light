@@ -376,20 +376,31 @@ def view_on_lognorm():
 
 out_lim_R = 350 # 400
 
-for mm in range( 1,2 ):
+for mm in range( 1 ):
 
-	dat = pds.read_csv( BG_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi.csv' % (cat_lis[mm], band_str) )
+	if id_dered == False:
+		dat = pds.read_csv( BG_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi.csv' % (cat_lis[mm], band_str) )
+		_cp_R, _cp_SM, _cp_SM_err = np.array(dat['R']), np.array(dat['medi_correct_surf_M']), np.array(dat['surf_M_err'])
+		obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
 
-	_cp_R, _cp_SM, _cp_SM_err = np.array(dat['R']), np.array(dat['medi_correct_surf_M']), np.array(dat['surf_M_err'])
-	obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
+		##.. cov_arr
+		with h5py.File( BG_path + '%s_%s-band-based_aveg-jack_log-surf-mass_cov_arr.h5' % (cat_lis[mm], band_str), 'r') as f:
+			cov_arr = np.array( f['cov_MX'] )
+			cor_arr = np.array( f['cor_MX'] )
+
+	if id_dered == True:
+		dat = pds.read_csv( BG_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi_with-dered.csv' % (cat_lis[mm], band_str) )
+		_cp_R, _cp_SM, _cp_SM_err = np.array(dat['R']), np.array(dat['medi_correct_surf_M']), np.array(dat['surf_M_err'])
+		obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
+
+		##.. cov_arr
+		with h5py.File( BG_path + '%s_%s-band-based_aveg-jack_log-surf-mass_cov_arr_with-dered.h5' % (cat_lis[mm], band_str), 'r') as f:
+			cov_arr = np.array( f['cov_MX'] )
+			cor_arr = np.array( f['cor_MX'] )
+
 
 	id_rx = obs_R >= 10.
 	obs_R, surf_M, surf_M_err = obs_R[id_rx], surf_M[id_rx], surf_M_err[id_rx]
-
-	##.. cov_arr
-	with h5py.File( BG_path + '%s_%s-band-based_aveg-jack_log-surf-mass_cov_arr.h5' % (cat_lis[mm], band_str), 'r') as f:
-		cov_arr = np.array( f['cov_MX'] )
-		cor_arr = np.array( f['cor_MX'] )
 
 	id_cov = np.where( id_rx )[0][0]
 	cov_arr = cov_arr[id_cov:, id_cov:]
@@ -425,13 +436,18 @@ for mm in range( 1,2 ):
 
 
 	##.. mid-region
-	diffi_lgM = np.log10( surf_M - _out_M - ( _cen_M - _cen_M_2Mpc ) )
+	diffi_M = surf_M - _out_M - ( _cen_M - _cen_M_2Mpc )
+	diffi_lgM = np.log10( diffi_M )
 
 	id_nan = np.isnan( diffi_lgM )
 
 	devi_R = obs_R[ id_nan == False ]
 	devi_lgM = diffi_lgM[ id_nan == False ]
 	devi_err = lg_M_err[ id_nan == False ]
+
+	# np.savetxt('/home/xkchen/%s_mid-SM_data_log.txt' % cat_lis[mm], np.array([ devi_R, devi_lgM, devi_err ]).T, )
+	# np.savetxt('/home/xkchen/%s_mid-SM_data.txt' % cat_lis[mm], np.array([ devi_R, diffi_M[ id_nan == False ], surf_M_err[ id_nan == False ] ]).T, )
+
 
 	#. use to fitting
 	if mm == 0:
@@ -514,121 +530,121 @@ for mm in range( 1,2 ):
 	plt.savefig( '/home/xkchen/%s_%s-band-based_mass-profile_mid-region_fit-test%s.png' % (cat_lis[mm], band_str, dered_str), dpi = 300)
 	plt.close()
 
+	raise
 
 
-	put_params = [ mid_cov ]
-	n_walk = 50
+	# put_params = [ mid_cov ]
+	# n_walk = 50
 
-	put_x0 = np.random.uniform( 3.5, 9.5, n_walk ) # lgIx
-	put_x1 = np.random.uniform( 10, 500, n_walk ) # R_trans
-	put_x2 = np.random.uniform( 0.1, 3, n_walk ) # L_trans
+	# put_x0 = np.random.uniform( 3.5, 9.5, n_walk ) # lgIx
+	# put_x1 = np.random.uniform( 10, 500, n_walk ) # R_trans
+	# put_x2 = np.random.uniform( 0.1, 3, n_walk ) # L_trans
 
-	param_labels = [ '$lg\\Sigma_{x}$', '$R_{t}$', '$\\sigma_{t}$' ]
-	pos = np.array( [ put_x0, put_x1, put_x2 ] ).T
+	# param_labels = [ '$lg\\Sigma_{x}$', '$R_{t}$', '$\\sigma_{t}$' ]
+	# pos = np.array( [ put_x0, put_x1, put_x2 ] ).T
 
-	L_chains = 1e4
-	n_dim = pos.shape[1]
+	# L_chains = 1e4
+	# n_dim = pos.shape[1]
 
-	mid_file_name = fit_path + '%s_%s-band-based_xi2-sigma_mid-region_Lognorm-mcmc-fit%s.h5' % (cat_lis[mm], band_str, dered_str)
-	backend = emcee.backends.HDFBackend( mid_file_name )
-	backend.reset( n_walk, n_dim )
+	# mid_file_name = fit_path + '%s_%s-band-based_xi2-sigma_mid-region_Lognorm-mcmc-fit%s.h5' % (cat_lis[mm], band_str, dered_str)
+	# backend = emcee.backends.HDFBackend( mid_file_name )
+	# backend.reset( n_walk, n_dim )
 
-	with Pool( 2 ) as pool:
+	# with Pool( 2 ) as pool:
 
-		sampler = emcee.EnsembleSampler(n_walk, n_dim, mid_ln_p_func, args = ( fit_R, fit_lgM, put_params, fit_err), pool = pool, backend = backend,)
-		sampler.run_mcmc(pos, L_chains, progress = True, )
-	try:
-		tau = sampler.get_autocorr_time()
-		flat_samples = sampler.get_chain( discard = np.int( 2.5 * np.max(tau) ), thin = np.int( 0.5 * np.max(tau) ), flat = True)
-	except:
-		flat_samples = sampler.get_chain( discard = 3000, thin = 300, flat = True)
-	## params estimate
-	mc_fits = []
+	# 	sampler = emcee.EnsembleSampler(n_walk, n_dim, mid_ln_p_func, args = ( fit_R, fit_lgM, put_params, fit_err), pool = pool, backend = backend,)
+	# 	sampler.run_mcmc(pos, L_chains, progress = True, )
+	# try:
+	# 	tau = sampler.get_autocorr_time()
+	# 	flat_samples = sampler.get_chain( discard = np.int( 2.5 * np.max(tau) ), thin = np.int( 0.5 * np.max(tau) ), flat = True)
+	# except:
+	# 	flat_samples = sampler.get_chain( discard = 3000, thin = 300, flat = True)
+	# ## params estimate
+	# mc_fits = []
 
-	for oo in range( n_dim ):
-		samp_arr = flat_samples[:, oo]
-		mc_fit_oo = np.median( samp_arr )
-		mc_fits.append( mc_fit_oo )
+	# for oo in range( n_dim ):
+	# 	samp_arr = flat_samples[:, oo]
+	# 	mc_fit_oo = np.median( samp_arr )
+	# 	mc_fits.append( mc_fit_oo )
 
-	## figs
-	fig = corner.corner( flat_samples, bins = [100] * n_dim, labels = param_labels, quantiles = [0.16, 0.84], 
-		levels = (1 - np.exp(-0.5), 1-np.exp(-2), 1-np.exp(-4.5) ), show_titles = True, smooth = 1, smooth1d = 1, title_fmt = '.5f',
-		plot_datapoints = True, plot_density = False, fill_contours = True,)
-	axes = np.array( fig.axes ).reshape( (n_dim, n_dim) )
+	# ## figs
+	# fig = corner.corner( flat_samples, bins = [100] * n_dim, labels = param_labels, quantiles = [0.16, 0.84], 
+	# 	levels = (1 - np.exp(-0.5), 1-np.exp(-2), 1-np.exp(-4.5) ), show_titles = True, smooth = 1, smooth1d = 1, title_fmt = '.5f',
+	# 	plot_datapoints = True, plot_density = False, fill_contours = True,)
+	# axes = np.array( fig.axes ).reshape( (n_dim, n_dim) )
 
-	for jj in range( n_dim ):
-		ax = axes[jj, jj]
-		ax.axvline( mc_fits[jj], color = 'r', ls = '-', alpha = 0.5,)
+	# for jj in range( n_dim ):
+	# 	ax = axes[jj, jj]
+	# 	ax.axvline( mc_fits[jj], color = 'r', ls = '-', alpha = 0.5,)
 
-	for yi in range( n_dim ):
-		for xi in range( yi ):
-			ax = axes[yi, xi]
+	# for yi in range( n_dim ):
+	# 	for xi in range( yi ):
+	# 		ax = axes[yi, xi]
 
-			ax.axvline( mc_fits[xi], color = 'r', ls = '-', alpha = 0.5,)
-			ax.axhline( mc_fits[yi], color = 'r', ls = '-', alpha = 0.5,)
+	# 		ax.axvline( mc_fits[xi], color = 'r', ls = '-', alpha = 0.5,)
+	# 		ax.axhline( mc_fits[yi], color = 'r', ls = '-', alpha = 0.5,)
 
-			ax.plot( mc_fits[xi], mc_fits[yi], 'ro', alpha = 0.5,)
+	# 		ax.plot( mc_fits[xi], mc_fits[yi], 'ro', alpha = 0.5,)
 
-	ax = axes[0, n_dim - 2 ]
-	ax.set_title( fig_name[mm] + ',%s band-based' % band_str )
-	plt.savefig('/home/xkchen/%s_%s-band-based_mass-profile_mid-region_mcmc-fit_params%s.png' % (cat_lis[mm], band_str, dered_str), dpi = 300)
-	plt.close()
-
-
-	lg_SM_fit, Rt_fit, sigm_tt_fit = mc_fits[:]
-
-	keys = ['lg_M0', 'R_t', 'sigma_t']
-	values = [ lg_SM_fit, Rt_fit, sigm_tt_fit ]
-	fill = dict( zip( keys, values) )
-	out_data = pds.DataFrame( fill, index = ['k', 'v'])
-	out_data.to_csv( fit_path + '%s_%s-band-based_xi2-sigma_mid-region_Lognorm-mcmc-fit%s.csv' % (cat_lis[mm], band_str, dered_str),)
+	# ax = axes[0, n_dim - 2 ]
+	# ax.set_title( fig_name[mm] + ',%s band-based' % band_str )
+	# plt.savefig('/home/xkchen/%s_%s-band-based_mass-profile_mid-region_mcmc-fit_params%s.png' % (cat_lis[mm], band_str, dered_str), dpi = 300)
+	# plt.close()
 
 
-	#... total mass profile compare
-	fit_cross = np.log10( log_norm_func( obs_R, lg_SM_fit, Rt_fit, sigm_tt_fit ) - log_norm_func( 2e3, lg_SM_fit, Rt_fit, sigm_tt_fit ) )
-	mod_sum_M = 10**fit_cross + _out_M + ( _cen_M - _cen_M_2Mpc )
-	lg_mod_M = np.log10( mod_sum_M )
+	# lg_SM_fit, Rt_fit, sigm_tt_fit = mc_fits[:]
 
-	delta = lg_M - lg_mod_M
-	cov_inv = np.linalg.pinv( cov_arr )
-	chi2 = delta.T.dot( cov_inv ).dot(delta)
-	chi2nu = chi2 / ( len(obs_R) - 1)
+	# keys = ['lg_M0', 'R_t', 'sigma_t']
+	# values = [ lg_SM_fit, Rt_fit, sigm_tt_fit ]
+	# fill = dict( zip( keys, values) )
+	# out_data = pds.DataFrame( fill, index = ['k', 'v'])
+	# out_data.to_csv( fit_path + '%s_%s-band-based_xi2-sigma_mid-region_Lognorm-mcmc-fit%s.csv' % (cat_lis[mm], band_str, dered_str),)
 
 
-	plt.figure()
-	plt.plot( obs_R, fit_cross, ls = '--', color = line_c[mm],)
-	plt.errorbar( devi_R, devi_lgM, yerr = devi_err, xerr = None, color = line_c[mm], marker = '^', ms = 4, ls = 'none', 
-		ecolor = line_c[mm], mec = line_c[mm], mfc = 'none', capsize = 3,)
-	plt.xlim( 3e1, 4e2)
-	plt.xscale( 'log' )
-	plt.ylim( 4.5, 6.25)
-	plt.savefig( '/home/xkchen/%s_%s-band-based_mass-profile_mid-region_fit-compare%s.png' % (cat_lis[mm], band_str, dered_str), dpi = 300)
-	plt.close()
+	# #... total mass profile compare
+	# fit_cross = np.log10( log_norm_func( obs_R, lg_SM_fit, Rt_fit, sigm_tt_fit ) - log_norm_func( 2e3, lg_SM_fit, Rt_fit, sigm_tt_fit ) )
+	# mod_sum_M = 10**fit_cross + _out_M + ( _cen_M - _cen_M_2Mpc )
+	# lg_mod_M = np.log10( mod_sum_M )
+
+	# delta = lg_M - lg_mod_M
+	# cov_inv = np.linalg.pinv( cov_arr )
+	# chi2 = delta.T.dot( cov_inv ).dot(delta)
+	# chi2nu = chi2 / ( len(obs_R) - 1)
 
 
-	plt.figure()
-	ax = plt.subplot(111)
+	# plt.figure()
+	# plt.plot( obs_R, fit_cross, ls = '--', color = line_c[mm],)
+	# plt.errorbar( devi_R, devi_lgM, yerr = devi_err, xerr = None, color = line_c[mm], marker = '^', ms = 4, ls = 'none', 
+	# 	ecolor = line_c[mm], mec = line_c[mm], mfc = 'none', capsize = 3,)
+	# plt.xlim( 3e1, 4e2)
+	# plt.xscale( 'log' )
+	# plt.ylim( 4.5, 6.25)
+	# plt.savefig( '/home/xkchen/%s_%s-band-based_mass-profile_mid-region_fit-compare%s.png' % (cat_lis[mm], band_str, dered_str), dpi = 300)
+	# plt.close()
 
-	ax.set_title( fig_name[mm] + ',%s-band based' % band_str)
-	ax.errorbar( obs_R, lg_M, yerr = lg_M_err, xerr = None, color = 'r', marker = '.', ls = 'none', ecolor = 'r', 
-		alpha = 0.5, mec = 'r', mfc = 'r', capsize = 3.5, label = 'signal')
 
-	ax.plot( obs_R, np.log10( _cen_M - _cen_M_2Mpc ), ls = '-', color = 'g', alpha = 0.5,)
-	ax.plot( obs_R, fit_cross, ls = '--', color = 'g', alpha = 0.5,)
+	# plt.figure()
+	# ax = plt.subplot(111)
 
-	ax.plot( obs_R, np.log10( _out_M), ls = ':', color = 'g', alpha = 0.5, label = '$ NFW_{mis} $',)
-	ax.plot( obs_R, lg_mod_M, ls = '-', color = 'b', alpha = 0.5,)
+	# ax.set_title( fig_name[mm] + ',%s-band based' % band_str)
+	# ax.errorbar( obs_R, lg_M, yerr = lg_M_err, xerr = None, color = 'r', marker = '.', ls = 'none', ecolor = 'r', 
+	# 	alpha = 0.5, mec = 'r', mfc = 'r', capsize = 3.5, label = 'signal')
 
-	ax.text( 1e1, 4.0, s = '$\\chi^{2} / \\nu = %.5f$' % chi2nu, color = 'k',)
+	# ax.plot( obs_R, np.log10( _cen_M - _cen_M_2Mpc ), ls = '-', color = 'g', alpha = 0.5,)
+	# ax.plot( obs_R, fit_cross, ls = '--', color = 'g', alpha = 0.5,)
 
-	ax.set_xlim( 9, 1.2e3 )
-	ax.legend( loc = 1, )
-	ax.set_ylim( 3, 8.5)
-	ax.set_ylabel( '$ lg \\Sigma [M_{\\odot} / kpc^2]$' )
+	# ax.plot( obs_R, np.log10( _out_M), ls = ':', color = 'g', alpha = 0.5, label = '$ NFW_{mis} $',)
+	# ax.plot( obs_R, lg_mod_M, ls = '-', color = 'b', alpha = 0.5,)
 
-	ax.set_xlabel( 'R [kpc]')
-	ax.set_xscale( 'log' )
-	plt.savefig('/home/xkchen/%s_%s-band_mass-pro_separate-fit_test%s.png' % (cat_lis[mm], band_str, dered_str), dpi = 300)
-	plt.close()
+	# ax.text( 1e1, 4.0, s = '$\\chi^{2} / \\nu = %.5f$' % chi2nu, color = 'k',)
 
-raise
+	# ax.set_xlim( 9, 1.2e3 )
+	# ax.legend( loc = 1, )
+	# ax.set_ylim( 3, 8.5)
+	# ax.set_ylabel( '$ lg \\Sigma [M_{\\odot} / kpc^2]$' )
+
+	# ax.set_xlabel( 'R [kpc]')
+	# ax.set_xscale( 'log' )
+	# plt.savefig('/home/xkchen/%s_%s-band_mass-pro_separate-fit_test%s.png' % (cat_lis[mm], band_str, dered_str), dpi = 300)
+	# plt.close()
+

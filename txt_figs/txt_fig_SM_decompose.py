@@ -106,6 +106,15 @@ def log_norm_func( r, lg_SM0, Rt, sigm_tt ):
 
 	return 10**lg_M
 
+def Drude_F(x, lg_Am, L_w, x_0 ):
+
+	mf0 = (L_w / x_0)**2
+	mf1 = (x / x_0 - x_0 / x)**2
+	mf = mf0 / ( mf1 + mf0 )
+	Am = 10**lg_Am
+
+	return Am * mf
+
 ### === ### miscentering nfw profile (Zu et al. 2020, section 3.)
 def mis_p_func( r_off, sigma_off):
 	"""
@@ -244,11 +253,11 @@ def subset_func():
 	band_str = 'gri'
 
 	#. mass estimation with deredden or not
-	# id_dered = True
-	# dered_str = '_with-dered'
+	id_dered = True
+	dered_str = '_with-dered'
 
-	id_dered = False
-	dered_str = ''
+	# id_dered = False
+	# dered_str = ''
 
 	if id_dered == False:
 		#. surface mass profiles
@@ -274,27 +283,33 @@ def subset_func():
 	#. mass profile for central region
 	cen_dat = pds.read_csv( fit_path + '%s_%s-band-based_mass-profile_cen-deV_fit%s.csv' % (cat_lis[0], band_str, dered_str) )
 	lo_Ie, lo_Re, lo_Ne = np.array( cen_dat['Ie'] )[0], np.array( cen_dat['Re'] )[0], np.array( cen_dat['ne'] )[0]
-	lo_cen_M = sersic_func( lo_R, 10**lo_Ie, lo_Re, lo_Ne) - sersic_func( 2e3, 10**lo_Ie, lo_Re, lo_Ne)
+	lo_cen_M = sersic_func( lo_rp, 10**lo_Ie, lo_Re, lo_Ne) - sersic_func( 2e3, 10**lo_Ie, lo_Re, lo_Ne)
 
 	cen_dat = pds.read_csv( fit_path + '%s_%s-band-based_mass-profile_cen-deV_fit%s.csv' % (cat_lis[1], band_str, dered_str) )
 	hi_Ie, hi_Re, hi_Ne = np.array( cen_dat['Ie'] )[0], np.array( cen_dat['Re'] )[0], np.array( cen_dat['ne'] )[0]
-	hi_cen_M = sersic_func( hi_R, 10**hi_Ie, hi_Re, hi_Ne) - sersic_func( 2e3, 10**hi_Ie, hi_Re, hi_Ne)
+	hi_cen_M = sersic_func( hi_rp, 10**hi_Ie, hi_Re, hi_Ne) - sersic_func( 2e3, 10**hi_Ie, hi_Re, hi_Ne)
 
 
 	#... mass profile for the middle region
+	#. lognormal
 	mid_dat = pds.read_csv( fit_path + '%s_%s-band-based_xi2-sigma_mid-region_Lognorm-mcmc-fit%s.csv' % (cat_lis[0], band_str, dered_str),)
 	lo_lgSM_fit, lo_Rt_fit, lo_sigm_t_fit = np.array( mid_dat['lg_M0'])[0], np.array( mid_dat['R_t'] )[0], np.array( mid_dat['sigma_t'] )[0]
-	lo_mid_mass = log_norm_func( lo_R, lo_lgSM_fit, lo_Rt_fit, lo_sigm_t_fit ) - log_norm_func( 2e3, lo_lgSM_fit, lo_Rt_fit, lo_sigm_t_fit )
 
+	lo_mid_mass = log_norm_func( lo_rp, lo_lgSM_fit, lo_Rt_fit, lo_sigm_t_fit ) - log_norm_func( 2e3, lo_lgSM_fit, lo_Rt_fit, lo_sigm_t_fit )
 
 	mid_dat = pds.read_csv( fit_path + '%s_%s-band-based_xi2-sigma_mid-region_Lognorm-mcmc-fit%s.csv' % (cat_lis[1], band_str, dered_str),)
 	hi_lgSM_fit, hi_Rt_fit, hi_sigm_t_fit = np.array( mid_dat['lg_M0'])[0], np.array( mid_dat['R_t'] )[0], np.array( mid_dat['sigma_t'] )[0]
-	hi_mid_mass = log_norm_func( hi_R, hi_lgSM_fit, hi_Rt_fit, hi_sigm_t_fit ) - log_norm_func( 2e3, hi_lgSM_fit, hi_Rt_fit, hi_sigm_t_fit )
+
+	hi_mid_mass = log_norm_func( hi_rp, hi_lgSM_fit, hi_Rt_fit, hi_sigm_t_fit ) - log_norm_func( 2e3, hi_lgSM_fit, hi_Rt_fit, hi_sigm_t_fit )
 
 
 	#. trans mass
+	lo_tmp_M_f = interp.interp1d( lo_R, lo_surf_M, kind = 'linear', fill_value = 'extrapolate',)
+
 	_cc_lo_out_M = ( lo_interp_F( lo_R ) - lo_xi2M_2Mpc ) * 10**lg_fb_gi
-	lo_devi_M = lo_surf_M - ( _cc_lo_out_M + lo_cen_M )
+	_cc_lo_cen_M = sersic_func( lo_R, 10**lo_Ie, lo_Re, lo_Ne) - sersic_func( 2e3, 10**lo_Ie, lo_Re, lo_Ne)
+
+	lo_devi_M = lo_surf_M - ( _cc_lo_out_M + _cc_lo_cen_M )
 
 	id_M_lim = lo_devi_M > 10**4.6 # mass density limit
 	id_rx = lo_R > 20 # 50
@@ -305,8 +320,12 @@ def subset_func():
 	lo_devi_Merr = lo_surf_M_err[ id_lim ]
 
 
+	hi_tmp_M_f = interp.interp1d( hi_R, hi_surf_M, kind = 'linear', fill_value = 'extrapolate',)
+
 	_cc_hi_out_M = ( hi_interp_F( hi_R ) - hi_xi2M_2Mpc ) * 10**lg_fb_gi
-	hi_devi_M = hi_surf_M - ( _cc_hi_out_M + hi_cen_M ) 
+	_cc_hi_cen_M = sersic_func( hi_R, 10**hi_Ie, hi_Re, hi_Ne) - sersic_func( 2e3, 10**hi_Ie, hi_Re, hi_Ne)
+
+	hi_devi_M = hi_surf_M - ( _cc_hi_out_M + _cc_hi_cen_M )
 
 	id_M_lim = hi_devi_M > 10**4
 	id_rx = hi_R > 20 # 51
@@ -352,11 +371,29 @@ def subset_func():
 	hi_intep_xi2sigm_F = interp.interp1d( hi_rp, hi_delta_xi2mis_sigma, kind = 'linear', fill_value = 'extrapolate',)
 
 	#. central mass overdensity
-	lo_cen_aveg_sm = aveg_sigma_func( lo_R, lo_cen_M )
-	lo_cen_deta_sigm = ( lo_cen_aveg_sm - lo_cen_M ) * 1e-6
+	lo_cen_aveg_sm = aveg_sigma_func( lo_R, _cc_lo_cen_M )
+	lo_cen_deta_sigm = ( lo_cen_aveg_sm - _cc_lo_cen_M ) * 1e-6
 
-	hi_cen_aveg_sm = aveg_sigma_func( hi_R, hi_cen_M )
-	hi_cen_deta_sigm = ( hi_cen_aveg_sm - hi_cen_M ) * 1e-6
+	hi_cen_aveg_sm = aveg_sigma_func( hi_R, _cc_hi_cen_M )
+	hi_cen_deta_sigm = ( hi_cen_aveg_sm - _cc_hi_cen_M ) * 1e-6
+
+
+	#. satellites number density
+	lo_Ng_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/data_Zhiwei/' + 'g2r_all_sample/data/g-r_deext/low-BCG_g-r_deext_allinfo_noRG.csv')
+	lo_n_rp, lo_Ng, lo_Ng_err = np.array(lo_Ng_dat['rbins']), np.array(lo_Ng_dat['sigma']), np.array(lo_Ng_dat['sigma_err'])
+	lo_Ng, lo_Ng_err = lo_Ng * h**2 / a_ref**2 / 1e6, lo_Ng_err * h**2 / a_ref**2 / 1e6 # unit, '/kpc^{-2}'
+	lo_n_rp = lo_n_rp / h / (1 + z_ref)
+
+	hi_Ng_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/data_Zhiwei/' + 'g2r_all_sample/data/g-r_deext/hi-BCG_g-r_deext_allinfo_noRG.csv')
+	hi_n_rp, hi_Ng, hi_Ng_err = np.array(hi_Ng_dat['rbins']), np.array(hi_Ng_dat['sigma']), np.array(hi_Ng_dat['sigma_err'])
+	hi_Ng, hi_Ng_err = hi_Ng * h**2 / a_ref**2 / 1e6, hi_Ng_err * h**2 / a_ref**2 / 1e6
+	hi_n_rp = hi_n_rp / h / (1 + z_ref)
+
+	lo_intep_ng_F = interp.interp1d( lo_n_rp, lo_Ng, kind = 'linear', fill_value = 'extrapolate')
+	hi_intep_ng_F = interp.interp1d( hi_n_rp, hi_Ng, kind = 'linear', fill_value = 'extrapolate')
+
+	lo_Ng_2Mpc = lo_intep_ng_F( 2 )
+	hi_Ng_2Mpc = hi_intep_ng_F( 2 )
 
 
 	# lo_r_avegM = cumu_mass_func( lo_R, lo_cen_M, N_grid = N_grid)
@@ -389,39 +426,24 @@ def subset_func():
 	# plt.close()
 
 
-	#. satellites number density
-	lo_Ng_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/data_Zhiwei/' + 'g2r_all_sample/data/g-r_deext/low-BCG_g-r_deext_allinfo_noRG.csv')
-	lo_n_rp, lo_Ng, lo_Ng_err = np.array(lo_Ng_dat['rbins']), np.array(lo_Ng_dat['sigma']), np.array(lo_Ng_dat['sigma_err'])
-	lo_Ng, lo_Ng_err = lo_Ng * h**2 / a_ref**2 / 1e6, lo_Ng_err * h**2 / a_ref**2 / 1e6 # unit, '/kpc^{-2}'
-	lo_n_rp = lo_n_rp / h / (1 + z_ref)
-
-	hi_Ng_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/data_Zhiwei/' + 'g2r_all_sample/data/g-r_deext/hi-BCG_g-r_deext_allinfo_noRG.csv')
-	hi_n_rp, hi_Ng, hi_Ng_err = np.array(hi_Ng_dat['rbins']), np.array(hi_Ng_dat['sigma']), np.array(hi_Ng_dat['sigma_err'])
-	hi_Ng, hi_Ng_err = hi_Ng * h**2 / a_ref**2 / 1e6, hi_Ng_err * h**2 / a_ref**2 / 1e6
-	hi_n_rp = hi_n_rp / h / (1 + z_ref)
-
-	lo_intep_ng_F = interp.interp1d( lo_n_rp, lo_Ng, kind = 'linear', fill_value = 'extrapolate')
-	hi_intep_ng_F = interp.interp1d( hi_n_rp, hi_Ng, kind = 'linear', fill_value = 'extrapolate')
-
-	lo_Ng_2Mpc = lo_intep_ng_F( 2 )
-	hi_Ng_2Mpc = hi_intep_ng_F( 2 )
-
-
-
 	fig = plt.figure( figsize = (15.0, 4.8) )
-	ax0 = fig.add_axes([0.05, 0.12, 0.275, 0.85])
-	ax1 = fig.add_axes([0.38, 0.12, 0.275, 0.85])
-	ax2 = fig.add_axes([0.71, 0.12, 0.275, 0.85])
+	
+	# ax0 = fig.add_axes([0.05, 0.12, 0.275, 0.85])
 
-	ax0.plot( lo_R / 1e3, lo_cen_M, ls = ':', color = 'b', alpha = 0.75,)
-	ax0.plot( hi_R / 1e3, hi_cen_M, ls = ':', color = 'r', alpha = 0.75, label = '$\\Sigma_{\\ast}^{\\mathrm{deV}}$',)
+	ax0 = fig.add_axes([0.06, 0.33, 0.275, 0.64])
+	bot_ax0 = fig.add_axes([0.06, 0.12, 0.275, 0.21])
+
+	ax1 = fig.add_axes([0.39, 0.12, 0.275, 0.85])
+	ax2 = fig.add_axes([0.72, 0.12, 0.275, 0.85])
+
+	ax0.plot( lo_rp / 1e3, lo_cen_M, ls = ':', color = 'b', alpha = 0.75,)
+	ax0.plot( hi_rp / 1e3, hi_cen_M, ls = ':', color = 'r', alpha = 0.75, label = '$\\Sigma_{\\ast}^{\\mathrm{deV}}$',)
 
 	ax0.plot( lo_rp / 1e3, lo_out_SM, ls = '-', color = 'b', alpha = 0.75,)
-	# ax0.plot( hi_rp / 1e3, hi_out_SM, ls = '-', color = 'r', alpha = 0.75, label = '$ \\Sigma_{m} \, / \, {%.0f} $' % const,)
 	ax0.plot( hi_rp / 1e3, hi_out_SM, ls = '-', color = 'r', alpha = 0.75, label = '$ \\gamma \, \\Sigma_{m} $',)
 
-	ax0.plot( lo_R / 1e3, lo_mid_mass, ls = '--', color = 'b', alpha = 0.75,)
-	ax0.plot( hi_R / 1e3, hi_mid_mass, ls = '--', color = 'r', alpha = 0.75, label = '$\\Sigma_{\\ast}^{tran} \, (\\mathrm{Eqn. \, 5})$',)
+	ax0.plot( lo_rp / 1e3, lo_mid_mass, ls = '--', color = 'b', alpha = 0.75,)
+	ax0.plot( hi_rp / 1e3, hi_mid_mass, ls = '--', color = 'r', alpha = 0.75, label = '$\\Sigma_{\\ast}^{tran} \, (\\mathrm{Eqn. \, 5})$',)
 
 	ax0.errorbar( lo_R / 1e3, lo_surf_M, yerr = lo_surf_M_err, xerr = None, color = 'b', marker = 's', ls = 'none', ecolor = 'b', 
 		mec = 'b', mfc = 'none', capsize = 2, markersize = 7, label = '$\\Sigma_{\\ast}^{\\mathrm{ \\tt{B} {+} \\tt{I} } }$, ' + fig_name[0],)
@@ -435,21 +457,42 @@ def subset_func():
 	ax0.errorbar( hi_devi_R / 1e3, hi_devi_M, yerr = hi_devi_Merr, xerr = None, color = 'r', marker = 'o', ls = 'none', ecolor = 'r',
 		mec = 'r', mfc = 'r', capsize = 2, markersize = 7, label = '$\\Sigma_{\\ast}^{tran}$, ' + fig_name[1],)
 
+	#. ratio plot
+	bot_ax0.errorbar( lo_devi_R / 1e3, lo_devi_M / lo_tmp_M_f( lo_devi_R ), yerr = lo_devi_Merr / lo_tmp_M_f( lo_devi_R ), 
+		ls = 'none', marker = 's', ms = 7, mec = 'b', mfc = 'b', ecolor = 'b', alpha = 0.75, capsize = 3,)
+	bot_ax0.plot( lo_rp / 1e3, lo_mid_mass / (lo_mid_mass + lo_cen_M + lo_out_SM), ls = '--', color = 'b',)
+
+	bot_ax0.errorbar( hi_devi_R / 1e3, hi_devi_M / hi_tmp_M_f( hi_devi_R ), yerr = hi_devi_Merr / hi_tmp_M_f( hi_devi_R ), 
+		ls = 'none', marker = 'o', ms = 7, mec = 'r', mfc = 'r', ecolor = 'r', alpha = 0.75, capsize = 3,)
+	bot_ax0.plot( hi_rp / 1e3, hi_mid_mass / (hi_mid_mass + hi_cen_M + hi_out_SM), ls = '--', color = 'r',)
+
+	ax0.annotate( text = 'BCG+ICL', xy = (0.29, 0.05), xycoords = 'axes fraction', fontsize = 15,)
 
 	_handles, _labels = ax0.get_legend_handles_labels()
 	ax0.legend( handles = _handles[::-1], labels = _labels[::-1], loc = 1, frameon = False, fontsize = 12, markerfirst = False,)
 
 	ax0.set_xlim( 9e-3, 2e0 )
 	ax0.set_xscale('log')
-	ax0.set_xlabel('$R \; [\\mathrm{M}pc]$', fontsize = 15,)
-	ax0.set_xticks([ 1e-2, 1e-1, 1e0, 2e0])
-	ax0.set_xticklabels( labels = ['$\\mathrm{0.01}$','$\\mathrm{0.1}$', '$\\mathrm{1}$', '$\\mathrm{2}$'])
+	# ax0.set_xlabel('$R \; [\\mathrm{M}pc]$', fontsize = 15,)
+	# ax0.set_xticks([ 1e-2, 1e-1, 1e0, 2e0])
+	# ax0.set_xticklabels( labels = ['$\\mathrm{0.01}$','$\\mathrm{0.1}$', '$\\mathrm{1}$', '$\\mathrm{2}$'])
 
 	ax0.set_yscale('log')
 	ax0.set_ylim( 1e4, 3e8 )
 
 	ax0.set_ylabel('$ \\Sigma_{\\ast} \; [M_{\\odot} \, / \, \\mathrm{k}pc^{2}]$', fontsize = 15,)
 	ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
+
+	bot_ax0.set_xlim( ax0.get_xlim() )
+	bot_ax0.set_xscale('log')
+	bot_ax0.set_xlabel('$R \; [\\mathrm{M}pc]$', fontsize = 15,)
+	bot_ax0.set_xticks([ 1e-2, 1e-1, 1e0, 2e0])
+	bot_ax0.set_xticklabels( labels = ['$\\mathrm{0.01}$','$\\mathrm{0.1}$', '$\\mathrm{1}$', '$\\mathrm{2}$'])
+
+	bot_ax0.set_ylabel('$\\Sigma_{\\ast}^{tran} \, / \, \\Sigma_{\\ast}^{ \\mathrm{ \\tt{B} {+} \\tt{I} } } $', fontsize = 15)
+	bot_ax0.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
+	bot_ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
+	ax0.set_xticklabels( labels = [] )
 
 
 	ax1.plot( lo_R / 1e3, lo_cen_deta_sigm, ls = ':', color = 'b',)
@@ -468,6 +511,8 @@ def subset_func():
 	ax1.errorbar( hi_obs_R[2:] / (1 + z_ref) / h, hi_obs_Detsigm[2:] * h * (1 + z_ref)**2, yerr = hi_obs_err[2:] * h * (1 + z_ref)**2, 
 		xerr = None, color = 'r', marker = 'o', ls = 'none', ecolor = 'r', mec = 'r', mfc = 'none', capsize = 2, markersize = 7, label = fig_name[1],)
 
+	ax1.annotate( text = 'Weak Lensing and $\\Delta \\Sigma_{\\ast}^{\\mathrm{BCG} }$', xy = (0.03, 0.05), xycoords = 'axes fraction', fontsize = 15,)
+
 	ax1.set_xlim( 9e-3, 2e0 )
 	ax1.set_xscale('log')
 	ax1.set_xlabel('$R \; [\\mathrm{M}pc]$', fontsize = 15,)
@@ -481,7 +526,6 @@ def subset_func():
 
 	_handles, _labels = ax1.get_legend_handles_labels()
 	ax1.legend( handles = _handles[::-1], labels = _labels[::-1], loc = 1, frameon = False, fontsize = 12, markerfirst = False, borderaxespad = 0.2,)
-
 	ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
 
 
@@ -491,6 +535,8 @@ def subset_func():
 	ax2.errorbar( hi_n_rp, hi_Ng * 1e6, yerr = hi_Ng_err * 1e6, xerr = None, color = 'r', marker = 'o', ls = 'none', ecolor = 'r', mec = 'r', 
 		mfc = 'none', capsize = 2, markersize = 7, label = fig_name[1],)
 
+	ax2.annotate( text = 'Galaxies ($M_{i}{<}{-}%.2f$)' % np.abs( (-19.43 + 5 * np.log10(h) ) ), xy = (0.03, 0.05), xycoords = 'axes fraction', fontsize = 15,)
+
 	ax2.set_xlim( 9e-3, 2e0 )
 	ax2.set_xscale('log')
 	ax2.set_xlabel('$R \; [\\mathrm{M}pc]$', fontsize = 15,)
@@ -499,7 +545,7 @@ def subset_func():
 
 	ax2.set_yscale('log')
 	ax2.set_ylim( 1e0, 3e2 )
-	ax2.legend( loc = 3, frameon = False, fontsize = 15,)
+	ax2.legend( loc = 1, frameon = False, fontsize = 15,)
 	ax2.set_ylabel('$ \\Sigma_{g} \; [ \\# \, / \, \\mathrm{M}pc^{2} ]$', fontsize = 15,)
 	ax2.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
 
@@ -547,23 +593,26 @@ def tot_samp_SM_fig():
 		dat = pds.read_csv( BG_path + 'photo-z_tot-BCG-star-Mass_%s-band-based_aveg-jack_mass-Lumi_with-dered.csv' % band_str,)
 		obs_R, surf_M, surf_M_err = np.array(dat['R']), np.array(dat['surf_mass']), np.array(dat['surf_mass_err'])
 
+	## re-divide radial bins
+	new_R = np.logspace( 0, np.log10(2.5e3), 100)
 
 	#... central part
 	p_dat = pds.read_csv( fit_path + '%stotal-sample_%s-band-based_mass-profile_cen-deV_fit.csv' % (dered_str, band_str),)
 	c_Ie, c_Re, c_ne = np.array( p_dat['Ie'] )[0], np.array( p_dat['Re'] )[0], np.array( p_dat['ne'] )[0]
 
+	cen_2Mpc = sersic_func( 2e3, 10**c_Ie, c_Re, c_ne)
+	fit_cen_M = sersic_func( new_R, 10**c_Ie, c_Re, c_ne) - cen_2Mpc
+
+
 	#... trans part fitting
 	mid_pat = pds.read_csv( fit_path + '%stotal_%s-band-based_xi2-sigma_mid-region_Lognorm-mcmc-fit.csv' % (dered_str, band_str),)
 	lg_SM_fit, Rt_fit, sigm_tt_fit = np.array( mid_pat['lg_M0'] )[0], np.array( mid_pat['R_t'] )[0], np.array( mid_pat['sigma_t'] )[0]
-
-
-	## re-divide radial bins
-	new_R = np.logspace( 0, np.log10(2.5e3), 100)
-
 	fit_cross = log_norm_func( new_R, lg_SM_fit, Rt_fit, sigm_tt_fit ) - log_norm_func( 2e3, lg_SM_fit, Rt_fit, sigm_tt_fit )
 
-	cen_2Mpc = sersic_func( 2e3, 10**c_Ie, c_Re, c_ne)
-	fit_cen_M = sersic_func( new_R, 10**c_Ie, c_Re, c_ne) - cen_2Mpc
+	# mid_pat = pds.read_csv( fit_path + '%stotal_%s-band-based_xi2-sigma_mid-region_Drude-mcmc-fit.csv' % (dered_str, band_str),)
+	# lg_AM_fit, Lw_fit, xc_fit = np.array( mid_pat['lg_Am'] )[0], np.array( mid_pat['Lw'] )[0], np.array( mid_pat['R_cen'] )[0]
+	# fit_cross = Drude_F( new_R, lg_AM_fit, Lw_fit, xc_fit) - Drude_F( 2e3, lg_AM_fit, Lw_fit, xc_fit )
+
 
 	#...
 	xi_rp = (lo_xi + hi_xi) / 2

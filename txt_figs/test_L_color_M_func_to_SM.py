@@ -48,13 +48,6 @@ psf_FWHM = [ 1.56, 1.67, 1.50 ] # arcsec
 Mag_sun = [ 4.65, 5.11, 4.53 ]
 l_wave = np.array( [6166, 4686, 7480] )
 
-### === 
-def sersic_func(r, Ie, re, ndex):
-	belta = 3 * ndex - 0.324
-	fn = -1 * belta * ( r / re )**(1 / ndex) + belta
-	Ir = Ie * np.exp( fn )
-	return Ir
-
 ### === ### subsamples
 def sub_sample_SM():
 	## fixed richness samples

@@ -117,7 +117,7 @@ band_str = 'gri'
 # tot_lg_Mean = np.mean( 10**tot_lgM / h**2 )
 # tot_lg_Medi = np.median( 10**tot_lgM / h**2 )
 
-# dat = pds.read_csv( out_path + 'photo-z_tot-BCG-star-Mass_%s-band-based_aveg-jack_mass-Lumi.csv' % band_str,)
+# dat = pds.read_csv( out_path + 'photo-z_tot-BCG-star-Mass_%s-band-based_aveg-jack_mass-Lumi_with-dered.csv' % band_str,)
 # aveg_R = np.array( dat['R'] )
 # aveg_surf_m, aveg_surf_m_err = np.array(dat['surf_mass']), np.array(dat['surf_mass_err'])
 
@@ -132,11 +132,11 @@ band_str = 'gri'
 # values = [ R_bond_0, R_bond_1 ]
 # fill = dict( zip( keys, values) )
 # out_data = pds.DataFrame( fill, index = ['k', 'v'])
-# out_data.to_csv( out_path + 'total-sample_%s-band_based_BCGM-match_R.csv' % band_str )
+# out_data.to_csv( out_path + 'total-sample_%s-band_based_BCGM-match_R_with-dered.csv' % band_str )
 
 
 #... calibrated the surface mass of subsamples with the aperture size of total sample.
-fix_R_dat = pds.read_csv( out_path + 'total-sample_%s-band_based_BCGM-match_R.csv' % band_str )
+fix_R_dat = pds.read_csv( out_path + 'total-sample_%s-band_based_BCGM-match_R_with-dered.csv' % band_str )
 R_fixed_M = np.array( fix_R_dat[ 'R_fixed_medi_M' ] )[0]
 
 dt_R, dt_M, dt_Merr = [], [], []
@@ -145,7 +145,7 @@ cali_factor = np.array( [] )
 for mm in range( 2 ):
 
 	#... mass profile
-	m_dat = pds.read_csv( out_path + '%s_%s-band-based_aveg-jack_mass-Lumi.csv' % (cat_lis[mm], band_str),)
+	m_dat = pds.read_csv( out_path + '%s_%s-band-based_aveg-jack_mass-Lumi_with-dered.csv' % (cat_lis[mm], band_str),)
 	jk_R = np.array(m_dat['R'])
 	surf_m, surf_m_err = np.array( m_dat['surf_mass']), np.array(m_dat['surf_mass_err'])
 	surf_L = np.array( m_dat['lumi'] )
@@ -181,7 +181,7 @@ for mm in range( 2 ):
 	values = [ jk_R, medi_off_surf_M, mean_off_surf_M, surf_m_err ]
 	fill = dict( zip( keys, values ) )
 	out_data = pds.DataFrame( fill )
-	out_data.to_csv( out_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi.csv' % (cat_lis[mm], band_str),)
+	out_data.to_csv( out_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi_with-dered.csv' % (cat_lis[mm], band_str),)
 
 	cali_factor = np.r_[ cali_factor, [ devi_Medi, devi_Mean ] ]
 
@@ -199,11 +199,11 @@ keys = ['low_medi_devi', 'low_mean_devi', 'high_medi_devi', 'high_mean_devi']
 values = list( cali_factor )
 fill = dict( zip( keys, values ) )
 out_data = pds.DataFrame( fill, index = ['k', 'v'])
-out_data.to_csv( out_path + '%s_%s-band-based_M_calib-f.csv' % (file_s, band_str),)
+out_data.to_csv( out_path + '%s_%s-band-based_M_calib-f_with-dered.csv' % (file_s, band_str),)
 
 
 #. ratio of surface mass between subsamples and total sample
-dat = pds.read_csv( out_path + 'photo-z_tot-BCG-star-Mass_%s-band-based_aveg-jack_mass-Lumi.csv' % band_str,)
+dat = pds.read_csv( out_path + 'photo-z_tot-BCG-star-Mass_%s-band-based_aveg-jack_mass-Lumi_with-dered.csv' % band_str,)
 tot_R = np.array(dat['R'])
 tot_surf_m, tot_surf_m_err = np.array(dat['surf_mass']), np.array(dat['surf_mass_err'])
 
@@ -211,7 +211,7 @@ interp_M_f = interp.interp1d( tot_R, tot_surf_m, kind = 'linear',)
 
 
 #. surface mass ratio with fixed-R mass correction
-calib_cat = pds.read_csv( out_path + '%s_%s-band-based_M_calib-f.csv' % (file_s, band_str),)
+calib_cat = pds.read_csv( out_path + '%s_%s-band-based_M_calib-f_with-dered.csv' % (file_s, band_str),)
 lo_shift, hi_shift = np.array(calib_cat['low_medi_devi'])[0], np.array(calib_cat['high_medi_devi'])[0]
 
 M_offset = [ lo_shift, hi_shift ]
@@ -219,8 +219,7 @@ M_offset = [ lo_shift, hi_shift ]
 for mm in range( 2 ):
 
 	N_samples = 30
-
-	jk_sub_m_file = out_path + '%s_%s-band-based_' % (cat_lis[mm], band_str) + 'jack-sub-%d_mass-Lumi.csv'
+	jk_sub_m_file = out_path + '%s_%s-band-based_' % (cat_lis[mm], band_str) + 'jack-sub-%d_mass-Lumi_with-dered.csv'
 
 	tmp_r, tmp_ratio = [], []
 
@@ -254,7 +253,7 @@ for mm in range( 2 ):
 	values = [ aveg_R, aveg_ratio, aveg_ratio_err ]
 	fill = dict(zip( keys, values) )
 	out_data = pds.DataFrame( fill )
-	out_data.to_csv( out_path + '%s_%s-band_corrected-aveg-M-ratio_to_total-sample.csv' % (cat_lis[mm], band_str),)
+	out_data.to_csv( out_path + '%s_%s-band_corrected-aveg-M-ratio_to_total-sample_with-dered.csv' % (cat_lis[mm], band_str),)
 
 
 #. surface mass ratio without fixed-R mass correction
@@ -264,7 +263,7 @@ for mm in range( 2 ):
 
 	N_samples = 30
 
-	jk_sub_m_file = out_path + '%s_%s-band-based_' % (cat_lis[mm], band_str) + 'jack-sub-%d_mass-Lumi.csv'
+	jk_sub_m_file = out_path + '%s_%s-band-based_' % (cat_lis[mm], band_str) + 'jack-sub-%d_mass-Lumi_with-dered.csv'
 
 	tmp_r, tmp_ratio = [], []
 
@@ -296,7 +295,7 @@ for mm in range( 2 ):
 	values = [ aveg_R, aveg_ratio, aveg_ratio_err ]
 	fill = dict(zip( keys, values) )
 	out_data = pds.DataFrame( fill )
-	out_data.to_csv( out_path + '%s_%s-band_aveg_M-ratio_to_total-sample.csv' % (cat_lis[mm], band_str),)
+	out_data.to_csv( out_path + '%s_%s-band_aveg_M-ratio_to_total-sample_with-dered.csv' % (cat_lis[mm], band_str),)
 
 	dt_eta_R.append( aveg_R )
 	dt_eta.append( aveg_ratio )
@@ -304,17 +303,17 @@ for mm in range( 2 ):
 
 
 #...calibrated case
-dat = pds.read_csv( out_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi.csv' % (cat_lis[0], band_str),)
+dat = pds.read_csv( out_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi_with-dered.csv' % (cat_lis[0], band_str),)
 lo_R, lo_surf_M, lo_surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
 
-dat = pds.read_csv( out_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi.csv' % (cat_lis[1], band_str),)
+dat = pds.read_csv( out_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi_with-dered.csv' % (cat_lis[1], band_str),)
 hi_R, hi_surf_M, hi_surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
 
 
-lo_eat_dat = pds.read_csv( out_path + '%s_%s-band_corrected-aveg-M-ratio_to_total-sample.csv' % (cat_lis[0], band_str),)
+lo_eat_dat = pds.read_csv( out_path + '%s_%s-band_corrected-aveg-M-ratio_to_total-sample_with-dered.csv' % (cat_lis[0], band_str),)
 lo_eta_R, lo_eta, lo_eta_err = np.array(lo_eat_dat['R']), np.array(lo_eat_dat['M/M_tot']), np.array(lo_eat_dat['M/M_tot-err'])
 
-hi_eat_dat = pds.read_csv( out_path + '%s_%s-band_corrected-aveg-M-ratio_to_total-sample.csv' % (cat_lis[1], band_str),)
+hi_eat_dat = pds.read_csv( out_path + '%s_%s-band_corrected-aveg-M-ratio_to_total-sample_with-dered.csv' % (cat_lis[1], band_str),)
 hi_eta_R, hi_eta, hi_eta_err = np.array(hi_eat_dat['R']), np.array(hi_eat_dat['M/M_tot']), np.array(hi_eat_dat['M/M_tot-err'])
 
 
@@ -416,4 +415,3 @@ ax1.set_xticklabels( [] )
 
 plt.savefig('/home/xkchen/%s_mass-reatio_compare.png' % file_s, dpi = 300)
 plt.close()
-

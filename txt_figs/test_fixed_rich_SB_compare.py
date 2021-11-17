@@ -48,7 +48,7 @@ l_wave = np.array( [6166, 4686, 7480] )
 
 ### === ###
 def sersic_func(r, Ie, re, ndex):
-	belta = 3 * ndex - 0.324
+	belta = 2 * ndex - 0.324
 	fn = -1 * belta * ( r / re )**(1 / ndex) + belta
 	Ir = Ie * np.exp( fn )
 	return Ir

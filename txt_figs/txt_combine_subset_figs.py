@@ -617,11 +617,8 @@ for pp in range( 2 ):
 			y2 = nbg_hi_sb[kk] + nbg_hi_err[kk], color = color_s[kk], alpha = 0.15,)
 
 	legend_1 = ax1.legend( [ fig_name[0], fig_name[1] ], loc = 1, frameon = False, fontsize = 22,)
-	legend_0 = ax1.legend( loc = 3, frameon = False, fontsize = 22,)
+	legend_0 = ax1.legend( loc = 3, frameon = False, fontsize = 22, )
 	ax1.add_artist( legend_1 )
-
-	# ax1.fill_betweenx( y = np.linspace( 19, 36, 200), x1 = phyR_psf, x2 = 0, color = 'k', alpha = 0.12,)
-	# ax1.text( 3e-3, 29.5, s = 'PSF', fontsize = 24,)
 
 	ax1.set_ylim( 21.5, 33.5 )
 	ax1.invert_yaxis()
@@ -648,13 +645,15 @@ for pp in range( 2 ):
 	ax2.plot( tot_R, tot_surf_m, ls = '-.', color = 'k', alpha = 0.75, label = '$\\mathrm{All} \; \\mathrm{clusters}$')
 	ax2.fill_between( tot_R, y1 = tot_surf_m - tot_surf_m_err, y2 = tot_surf_m + tot_surf_m_err, color = 'k', alpha = 0.12,)
 
-	# ax2.fill_betweenx( y = np.logspace(3, 10, 250), x1 = phyR_psf, x2 = 0, color = 'k', alpha = 0.12,)
+	ax2.axvline( x = 0.1, ls = ':', color = 'k', linewidth = 2.5, alpha = 0.4,)
+	ax2.axvline( x = 0.2, ls = ':', color = 'k', linewidth = 2.5, alpha = 0.4,)
+	ax2.text( 0.15, 1e4, s = '$R_{ \\mathrm{SOI} }$', fontsize = 24, rotation = 'vertical', color = 'k', alpha = 0.4, fontstyle = 'italic',)
 
 	ax2.set_xlim( 1e-2, 1e0 )
 	ax2.set_xscale('log')
 	ax2.set_yscale('log')
 	ax2.set_ylim( 5e3, 3e8 )
-	ax2.legend( loc = 3, frameon = False, fontsize = 22,)
+	ax2.legend( loc = 3, frameon = False, fontsize = 22, handletextpad = 0.2,)
 	ax2.set_ylabel('$ \\Sigma_{\\ast} \; [M_{\\odot} \, / \, kpc^2]$', fontsize = 22,)
 
 	ax2.yaxis.set_minor_locator( ticker.LogLocator( base = 10.0, subs = 'all', numticks = 100 ) )
@@ -668,6 +667,9 @@ for pp in range( 2 ):
 	bot_ax2.fill_between( hi_eta_R / 1e3, y1 = hi_eta - hi_eta_err, y2 = hi_eta + hi_eta_err, color = line_c[1], alpha = 0.12,)
 
 	bot_ax2.plot( tot_R, tot_surf_m / tot_surf_m, ls = '-.', color = 'k', alpha = 0.75,)
+
+	bot_ax2.axvline( x = 0.1, ls = ':', color = 'k', linewidth = 2.5, alpha = 0.4,)
+	bot_ax2.axvline( x = 0.2, ls = ':', color = 'k', linewidth = 2.5, alpha = 0.4,)
 
 	bot_ax2.set_xlim( ax2.get_xlim() )
 	bot_ax2.set_xscale( 'log' )

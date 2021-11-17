@@ -45,144 +45,6 @@ band = ['r', 'g', 'i']
 Da_ref = Test_model.angular_diameter_distance(z_ref).value
 L_ref = Da_ref * pixel / rad2asec
 
-#### ==== #### gravity (image overview)
-def gravity():
-
-	### masking, stacking, BG-estimate figs
-	home = '/home/xkchen/data/SDSS/'
-	load = '/home/xkchen/fig_tmp/'
-
-	### photo-z sample
-	# origin_files = home + 'photo_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
-	# mask_files = home + 'photo_files/mask_imgs/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
-	# resamp_files = home + 'photo_files/resample_imgs/photo-z_resamp-%s-ra%.3f-dec%.3f-redshift%.3f.fits'
-
-	# source_cat = home + 'photo_files/detect_source_cat/photo-z_img_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
-
-	# dat = pds.read_csv( load + 'photo_z_cat/photo-z_r-band_tot_remain_cat_set_200-grid_6.0-sigma.csv')
-	# ra, dec, z = np.array(dat['ra']), np.array(dat['dec']), np.array(dat['z'])
-	# imgx, imgy = np.array(dat['bcg_x']), np.array(dat['bcg_y'])
-
-	### spec-z sample
-	origin_files = home + 'wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
-	mask_files = home + 'mask_imgs/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
-	resamp_files = home + 'pix_resamp_imgs/z_ref_0.25/resamp-%s-ra%.3f-dec%.3f-redshift%.3f.fits'
-
-	source_cat = home + 'source_detect_cat/cluster_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
-
-	# dat = pds.read_csv( load + 'img_cat_2_28/cluster_r-band_tot_remain_cat_set_200-grid_6.0-sigma.csv')
-	dat = pds.read_csv( load + 'img_cat_2_28/cluster_tot-r-band_norm-img_cat.csv')
-	ra, dec, z = np.array(dat['ra']), np.array(dat['dec']), np.array(dat['z'])
-	imgx, imgy = np.array(dat['bcg_x']), np.array(dat['bcg_y'])
-
-
-	band_str = band[0]
-
-	Nz = len( z )
-
-	# np.random.seed( 5 )
-	# tt0 = np.random.choice( Nz, Nz, replace = False)
-	# set_ra, set_dec, set_z = ra[tt0], dec[tt0], z[tt0]
-	# set_x, set_y = imgx[tt0], imgy[tt0]
-
-	set_ra, set_dec, set_z = ra, dec, z
-	set_x, set_y = imgx, imgy
-
-	for tt in range( Nz ):
-
-		ra_g, dec_g, z_g = set_ra[tt], set_dec[tt], set_z[tt]
-		cen_x, cen_y = set_x[tt], set_y[tt]
-
-		data_o = fits.open( origin_files % (band_str, ra_g, dec_g, z_g),)
-		img_o = data_o[0].data
-
-		data_m = fits.open( mask_files % (band_str, ra_g, dec_g, z_g),)
-		img_m = data_m[0].data
-
-		Da_z = Test_model.angular_diameter_distance( z_g ).value
-		L_pix = Da_z * 10**3 * pixel / rad2asec
-		R1Mpc = 1e3 / L_pix
-		R200kpc = 2e2 / L_pix
-
-		## check BCG region
-		xn, yn = np.int(cen_x), np.int(cen_y)
-		cen_region = img_m[ yn - np.int(100 / L_pix): yn + np.int(100 / L_pix) + 1, xn - np.int(100 / L_pix): xn + np.int(100 / L_pix) + 1]
-		N_pix = cen_region.shape[0] * cen_region.shape[1]
-		idnn = np.isnan( cen_region )
-
-		eta = np.sum( idnn ) / N_pix
-
-		if eta >= 0.35: 
-			continue
-
-		else:
-			## obj_cat
-			source = asc.read( source_cat % (band_str, ra_g, dec_g, z_g),)
-			Numb = np.array(source['NUMBER'][-1])
-			A = np.array(source['A_IMAGE'])
-			B = np.array(source['B_IMAGE'])
-			theta = np.array(source['THETA_IMAGE'])
-			cx = np.array(source['X_IMAGE'])
-			cy = np.array(source['Y_IMAGE'])
-			p_type = np.array(source['CLASS_STAR'])
-
-			Kron = 16
-			a = Kron * A
-			b = Kron * B
-
-
-			fig = plt.figure( figsize = (19.84, 4.8) )
-			ax0 = fig.add_axes([0.03, 0.09, 0.28, 0.85])
-			ax1 = fig.add_axes([0.36, 0.09, 0.28, 0.85])
-			ax2 = fig.add_axes([0.68, 0.09, 0.28, 0.85])
-
-			ax0.imshow( img_o, origin = 'lower', cmap = 'Greys', vmin = -3e-2, vmax = 3e-2,)
-
-			clust = Circle( xy = (cen_x, cen_y), radius = R1Mpc, fill = False, ec = 'r', ls = '--', linewidth = 1, alpha = 0.75,)
-			ax0.add_patch(clust)
-
-			clust = Circle( xy = (cen_x, cen_y), radius = R200kpc, fill = False, ec = 'r', ls = '-', linewidth = 1, alpha = 0.75,)
-			ax0.add_patch(clust)
-
-			ax0.set_xlim( -100, img_o.shape[1] + 100 )
-			ax0.set_ylim( -100, img_o.shape[0] + 100 )
-
-			ax1.imshow( img_o, origin = 'lower', cmap = 'Greys', vmin = -3e-2, vmax = 3e-2,)
-
-			clust = Circle( xy = (cen_x, cen_y), radius = R1Mpc, fill = False, ec = 'r', ls = '--', linewidth = 1, alpha = 0.75,)
-			ax1.add_patch(clust)
-
-			clust = Circle( xy = (cen_x, cen_y), radius = R200kpc, fill = False, ec = 'r', ls = '-', linewidth = 1, alpha = 0.75,)
-			ax1.add_patch(clust)
-
-			for ll in range( Numb ):
-
-				ellips = Ellipse( xy = (cx[ll], cy[ll]), width = a[ll], height = b[ll], angle = theta[ll], fill = False, 
-					ec = 'g', ls = '-', linewidth = 1, alpha = 0.35,)
-				ax1.add_patch( ellips )
-
-			ax1.set_xlim( -100, img_o.shape[1] + 100 )
-			ax1.set_ylim( -100, img_o.shape[0] + 100 )
-
-			ax2.imshow( img_m, origin = 'lower', cmap = 'Greys', vmin = -3e-2, vmax = 3e-2,)
-
-			clust = Circle( xy = (cen_x, cen_y), radius = R1Mpc, fill = False, ec = 'r', ls = '--', linewidth = 1, alpha = 0.75,)
-			ax2.add_patch(clust)
-
-			clust = Circle( xy = (cen_x, cen_y), radius = R200kpc, fill = False, ec = 'r', ls = '-', linewidth = 1, alpha = 0.75,)
-			ax2.add_patch(clust)
-
-			ax2.set_xlim( -100, img_o.shape[1] + 100 )
-			ax2.set_ylim( -100, img_o.shape[0] + 100 )
-
-			# plt.savefig('/home/xkchen/figs/photo-z_%s-band_ra%.3f-dec%.3f-z%.3f_compare.png' % (band_str, ra_g, dec_g, z_g), dpi = 300)
-			plt.savefig('/home/xkchen/figs/spec-z_%s-band_ra%.3f-dec%.3f-z%.3f_compare.png' % (band_str, ra_g, dec_g, z_g), dpi = 300)
-			plt.close()
-
-	print('done!')
-
-# gravity()
-
 
 ### fig test
 import glob
@@ -400,8 +262,10 @@ def tmp_mask_func( img_file, gal_arr ):
 	Numb = len( major )
 
 	mask_path = np.ones((img.shape[0], img.shape[1]), dtype = np.float32)
+
 	ox = np.linspace(0, img.shape[1] - 1, img.shape[1])
 	oy = np.linspace(0, img.shape[0] - 1, img.shape[0])
+
 	basic_coord = np.array(np.meshgrid(ox, oy))
 
 	# masking 'galaxies'
@@ -436,6 +300,74 @@ def tmp_mask_func( img_file, gal_arr ):
 			mask_path[lb0: lb1, la0: la1] = mask_path[lb0: lb1, la0: la1] * iv
 
 	mask_img = mask_path * img
+
+	return mask_img, mask_path
+
+
+def ccp_mask_func( img_file, gal_arr ):
+
+	data = fits.open( img_file )
+	img = data[0].data
+
+	cx, cy, a, b, theta = gal_arr[:]
+
+	major = a / 2
+	minor = b / 2
+	senior = np.sqrt(major**2 - minor**2)
+
+	Numb = len( major )
+
+	N_wide = np.int( 100 * 2 )
+	Ny, Nx = img.shape[0] + N_wide, img.shape[1] + N_wide
+	mask_path = np.ones( (Ny, Nx), dtype = np.float32 )
+
+	#. offset the position of objects
+	cx, cy = cx + N_wide / 2, cy + N_wide / 2
+
+	#. extend img with extra-pixel number
+	extnd_img = np.ones( (Ny, Nx), dtype = np.float32 ) * -100
+
+	extnd_img[ 100: -100, 100: -100] = img + 0.
+	id_vx = extnd_img == -100
+	extnd_img[ id_vx ] = np.nan
+
+	ox = np.linspace(0, Nx - 1, Nx )
+	oy = np.linspace(0, Ny - 1, Ny )
+
+	basic_coord = np.array( np.meshgrid(ox, oy) )
+
+	# masking 'galaxies'
+	for k in range( Numb ):
+
+		xc = cx[k]
+		yc = cy[k]
+
+		lr = major[k]
+		sr = minor[k]
+		cr = senior[k]
+		chi = theta[k] * np.pi / 180
+
+		if np.isnan( lr ):
+			continue
+
+		else:
+			set_r = np.int( np.ceil(1.2 * lr) )
+			la0 = np.max( [np.int(xc - set_r), 0])
+			la1 = np.min( [np.int(xc + set_r + 1), Nx ] )
+			lb0 = np.max( [np.int(yc - set_r), 0] ) 
+			lb1 = np.min( [np.int(yc + set_r + 1), Ny ] )
+
+			df1 = (basic_coord[0,:][lb0: lb1, la0: la1] - xc) * np.cos(chi) + (basic_coord[1,:][lb0: lb1, la0: la1] - yc) * np.sin(chi)
+			df2 = (basic_coord[1,:][lb0: lb1, la0: la1] - yc) * np.cos(chi) - (basic_coord[0,:][lb0: lb1, la0: la1] - xc) * np.sin(chi)
+			fr = df1**2 / lr**2 + df2**2 / sr**2
+			jx = fr <= 1
+
+			iu = np.where(jx == True)
+			iv = np.ones((jx.shape[0], jx.shape[1]), dtype = np.float32)
+			iv[iu] = np.nan
+			mask_path[lb0: lb1, la0: la1] = mask_path[lb0: lb1, la0: la1] * iv
+
+	mask_img = mask_path * extnd_img
 
 	return mask_img, mask_path
 
@@ -486,17 +418,21 @@ for ii in range( 4, 5 ):
 	ra_g, dec_g, z_g = sub_ra[ii], sub_dec[ii], sub_z[ii]
 	cen_x, cen_y = imgx[ii], imgy[ii]
 
+	#. origin image
 	data = fits.open( img_path + 'frame-r-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (ra_g, dec_g, z_g),)
 	img = data[0].data
 
 	head = data[0].header
 	wcs_lis = awc.WCS( head )
 
+	#. masked image
 	data_m = fits.open( '/home/xkchen/tmp_run/data_files/figs/targ_info/z_photo_cat/' + 
 						'photo-z_mask_r_ra%.3f_dec%.3f_z%.3f.fits' % (ra_g, dec_g, z_g),)
 	img_m = data_m[0].data
 
+	#. gri-combine image
 	ref_img = mpimg.imread( '/home/xkchen/tmp_run/data_files/figs/frame-irg-002189-4-0142_cc.jpg' )
+
 
 	## obj_cat
 	source = asc.read( galx_cat % (ra_g, dec_g, z_g),)
@@ -568,7 +504,11 @@ for ii in range( 4, 5 ):
 	#. capture the merger mask of saturated pixels
 	tmp_gal_arr = [ cm_x2, cm_y2, cm_A2, cm_B2, cm_chi2 ]
 	tmp_files = img_path + 'frame-r-ra%.3f-dec%.3f-redshift%.3f.fits.bz2' % (ra_g, dec_g, z_g)
-	tmp_mark_img, tmp_mark_arr = tmp_mask_func( tmp_files, tmp_gal_arr )
+
+	# tmp_mark_img, tmp_mark_arr = tmp_mask_func( tmp_files, tmp_gal_arr )
+
+ 	# extend the mask region of saturated pixels
+	tmp_mark_img, tmp_mark_arr = ccp_mask_func( tmp_files, tmp_gal_arr )
 
 	id_Nul = np.isnan( tmp_mark_arr )
 	tmp_mark_arr[ id_Nul ] = -100.
@@ -621,7 +561,6 @@ for ii in range( 4, 5 ):
 	ax0.text( -50, 1500, s = '(a)', fontsize = 12, color = 'k',)
 
 
-	# ax1.imshow( img, origin = 'lower', cmap = c_map, vmin = v_min, vmax = v_max, alpha = 0.75,)
 	ax1.imshow( img, origin = 'lower', cmap = c_map, vmin = -1e-3, vmax = 1e0, 
 				norm = mpl.colors.SymLogNorm( linthresh = 0.001, linscale = 0.1, base = 10),)
 
@@ -645,9 +584,9 @@ for ii in range( 4, 5 ):
 	ax1.text( -50, 1500, s = '(b)', fontsize = 12, color = 'k',)
 
 
-	# ax2.imshow( img, origin = 'lower', cmap = c_map, vmin = v_min, vmax = v_max, alpha = 0.75,)
 	ax2.imshow( img, origin = 'lower', cmap = c_map, vmin = -1e-3, vmax = 1e0, 
 			norm = mpl.colors.SymLogNorm( linthresh = 0.001, linscale = 0.1, base = 10),)
+
 	Ng = len( dd_cx )
 	for ll in range( Ng ):
 		ellips = Ellipse( xy = (dd_cx[ll], dd_cy[ll]), width = dd_a[ll], height = dd_b[ll], angle = dd_chi[ll], fill = False, 
@@ -668,7 +607,9 @@ for ii in range( 4, 5 ):
 	# 		ec = 'k', ls = '-', linewidth = 0.75,)
 	# 	ax2.add_patch( ellips )
 
-	ax2.contour( tmp_mark_arr, origin = 'lower', levels = [1, 100], colors = ['k', 'w'], linestyles = '--', alpha = 0.75,)
+	# ax2.contour( tmp_mark_arr, origin = 'lower', levels = [1, 100], colors = ['k', 'w'], linestyles = '--', alpha = 0.75,)
+	ax2.contour( tmp_mark_arr, origin = 'lower', levels = [1, 100], colors = ['k', 'w'], linestyles = '--', alpha = 0.75, 
+				extent = (-100, img.shape[1] + 100, -100, img.shape[0] + 100), )
 
 	ax2.set_xlim( -100, img.shape[1] + 100 )
 	ax2.set_ylim( -100, img.shape[0] + 100 )
@@ -684,9 +625,10 @@ for ii in range( 4, 5 ):
 	ax2.text( -50, 1500, s = '(c)', fontsize = 12, color = 'k',)
 
 
-	# ax3.imshow( img_m, origin = 'lower', cmap = c_map, vmin = v_min, vmax = v_max, alpha = 0.75,)
 	ax3.imshow( img_m, origin = 'lower', cmap = c_map, vmin = -1e-3, vmax = 1e0, 
 			norm = mpl.colors.SymLogNorm( linthresh = 0.001, linscale = 0.1, base = 10),)
+	# ax3.imshow( img_m, origin = 'lower', cmap = c_map, vmin = -1.2e-3, vmax = 1e0, 
+	# 		norm = mpl.colors.SymLogNorm( linthresh = 0.001, linscale = 0.1, base = 10),)
 
 	clust = Circle( xy = (cen_x, cen_y), radius = R1Mpc, fill = False, ec = 'r', ls = '--', linewidth = 1, alpha = 0.75,)
 	ax3.add_patch(clust)
@@ -707,8 +649,8 @@ for ii in range( 4, 5 ):
 	ax3.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15, top = True, right = True,)
 	ax3.text( -50, 1500, s = '(d)', fontsize = 12, color = 'k',)
 
-	plt.savefig('/home/xkchen/img_process.png', dpi = 200)
-	# plt.savefig('/home/xkchen/img_process.pdf', dpi = 100)
+	# plt.savefig('/home/xkchen/img_process.png', dpi = 200)
+	plt.savefig('/home/xkchen/img_process.pdf', dpi = 100)
 	plt.close()
 
 raise

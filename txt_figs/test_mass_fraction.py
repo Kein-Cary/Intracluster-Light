@@ -49,23 +49,6 @@ def sersic_func(r, Ie, re, ndex):
 	Ir = Ie * np.exp( fn )
 	return Ir
 
-"""
-def log_norm_func( r, Im, R_pk, L_trans, _eta_pk ):
-
-	#... scaled version
-	scl_r = r / R_pk       # r / R_crit
-	scl_L = L_trans / R_pk # L_trans / R_crit
-
-	# cen_p = 0.25 # 0.10, 0.25 # R_crit / R_pk
-	cen_p = _eta_pk
-
-	f1 = 1 / ( scl_r * scl_L * np.sqrt(2 * np.pi) )
-	f2 = np.exp( -0.5 * (np.log( scl_r ) - cen_p )**2 / scl_L**2 )
-
-	Ir = 10**Im * f1 * f2
-	return Ir
-
-"""
 def log_norm_func( r, lg_SM0, Rt, sigm_tt ):
 
 	lg_A0 = np.log10( r ) + np.log10( sigm_tt ) + np.log10( 2 * np.pi ) / 2
@@ -369,6 +352,8 @@ mod_ICL_M = np.log10( fun_mid_M( medi_R200m ) + fun_out_M( medi_R200m ) )
 mod_all_M_BG_sub = np.log10( fun_DM_M( medi_R200m ) )
 
 obs_bcg_ICL_M = np.log10( fun_tot_M( medi_R200m ) )
+
+raise
 
 #. 
 keys = ['lg_M_bcg', 'lg_M_ICL', 'lg_M_trans', 'lg_M_out_ICL', 'lg_M_all', 'lg_M_all_BG_sub', 'obs_lg_M_bcg&ICL']

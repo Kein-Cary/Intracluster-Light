@@ -36,15 +36,8 @@ z_ref = 0.25
 band = ['r', 'g', 'i']
 psf_FWHM = [ 1.56, 1.67, 1.50 ] # arcsec
 
-def sersic_func(r, Ie, re, ndex):
-	belta = 3 * ndex - 0.324
-	fn = -1 * belta * ( r / re )**(1 / ndex) + belta
-	Ir = Ie * np.exp( fn )
-	return Ir
-
 color_s = ['r', 'g', 'b']
 
-# rand_path = '/home/xkchen/tmp_run/data_files/jupyter/random_ref_SB/'
 rand_path = '/home/xkchen/figs/re_measure_SBs/random_ref_SB/'
 
 rand_r, rand_sb, rand_err = [], [], []

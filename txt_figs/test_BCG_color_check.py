@@ -162,7 +162,7 @@ lim_ID = ID[ idx_lim ]
 lim_g_mag, lim_r_mag, lim_i_mag = g_mag_bcgs[ idx_lim ], r_mag_bcgs[ idx_lim ], i_mag_bcgs[ idx_lim ]
 lim_g2r, lim_g2i = model_g2r[ idx_lim ], model_g2i[ idx_lim ]
 
-#... sample read and match
+#... sample read and match (for BCG color query)
 # cat_lis = [ 'low-age', 'hi-age' ]
 cat_lis = [ 'low_BCG_star-Mass', 'high_BCG_star-Mass']
 out_path = '/home/xkchen/figs/BCG_mags/'
