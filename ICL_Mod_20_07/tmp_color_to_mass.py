@@ -19,8 +19,12 @@ from scipy import integrate as integ
 
 from fig_out_module import color_func
 from fig_out_module import arr_jack_func
+
 from light_measure import cov_MX_func
 from img_random_SB_fit import cc_rand_sb_func
+
+from surface_mass_density import cumu_mass_func
+
 
 ##...constant
 Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
@@ -56,7 +60,9 @@ def gr_ri_band_c2m_func(g2r_arr, r2i_arr, i_lumi_arr, fit_params):
 
 ### === profile measurement
 def SB_to_Lumi_func(sb_arr, obs_z, band_s):
-
+	"""
+	sb_arr : surface brightness, must be absolute magnitude
+	"""
 	if band_s == 'r':
 		Mag_dot = Mag_sun[0]
 
@@ -74,27 +80,6 @@ def SB_to_Lumi_func(sb_arr, obs_z, band_s):
 
 	return phy_SB * 1e-6
 
-def cumu_mass_func(rp, surf_mass, N_grid = 100):
-
-	try:
-		NR = len(rp)
-	except:
-		rp = np.array([ rp ])
-		NR = len(rp)
-
-	intep_sigma_F = interp.interp1d( rp, surf_mass, kind = 'linear', fill_value = 'extrapolate',)
-
-	cumu_mass = np.zeros( NR, )
-	lg_r_min = np.log10( np.min( rp ) / 10 )
-
-	for ii in range( NR ):
-
-		new_rp = np.logspace( lg_r_min, np.log10( rp[ii] ), N_grid)
-		new_mass = intep_sigma_F( new_rp )
-
-		cumu_mass[ ii ] = integ.simps( 2 * np.pi * new_rp * new_mass, new_rp)
-
-	return cumu_mass
 
 def get_c2mass_func(r_arr, band_str, sb_arr, color_arr, z_obs, fit_file, N_grid = 100, out_file = None):
 	"""
@@ -144,7 +129,7 @@ def get_c2mass_func(r_arr, band_str, sb_arr, color_arr, z_obs, fit_file, N_grid 
 
 ### === SB profile and jackknife average
 def sersic_func(r, Ie, re, ndex):
-	belta = 3 * ndex - 0.324
+	belta = 2 * ndex - 0.324
 	fn = -1 * belta * ( r / re )**(1 / ndex) + belta
 	Ir = Ie * np.exp( fn )
 	return Ir

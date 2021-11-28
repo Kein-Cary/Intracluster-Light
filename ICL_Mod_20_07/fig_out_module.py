@@ -3,12 +3,16 @@ import numpy as np
 import pandas as pds
 import astropy.constants as C
 import astropy.units as U
+import astropy.io.fits as fits
+import astropy.wcs as awc
+import astropy.io.ascii as asc
 
 from astropy import cosmology as apcy
 from scipy import signal
 from scipy import interpolate as interp
 from scipy import ndimage
 from scipy import integrate as integ
+from io import StringIO
 
 #constant
 rad2arcsec = U.rad.to(U.arcsec)
@@ -27,9 +31,16 @@ DH = vc / H0
 band = ['r', 'g', 'i']
 l_wave = np.array([6166, 4686, 7480])
 mag_add = np.array([0, 0, 0 ])
-Mag_sun = [ 4.65, 5.11, 4.53 ]
+
+Mag_sun = [ 4.65, 5.11, 4.53 ]  ## Abs_magnitude of the Sun (for SDSS filters)
 
 #**************************#
+def sersic_func(r, Ie, re, ndex):
+	belta = 2 * ndex - 0.324
+	fn = -1 * belta * ( r / re )**(1 / ndex) + belta
+	Ir = Ie * np.exp( fn )
+	return Ir
+
 ### === ### absMag to luminosity in unit of L_sun
 def absMag_to_Lumi_func( absM_arr, band_str ):
 
@@ -45,6 +56,7 @@ def absMag_to_Lumi_func( absM_arr, band_str ):
 	L_obs = 10**( 0.4 * ( Mag_dot - absM_arr ) )
 
 	return L_obs
+
 
 ### === ### coordinate or position translation
 def WCS_to_pixel_func(ra, dec, header_inf):
@@ -127,11 +139,6 @@ def zref_BCG_pos_func( cat_file, z_ref, out_file, pix_size,):
 
 	return
 
-def sersic_func(r, Ie, re, ndex):
-	belta = 2 * ndex - 0.324
-	fn = -1 * belta * ( r / re )**(1 / ndex) + belta
-	Ir = Ie * np.exp( fn )
-	return Ir
 
 ### === ### member galaxies matched to host cluster
 #. for SDSS redMaPPer catalog 
@@ -218,6 +225,7 @@ def mem_clus_match_func( cat_file, mem_file, stack_cat_file, out_file):
 	F_tree.close()
 
 	return
+
 
 ### === ### img grid
 def cc_grid_img( img_data, N_stepx, N_stepy):
@@ -307,87 +315,205 @@ def grid_img( img_data, N_stepx, N_stepy):
 
 	return patch_mean, patch_pix, patch_Var, lx, ly
 
-### === ### covariance and correlation matrix
-def BG_sub_cov_func( jk_sub_sb, N_samples, BG_files, out_file, R_lim0, R_lim1):
-	"""
-	calculate the covariance matrix of BG-sub SB profiles
-	"""
-	from light_measure import cov_MX_func
-	from img_BG_sub_SB_measure import cc_rand_sb_func
 
-	tmp_r, tmp_sb = [], []
+### === source location offset correction in each image frame
+def cc_star_pos_func( star_cat, Head_info, pix_size):
 
-	for nn in range( N_samples ):
-		with h5py.File( jk_sub_sb % nn, 'r') as f:
-			r_arr = np.array(f['r'])[:-1]
-			sb_arr = np.array(f['sb'])[:-1]
-			sb_err = np.array(f['sb_err'])[:-1]
-			npix = np.array(f['npix'])[:-1]
-			nratio = np.array(f['nratio'])[:-1]
-		idvx = npix < 1.
-		sb_arr[idvx] = np.nan
-		r_arr[idvx] = np.nan
+	wcs_lis = awc.WCS( Head_info )
 
-		cat = pds.read_csv( BG_files )
-		( e_a, e_b, e_x0, e_A, e_alpha, e_B, offD) = ( np.array(cat['e_a'])[0], np.array(cat['e_b'])[0], np.array(cat['e_x0'])[0], 
-														np.array(cat['e_A'])[0], np.array(cat['e_alpha'])[0],np.array(cat['e_B'])[0], 
-														np.array(cat['offD'])[0] )
-		I_e, R_e = np.array(cat['I_e'])[0], np.array(cat['R_e'])[0]
+	## stars catalog
+	p_cat = pds.read_csv( star_cat, skiprows = 1)
+	set_ra = np.array( p_cat['ra'])
+	set_dec = np.array( p_cat['dec'])
+	set_mag = np.array( p_cat['r'])
+	OBJ = np.array( p_cat['type'])
+	xt = p_cat['Column1']
+	flags = [str(qq) for qq in xt]
 
-		sb_2Mpc = sersic_func( 2e3, I_e, R_e, 2.1)
-		full_r_fit = cc_rand_sb_func( r_arr, e_a, e_b, e_x0, e_A, e_alpha, e_B )
-		full_BG = full_r_fit - offD + sb_2Mpc
-		devi_sb = sb_arr - full_BG
+	x, y = wcs_lis.all_world2pix( set_ra * U.deg, set_dec * U.deg, 0, ra_dec_order = True,)
 
-		id_lim = (r_arr >= R_lim0) & (r_arr <= R_lim1)
-		tmp_r.append( r_arr[id_lim] )
-		tmp_sb.append( devi_sb[id_lim] )
+	set_A = np.array( [ p_cat['psffwhm_r'] , p_cat['psffwhm_g'], p_cat['psffwhm_i']]) / pix_size
+	set_B = np.array( [ p_cat['psffwhm_r'] , p_cat['psffwhm_g'], p_cat['psffwhm_i']]) / pix_size
+	set_chi = np.zeros(set_A.shape[1], dtype = np.float32)
 
-	R_mean, cov_MX, cor_MX = cov_MX_func(tmp_r, tmp_sb, id_jack = True)
+	lln = np.array([len(set_A[:,ll][set_A[:,ll] > 0 ]) for ll in range(set_A.shape[1]) ])
+	lr_iso = np.array([np.max(set_A[:,ll]) for ll in range(set_A.shape[1]) ])
+	sr_iso = np.array([np.max(set_B[:,ll]) for ll in range(set_B.shape[1]) ])
 
-	with h5py.File( out_file, 'w') as f:
-		f['R_kpc'] = np.array( R_mean )
-		f['cov_MX'] = np.array( cov_MX )
-		f['cor_MX'] = np.array( cor_MX )
+	# normal stars
+	iq = lln >= 2 ## at lest observed in 2 band
+	ig = OBJ == 6
+	ie = (set_mag <= 20)
 
-	return
+	ic = (ie & ig & iq)
+	sub_x0 = x[ic]
+	sub_y0 = y[ic]
 
-def BG_pro_cov( jk_sub_sb, N_samples, out_file, R_lim0):
-	"""
-	calculate the covariance matrix of SB profiles before BG-subtraction
-	"""
-	from light_measure import cov_MX_func
+	sub_A0 = lr_iso[ic] * 15
+	sub_B0 = sr_iso[ic] * 15
+	sub_chi0 = set_chi[ic]
 
-	tmp_r = []
-	tmp_sb = []
+	sub_ra0, sub_dec0 = set_ra[ic], set_dec[ic]
 
-	for mm in range( N_samples ):
+	# saturated source(may not stars)
+	xa = ['SATURATED' in qq for qq in flags]
+	xv = np.array(xa)
+	idx = xv == True
+	ipx = (idx)
 
-		with h5py.File( jk_sub_sb % mm, 'r') as f:
-			r_arr = np.array(f['r'])[:-1]
-			sb_arr = np.array(f['sb'])[:-1]
-			sb_err = np.array(f['sb_err'])[:-1]
-			npix = np.array(f['npix'])[:-1]
-			nratio = np.array(f['nratio'])[:-1]
+	sub_x2 = x[ipx]
+	sub_y2 = y[ipx]
 
-		idvx = npix < 1.
-		sb_arr[idvx] = np.nan
+	sub_A2 = lr_iso[ipx] * 5
+	sub_B2 = sr_iso[ipx] * 5
+	sub_chi2 = set_chi[ipx]
 
-		idux = r_arr >= R_lim0
-		tt_r = r_arr[idux]
-		tt_sb = sb_arr[idux]
+	## for stars
+	ddx = np.around( sub_x0 )
+	d_x0 = np.array( list( set( ddx ) ) )
 
-		tmp_r.append( tt_r )
-		tmp_sb.append( tt_sb )
+	m_A0, m_B0, m_chi0 = [], [], []
+	m_x0, m_y0 = [], []
 
-	R_mean, cov_MX, cor_MX = cov_MX_func(tmp_r, tmp_sb, id_jack = True,)
+	for jj in range( len( d_x0 ) ):
+		dex_0 = list( ddx ).index( d_x0[jj] )
 
-	with h5py.File( out_file, 'w') as f:
-		f['cov_Mx'] = np.array( cov_MX )
-		f['cor_Mx'] = np.array( cor_MX )
-		f['R_kpc'] = np.array( R_mean )
+		m_x0.append( sub_x0[dex_0] )
+		m_y0.append( sub_y0[dex_0] )
+		m_A0.append( sub_A0[dex_0] )
+		m_B0.append( sub_B0[dex_0] )
+		m_chi0.append( sub_chi0[dex_0] )
 
-	return
+	m_A0, m_B0, m_chi0 = np.array( m_A0 ), np.array( m_B0 ), np.array( m_chi0 )
+	m_x0, m_y0 = np.array( m_x0 ), np.array( m_y0 )
+
+	cm_x0, cm_y0 = sub_x0 + 0, sub_y0 + 0
+	cm_A0, cm_B0, cm_chi0 = sub_A0 + 0, sub_B0 + 0, sub_chi0 + 0
+
+	return cm_x0, cm_y0, cm_A0, cm_B0, cm_chi0, sub_ra0, sub_dec0
+
+def star_pos_func( star_cat, Head_info, pix_size ):
+
+	## stars catalog
+	p_cat = pds.read_csv( star_cat, skiprows = 1)
+	set_ra = np.array( p_cat['ra'])
+	set_dec = np.array( p_cat['dec'])
+	set_mag = np.array( p_cat['r'])
+	OBJ = np.array( p_cat['type'])
+	xt = p_cat['Column1']
+	flags = [str(qq) for qq in xt]
+
+	x, y = WCS_to_pixel_func( set_ra, set_dec, Head_info ) ## SDSS EDR paper relation
+
+	set_A = np.array( [ p_cat['psffwhm_r'] , p_cat['psffwhm_g'], p_cat['psffwhm_i']]) / pix_size
+	set_B = np.array( [ p_cat['psffwhm_r'] , p_cat['psffwhm_g'], p_cat['psffwhm_i']]) / pix_size
+	set_chi = np.zeros(set_A.shape[1], dtype = np.float32)
+
+	lln = np.array([len(set_A[:,ll][ set_A[:,ll] > 0 ]) for ll in range(set_A.shape[1]) ])
+	lr_iso = np.array([np.max(set_A[:,ll]) for ll in range(set_A.shape[1]) ])
+	sr_iso = np.array([np.max(set_B[:,ll]) for ll in range(set_B.shape[1]) ])
+
+	# normal stars
+	iq = lln >= 2 ## at lest observed in 2 band
+	ig = OBJ == 6
+	ie = (set_mag <= 20)
+
+	ic = (ie & ig & iq)
+	sub_x0 = x[ic]
+	sub_y0 = y[ic]
+
+	sub_A0 = lr_iso[ic] * 15
+	sub_B0 = sr_iso[ic] * 15
+	sub_chi0 = set_chi[ic]
+
+	sub_ra0, sub_dec0 = set_ra[ic], set_dec[ic]
+
+	# saturated source(may not stars)
+	xa = ['SATURATED' in qq for qq in flags]
+	xv = np.array(xa)
+	idx = xv == True
+	ipx = (idx)
+
+	sub_x2 = x[ipx]
+	sub_y2 = y[ipx]
+
+	sub_A2 = lr_iso[ipx] * 5
+	sub_B2 = sr_iso[ipx] * 5
+	sub_chi2 = set_chi[ipx]
+
+	## for stars
+	ddx = np.around( sub_x0 )
+	d_x0 = np.array( list( set( ddx ) ) )
+
+	m_A0, m_B0, m_chi0 = [], [], []
+	m_x0, m_y0 = [], []
+
+	for jj in range( len( d_x0 ) ):
+		dex_0 = list( ddx ).index( d_x0[jj] )
+
+		m_x0.append( sub_x0[dex_0] )
+		m_y0.append( sub_y0[dex_0] )
+		m_A0.append( sub_A0[dex_0] )
+		m_B0.append( sub_B0[dex_0] )
+		m_chi0.append( sub_chi0[dex_0] )
+
+	m_A0, m_B0, m_chi0 = np.array( m_A0 ), np.array( m_B0 ), np.array( m_chi0 )
+	m_x0, m_y0 = np.array( m_x0 ), np.array( m_y0 )
+
+	cm_x0, cm_y0 = sub_x0 + 0, sub_y0 + 0
+	cm_A0, cm_B0, cm_chi0 = sub_A0 + 0, sub_B0 + 0, sub_chi0 + 0
+
+	return cm_x0, cm_y0, cm_A0, cm_B0, cm_chi0, sub_ra0, sub_dec0
+
+def tractor_peak_pos( img_file, gal_cat ):
+
+	data = fits.open( img_file )
+	img = data[0].data
+
+	source = asc.read(gal_cat)
+	Numb = np.array(source['NUMBER'][-1])
+	A = np.array(source['A_IMAGE'])
+	B = np.array(source['B_IMAGE'])
+	theta = np.array(source['THETA_IMAGE'])
+	cx = np.array(source['X_IMAGE'])
+	cy = np.array(source['Y_IMAGE'])
+	p_type = np.array(source['CLASS_STAR'])
+
+	Kron = 7
+	a = Kron * A
+	b = Kron * B
+
+	major = a / 2
+	minor = b / 2
+	senior = np.sqrt(major**2 - minor**2)
+
+	x_peak, y_peak = [], []
+
+	for k in range( Numb ):
+
+		xc = cx[k]
+		yc = cy[k]
+
+		lr = major[k]
+		sr = minor[k]
+		cr = senior[k]
+		chi = theta[k] * np.pi / 180
+
+		set_r = np.int(np.ceil(1.2 * lr))
+		la0 = np.max( [np.int(xc - set_r), 0])
+		la1 = np.min( [np.int(xc + set_r + 1), img.shape[1] ] )
+		lb0 = np.max( [np.int(yc - set_r), 0] ) 
+		lb1 = np.min( [np.int(yc + set_r + 1), img.shape[0] ] )
+
+		cut_img = img[ lb0 : lb1, la0 : la1 ]
+		x_p, y_p = np.where( cut_img == np.nanmax( cut_img ) )
+
+		x_peak.append( x_p[0] + la0 )
+		y_peak.append( y_p[0] + lb0 )
+
+	x_peak, y_peak = np.array( x_peak ), np.array( y_peak )
+
+	return cx, cy, x_peak, y_peak
 
 
 ### === ### 1D profile fitting
@@ -460,27 +586,6 @@ def arr_jack_func(SB_array, R_array, N_sample):
 
 	return Stack_R, Stack_SB, jk_Stack_err, lim_R
 
-def cumu_mass_func(rp, surf_mass, N_grid = 100):
-
-	try:
-		NR = len(rp)
-	except:
-		rp = np.array([ rp ])
-		NR = len(rp)
-
-	intep_sigma_F = interp.interp1d( rp, surf_mass, kind = 'linear', fill_value = 'extrapolate',)
-
-	cumu_mass = np.zeros( NR, )
-	lg_r_min = np.log10( np.min( rp ) / 10 )
-
-	for ii in range( NR ):
-
-		new_rp = np.logspace( lg_r_min, np.log10( rp[ii] ), N_grid)
-		new_mass = intep_sigma_F( new_rp )
-
-		cumu_mass[ ii ] = integ.simps( 2 * np.pi * new_rp * new_mass, new_rp)
-
-	return cumu_mass
 
 ### === ### 2D array, centeriod mean
 def centric_2D_aveg(data, weit_data, pix_size, cx, cy, z0, R_bins):

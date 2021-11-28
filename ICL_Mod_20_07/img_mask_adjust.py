@@ -68,7 +68,7 @@ def cat_combine( cat_lis, ra, dec, z, alt_G_size, head_info, img_lis):
 
 	return tot_Numb, tot_cx, tot_cy, tot_a, tot_b, tot_theta
 
-def mask_with_BCG( img_file, cen_x, cen_y, cen_ar, cen_br, cen_cr, cen_chi, gal_arr, bcg_R_eff,):
+def mask_with_BCG( img_file, cen_x, cen_y, cen_ar, cen_br, cen_cr, cen_chi, gal_arr, bcg_R_eff):
 	## cen_x, cen_y : BCG location in image frame
 
 	data = fits.open( img_file )

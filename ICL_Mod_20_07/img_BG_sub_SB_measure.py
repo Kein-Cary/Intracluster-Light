@@ -9,7 +9,7 @@ import scipy.interpolate as interp
 
 from fig_out_module import arr_jack_func
 from light_measure import jack_SB_func
-from fig_out_module import color_func, BG_sub_cov_func, BG_pro_cov
+from fig_out_module import color_func
 
 ## SB model for random image
 def cc_inves_x2(x, x0, A, alpha, B):

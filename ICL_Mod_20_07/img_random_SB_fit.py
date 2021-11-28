@@ -82,7 +82,8 @@ def sersic_func(r, Ie, re):
 	return Ir
 
 def err_fit_func(p, x, y, params, yerr):
-	a, b, x0, A, alpha, B = params 
+
+	a, b, x0, A, alpha, B = params
 	pf0 = cc_rand_sb_func(x, a, b, x0, A, alpha, B)
 
 	d_off, I_e, R_e = p[:]
@@ -135,10 +136,12 @@ def clust_SB_fit_func( R_arr, sb_arr, sb_err_arr, params_file, R_psf, lo_R_lim, 
 	BG_pros = fit_rnd_sb - offD
 	comb_F = BG_pros + sign_fit
 
+
 	# chi2 value
 	# chi2 = np.sum( (comb_F[idx1] - com_sb[idx1])**2 / com_err[idx1]**2 )
 	# chi_ov_nu = chi2 / ( len(fx) - len( po ) )
 	# chi_ov_nu = np.ones( len(com_r) ) * chi_ov_nu
+
 
 	chi2 = E_return.fun
 	chi_ov_nu = chi2 / ( len(fx) - len( po ) )
@@ -146,10 +149,12 @@ def clust_SB_fit_func( R_arr, sb_arr, sb_err_arr, params_file, R_psf, lo_R_lim, 
 	chi_inner = np.sum( (comb_F[idx2] - com_sb[idx2])**2 / com_err[idx2]**2 )
 	chi_inner_m = chi_inner / ( len(com_r[idx2]) - 3 )
 
+
 	## normalize with SB value at 2Mpc of the model fitting
 	sb_2Mpc = sersic_func( trunk_R, I_e, R_e )
 	norm_sign = sign_fit - sb_2Mpc
 	norm_BG = comb_F - norm_sign
+
 
 	# save the background profile and params
 	full_r = R_arr

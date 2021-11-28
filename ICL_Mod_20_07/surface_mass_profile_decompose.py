@@ -152,7 +152,8 @@ def outer_err_fit_func(p, x, y, params, yerr):
 	_sum_mass = np.log10( _mass_out * 10**bf )
 
 	delta = _sum_mass - y
-	cov_inv = np.linalg.pinv( cov_mx )
+
+	# cov_inv = np.linalg.pinv( cov_mx )
 	# chi2 = delta.T.dot( cov_inv ).dot(delta)
 	chi2 = np.sum( delta**2 / yerr**2 )
 
@@ -161,7 +162,9 @@ def outer_err_fit_func(p, x, y, params, yerr):
 	return np.inf
 
 ### === ### fitting mid-region
-#...logNormal function
+#... ??? the middle region covariance matrix is not exactly reliable for the 
+#...     transition mass
+#... logNormal function
 def log_norm_func( r, lg_SM0, Rt, sigm_tt ):
 
 	lg_A0 = np.log10( r ) + np.log10( sigm_tt ) + np.log10( 2 * np.pi ) / 2
@@ -179,49 +182,16 @@ def lg_norm_err_fit_f(p, x, y, params, yerr):
 	_mass_cen = log_norm_func( x, _lg_SM0, _R_t, _sigm_tt )
 	_mass_2Mpc = log_norm_func( 2e3, _lg_SM0, _R_t, _sigm_tt )
 
-	_sum_mass = np.log10( _mass_cen - _mass_2Mpc )
+	_sum_mass = _mass_cen - _mass_2Mpc
 
 	delta = _sum_mass - y
-	cov_inv = np.linalg.pinv( cov_mx )
-	chi2 = delta.T.dot( cov_inv ).dot(delta)
+
+	# cov_inv = np.linalg.pinv( cov_mx )
+	# chi2 = delta.T.dot( cov_inv ).dot(delta)
+
+	chi2 = np.sum( delta**2 / yerr**2 )
 
 	if np.isfinite( chi2 ):
 		return chi2
 	return np.inf
-
-### === 
-def mid_like_func(p, x, y, params, yerr):
-
-	cov_mx = params[0]
-
-	_lg_SM0, _R_t, _sigm_tt = p[:]
-
-	_mass_cen = log_norm_func( x, _lg_SM0, _R_t, _sigm_tt )
-	_mass_2Mpc = log_norm_func( 2e3, _lg_SM0, _R_t, _sigm_tt )
-
-	_sum_mass = np.log10( _mass_cen - _mass_2Mpc )
-
-	delta = _sum_mass - y
-	cov_inv = np.linalg.pinv( cov_mx )
-	chi2 = delta.T.dot( cov_inv ).dot(delta)
-
-	if np.isfinite( chi2 ):
-		return -0.5 * chi2
-	return -np.inf
-
-def mid_prior_p_func( p ):
-
-	_lg_SM0, _R_t, _sigm_tt = p[:]
-	identi = ( 3.5 <= _lg_SM0 <= 9.5 ) & ( 10 <= _R_t <= 500 ) & ( 0.1 <= _sigm_tt <= 3 )
-
-	if identi:
-		return 0
-	return -np.inf
-
-def mid_ln_p_func(p, x, y, params, yerr):
-
-	pre_p = mid_prior_p_func( p )
-	if not np.isfinite( pre_p ):
-		return -np.inf
-	return pre_p + mid_like_func(p, x, y, params, yerr)
 

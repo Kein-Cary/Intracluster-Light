@@ -162,7 +162,7 @@ def get_mu_sigma(cat_file, ref_cat, out_put, ):
 
 	return
 
-### match extra-catalog with the image catalog
+### === match extra-catalog with the image catalog
 def extra_match_func(ra_list, dec_list, z_lis, cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, sf_len = 5):
 	"""
 	cat_imgx, cat_imgy : BCG location in image frame
@@ -310,7 +310,7 @@ def gri_common_cat_func(r_band_file, g_band_file, i_band_file, medi_r_file, medi
 
 	return
 
-### match between image catalogs or use for image selection
+### === match between image catalogs or use for image selection
 def cat_match_func(ra_list, dec_list, z_lis, cat_ra, cat_dec, cat_z, cat_imgx, cat_imgy, sf_len, id_choice = True,):
 	"""
 	id_choice : if it's True, then those imgs in given list will be used,
@@ -513,7 +513,8 @@ def img_cat_lis_func(img_file, ref_cat, out_put, sf_len, id_choice = True,):
 
 	return
 
-## === ## use for image over view
+
+### === ### use for image over view
 def gau_func(x, mu, sigma):
 	return sts.norm.pdf(x, mu, sigma)
 

@@ -2,9 +2,13 @@
 import numpy as np
 import astropy.constants as C
 import astropy.units as U
+import scipy.interpolate as interp
+import scipy.stats as sts
+
+from scipy.interpolate import splev, splrep
+from scipy import integrate as integ
 from astropy import cosmology as apcy
 from numba import vectorize
-import scipy.interpolate as interp
 
 ### constant
 G = C.G.value # gravitation constant
@@ -101,9 +105,65 @@ def rho_nfw_delta_c(r, z, c_mass, lgM, v_m = 200):
 
     return rho
 
-### === ### miscentering nfw profile (Zu et al. 2021, section 3.)
-def aveg_sigma_func(rp, sigma_arr, N_grid = 100):
+### === ### average and cumulative mass profile
+def cumu_mass_func(rp, surf_mass, N_grid = 100):
 
+    try:
+        NR = len(rp)
+    except:
+        rp = np.array([ rp ])
+        NR = len(rp)
+
+    intep_sigma_F = interp.interp1d( rp, surf_mass, kind = 'linear', fill_value = 'extrapolate',)
+
+    cumu_mass = np.zeros( NR, )
+    lg_r_min = np.log10( np.min( rp ) / 10 )
+
+    for ii in range( NR ):
+
+        new_rp = np.logspace( lg_r_min, np.log10( rp[ii] ), N_grid)
+        new_mass = intep_sigma_F( new_rp )
+
+        cumu_mass[ ii ] = integ.simps( 2 * np.pi * new_rp * new_mass, new_rp)
+
+    return cumu_mass
+
+def cc_integral_M_func( rp, surf_y, N_grid = 7 ):
+    """
+    use for computing the integral mass only, the relative error is slightly dependent on halo mass 
+    --- and redshift, but generally, the relative error is lower than 0.0068 dex
+    --- on small scale, the relative may be larger due to the sum calculation (< 0.55 dex within 10 kpc)
+    """
+    NR = len(rp)
+
+    tkf = interp.splrep( rp, surf_y, s = 0)
+
+    cumu_y = np.zeros( NR, )
+
+    for ii in range( NR ):
+
+        if ii == 0:
+            tp_R = np.logspace( np.log10( rp[ii] / 1000 ), np.log10( rp[ ii ] ), N_grid )
+            pre_SM = 0.
+
+        else:
+            tp_R = np.logspace( np.log10( rp[ ii-1] ), np.log10( rp[ ii ] ), N_grid )
+
+        tpf = interp.splev( tp_R, tkf, der = 0 )
+
+        mid_R = 0.5 * ( tp_R[1:] + tp_R[:-1] )
+        d_lgR = np.diff( np.log10( tp_R ) )
+        mid_M = interp.splev( mid_R, tkf, der = 0 )
+
+        cumu_y[ ii ] = pre_SM + integ.simps( mid_R**2 * np.log(10) * mid_M * 2 * np.pi, np.log10( mid_R ) )
+        pre_SM = cumu_y[ ii ] + 0.
+
+    return cumu_y
+
+def aveg_sigma_func(rp, sigma_arr, N_grid = 100):
+    """
+    use for delta sigma calculation only
+    """
     NR = len( rp )
     aveg_sigma = np.zeros( NR, dtype = np.float32 )
 
@@ -124,6 +184,7 @@ def aveg_sigma_func(rp, sigma_arr, N_grid = 100):
 
     return aveg_sigma
 
+### === miscentering nfw profile (Zu et al. 2021, section 3.)
 def mis_p_func( r_off, sigma_off):
     """
     r_off : the offset between cluster center and BCGs
@@ -291,11 +352,10 @@ if __name__ == "__main__":
     from colossus.halo import profile_nfw
 
     cosmos = cosmology.setCosmology( 'planck18' )
-    input_cosm_model( get_model = cosmos )
-    cosmos_param()
 
-    # input_cosm_model() ## my previous setting
-    # cosmos_param()
+    set_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
+    input_cosm_model( get_model = set_model )
+    cosmos_param()
 
     z0 = 0.50
     v_m = 200
@@ -342,7 +402,8 @@ if __name__ == "__main__":
     plt.xlabel('$R[kpc / h]$')
     plt.ylabel('$\Sigma[M_\odot h kpc^{-2}]$')
     plt.xlim(1e0, 4e3)
-    plt.savefig('/home/xkchen/figs/surface_mass_density.png', dpi = 300)
+    plt.savefig('/home/xkchen/surface_mass_density.png', dpi = 300)
     plt.show()
 
     pass
+
