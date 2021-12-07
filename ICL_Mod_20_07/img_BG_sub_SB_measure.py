@@ -80,7 +80,7 @@ def BG_sub_sb_func(N_sample, jk_sub_sb, sb_out_put, band_str, BG_file, trunk_R =
     return
 
 ### === ### surface mass, color, and gradient profiles
-def sub_color_func( N_samples, tt_r_file, tt_g_file, tt_i_file, sub_color_file, aveg_C_file, id_dered = False, Al_arr = None):
+def sub_color_func( N_samples, tt_r_file, tt_g_file, tt_i_file, sub_color_file, aveg_C_file, id_dered = False, Al_arr = None, low_R_lim = None):
     """
     Al_arr : extinction array, in order r-band, g-band, i-band
     """
@@ -97,15 +97,25 @@ def sub_color_func( N_samples, tt_r_file, tt_g_file, tt_i_file, sub_color_file, 
         p_i_dat = pds.read_csv( tt_i_file % ll )
         tt_i_R, tt_i_sb, tt_i_err = np.array( p_i_dat['R'] ), np.array( p_i_dat['BG_sub_SB'] ), np.array( p_i_dat['sb_err'] )
 
+        if low_R_lim is None:
+            idR_lim = tt_r_R <= 1.2e3
+            tt_r_R, tt_r_sb, tt_r_err = tt_r_R[ idR_lim], tt_r_sb[ idR_lim], tt_r_err[ idR_lim]
 
-        idR_lim = tt_r_R <= 1.2e3
-        tt_r_R, tt_r_sb, tt_r_err = tt_r_R[ idR_lim], tt_r_sb[ idR_lim], tt_r_err[ idR_lim]
+            idR_lim = tt_g_R <= 1.2e3
+            tt_g_R, tt_g_sb, tt_g_err = tt_g_R[ idR_lim], tt_g_sb[ idR_lim], tt_g_err[ idR_lim] 
 
-        idR_lim = tt_g_R <= 1.2e3
-        tt_g_R, tt_g_sb, tt_g_err = tt_g_R[ idR_lim], tt_g_sb[ idR_lim], tt_g_err[ idR_lim] 
+            idR_lim = tt_i_R <= 1.2e3
+            tt_i_R, tt_i_sb, tt_i_err = tt_i_R[ idR_lim], tt_i_sb[ idR_lim], tt_i_err[ idR_lim]
 
-        idR_lim = tt_i_R <= 1.2e3
-        tt_i_R, tt_i_sb, tt_i_err = tt_i_R[ idR_lim], tt_i_sb[ idR_lim], tt_i_err[ idR_lim] 
+        else:
+            idR_lim = (tt_r_R <= 1.2e3) & ( tt_r_R >= low_R_lim )
+            tt_r_R, tt_r_sb, tt_r_err = tt_r_R[ idR_lim], tt_r_sb[ idR_lim], tt_r_err[ idR_lim]
+
+            idR_lim = (tt_g_R <= 1.2e3) & ( tt_g_R >= low_R_lim )
+            tt_g_R, tt_g_sb, tt_g_err = tt_g_R[ idR_lim], tt_g_sb[ idR_lim], tt_g_err[ idR_lim] 
+
+            idR_lim = (tt_i_R <= 1.2e3) & ( tt_i_R >= low_R_lim )
+            tt_i_R, tt_i_sb, tt_i_err = tt_i_R[ idR_lim], tt_i_sb[ idR_lim], tt_i_err[ idR_lim]
 
         gr_arr, gr_err = color_func( tt_g_sb, tt_g_err, tt_r_sb, tt_r_err )
         gi_arr, gi_err = color_func( tt_g_sb, tt_g_err, tt_i_sb, tt_i_err )

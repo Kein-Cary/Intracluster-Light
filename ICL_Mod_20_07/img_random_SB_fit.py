@@ -91,7 +91,8 @@ def err_fit_func(p, x, y, params, yerr):
 	pf = pf0 + pf1 - d_off
 	return np.sum( (pf - y)**2 / yerr**2 )
 
-def clust_SB_fit_func( R_arr, sb_arr, sb_err_arr, params_file, R_psf, lo_R_lim, hi_R_lim, p0, bounds, out_params_file, out_pros_file, trunk_R = 2e3,):
+def clust_SB_fit_func( R_arr, sb_arr, sb_err_arr, params_file, R_psf, lo_R_lim, hi_R_lim, p0, bounds, out_params_file, out_pros_file,
+						trunk_R = 2e3, R_cut = False):
 	"""
 	by default, trunk_R = 2Mpc, which meanse the model signal beyond 2Mpc will be treated as 
 	background and subtracted from the observation
@@ -111,8 +112,11 @@ def clust_SB_fit_func( R_arr, sb_arr, sb_err_arr, params_file, R_psf, lo_R_lim, 
 	( e_a, e_b, e_x0, e_A, e_alpha, e_B ) = ( np.array(p_dat['e_a'])[0], np.array(p_dat['e_b'])[0], np.array(p_dat['e_x0'])[0],
 											np.array(p_dat['e_A'])[0], np.array(p_dat['e_alpha'])[0], np.array(p_dat['e_B'])[0],)
 
-	idx1 = ( com_r >= lo_R_lim ) # normal
-	# idx1 = ( com_r >= lo_R_lim ) & ( com_r <= hi_R_lim ) # adjust
+	if R_cut:
+		idx1 = ( com_r >= lo_R_lim ) & ( com_r <= hi_R_lim ) # adjust
+
+	else:
+		idx1 = ( com_r >= lo_R_lim ) # normal
 
 	idx2 = ( com_r >= lo_R_lim ) & ( com_r <= hi_R_lim )
 

@@ -94,6 +94,7 @@ for k in range(4323, zN):
             wt.download(url_road, out_file)
         print('**********-----')
         print('finish--',k/len(z))
+
     except KeyError:
         # save the "exception" case
         doc = open('/mnt/ddnfs/data_users/cxkttwl/PC/no_match_random.txt', 'w')
@@ -101,3 +102,4 @@ for k in range(4323, zN):
         print(s, file = doc)
         doc.close()
         continue
+

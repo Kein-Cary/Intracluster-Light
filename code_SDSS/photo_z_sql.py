@@ -320,8 +320,8 @@ if rank == cpus - 1:
 
 out_file = home + 'photo_files/star_cats/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
 
-#sdss_sql_star(z[N_sub0:N_sub1], ra[N_sub0:N_sub1], dec[N_sub0:N_sub1], ref_ra[N_sub0:N_sub1], ref_dec[N_sub0:N_sub1], out_file,)
-put_sql(z[N_sub0:N_sub1], ra[N_sub0:N_sub1], dec[N_sub0:N_sub1], ref_ra[N_sub0:N_sub1], ref_dec[N_sub0:N_sub1], out_file,)
+sdss_sql_star(z[N_sub0:N_sub1], ra[N_sub0:N_sub1], dec[N_sub0:N_sub1], ref_ra[N_sub0:N_sub1], ref_dec[N_sub0:N_sub1], out_file,)
+#put_sql(z[N_sub0:N_sub1], ra[N_sub0:N_sub1], dec[N_sub0:N_sub1], ref_ra[N_sub0:N_sub1], ref_dec[N_sub0:N_sub1], out_file,)
 
 print('%d rank finished part-3' % rank)
 

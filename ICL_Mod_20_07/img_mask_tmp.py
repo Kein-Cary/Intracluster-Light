@@ -69,7 +69,7 @@ def cat_combine( cat_lis, ra, dec, z, alt_G_size, head_info, img_lis):
 
 	return tot_Numb, tot_cx, tot_cy, tot_a, tot_b, tot_theta
 
-def mask_with_BCG( img_file, cen_x, cen_y, cen_ar, cen_br, cen_cr, cen_chi, gal_arr, bcg_R_eff):
+def mask_with_BCG( img_file, cen_x, cen_y, cen_ar, cen_br, cen_cr, cen_chi, gal_arr):
 	## cen_x, cen_y : BCG location in image frame
 
 	data = fits.open( img_file )
@@ -81,9 +81,6 @@ def mask_with_BCG( img_file, cen_x, cen_y, cen_ar, cen_br, cen_cr, cen_chi, gal_
 	ef2 = ( cy - cen_y ) * np.cos( cen_chi ) - ( cx - cen_x ) * np.sin( cen_chi )
 	er = ef1**2 / cen_ar**2 + ef2**2 / cen_br**2
 	idx = er < 1
-
-	# tdr = np.sqrt( (cen_x - cx)**2 + (cen_y - cy)**2)
-	# idx = tdr <= bcg_R_eff
 
 	if np.sum( idx ) >= 1:
 
@@ -140,7 +137,7 @@ def mask_with_BCG( img_file, cen_x, cen_y, cen_ar, cen_br, cen_cr, cen_chi, gal_
 	return mask_img
 
 def adjust_mask_func( d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, out_file, bcg_mask,
-	offset_file = None, bcg_photo_file = None, extra_cat = None, extra_img = None, alter_fac = None, alt_bright_R = None,
+	offset_file = None, extra_cat = None, extra_img = None, alter_fac = None, alt_bright_R = None,
 	alt_G_size = None, stack_info = None, pixel = 0.396):
 	"""
 	after img masking, use this function to detection "light" region, which
@@ -166,9 +163,6 @@ def adjust_mask_func( d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, 
 	alt_bright_R : size adjust for bright stars (also for saturated sources)
 	alt_G_size : size adjust for galaxy-like sources
 
-	bcg_photo_file : files including BCG properties (effective radius,), .txt files,
-		[default is None, for radnom img case, always set masking for BCGs]
-	
 	offset_file : correction files for sources in single frame image, .csv files
 	"""
 
@@ -363,22 +357,9 @@ def adjust_mask_func( d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, 
 			gal_b = np.r_[ b, Ecat_b ]
 			gal_chi = np.r_[ theta, Ecat_chi ]
 
-			BCG_photo_cat = pds.read_csv( bcg_photo_file % (z_g, ra_g, dec_g), skiprows = 1)
-			## effective radius, in unit of arcsec
-			r_Reff = np.array( BCG_photo_cat['deVRad_r'] )[0]
-			g_Reff = np.array( BCG_photo_cat['deVRad_g'] )[0]
-			i_Reff = np.array( BCG_photo_cat['deVRad_i'] )[0]
-
-			if band == 'r':
-				bcg_R_eff = r_Reff / pixel
-			if band == 'g':
-				bcg_R_eff = g_Reff / pixel
-			if band == 'i':
-				bcg_R_eff = i_Reff / pixel
-
 			gal_arr = [ gal_x, gal_y, gal_a, gal_b, gal_chi ]
 
-			pre_mask_img = mask_with_BCG( img_file, xn, yn, cen_ar, cen_br, cen_cr, cen_chi, gal_arr, bcg_R_eff,)
+			pre_mask_img = mask_with_BCG( img_file, xn, yn, cen_ar, cen_br, cen_cr, cen_chi, gal_arr )
 
 			mask_path = np.ones((img.shape[0], img.shape[1]), dtype = np.float32)
 			ox = np.linspace(0, img.shape[1] - 1, img.shape[1])

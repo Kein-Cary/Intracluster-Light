@@ -70,7 +70,7 @@ def source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file, stack_inf
 
 	return
 
-def mask_with_BCG( img_file, cen_x, cen_y, cen_ar, cen_br, cen_cr, cen_chi, gal_arr, bcg_R_eff,):
+def mask_with_BCG( img_file, cen_x, cen_y, cen_ar, cen_br, cen_cr, cen_chi, gal_arr ):
 	## cen_x, cen_y : BCG location in image frame
 	data = fits.open( img_file )
 	img = data[0].data
@@ -81,10 +81,6 @@ def mask_with_BCG( img_file, cen_x, cen_y, cen_ar, cen_br, cen_cr, cen_chi, gal_
 	ef2 = ( cy - cen_y ) * np.cos( cen_chi ) - ( cx - cen_x ) * np.sin( cen_chi )
 	er = ef1**2 / cen_ar**2 + ef2**2 / cen_br**2
 	idx = er < 1
-
-	## use effective radius
-	# tdr = np.sqrt( (cen_x - cx)**2 + (cen_y - cy)**2)
-	# idx = tdr <= bcg_R_eff
 
 	if np.sum( idx ) >= 1:
 
@@ -140,8 +136,7 @@ def mask_with_BCG( img_file, cen_x, cen_y, cen_ar, cen_br, cen_cr, cen_chi, gal_
 
 	return mask_img
 
-def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, bcg_photo_file = None,
-	stack_info = None, pixel = 0.396, source_det = False,):
+def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, stack_info = None, pixel = 0.396, source_det = False):
 	"""
 	d_file : path where image data saved (include file-name structure:
 	'/xxx/xxx/xxx.xxx')
@@ -155,8 +150,8 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 	bcg_mask : 0 -- mask all sources except BCGs; 1 : BCGs also will be masked
 	pixel : pixel scale, in unit 'arcsec' (default is 0.396)
 	stack_info : path to save the information of stacking (ra, dec, z, img_x, img_y)
-	including file-name: '/xxx/xxx/xxx.xxx'
-	bcg_photo_file : files including BCG properties (effective radius,), .txt files
+					including file-name: '/xxx/xxx/xxx.xxx'
+
 	"""
 	Nz = len(z_set)
 	#param_A = 'default_mask_A.sex'
@@ -313,25 +308,9 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 		### add BCG region back
 		if bcg_mask == 0:
 
-			BCG_photo_cat = pds.read_csv( bcg_photo_file % (z_g, ra_g, dec_g), skiprows = 1)
-			## effective radius, in unit of arcsec
-			r_Reff = np.array(BCG_photo_cat['deVRad_r'])[0]
-			g_Reff = np.array(BCG_photo_cat['deVRad_g'])[0]
-			i_Reff = np.array(BCG_photo_cat['deVRad_i'])[0]
-
-			img_file = d_file % (band, ra_g, dec_g, z_g)
-			gal_cat = out_file0 % (band, ra_g, dec_g, z_g)
-
-			if band == 'r':
-				bcg_R_eff = r_Reff / pixel
-			if band == 'g':
-				bcg_R_eff = g_Reff / pixel
-			if band == 'i':
-				bcg_R_eff = i_Reff / pixel
-
 			gal_arr = [ cx, cy, a, b, theta ]
 
-			pre_mask_img = mask_with_BCG( img_file, xn, yn, cen_ar, cen_br, cen_cr, cen_chi, gal_arr, bcg_R_eff,)
+			pre_mask_img = mask_with_BCG( img_file, xn, yn, cen_ar, cen_br, cen_cr, cen_chi, gal_arr )
 
 			mask_path = np.ones((img.shape[0], img.shape[1]), dtype = np.float32)
 			ox = np.linspace(0, img.shape[1] - 1, img.shape[1])
