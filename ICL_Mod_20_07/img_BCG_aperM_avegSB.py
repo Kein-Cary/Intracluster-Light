@@ -37,6 +37,11 @@ L_wave = np.array([ 6166, 4686, 7480 ])
 Mag_sun = [ 4.65, 5.11, 4.53 ]
 
 
+"""
+in this section, we need to know the relation between color, mass, and luminosity
+( in our case is 'g-r', 'r-i', Li and mass)
+"""
+
 ### === ###  BCG aperture limited Mass estimate
 def cumu_mass_func(rp, surf_mass, N_grid = 100):
 
@@ -244,7 +249,4 @@ def BCG_mag_comu_func( dat_file, lis_ra, lis_dec, lis_z, out_file, R_bins, param
 	data.to_csv( out_file )
 
 	return
-
-
-### === ### BCG average surface brightness
 

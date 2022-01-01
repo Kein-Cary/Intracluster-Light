@@ -12,6 +12,9 @@ import statistics as sts
 
 from scipy import interpolate as interp
 from astropy import cosmology as apcy
+#.
+from fig_out_module import arr_jack_func
+
 
 ## constant
 kpc2cm = U.kpc.to(U.cm)
@@ -43,6 +46,7 @@ cat_Rii = np.array([0.23,  0.68,  1.03,   1.76,   3.00,
 					4.63,  7.43,  11.42,  18.20,  28.20, 
 					44.21, 69.00, 107.81, 168.20, 263.00]) # in unit 'arcsec'
 ## the band info. of SDSS BCG pro. : 0, 1, 2, 3, 4 --> u, g, r, i, z
+
 
 def cumula_flux(angl_r, bin_fdens,):
 
@@ -96,7 +100,7 @@ def fdens_deriv(r_angle, obs_r, obs_fmean, ):
 	'''
 	return sb_f
 
-def BCG_SB_pros_func(band_str, set_z, set_ra, set_dec, pros_file, z_ref, out_file, r_bins,):
+def BCG_SB_pros_func(band_str, set_z, set_ra, set_dec, pros_file, out_file, r_bins, z_ref = None):
 	"""
 	The return varable is surface brightness profile
 	"""
@@ -136,8 +140,14 @@ def BCG_SB_pros_func(band_str, set_z, set_ra, set_dec, pros_file, z_ref, out_fil
 		use_angl_r = r_angl[ id_lim ]
 		fdens = fdens_deriv( use_angl_r, tt_r, tt_pro,)
 
-		fdens = fdens * ( (1 + z_g) / (1 + z_ref) )**4
-		fdens_arr[tt][id_lim] = fdens
+		#.
+		if z_ref is not None:
+			out_fdens = fdens * ( (1 + z_g) / (1 + z_ref) )**4
+
+		else:
+			out_fdens = fdens * 1.
+
+		fdens_arr[tt][id_lim] = out_fdens
 
 	m_fdens = np.nanmean( fdens_arr, axis = 0 )
 	std_fdens = np.nanstd( fdens_arr, axis = 0 )
@@ -200,4 +210,70 @@ def single_img_SB_func(band_str, set_z, set_ra, set_dec, pros_file, r_bins, z_re
 	out_rbins = r_bins[ id_lim ]
 
 	return out_rbins, out_fdens
+
+
+### === jackknife average estimation
+def jack_aveg_SB_func( N_samples, band_str, ra, dec, z, prof_cat, jk_sub_file, jk_aveg_file, r_bins, z_ref = None):
+	"""
+	ra, dec, z : ra, dec, redshift of BCG
+	N_samples : number of jackknife subsample
+	prof_cat : the profMean table of SDSS photometric table
+
+	"""
+	zN = len( ra )
+	id_arr = np.arange(0, zN, 1)
+	id_group = id_arr % N_samples
+
+	lis_ra, lis_dec, lis_z = [], [], []
+
+	## sub-sample
+	for nn in range( N_samples ):
+
+		id_xbin = np.where( id_group == nn )[0]
+
+		lis_ra.append( ra[ id_xbin ] )
+		lis_dec.append( dec[ id_xbin ] )
+		lis_z.append( z[ id_xbin ] )
+
+	## jackknife sub-sample
+	for nn in range( N_samples ):
+
+		id_arry = np.linspace( 0, N_samples - 1, N_samples )
+		id_arry = id_arry.astype( int )
+		jack_id = list( id_arry )
+		jack_id.remove( jack_id[nn] )
+		jack_id = np.array( jack_id )
+
+		set_ra, set_dec, set_z = np.array([]), np.array([]), np.array([])
+
+		for oo in ( jack_id ):
+			set_ra = np.r_[ set_ra, lis_ra[oo] ]
+			set_dec = np.r_[ set_dec, lis_dec[oo] ]
+			set_z = np.r_[ set_z, lis_z[oo] ]
+
+		_nn_sub_file = jk_sub_file % nn  ## read SDSS photo_data
+
+		BCG_SB_pros_func( band_str, set_z, set_ra, set_dec, prof_cat, jk_sub_file, r_bins, z_ref = z_ref )
+
+
+	## mean of jackknife sample
+	tmp_r, tmp_sb = [], []
+	for nn in range( N_samples ):
+
+		pro_dat = pds.read_csv( jk_sub_file % nn )
+
+		tt_r, tt_sb = np.array( pro_dat['R_ref'] ), np.array( pro_dat['SB_fdens'] )
+
+		tmp_r.append( tt_r )
+		tmp_sb.append( tt_sb )
+
+	mean_R, mean_sb, mean_sb_err, lim_R = arr_jack_func( tmp_sb, tmp_r, N_samples)
+
+	keys = [ 'R', 'aveg_sb', 'aveg_sb_err' ]
+	values = [ mean_R, mean_sb, mean_sb_err ]
+	fill = dict(zip( keys, values) )
+	out_data = pds.DataFrame( fill )
+	out_data.to_csv( jk_aveg_file )
+
+	return
 
