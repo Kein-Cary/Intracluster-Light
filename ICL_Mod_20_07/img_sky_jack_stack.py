@@ -221,7 +221,6 @@ def sky_jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, im
 		lis_x.append( img_x[ id_xbin ] )
 		lis_y.append( img_y[ id_xbin ] )
 
-	band_id = band.index( band_str )
 
 	## img stacking
 	for nn in range(N_bin):
@@ -242,10 +241,11 @@ def sky_jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, im
 			sub_rms_file = None
 
 		if id_cut == False:
-			stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[ band_id ], set_x, set_y, id_cen,
+			stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band_str, set_x, set_y, id_cen,
 				rms_file = sub_rms_file, pix_con_file = sub_cont_file, id_mean = id_mean,)
+
 		if id_cut == True:
-			cut_stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[ band_id ], set_x, set_y, id_cen, N_edg,
+			cut_stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band_str, set_x, set_y, id_cen, N_edg,
 				rms_file = sub_rms_file, pix_con_file = sub_cont_file, id_mean = id_mean,)
 
 	for nn in range( N_bin ):

@@ -212,6 +212,7 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 
 	lis_ra, lis_dec, lis_z = [], [], []
 	lis_x, lis_y = [], []
+
 	for nn in range( N_bin ):
 
 		id_xbin = np.where( id_group == nn )[0]
@@ -222,7 +223,6 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 		lis_x.append( img_x[ id_xbin ] )
 		lis_y.append( img_y[ id_xbin ] )
 
-	band_id = band.index( band_str )
 
 	## img stacking
 	for nn in range(N_bin):
@@ -243,10 +243,10 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 			sub_rms_file = None
 
 		if id_cut == False:
-			stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[ band_id ], set_x, set_y, id_cen,
+			stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band_str, set_x, set_y, id_cen,
 				rms_file = sub_rms_file, pix_con_file = sub_cont_file,)
 		if id_cut == True:
-			cut_stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band[ band_id ], set_x, set_y, id_cen, N_edg,
+			cut_stack_func(img_file, sub_img_file, set_z, set_ra, set_dec, band_str, set_x, set_y, id_cen, N_edg,
 				rms_file = sub_rms_file, pix_con_file = sub_cont_file,)
 
 	for nn in range( N_bin ):
@@ -294,7 +294,7 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 			tmp_r.append(r_arr)
 
 		## only save the sb result in unit " nanomaggies / arcsec^2 "
-		tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, band[ band_id ], N_bin)[4:]
+		tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, band_str, N_bin)[4:]
 		sb_lim_r = np.ones( len(tt_jk_R) ) * lim_R
 
 		with h5py.File(jack_SB_file, 'w') as f:
@@ -305,9 +305,9 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, img_x, img_y,
 
 	else:
 		if id_Z0 == True:
-			lim_SB_pros_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N, band_id, edg_bins,)
+			lim_SB_pros_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N, band_str, edg_bins,)
 		else:
-			zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N, z_ref, band_id, edg_bins,)
+			zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N, z_ref, band_str, edg_bins,)
 
 	# calculate the directly stacking result( 2D_img, pixel_count array, and rms file [if sub_rms is not None] )
 	order_id = np.arange(0, N_bin, 1)

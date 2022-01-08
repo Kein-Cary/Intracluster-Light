@@ -39,7 +39,8 @@ def sdss_img_load_func(cat_file, R_query, out_file, err_log, N_ini = None):
 
     R_A = 0.5 * view_d.to(U.arcsec) # angular radius in unit of arcsec
 
-    band = ['u','g','r','i','z']
+    # band = ['u','g','r','i','z']
+    band = ['g','r','i']
 
     doc = open(err_log, 'w')
 
@@ -97,6 +98,13 @@ def sdss_img_load_func(cat_file, R_query, out_file, err_log, N_ini = None):
 
 def sdss_random_img_load_func(cat_file, R_query, out_file, err_log):
 
+    from ICL_angular_diameter_reshift import mark_by_self
+    from ICL_angular_diameter_reshift import mark_by_plank
+
+    from astroquery.sdss import SDSS
+    from astropy import coordinates as coords
+    from astropy.table import Table
+
     dat = pds.read_csv( cat_file )
     ra, dec, z = np.array(dat['ra']), np.array(dat['dec']), np.array(dat['z'])
     Ns = len(ra)
@@ -104,21 +112,14 @@ def sdss_random_img_load_func(cat_file, R_query, out_file, err_log):
     # calculate the angular size 
     size_cluster = R_query # 2. # assumptiom: cluster size is 2.Mpc/h
 
-    from ICL_angular_diameter_reshift import mark_by_self
-    from ICL_angular_diameter_reshift import mark_by_plank
-
     A_size, A_d= mark_by_self(z, size_cluster)
     view_d = A_size * U.rad
 
-    #### section 2: cite the data and save fits figure
-    from astroquery.sdss import SDSS
-    from astropy import coordinates as coords
-    #from astroML.plotting import setup_text_plots
-    from astropy.table import Table
 
     R_A = 0.5 * view_d.to(U.arcsec) # angular radius in angular second unit
 
-    band = ['u','g','r','i','z']
+    # band = ['u','g','r','i','z']
+    band = ['g','r','i']
 
     doc = open(err_log, 'w')
 
