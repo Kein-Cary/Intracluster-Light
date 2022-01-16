@@ -1,0 +1,4 @@
+#Table1
+objID,cModelMag_g,cModelMag_r,cModelMag_i
+1237667210514858116,19.54146,18.10093,17.51422
+

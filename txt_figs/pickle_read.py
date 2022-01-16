@@ -23,3 +23,20 @@ for ii in range( Nl ):
 	np.savetxt( '/home/xkchen/%s_delta-sigm_covmat.txt' % cat_lis[ii], covmat,)
 
 	print rp_data.shape
+
+
+###... np.genfromtxt read files
+"""
+bin_R, siglow, errsiglow, sighig, errsighig, highoverlow, errhighoverlow = np.genfromtxt(
+															'/home/xkchen/tmp_run/data_files/figs/result_high_over_low.txt', unpack = True)
+#. convert to physical coordinate and using 'kpc' as Length unit
+bin_R = bin_R * 1e3 * a_ref / h
+siglow, errsiglow, sighig, errsighig = np.array( [siglow * h**2 / 1e6, errsiglow * h**2 / 1e6, 
+													sighig * h**2 / 1e6, errsighig * h**2 / 1e6] ) / a_ref**2
+
+id_nan = np.isnan( bin_R )
+bin_R = bin_R[ id_nan == False]
+siglow, errsiglow, sighig, errsighig = [ siglow[ id_nan == False], errsiglow[ id_nan == False], sighig[ id_nan == False], 
+										errsighig[ id_nan == False] ]
+"""
+

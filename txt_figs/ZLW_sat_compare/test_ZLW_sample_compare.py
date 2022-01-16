@@ -29,7 +29,8 @@ band = ['r', 'g', 'i']
 L_wave = np.array([ 6166, 4686, 7480 ])
 Mag_sun = [ 4.65, 5.11, 4.53 ]
 
-###===### SDSS redMaPPer catalog compare
+
+### === ### SDSS redMaPPer catalog compare
 """
 ###... bcg age binned sample
 hi_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/cat_z_form/bcg_M_based_cat/' + 
@@ -101,9 +102,12 @@ diff_dec = m_dec[ m_dex ]
 # tag_coord_0 = SkyCoord( ra = hi_tag_ra*U.deg, dec = hi_tag_dec*U.deg,)
 # tag_coord_1 = SkyCoord( ra = low_tag_ra*U.deg, dec = low_tag_dec*U.deg,)
 
+
+##.. only lo-BCG-Mstar bin have different sample
 # # idx, d2d, d3d = m_coord[ m_dex ].match_to_catalog_sky( tag_coord_0 )
 # idx, d2d, d3d = m_coord[ m_dex ].match_to_catalog_sky( tag_coord_1 )
 # _id_tag = d2d.value < 2.7e-4
+
 
 #. member properties matching for the lack samples in redMaPPer
 with h5py.File('/home/xkchen/figs/ZLW_cat_15/low_BCG_star-Mass_clus-sat_record.h5', 'r') as f:
@@ -114,10 +118,12 @@ sat_ra, sat_dec, sat_z = sub_arr[0], sub_arr[1], sub_arr[2]
 sat_dL, sat_Pmem = sub_arr[3], sub_arr[4]
 order_x = np.arange(0, len(sub_IDs) )
 
-# put_arr = np.array([ order_x, sat_ra, sat_dec ]).T
-# np.savetxt('/home/xkchen/figs/ZLW_cat_15/lo_M_check.dat', put_arr, fmt = ('%.0f', '%.5f', '%.5f'), )
 
-sql_dat = pds.read_csv('/home/xkchen/figs/ZLW_cat_15/lo_M_check_sat_mag.csv', skiprows = 1)
+# put_arr = np.array([ order_x, sat_ra, sat_dec ]).T
+# np.savetxt('/home/xkchen/figs/sat_cat_ZLW/SDSS_age_bin_diffi_cat/lo_M_check.dat', put_arr, fmt = ('%.0f', '%.5f', '%.5f'), )
+
+
+sql_dat = pds.read_csv('/home/xkchen/figs/sat_cat_ZLW/SDSS_age_bin_diffi_cat/lo_M_check_sat_mag.csv', skiprows = 1)
 sql_IDs, sql_ra, sql_dec = np.array( sql_dat['objID'] ), np.array( sql_dat['ra'] ), np.array( sql_dat['dec'] )
 r_mod_mag, g_mod_mag, i_mod_mag = np.array( sql_dat['modelMag_r'] ), np.array( sql_dat['modelMag_g'] ), np.array( sql_dat['modelMag_i'] )
 r_dered_mag, g_dered_mag, i_dered_mag = np.array( sql_dat['dered_r'] ), np.array( sql_dat['dered_g'] ), np.array( sql_dat['dered_i'] )
@@ -140,7 +146,7 @@ raise
 """
 
 
-###===### ZLWen matched catalog compare
+### === ### ZLWen matched catalog compare
 '''
 hi_dat = pds.read_csv( '/home/xkchen/figs/ZLW_cat_15/redMapper_matched_high-age.csv' )
 hi_age_ra, hi_age_dec, hi_age_z = np.array( hi_dat['ra'] ), np.array( hi_dat['dec'] ), np.array( hi_dat['z'] )
@@ -204,21 +210,22 @@ orin_dex = order_dex.copy()
 orin_dex[ id_div ] = order_dex[ id_div ] - N_low
 
 put_arr = np.array( [ diff_ra, diff_dec, diff_z, orin_dex, dex_div] ).T
-np.savetxt( '/home/xkchen/figs/ZLW_cat_15/ZLW_age_bin_diffi_cat/age-bin_different_cat.dat', put_arr, 
+np.savetxt( '/home/xkchen/figs/sat_cat_ZLW/ZLW_age_bin_diffi_cat/age-bin_different_cat.dat', put_arr, 
 			fmt = ('%.5f', '%.5f', '%.5f', '%.0f', '%.0f'), )
 
 '''
 
 
-###===### match age-bin different catalog to member galaxies
+### === ### match age-bin different catalog to member galaxies
 # different catalog information in redMaPPer
-diffi_dat = np.loadtxt('/home/xkchen/figs/ZLW_cat_15/ZLW_age_bin_diffi_cat/age-bin_different_cat.dat')
+diffi_dat = np.loadtxt('/home/xkchen/figs/sat_cat_ZLW/ZLW_age_bin_diffi_cat/age-bin_different_cat.dat')
 diffi_ra, diffi_dec, diffi_z = diffi_dat[:,0], diffi_dat[:,1], diffi_dat[:,2]
 diffi_samp_id, diffi_order = diffi_dat[:,4], diffi_dat[:,3]
 
+
 #... overall ZLWen cluster cat
 cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
-cen_dat = np.loadtxt('/home/xkchen/figs/ZLW_cat_15/ZLW_sat/WH15_chenxk_BCG.dat')
+cen_dat = np.loadtxt('/home/xkchen/figs/sat_cat_ZLW/ZLW_sat/WH15_chenxk_BCG.dat')
 
 cen_ra, cen_dec = cen_dat[:,1], cen_dat[:,2]
 orin_dex = cen_dat[:,0]
@@ -264,12 +271,12 @@ lim_ra, lim_dec, lim_z = cen_ra[ idx[ id_lim ] ], cen_dec[ idx[ id_lim ] ], clus
 lim_orin_dex, lim_samp_id = orin_dex[ idx[ id_lim ] ], samp_id[ idx[ id_lim ] ]
 
 # put_arr = np.array( [ lim_ra, lim_dec, lim_z, lim_orin_dex, lim_samp_id] ).T
-# np.savetxt('/home/xkchen/figs/ZLW_cat_15/ZLW_age_bin_diffi_cat/age-bin_different_ZLW-cat.dat', put_arr, 
+# np.savetxt('/home/xkchen/figs/sat_cat_ZLW/ZLW_age_bin_diffi_cat/age-bin_different_ZLW-cat.dat', put_arr, 
 # 			fmt = ('%.5f', '%.5f', '%.5f', '%.0f', '%.0f'),)
 
 
 #... ZLWen member cat
-mem_dat = np.loadtxt('/home/xkchen/figs/ZLW_cat_15/ZLW_sat/clustmem_chenxk_BCG.dat')
+mem_dat = np.loadtxt('/home/xkchen/figs/sat_cat_ZLW/ZLW_sat/clustmem_chenxk_BCG.dat')
 clus_id = mem_dat[:,0]
 mem_ra, mem_dec, mem_z = mem_dat[:,1], mem_dat[:,2], mem_dat[:,3]
 mem_rmag, mem_rMag = mem_dat[:,4], mem_dat[:,5]
@@ -434,8 +441,9 @@ hig_F_tree.close()
 print(' high sample matched')
 """
 
+
 #... record the different catalog
-sql_dat = np.loadtxt('/home/xkchen/figs/ZLW_cat_15/ZLW_age_bin_diffi_cat/age-bin_different_ZLW-cat.dat')
+sql_dat = np.loadtxt('/home/xkchen/figs/sat_cat_ZLW/ZLW_age_bin_diffi_cat/age-bin_different_ZLW-cat.dat')
 sql_ra, sql_dec, sql_z = sql_dat[:,0], sql_dat[:,1], sql_dat[:,2]
 sql_samp_id, sql_order = sql_dat[:,4], sql_dat[:,3]
 
@@ -471,19 +479,20 @@ for jj in range( N_diff ):
 
 	_N_sat.append( _n_tt_ )
 
+
 #. .dat files for SDSS table query
 # put_arr = np.array( [ tmp_dex, tmp_ra, tmp_dec] ).T
-# np.savetxt('/home/xkchen/figs/ZLW_cat_15/ZLW_age_bin_diffi_cat/ZLWen_age-diffi-cat_sat.dat', 
+# np.savetxt('/home/xkchen/figs/sat_cat_ZLW/ZLW_age_bin_diffi_cat/ZLWen_age-diffi-cat_sat.dat', 
 # 			put_arr, fmt = ('%.0f', '%.5f', '%.5f'),)
 
 # put_arr = np.array( [ tmp_dex, tmp_div, tmp_ra, tmp_dec] ).T
-# np.savetxt('/home/xkchen/figs/ZLW_cat_15/ZLW_age_bin_diffi_cat/ZLWen_age-diffi-cat_clus-sat_pair.dat', 
+# np.savetxt('/home/xkchen/figs/sat_cat_ZLW/ZLW_age_bin_diffi_cat/ZLWen_age-diffi-cat_clus-sat_pair.dat', 
 # 			put_arr, fmt = ('%.0f', '%.0f', '%.5f', '%.5f'),)
 
 
 #... match the different catalog with SDSS matched member properties
 #. combine ZLW-sat-cat with sdss sql table
-# sat_dat = pds.read_csv('/home/xkchen/figs/ZLW_cat_15/ZLW_age_bin_diffi_cat/ZLWen_age-diff-cat_sat_mag.csv', skiprows = 1,)
+# sat_dat = pds.read_csv('/home/xkchen/figs/sat_cat_ZLW/ZLW_age_bin_diffi_cat/ZLWen_age-diff-cat_sat_mag.csv', skiprows = 1,)
 # kk_str = sat_dat.columns
 # sat_ra, sat_dec, sat_z = np.array( sat_dat['ra'] ), np.array( sat_dat['dec'] ), np.array( sat_dat['z'] )
 
@@ -505,10 +514,10 @@ for jj in range( N_diff ):
 
 # fill = dict( zip( keys, sat_out_arr ) )
 # out_data = pds.DataFrame( fill )
-# out_data.to_csv( '/home/xkchen/figs/ZLW_cat_15/ZLW_age_bin_diffi_cat/' + 'ZLWen_age-diff-cat_sat_sql_match.csv' )
+# out_data.to_csv( '/home/xkchen/figs/sat_cat_ZLW/ZLW_age_bin_diffi_cat/' + 'ZLWen_age-diff-cat_sat_sql_match.csv' )
 
 
-sat_dat = pds.read_csv( '/home/xkchen/figs/ZLW_cat_15/ZLW_age_bin_diffi_cat/' + 'ZLWen_age-diff-cat_sat_sql_match.csv' )
+sat_dat = pds.read_csv( '/home/xkchen/figs/sat_cat_ZLW/ZLW_age_bin_diffi_cat/' + 'ZLWen_age-diff-cat_sat_sql_match.csv' )
 sat_ra, sat_dec, sat_z = np.array( sat_dat['cat_ra'] ), np.array( sat_dat['cat_dec'] ), np.array( sat_dat['cat_z'] )
 sat_zf, centric_L = np.array( sat_dat['z_flag'] ), np.array( sat_dat['centric_R'] )
 sat_r_mag, sat_g_mag, sat_i_mag = np.array( sat_dat['modelMag_r'] ), np.array( sat_dat['modelMag_g'] ), np.array( sat_dat['modelMag_i'] )
@@ -576,10 +585,11 @@ print('done!')
 
 raise
 
+
 ###===### rich-bin sample division and member galaxy match
 cat_lis = [ 'low-rich', 'hi-rich' ]
 
-cen_dat = np.loadtxt('/home/xkchen/figs/ZLW_cat_15/ZLW_sat/cluster_chenxk_rich.dat')
+cen_dat = np.loadtxt('/home/xkchen/figs/sat_cat_ZLW/ZLW_sat/cluster_chenxk_rich.dat')
 cen_ra, cen_dec = cen_dat[:,1], cen_dat[:,2]
 orin_dex = cen_dat[:,0]
 clus_z = cen_dat[:,3]
@@ -621,7 +631,7 @@ N_hig = np.sum( id_div == False )
 N_tot = N_Low + N_hig
 N_rep_dex = np.min( [ N_Low, N_hig ] )
 
-mem_dat = np.loadtxt('/home/xkchen/figs/ZLW_cat_15/ZLW_sat/clustmem_chenxk_rich.dat')
+mem_dat = np.loadtxt('/home/xkchen/figs/sat_cat_ZLW/ZLW_sat/clustmem_chenxk_rich.dat')
 clus_id = mem_dat[:,0]
 mem_ra, mem_dec, mem_z = mem_dat[:,1], mem_dat[:,2], mem_dat[:,3]
 cen_dL = mem_dat[:,6]

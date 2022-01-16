@@ -1,26 +1,28 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-
-from matplotlib import ticker
-from matplotlib.ticker import MultipleLocator, AutoMinorLocator
-from matplotlib.patches import Circle, Ellipse, Rectangle
-
-import h5py
-import numpy as np
-import pandas as pds
-import astropy.wcs as awc
-import astropy.io.ascii as asc
-import astropy.io.fits as fits
-import astropy.units as U
-import astropy.constants as C
 import scipy.signal as signal
 
-from astropy import cosmology as apcy
-from scipy import interpolate as interp
-from scipy import integrate as integ
-from astropy.coordinates import SkyCoord
+import time
+import h5py
+import numpy as np
+import astropy.io.fits as fits
 
-### === ### cosmology
+import pandas as pds
+from io import StringIO
+
+import astropy.units as U
+import astropy.constants as C
+from astropy import cosmology as apcy
+
+from fig_out_module import arr_jack_func
+from fig_out_module import absMag_to_Lumi_func
+
+from mpi4py import MPI
+commd = MPI.COMM_WORLD
+rank = commd.Get_rank()
+cpus = commd.Get_size()
+
+### constant
 rad2asec = U.rad.to(U.arcsec)
 Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
 H0 = Test_model.H0.value
@@ -28,485 +30,653 @@ h = H0/100
 Omega_m = Test_model.Om0
 Omega_lambda = 1.-Omega_m
 Omega_k = 1.- (Omega_lambda + Omega_m)
-Omega_b = Test_model.Ob0
 
 pixel = 0.396
-band = ['r', 'g', 'i']
-L_wave = np.array([ 6166, 4686, 7480 ])
-Mag_sun = [ 4.65, 5.11, 4.53 ]
 z_ref = 0.25
+band = ['r', 'g', 'i']
+
+def P_mem_color( stacked_cat_file, N_sets, clust_mem_file, out_files, N_r_bins, band_str):
+
+	d_cat = pds.read_csv( stacked_cat_file )
+	ra, dec, z = np.array( d_cat['ra']), np.array( d_cat['dec']), np.array( d_cat['z'])
+	N_radii = len( N_r_bins )
+
+	## also divid sub-samples
+	zN = len( ra )
+	id_arr = np.arange(0, zN, 1)
+	id_group = id_arr % N_sets
+
+	lis_ra, lis_dec, lis_z = [], [], []
+
+	## sub-sample
+	for nn in range( N_sets ):
+
+		id_xbin = np.where( id_group == nn )[0]
+
+		lis_ra.append( ra[ id_xbin ] )
+		lis_dec.append( dec[ id_xbin ] )
+		lis_z.append( z[ id_xbin ] )
+
+	## jackknife sub-sample
+	for nn in range( N_sets ):
+
+		id_arry = np.linspace( 0, N_sets - 1, N_sets )
+		id_arry = id_arry.astype( int )
+		jack_id = list( id_arry )
+		jack_id.remove( jack_id[nn] )
+		jack_id = np.array( jack_id )
+
+		set_ra, set_dec, set_z = np.array([]), np.array([]), np.array([])
+
+		for oo in ( jack_id ):
+			set_ra = np.r_[ set_ra, lis_ra[oo] ]
+			set_dec = np.r_[ set_dec, lis_dec[oo] ]
+			set_z = np.r_[ set_z, lis_z[oo] ]
+
+		ncs = len( set_z )
+
+		bar_g2r = np.zeros( N_radii, dtype = np.float32)
+		bar_g2r_err = np.zeros( N_radii, dtype = np.float32)
+
+		bar_r2i = np.zeros( N_radii, dtype = np.float32)
+		bar_r2i_err = np.zeros( N_radii, dtype = np.float32)
+
+		N_galaxy = np.zeros( N_radii, dtype = np.float32)
+
+		R_vals = np.zeros( N_radii, dtype = np.float32)
+
+		for pp in range( N_radii - 1 ):
+
+			tmp_m_g2r, tmp_m_r2i = np.array([]), np.array([])
+			tmp_g2r_err, tmp_r2i_err = np.array([]), np.array([])
+			tmp_Pmem = np.array([])
+			tmp_radius = np.array([])
+
+			for ii in range( ncs ):
+
+				ra_g, dec_g, z_g = set_ra[ii], set_dec[ii], set_z[ii]
+
+				sub_dat = pds.read_csv( clust_mem_file % ( band_str, ra_g, dec_g, z_g),)
+				sub_cen_R = np.array(sub_dat['centric_R(Mpc/h)'])
+				sub_Pmem = np.array(sub_dat['P_member'])
+
+				sub_r_mag = np.array(sub_dat['r_mags'])
+				sub_g_mag = np.array(sub_dat['g_mags'])
+				sub_i_mag = np.array(sub_dat['i_mags'])
+
+				sub_r_mag_err = np.array(sub_dat['r_mag_err'])
+				sub_g_mag_err = np.array(sub_dat['g_mag_err'])
+				sub_i_mag_err = np.array(sub_dat['i_mag_err'])
+
+				# recalculate magnitude at z_ref
+				Dl2 = Test_model.luminosity_distance( z_ref ).value
+				Dl1 = Test_model.luminosity_distance( z_g ).value
+
+				cc_sub_r_mag = sub_r_mag + 5 * np.log10( Dl2 / Dl1 )
+				cc_sub_g_mag = sub_g_mag + 5 * np.log10( Dl2 / Dl1 )
+				cc_sub_i_mag = sub_i_mag + 5 * np.log10( Dl2 / Dl1 )
+
+				id_lim = ( sub_cen_R >= N_r_bins[pp] ) & ( sub_cen_R <= N_r_bins[pp + 1] )
+
+				if np.sum(id_lim) > 0:
+
+					dpt_g2r = cc_sub_g_mag[id_lim] - cc_sub_r_mag[id_lim]
+					dpt_g2r_err = np.sqrt( sub_r_mag_err**2 + sub_g_mag_err**2 )
+
+					dpt_r2i = cc_sub_r_mag[id_lim] - cc_sub_i_mag[id_lim]
+					dpt_r2i_err = np.sqrt( sub_r_mag_err**2 + sub_i_mag_err**2 )
+
+					dpt_P_mem = sub_Pmem[id_lim]
+
+					dpt_radius = sub_cen_R[id_lim]
+
+					tmp_m_g2r = np.r_[ tmp_m_g2r, dpt_g2r ]
+					tmp_m_r2i = np.r_[ tmp_m_r2i, dpt_r2i ]
+					tmp_g2r_err = np.r_[ tmp_g2r_err, dpt_g2r_err ]
+					tmp_r2i_err = np.r_[ tmp_r2i_err, dpt_r2i_err ]
+					tmp_Pmem = np.r_[ tmp_Pmem, dpt_P_mem ]
+					tmp_radius = np.r_[ tmp_radius, dpt_radius ]
+
+				else:
+					dpt_g2r = 0.
+					dpt_g2r_err = 0.
+					dpt_r2i = 0.
+					dpt_r2i_err = 0.
+					dpt_P_mem = 0.
+					dpt_radius = 0.
+
+					tmp_m_g2r = np.r_[ tmp_m_g2r, dpt_g2r ]
+					tmp_m_r2i = np.r_[ tmp_m_r2i, dpt_r2i ]
+					tmp_g2r_err = np.r_[ tmp_g2r_err, dpt_g2r_err ]
+					tmp_r2i_err = np.r_[ tmp_r2i_err, dpt_r2i_err ]
+					tmp_Pmem = np.r_[ tmp_Pmem, dpt_P_mem ]
+					tmp_radius = np.r_[ tmp_radius, dpt_radius ]
+
+			mean_g2r = np.sum( tmp_m_g2r * tmp_Pmem ) / np.sum( tmp_Pmem )
+			mean_r2i = np.sum( tmp_m_r2i * tmp_Pmem ) / np.sum( tmp_Pmem )
+
+			## use the definition of std
+			mean_g2r_err = np.sum( tmp_Pmem * (mean_g2r - tmp_m_g2r)**2 ) / np.sum( tmp_Pmem )
+			mean_r2i_err = np.sum( tmp_Pmem * (mean_r2i - tmp_m_r2i)**2 ) / np.sum( tmp_Pmem )
+
+			n_galax = len( tmp_m_g2r )
+
+			mean_radius = np.sum( tmp_Pmem * tmp_radius ) / np.sum( tmp_Pmem )
+
+			bar_g2r[ pp ] = mean_g2r
+			bar_g2r_err[ pp ] = mean_g2r_err
+
+			bar_r2i[ pp ] = mean_r2i
+			bar_r2i_err[ pp ] = mean_r2i_err
+
+			N_galaxy[ pp ] = n_galax
+
+			R_vals[ pp ] = mean_radius
+
+		## save
+		keys = [ 'centric_R(Mpc/h)', 'bar_g2r', 'bar_r2i', 'bar_g2r_err', 'bar_r2i_err', 'n_galaxy']
+		values = [ R_vals, bar_g2r, bar_r2i, bar_g2r_err, bar_r2i_err, N_galaxy ]
+		fill = dict(zip( keys, values) )
+		out_data = pds.DataFrame( fill )
+		out_data.to_csv( out_files % nn )
+
+	return
+
+def rep_P_mem_color( sub_ra, sub_dec, sub_z, clust_mem_file, out_files, N_r_bins, band_str, z_cut = False,):
+	"""
+	z_cut : selection in line-of-sight
+	"""
+	N_radii = len( N_r_bins )
+	ncs = len( sub_z )
+
+	bar_g2r = np.zeros( N_radii, dtype = np.float32)
+	bar_g2r_err = np.zeros( N_radii, dtype = np.float32)
+
+	bar_r2i = np.zeros( N_radii, dtype = np.float32)
+	bar_r2i_err = np.zeros( N_radii, dtype = np.float32)
+
+	bar_g2i = np.zeros( N_radii, dtype = np.float32)
+	bar_g2i_err = np.zeros( N_radii, dtype = np.float32)
+
+	dered_bar_g2r = np.zeros( N_radii, dtype = np.float32)
+	dered_bar_r2i = np.zeros( N_radii, dtype = np.float32)
+	dered_bar_g2i = np.zeros( N_radii, dtype = np.float32)
+
+	dered_bar_g2r_err = np.zeros( N_radii, dtype = np.float32)
+	dered_bar_r2i_err = np.zeros( N_radii, dtype = np.float32)
+	dered_bar_g2i_err = np.zeros( N_radii, dtype = np.float32)
+
+	#. Luminosity weighted color
+	Lwt_bar_g2r = np.zeros( N_radii, dtype = np.float32)
+	Lwt_bar_g2i = np.zeros( N_radii, dtype = np.float32)
+	Lwt_bar_r2i = np.zeros( N_radii, dtype = np.float32)
+
+	Lwt_bar_g2r_err = np.zeros( N_radii, dtype = np.float32)
+	Lwt_bar_g2i_err = np.zeros( N_radii, dtype = np.float32)
+	Lwt_bar_r2i_err = np.zeros( N_radii, dtype = np.float32)
+
+	Lwt_dered_bar_g2r = np.zeros( N_radii, dtype = np.float32)
+	Lwt_dered_bar_g2i = np.zeros( N_radii, dtype = np.float32)
+	Lwt_dered_bar_r2i = np.zeros( N_radii, dtype = np.float32)
+
+	Lwt_dered_bar_g2r_err = np.zeros( N_radii, dtype = np.float32)
+	Lwt_dered_bar_g2i_err = np.zeros( N_radii, dtype = np.float32)
+	Lwt_dered_bar_r2i_err = np.zeros( N_radii, dtype = np.float32)
+
+	N_galaxy = np.zeros( N_radii, dtype = np.float32)
+	R_vals = np.zeros( N_radii, dtype = np.float32)
+
+	for pp in range( N_radii - 1 ):
+
+		tmp_m_g2r, tmp_m_r2i, tmp_m_g2i = np.array([]), np.array([]), np.array([])
+		dered_tmp_m_g2r, dered_tmp_m_r2i, dered_tmp_m_g2i = np.array([]), np.array([]), np.array([])
+
+		#. Luminosity record
+		tmp_Lumi_r = np.array([])
+
+		tmp_Pmem = np.array([])
+		tmp_radius = np.array([])
+
+		for ii in range( ncs ):
+
+			ra_g, dec_g, z_g = sub_ra[ii], sub_dec[ii], sub_z[ii]
+
+			sub_dat = pds.read_csv( clust_mem_file % ( band_str, ra_g, dec_g, z_g),)
+			sub_cen_R = np.array( sub_dat['centric_R(Mpc/h)'])
+			sub_Pmem = np.array( sub_dat['P_member'])
+
+			sub_r_mag = np.array( sub_dat['r_mags'])
+			sub_g_mag = np.array( sub_dat['g_mags'])
+			sub_i_mag = np.array( sub_dat['i_mags'])
+
+			dered_sub_r_mag = np.array( sub_dat['dered_r_mags'])
+			dered_sub_g_mag = np.array( sub_dat['dered_g_mags'])
+			dered_sub_i_mag = np.array( sub_dat['dered_i_mags'])
+
+			sub_Lumi_r = np.array( sub_dat['L_r'] )
+
+			#. selection with satellite redshift
+			sub_sat_z = np.array( sub_dat['z'] ) 
+
+			##. rule out obs. with nonreasonable values
+			id_nul = sub_r_mag < 0
+			sub_r_mag[ id_nul ] = np.nan
+			sub_Pmem[ id_nul ] = np.nan
+
+			id_nul = sub_g_mag < 0
+			sub_g_mag[ id_nul ] = np.nan
+			sub_Pmem[ id_nul ] = np.nan
+
+			id_nul = sub_i_mag < 0
+			sub_i_mag[ id_nul ] = np.nan
+			sub_Pmem[ id_nul ] = np.nan
+
+			id_nul = dered_sub_r_mag < 0
+			dered_sub_r_mag[ id_nul ] = np.nan
+			sub_Pmem[ id_nul ] = np.nan
+
+			id_nul = dered_sub_g_mag < 0
+			dered_sub_g_mag[ id_nul ] = np.nan
+			sub_Pmem[ id_nul ] = np.nan
+
+			id_nul = dered_sub_i_mag < 0
+			dered_sub_i_mag[ id_nul ] = np.nan
+			sub_Pmem[ id_nul ] = np.nan
+
+			if z_cut == False:
+				id_lim = ( sub_cen_R >= N_r_bins[pp] ) & ( sub_cen_R <= N_r_bins[pp + 1] )
+
+			else:
+				id_lim_0 = ( sub_cen_R >= N_r_bins[pp] ) & ( sub_cen_R <= N_r_bins[pp + 1] )
+
+				abs_dev_z = np.abs(sub_sat_z - z_g)
+				id_lim_1 = abs_dev_z <= 0.01 * ( 1 + z_g )
+
+				id_lim = id_lim_0 & id_lim_1
+
+			if np.sum(id_lim) > 0:
+
+				dpt_g2r = sub_g_mag[id_lim] - sub_r_mag[id_lim]
+				dpt_r2i = sub_r_mag[id_lim] - sub_i_mag[id_lim]
+				dpt_g2i = sub_g_mag[id_lim] - sub_i_mag[id_lim]
+
+				dpt_P_mem = sub_Pmem[id_lim]
+				dpt_radius = sub_cen_R[id_lim]
+
+				dered_dpt_g2r = dered_sub_g_mag[id_lim] - dered_sub_r_mag[id_lim]
+				dered_dpt_r2i = dered_sub_r_mag[id_lim] - dered_sub_i_mag[id_lim]
+				dered_dpt_g2i = dered_sub_g_mag[id_lim] - dered_sub_i_mag[id_lim]
+
+				dpt_Lumi_r = sub_Lumi_r[id_lim]
+
+			else:
+				dpt_g2r = 0.
+				dpt_r2i = 0.
+				dpt_g2i = 0.
+
+				dpt_P_mem = 0.
+				dpt_radius = 0.
+				dpt_Lumi_r = 0.
+
+				dered_dpt_g2r = 0.
+				dered_dpt_r2i = 0.
+				dered_dpt_g2i = 0.
+
+			tmp_m_g2r = np.r_[ tmp_m_g2r, dpt_g2r ]
+			tmp_m_r2i = np.r_[ tmp_m_r2i, dpt_r2i ]
+			tmp_m_g2i = np.r_[ tmp_m_g2i, dpt_g2i ]
+
+			tmp_Pmem = np.r_[ tmp_Pmem, dpt_P_mem ]
+			tmp_radius = np.r_[ tmp_radius, dpt_radius ]
+			tmp_Lumi_r = np.r_[ tmp_Lumi_r, dpt_Lumi_r ]
+
+			dered_tmp_m_g2r = np.r_[ dered_tmp_m_g2r, dered_dpt_g2r ]
+			dered_tmp_m_r2i = np.r_[ dered_tmp_m_r2i, dered_dpt_r2i ]
+			dered_tmp_m_g2i = np.r_[ dered_tmp_m_g2i, dered_dpt_g2i ]
+
+		#. averaged color
+		mean_g2r = np.nansum( tmp_m_g2r * tmp_Pmem ) / np.nansum( tmp_Pmem )
+		mean_r2i = np.nansum( tmp_m_r2i * tmp_Pmem ) / np.nansum( tmp_Pmem )
+		mean_g2i = np.nansum( tmp_m_g2i * tmp_Pmem ) / np.nansum( tmp_Pmem )
+
+		dered_mean_g2r = np.nansum( dered_tmp_m_g2r * tmp_Pmem ) / np.nansum( tmp_Pmem )
+		dered_mean_r2i = np.nansum( dered_tmp_m_r2i * tmp_Pmem ) / np.nansum( tmp_Pmem )
+		dered_mean_g2i = np.nansum( dered_tmp_m_g2i * tmp_Pmem ) / np.nansum( tmp_Pmem )
+
+		#. use the definition of std for error estimate
+		mean_g2r_err = np.nansum( tmp_Pmem * (mean_g2r - tmp_m_g2r)**2 ) / np.nansum( tmp_Pmem )
+		mean_r2i_err = np.nansum( tmp_Pmem * (mean_r2i - tmp_m_r2i)**2 ) / np.nansum( tmp_Pmem )
+		mean_g2i_err = np.nansum( tmp_Pmem * (mean_g2i - tmp_m_g2i)**2 ) / np.nansum( tmp_Pmem )
+
+		dered_mean_g2r_err = np.nansum( tmp_Pmem * (dered_mean_g2r - dered_tmp_m_g2r)**2 ) / np.nansum( tmp_Pmem )
+		dered_mean_r2i_err = np.nansum( tmp_Pmem * (dered_mean_r2i - dered_tmp_m_r2i)**2 ) / np.nansum( tmp_Pmem )
+		dered_mean_g2i_err = np.nansum( tmp_Pmem * (dered_mean_g2i - dered_tmp_m_g2i)**2 ) / np.nansum( tmp_Pmem )
+
+		#. Luminosity weight color and error
+		id_nul = tmp_Lumi_r < 1.
+		id_vx = id_nul == False
+
+		Lwt_aveg_g2r = np.nansum( tmp_m_g2r[ id_vx ] * tmp_Lumi_r[ id_vx ] ) / np.nansum( tmp_Lumi_r[ id_vx ] )
+		Lwt_aveg_g2i = np.nansum( tmp_m_g2i[ id_vx ] * tmp_Lumi_r[ id_vx ] ) / np.nansum( tmp_Lumi_r[ id_vx ] )
+		Lwt_aveg_r2i = np.nansum( tmp_m_r2i[ id_vx ] * tmp_Lumi_r[ id_vx ] ) / np.nansum( tmp_Lumi_r[ id_vx ] )
+
+		Lwt_aveg_dered_g2r = np.nansum( dered_tmp_m_g2r[ id_vx ] * tmp_Lumi_r[ id_vx ] 
+										) / np.nansum( tmp_Lumi_r[ id_vx ] )
+
+		Lwt_aveg_dered_g2i = np.nansum( dered_tmp_m_g2i[ id_vx ] * tmp_Lumi_r[ id_vx ] 
+										) / np.nansum( tmp_Lumi_r[ id_vx ] )
+
+		Lwt_aveg_dered_r2i = np.nansum( dered_tmp_m_r2i[ id_vx ] * tmp_Lumi_r[ id_vx ] 
+										) / np.nansum( tmp_Lumi_r[ id_vx ] )
+
+		Lwt_aveg_g2r_err = np.nansum( (Lwt_aveg_g2r - tmp_m_g2r[ id_vx ] )**2 * tmp_Lumi_r[ id_vx ] 
+										) / np.nansum( tmp_Lumi_r[ id_vx ] )
+
+		Lwt_aveg_g2i_err = np.nansum( (Lwt_aveg_g2i - tmp_m_g2i[ id_vx ] )**2 * tmp_Lumi_r[ id_vx ] 
+										) / np.nansum( tmp_Lumi_r[ id_vx ] )
+
+		Lwt_aveg_r2i_err = np.nansum( (Lwt_aveg_r2i - tmp_m_r2i[ id_vx ] )**2 * tmp_Lumi_r[ id_vx ] 
+										) / np.nansum( tmp_Lumi_r[ id_vx ] )
+
+		Lwt_aveg_dered_g2r_err = np.nansum( (Lwt_aveg_dered_g2r - dered_tmp_m_g2r[ id_vx ] )**2 * tmp_Lumi_r[ id_vx ] 
+											) / np.nansum( tmp_Lumi_r[ id_vx ] )
+
+		Lwt_aveg_dered_g2i_err = np.nansum( (Lwt_aveg_dered_g2i - dered_tmp_m_g2i[ id_vx ] )**2 * tmp_Lumi_r[ id_vx ] 
+											) / np.nansum( tmp_Lumi_r[ id_vx ] )
+
+		Lwt_aveg_dered_r2i_err = np.nansum( (Lwt_aveg_dered_r2i - dered_tmp_m_r2i[ id_vx ] )**2 * tmp_Lumi_r[ id_vx ] 
+											) / np.nansum( tmp_Lumi_r[ id_vx ] )
+
+		# Lwt_aveg_g2r = np.nansum( tmp_m_g2r[ id_vx ] * np.log10( tmp_Lumi_r[ id_vx ] ) ) / np.nansum( np.log10( tmp_Lumi_r[ id_vx ] ) )
+		# Lwt_aveg_g2i = np.nansum( tmp_m_g2i[ id_vx ] * np.log10( tmp_Lumi_r[ id_vx ] ) ) / np.nansum( np.log10( tmp_Lumi_r[ id_vx ] ) )
+		# Lwt_aveg_r2i = np.nansum( tmp_m_r2i[ id_vx ] * np.log10( tmp_Lumi_r[ id_vx ] ) ) / np.nansum( np.log10( tmp_Lumi_r[ id_vx ] ) )
+
+		# Lwt_aveg_dered_g2r = np.nansum( dered_tmp_m_g2r[ id_vx ] * np.log10( tmp_Lumi_r[ id_vx ] ) 
+		# 								) / np.nansum( np.log10( tmp_Lumi_r[ id_vx ] ) )
+
+		# Lwt_aveg_dered_g2i = np.nansum( dered_tmp_m_g2i[ id_vx ] * np.log10( tmp_Lumi_r[ id_vx ] ) 
+		# 								) / np.nansum( np.log10( tmp_Lumi_r[ id_vx ] ) )
+
+		# Lwt_aveg_dered_r2i = np.nansum( dered_tmp_m_r2i[ id_vx ] * np.log10( tmp_Lumi_r[ id_vx ] ) 
+		# 								) / np.nansum( np.log10( tmp_Lumi_r[ id_vx ] ) )
+
+		# Lwt_aveg_g2r_err = np.nansum( (Lwt_aveg_g2r - tmp_m_g2r[ id_vx ] )**2 * np.log10( tmp_Lumi_r[ id_vx ] ) 
+		# 								) / np.nansum( np.log10( tmp_Lumi_r[ id_vx ] ) )
+
+		# Lwt_aveg_g2i_err = np.nansum( (Lwt_aveg_g2i - tmp_m_g2i[ id_vx ] )**2 * np.log10( tmp_Lumi_r[ id_vx ] ) 
+		# 								) / np.nansum( np.log10( tmp_Lumi_r[ id_vx ] ) )
+
+		# Lwt_aveg_r2i_err = np.nansum( (Lwt_aveg_r2i - tmp_m_r2i[ id_vx ] )**2 * np.log10( tmp_Lumi_r[ id_vx ] ) 
+		# 								) / np.nansum( np.log10( tmp_Lumi_r[ id_vx ] ) )
+
+		# Lwt_aveg_dered_g2r_err = np.nansum( (Lwt_aveg_dered_g2r - dered_tmp_m_g2r[ id_vx ] )**2 * np.log10( tmp_Lumi_r[ id_vx ] ) 
+		# 									) / np.nansum( np.log10( tmp_Lumi_r[ id_vx ] ) )
+
+		# Lwt_aveg_dered_g2i_err = np.nansum( (Lwt_aveg_dered_g2i - dered_tmp_m_g2i[ id_vx ] )**2 * np.log10( tmp_Lumi_r[ id_vx ] ) 
+		# 									) / np.nansum( np.log10( tmp_Lumi_r[ id_vx ] ) )
+
+		# Lwt_aveg_dered_r2i_err = np.nansum( (Lwt_aveg_dered_r2i - dered_tmp_m_r2i[ id_vx ] )**2 * np.log10( tmp_Lumi_r[ id_vx ] ) 
+		# 									) / np.nansum( np.log10( tmp_Lumi_r[ id_vx ] ) )
+
+		n_galax = np.sum( id_vx )
+		mean_radius = np.nansum( tmp_Pmem * tmp_radius ) / np.nansum( tmp_Pmem )
+
+		bar_g2r[ pp ] = mean_g2r
+		bar_r2i[ pp ] = mean_r2i
+		bar_g2i[ pp ] = mean_g2i
+
+		bar_g2r_err[ pp ] = mean_g2r_err
+		bar_r2i_err[ pp ] = mean_r2i_err
+		bar_g2i_err[ pp ] = mean_g2i_err
+
+		dered_bar_g2r[ pp ] = dered_mean_g2r
+		dered_bar_r2i[ pp ] = dered_mean_r2i
+		dered_bar_g2i[ pp ] = dered_mean_g2i
+
+		dered_bar_g2r_err[ pp ] = dered_mean_g2r_err
+		dered_bar_r2i_err[ pp ] = dered_mean_r2i_err
+		dered_bar_g2i_err[ pp ] = dered_mean_g2i_err
 
 
-### ... ### BCG+ICL
-cat_lis = [ 'low-age', 'hi-age' ]
-fig_name = ['Low $t_{ \\mathrm{age} } \\mid M_{\\ast}^{\\mathrm{BCG}}$', 
-			'High $t_{ \\mathrm{age} } \\mid M_{\\ast}^{\\mathrm{BCG}}$']
-file_s = 'age_bin_fixed_BCG_M'
-# BG_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_BCG_M/age_bin/BGs/'
+		Lwt_bar_g2r[ pp ] = Lwt_aveg_g2r
+		Lwt_bar_g2i[ pp ] = Lwt_aveg_g2i
+		Lwt_bar_r2i[ pp ] = Lwt_aveg_r2i
 
+		Lwt_bar_g2r_err[ pp ] = Lwt_aveg_g2r_err
+		Lwt_bar_g2i_err[ pp ] = Lwt_aveg_g2i_err
+		Lwt_bar_r2i_err[ pp ] = Lwt_aveg_r2i_err
+
+		Lwt_dered_bar_g2r[ pp ] = Lwt_aveg_dered_g2r
+		Lwt_dered_bar_g2i[ pp ] = Lwt_aveg_dered_g2i
+		Lwt_dered_bar_r2i[ pp ] = Lwt_aveg_dered_r2i
+
+		Lwt_dered_bar_g2r_err[ pp ] = Lwt_aveg_dered_g2r_err
+		Lwt_dered_bar_g2i_err[ pp ] = Lwt_aveg_dered_g2i_err
+		Lwt_dered_bar_r2i_err[ pp ] = Lwt_aveg_dered_r2i_err
+
+		N_galaxy[ pp ] = n_galax
+		R_vals[ pp ] = mean_radius
+
+	## save
+	keys = [ 'centric_R(Mpc/h)', 'bar_g2r', 'bar_r2i', 'bar_g2i', 'bar_g2r_err', 'bar_r2i_err', 'bar_g2i_err', 
+			'dered_bar_g2r', 'dered_bar_r2i', 'dered_bar_g2i', 'dered_bar_g2r_err', 'dered_bar_r2i_err', 'dered_bar_g2i_err', 
+			'n_galaxy',
+			'Lwt_g2r', 'Lwt_r2i', 'Lwt_g2i', 'Lwt_g2r_err', 'Lwt_r2i_err', 'Lwt_g2i_err', 
+			'Lwt_dered_g2r', 'Lwt_dered_r2i', 'Lwt_dered_g2i', 'Lwt_dered_g2r_err', 'Lwt_dered_r2i_err', 'Lwt_dered_g2i_err']
+
+	values = [ R_vals, bar_g2r, bar_r2i, bar_g2i, bar_g2r_err, bar_r2i_err, bar_g2i_err, 
+				dered_bar_g2r, dered_bar_r2i, dered_bar_g2i, dered_bar_g2r_err, dered_bar_r2i_err, dered_bar_g2i_err, 
+				N_galaxy, 
+				Lwt_bar_g2r, Lwt_bar_r2i, Lwt_bar_g2i, Lwt_bar_g2r_err, Lwt_bar_r2i_err, Lwt_bar_g2i_err, 
+				Lwt_dered_bar_g2r, Lwt_dered_bar_r2i, Lwt_dered_bar_g2i, 
+				Lwt_dered_bar_g2r_err, Lwt_dered_bar_r2i_err, Lwt_dered_bar_g2i_err ]
+
+	fill = dict(zip( keys, values) )
+	out_data = pds.DataFrame( fill )
+	out_data.to_csv( out_files )
+
+	return
+
+###...### ZLWen catalog color
+home = '/home/xkchen/data/SDSS/'
+load = '/home/xkchen/fig_tmp/'
+out_path = '/home/xkchen/project/tmp/'
+
+# cat_lis = [ 'low-age', 'hi-age' ]
 # cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
-# fig_name = ['Low $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $', 
-# 			'High $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $']
-# file_s = 'BCG_Mstar_bin'
-# BG_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_rich/BCG_M_bin/BGs/'
+cat_lis = [ 'low-rich', 'hi-rich' ]
 
-# cat_lis = [ 'low-rich', 'hi-rich' ]
-# fig_name = [ 'Low $ \\lambda $ $ \\mid M_{\\ast}^{ \\mathrm{BCG} } $', 
-# 			'High $ \\lambda $ $ \\mid M_{\\ast}^{\\mathrm{BCG}} $']
-# file_s = 'rich_bin_fixed_BCG_M'
-# BG_path = '/home/xkchen/tmp_run/data_files/jupyter/fixed_BCG_M/rich_bin_SBs/BGs/'
+band_info = band[ 0 ]
 
+# samp_dex = np.int( rank + 1 ) # 1 -- low-t_age; 2 -- high-t_age
 
-#. SB re-measurement results
-BG_path = '/home/xkchen/figs/re_measure_SBs/BGs/'
+# #. cluster catalog
+# clus_dat = pds.read_csv( home + 'ZLWen_cat/clust_sql_match_cat.csv' )
+# orin_dex = np.array( clus_dat['clust_id'] )
+# clus_ra, clus_dec, clus_z = np.array( clus_dat['ra'] ), np.array( clus_dat['dec'] ), np.array( clus_dat['clus_z'] )
+# clus_R500, clus_rich = np.array( clus_dat['R500c'] ), np.array( clus_dat['rich'] )
+# clus_Ng, clus_zf, clus_div = np.array( clus_dat['N500c'] ), np.array( clus_dat['z_flag'] ), np.array( clus_dat['samp_id'] )
 
+# bcg_ra, bcg_dec = np.array( clus_dat['bcg_ra'] ), np.array( clus_dat['bcg_dec'] )
+# bcg_r_mag, bcg_g_mag, bcg_i_mag = np.array( clus_dat['bcg_r_mag'] ), np.array( clus_dat['bcg_g_mag'] ), np.array( clus_dat['bcg_i_mag'] )
+# bcg_r_cmag, bcg_g_cmag, bcg_i_cmag = np.array( clus_dat['bcg_r_cmag'] ), np.array( clus_dat['bcg_g_cmag'] ), np.array( clus_dat['bcg_i_cmag'] )
 
-mu_dat = pds.read_csv( BG_path + '%s_color_profile.csv' % cat_lis[1] )
-hi_c_r, hi_gr, hi_gr_err = np.array( mu_dat['R_kpc'] ), np.array( mu_dat['g-r'] ), np.array( mu_dat['g-r_err'] )
-hi_gr = signal.savgol_filter( hi_gr, 7, 3)
+# #. tmp_table for measuring satellite color
+# div_dex = clus_div == samp_dex
+# tmp_ra, tmp_dec, tmp_z = clus_ra[ div_dex ], clus_dec[ div_dex ], clus_z[ div_dex ]
 
-mu_dat = pds.read_csv( BG_path + '%s_color_profile.csv' % cat_lis[0] )
-lo_c_r, lo_gr, lo_gr_err = np.array( mu_dat['R_kpc'] ), np.array( mu_dat['g-r'] ), np.array( mu_dat['g-r_err'] )
-lo_gr = signal.savgol_filter( lo_gr, 7, 3)
+# keys = [ 'ra', 'dec', 'z' ]
+# values = [ tmp_ra, tmp_dec, tmp_z ]
+# fill = dict(zip( keys, values) )
+# out_data = pds.DataFrame( fill )
+# out_data.to_csv( home + 'ZLWen_cat/ZLWen_%s_match_cat.csv' % cat_lis[ rank ] )
 
-#. extinction correction for BCG+ICL color
-if file_s == 'age_bin_fixed_BCG_M':
-	gE_dat = pds.read_csv('/home/xkchen/figs/sat_color/aveg_clust_EBV/BCG-age_bin_gri-common-cat_g-band_dust_value.csv')
 
-if file_s == 'BCG_Mstar_bin':
-	gE_dat = pds.read_csv('/home/xkchen/figs/sat_color/aveg_clust_EBV/BCG-Mstar_bin_gri-common-cat_g-band_dust_value.csv')
+#. average satellite color
+N_samples = 30
 
-if file_s == 'rich_bin_fixed_BCG_M':
-	gE_dat = pds.read_csv('/home/xkchen/figs/sat_color/aveg_clust_EBV/clust-rich_gri-common-cat_g-band_dust_value.csv')
+# N_bins = 55
+# R_bins = np.logspace(0, np.log10(2e3), N_bins) / 1e3 # Mpc
 
-samp_dex = np.array( gE_dat['orin_dex'] )
-A_g = np.array( gE_dat['A_l'] )
+R_bins_0 = np.logspace( 1, 2, 5)
+R_bins_1 = np.logspace( 2, 3.302, 20)
+R_bins = np.r_[ R_bins_0[:-1], R_bins_1 ] / 1e3
+N_bins = len( R_bins )
 
-idv = samp_dex == 1
+for ll in range( 2 ):
 
-A_g_lo = A_g[ idv ]
-mA_g_lo = np.median( A_g[ idv ] )
+	stacked_cat_file = home + 'ZLWen_cat/ZLWen_%s_match_cat.csv' % cat_lis[ ll ]
+	clust_mem_file = home + 'ZLWen_cat/mem_match/ZLW_%s-band_ra%.3f_dec%.3f_z%.3f_members_mag.csv'
 
-A_g_hi = A_g[ idv == False ]
-mA_g_hi = np.median( A_g[ idv == False ] )
+	print( 'stack_cat = ', stacked_cat_file )
 
+	d_cat = pds.read_csv( stacked_cat_file )
+	ra, dec, z = np.array( d_cat['ra']), np.array( d_cat['dec']), np.array( d_cat['z'] )
 
-if file_s == 'age_bin_fixed_BCG_M':
-	rE_dat = pds.read_csv('/home/xkchen/figs/sat_color/aveg_clust_EBV/BCG-age_bin_gri-common-cat_r-band_dust_value.csv')
+	## also divid sub-samples
+	zN = len( ra )
+	id_arr = np.arange(0, zN, 1)
+	id_group = id_arr % N_samples
 
-if file_s == 'BCG_Mstar_bin':
-	rE_dat = pds.read_csv('/home/xkchen/figs/sat_color/aveg_clust_EBV/BCG-Mstar_bin_gri-common-cat_r-band_dust_value.csv')
+	lis_ra, lis_dec, lis_z = [], [], []
 
-if file_s == 'rich_bin_fixed_BCG_M':
-	rE_dat = pds.read_csv('/home/xkchen/figs/sat_color/aveg_clust_EBV/clust-rich_gri-common-cat_r-band_dust_value.csv')
+	## sub-sample
+	for nn in range( N_samples ):
 
-samp_dex = np.array( rE_dat['orin_dex'] )
-A_r = np.array( rE_dat['A_l'] )
+		id_xbin = np.where( id_group == nn )[0]
 
-idv = samp_dex == 1
+		lis_ra.append( ra[ id_xbin ] )
+		lis_dec.append( dec[ id_xbin ] )
+		lis_z.append( z[ id_xbin ] )
 
-A_r_lo = A_r[ idv ]
-mA_r_lo = np.median( A_r[ idv ] )
+	## jackknife sub-sample
+	for nn in range( rank, rank + 1 ):
 
-A_r_hi = A_r[ idv == False ]
-mA_r_hi = np.median( A_r[ idv == False ] )
+		id_arry = np.linspace( 0, N_samples - 1, N_samples )
+		id_arry = id_arry.astype( int )
+		jack_id = list( id_arry )
+		jack_id.remove( jack_id[ nn ] )
+		jack_id = np.array( jack_id )
 
+		set_ra, set_dec, set_z = np.array([]), np.array([]), np.array([])
 
-#. member in ZLWen catalog
-lo_dat = pds.read_csv('/home/xkchen/figs/sat_color_weit/ZLW_cat_%s_r-band_Mean-jack_member_color.csv' % cat_lis[0] )
-lo_R, lo_mem_gr, lo_mem_gr_err = np.array(lo_dat['R(cMpc/h)']), np.array(lo_dat['g2r']), np.array(lo_dat['g2r_err'])
-lo_mem_dered_gr, lo_mem_dered_gr_err = np.array(lo_dat['dered_g2r']), np.array(lo_dat['dered_g2r_err'])
+		for oo in ( jack_id ):
+			set_ra = np.r_[ set_ra, lis_ra[oo] ]
+			set_dec = np.r_[ set_dec, lis_dec[oo] ]
+			set_z = np.r_[ set_z, lis_z[oo] ]
 
-lo_lwt_gr, lo_lwt_gr_err = np.array(lo_dat['Lwt_g2r']), np.array(lo_dat['Lwt_g2r_err'])
-lo_lwt_dered_gr, lo_lwt_dered_gr_err = np.array(lo_dat['Lwt_dered_g2r']), np.array(lo_dat['Lwt_dered_g2r_err'])
+		out_files = out_path + 'ZLW_cat_%s_%s-band_%d-jack-sub_member_color.csv' % ( cat_lis[ ll ], band_info, nn )
+		z_crit = True
 
+		rep_P_mem_color( set_ra, set_dec, set_z, clust_mem_file, out_files, R_bins, band_info, z_cut = z_crit,)
 
-hi_dat = pds.read_csv('/home/xkchen/figs/sat_color_weit/ZLW_cat_%s_r-band_Mean-jack_member_color.csv' % cat_lis[1] )
-hi_R, hi_mem_gr, hi_mem_gr_err = np.array(hi_dat['R(cMpc/h)']), np.array(hi_dat['g2r']), np.array(hi_dat['g2r_err'])
-hi_mem_dered_gr, hi_mem_dered_gr_err = np.array(hi_dat['dered_g2r']), np.array(hi_dat['dered_g2r_err'])
+commd.Barrier()
+print('color bin finished!')
 
-hi_lwt_gr, hi_lwt_gr_err = np.array(hi_dat['Lwt_g2r']), np.array(hi_dat['Lwt_g2r_err'])
-hi_lwt_dered_gr, hi_lwt_dered_gr_err = np.array(hi_dat['Lwt_dered_g2r']), np.array(hi_dat['Lwt_dered_g2r_err'])
 
+if rank == 0:
+	## jackknife sample mean
+	for ll in range( 2 ):
 
-#. member in ZLWen catalog without redshift cut
-lo_dat = pds.read_csv('/home/xkchen/figs/sat_color/ZLW_cat_%s_r-band_Mean-jack_member_color.csv' % cat_lis[0] )
-lo_nocut_R, lo_nocut_gr, lo_nocut_gr_err = np.array(lo_dat['R(cMpc/h)']), np.array(lo_dat['g2r']), np.array(lo_dat['g2r_err'])
-lo_nocut_dered_gr, lo_nocut_dered_gr_err = np.array(lo_dat['dered_g2r']), np.array(lo_dat['dered_g2r_err'])
+		jk_rs, jk_g2r = [], []
+		jk_g2i, jk_r2i = [], []
+		dered_jk_g2r, dered_jk_g2i, dered_jk_r2i = [], [], []
 
-hi_dat = pds.read_csv('/home/xkchen/figs/sat_color/ZLW_cat_%s_r-band_Mean-jack_member_color.csv' % cat_lis[1] )
-hi_nocut_R, hi_nocut_gr, hi_nocut_gr_err = np.array(hi_dat['R(cMpc/h)']), np.array(hi_dat['g2r']), np.array(hi_dat['g2r_err'])
-hi_nocut_dered_gr, hi_nocut_dered_gr_err = np.array(hi_dat['dered_g2r']), np.array(hi_dat['dered_g2r_err'])
+		jk_lwt_g2r, jk_lwt_g2i, jk_lwt_r2i = [], [], []
+		jk_lwt_dered_g2r, jk_lwt_dered_g2i, jk_lwt_dered_r2i = [], [], []
 
-
-#. member in SDSS redMapper
-red_lo_dat = pds.read_csv('/home/xkchen/figs/sat_color/%s_r-band_Mean-jack_member_color.csv' % cat_lis[0] )
-red_lo_R, red_lo_mem_gr, red_lo_mem_gr_err = [ np.array(red_lo_dat['R(cMpc/h)']), np.array(red_lo_dat['g2r']), 
-												np.array(red_lo_dat['g2r_err']) ]
-red_lo_mem_dered_gr, red_lo_mem_dered_gr_err = np.array(red_lo_dat['dered_g2r']), np.array(red_lo_dat['dered_g2r_err'])
-red_lo_R = red_lo_R * 1e3 / h / ( 1 + z_ref )
-
-red_hi_dat = pds.read_csv('/home/xkchen/figs/sat_color/%s_r-band_Mean-jack_member_color.csv' % cat_lis[1] )
-red_hi_R, red_hi_mem_gr, red_hi_mem_gr_err = [ np.array(red_hi_dat['R(cMpc/h)']), np.array(red_hi_dat['g2r']), 
-												np.array(red_hi_dat['g2r_err']) ]
-red_hi_mem_dered_gr, red_hi_mem_dered_gr_err = np.array(red_hi_dat['dered_g2r']), np.array(red_hi_dat['dered_g2r_err'])
-red_hi_R = red_hi_R * 1e3 / h / ( 1 + z_ref )
-
-
-#.. measured from Sigma_g with deredden correction
-sig_path_0 = '/home/xkchen/mywork/ICL/data/data_Zhiwei/g2r_all_sample/data/g-r_deext/'
-
-if file_s == 'age_bin_fixed_BCG_M':
-	sig_lo_dat = pds.read_csv( sig_path_0 + 'low-age_g-r_deext_allinfo.csv')
-	sig_hi_dat = pds.read_csv( sig_path_0 + 'hi-age_g-r_deext_allinfo.csv')
-
-if file_s == 'BCG_Mstar_bin':
-	sig_lo_dat = pds.read_csv( sig_path_0 + 'low-BCG_g-r_deext_allinfo.csv')
-	sig_hi_dat = pds.read_csv( sig_path_0 + 'hi-BCG_g-r_deext_allinfo.csv')
-
-if file_s == 'rich_bin_fixed_BCG_M':
-	sig_lo_dat = pds.read_csv( sig_path_0 + 'low-rich_g-r_deext_allinfo.csv')
-	sig_hi_dat = pds.read_csv( sig_path_0 + 'hi-rich_g-r_deext_allinfo.csv')
-
-sig_lo_dered_Rc, sig_lo_mem_dered_gr, sig_lo_mem_dered_gr_err = [ np.array(sig_lo_dat['rbins']), np.array(sig_lo_dat['mcolor']), 
-																	np.array(sig_lo_dat['mcolor_err'])]
-sig_lo_dered_R = sig_lo_dered_Rc * 1e3 / h / ( 1 + z_ref )
-
-sig_hi_dered_Rc, sig_hi_mem_dered_gr, sig_hi_mem_dered_gr_err = [ np.array(sig_hi_dat['rbins']), np.array(sig_hi_dat['mcolor']), 
-																	np.array(sig_hi_dat['mcolor_err']) ]
-sig_hi_dered_R = sig_hi_dered_Rc * 1e3 / h / ( 1 + z_ref )
-
-
-#.. measured from Sigma_g without deredden correction
-sig_path_1 = '/home/xkchen/mywork/ICL/data/data_Zhiwei/g2r_all_sample/data/g-r/'
-
-if file_s == 'age_bin_fixed_BCG_M':
-	sig_lo_dat = pds.read_csv( sig_path_1 + 'low-age_g-r_allinfo.csv')
-	sig_hi_dat = pds.read_csv( sig_path_1 + 'hi-age_g-r_allinfo.csv')
-
-if file_s == 'BCG_Mstar_bin':
-	sig_lo_dat = pds.read_csv( sig_path_1 + 'low-BCG_g-r_allinfo.csv')
-	sig_hi_dat = pds.read_csv( sig_path_1 + 'hi-BCG_g-r_allinfo.csv')
-
-if file_s == 'rich_bin_fixed_BCG_M':
-	sig_lo_dat = pds.read_csv( sig_path_1 + 'low-rich_g-r_allinfo.csv')
-	sig_hi_dat = pds.read_csv( sig_path_1 + 'hi-rich_g-r_allinfo.csv')
-
-sig_lo_Rc, sig_lo_mem_gr, sig_lo_mem_gr_err = [ np.array(sig_lo_dat['rbins']), np.array(sig_lo_dat['mcolor']), 
-												np.array(sig_lo_dat['mcolor_err']) ]
-
-lo_c_all, lo_c_all_err = np.array( sig_lo_dat['c_all'] ), np.array( sig_lo_dat['c_all_err'] )
-lo_bg_c, lo_bg_c_err = np.array( sig_lo_dat['c_bg'] ), np.array( sig_lo_dat['c_bg_err'] )
-lo_DcDg, lo_DcDg_err = np.array( sig_lo_dat['DcDg'] ), np.array( sig_lo_dat['DcDg_err'] )
-lo_DcDm, lo_DcDm_err = np.array( sig_lo_dat['DcDm'] ), np.array( sig_lo_dat['DcDm_err'] )
-lo_sigm_g, lo_sigm_g_err = np.array( sig_lo_dat['sigma'] ), np.array( sig_lo_dat['sigma_err'] )
-
-sig_lo_R = sig_lo_Rc * 1e3 / h / ( 1 + z_ref ) # comoving --> physical radius
-
-
-sig_hi_Rc, sig_hi_mem_gr, sig_hi_mem_gr_err = [ np.array(sig_hi_dat['rbins']), np.array(sig_hi_dat['mcolor']), 
-												np.array(sig_hi_dat['mcolor_err']) ]
-
-hi_c_all, hi_c_all_err = np.array( sig_hi_dat['c_all'] ), np.array( sig_hi_dat['c_all_err'] )
-hi_bg_c, hi_bg_c_err = np.array( sig_hi_dat['c_bg'] ), np.array( sig_hi_dat['c_bg_err'] )
-hi_DcDg, hi_DcDg_err = np.array( sig_hi_dat['DcDg'] ), np.array( sig_hi_dat['DcDg_err'] )
-hi_DcDm, hi_DcDm_err = np.array( sig_hi_dat['DcDm'] ), np.array( sig_hi_dat['DcDm_err'] )
-hi_sigm_g, hi_sigm_g_err = np.array( sig_hi_dat['sigma'] ), np.array( sig_hi_dat['sigma_err'] )
-
-sig_hi_R = sig_hi_Rc * 1e3 / h / ( 1 + z_ref ) # comoving --> physical radius
-
-
-'''
-#. fig : satellite color estimation process
-fig = plt.figure( figsize = (19.84, 4.8) )
-ax0 = fig.add_axes([0.05, 0.14, 0.28, 0.82])
-ax1 = fig.add_axes([0.38, 0.14, 0.28, 0.82])
-ax2 = fig.add_axes([0.71, 0.14, 0.28, 0.82])
-
-ax0.errorbar(sig_lo_Rc, lo_sigm_g, yerr = lo_sigm_g_err, ls = '--', marker = None, color = 'b', alpha = 0.85, 
-	capsize = 3, label = fig_name[0] )
-ax0.errorbar(sig_hi_Rc, hi_sigm_g, yerr = hi_sigm_g_err, ls = '-', marker = None, color = 'r', alpha = 0.85, 
-	capsize = 3, label = fig_name[1] )
-
-ax0.legend( loc = 1, frameon = False, fontsize = 15,)
-ax0.set_xlim( 1e-2, 2.2 )
-ax0.set_ylim( 1.8e0, 3e2 )
-ax0.set_ylabel('$\\Sigma_{g} \; [\\# \; h^{2} \, \\mathrm{M}pc^{-2}]$', fontsize = 18,)
-ax0.set_yscale('log')
-ax0.set_xscale('log')
-ax0.set_xlabel('$R \; [h^{-1} \, \\mathrm{M}pc] $', fontsize = 18,)
-ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 18,)
-
-ax1.errorbar(sig_lo_Rc, lo_DcDg, yerr = lo_DcDg_err, ls = '--', marker = 'o', color = 'b', alpha = 0.85, 
-	capsize = 3, mec = 'b', mfc = 'none', label = fig_name[0] )
-l1 = ax1.errorbar(sig_hi_Rc, hi_DcDg, yerr = hi_DcDg_err, ls = '-', marker = 'o', color = 'r', alpha = 0.85, 
-	capsize = 3, mec = 'r', mfc = 'none', label = fig_name[1] )
-
-ax1.errorbar(sig_lo_Rc, lo_DcDm, yerr = lo_DcDm_err, ls = '--', marker = 's', color = 'b', alpha = 0.85, 
-	capsize = 3, mec = 'b', mfc = 'none', )
-l2 = ax1.errorbar(sig_hi_Rc, hi_DcDm, yerr = hi_DcDm_err, ls = '-', marker = 's', color = 'r', alpha = 0.85, 
-	capsize = 3, mec = 'r', mfc = 'none', )
-
-legend_0 = ax1.legend( handles = [l1, l2], labels = ['$D_{c}D_{g}$', '$D_{c}D_{m}$'], loc = 4, frameon = False, fontsize = 15,)
-ax1.legend( loc = 2, frameon = False, fontsize = 15,)
-ax1.add_artist( legend_0 )
-
-ax1.set_xlim( 1e-2, 2.2 )
-ax1.set_ylim( 8e-1, 5e4 )
-ax1.set_ylabel('# of pairs', fontsize = 18,)
-ax1.set_yscale('log')
-ax1.set_xscale('log')
-ax1.set_xlabel('$R \; [h^{-1} \, \\mathrm{M}pc] $', fontsize = 18,)
-ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 18,)
-
-ax2.errorbar(sig_lo_Rc, lo_bg_c, yerr = lo_bg_c_err, ls = ':', marker = None, color = 'b', alpha = 0.85, 
-	capsize = 3, )
-ax2.errorbar(sig_hi_Rc, hi_bg_c, yerr = hi_bg_c_err, ls = ':', marker = None, color = 'r', alpha = 0.85, 
-	capsize = 3, label = 'Background galaxies')
-
-ax2.errorbar(sig_lo_Rc, lo_c_all, yerr = lo_c_all_err, ls = '--', marker = None, color = 'b', alpha = 0.85, 
-	capsize = 3, )
-ax2.errorbar(sig_hi_Rc, hi_c_all, yerr = hi_c_all_err, ls = '--', marker = None, color = 'r', alpha = 0.85, 
-	capsize = 3, label = 'All galaxies')
-
-l1 = ax2.errorbar(sig_lo_Rc, sig_lo_mem_gr, yerr = sig_lo_mem_gr_err, ls = '-', marker = None, color = 'b', alpha = 0.85, 
-	capsize = 3, )
-l2 = ax2.errorbar(sig_hi_Rc, sig_hi_mem_gr, yerr = sig_hi_mem_gr_err, ls = '-', marker = None, color = 'r', alpha = 0.85, 
-	capsize = 3, label = 'Member galaxies')
-
-legend_0 = ax2.legend( handles = [l1, l2], labels = [ fig_name[0], fig_name[1] ], loc = 2, frameon = False, fontsize = 15,)
-ax2.legend( loc = 1, frameon = False, fontsize = 15,)
-ax2.add_artist( legend_0 )
-
-ax2.set_xlim( 1e-2, 2.2 )
-ax2.set_ylim( 1.13, 1.7 )
-ax2.set_ylabel('$\\langle g -r \\rangle$', fontsize = 18,)
-ax2.set_xscale('log')
-ax2.set_xlabel('$R \; [h^{-1} \, \\mathrm{M}pc] $', fontsize = 18,)
-ax2.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 18,)
-
-plt.savefig('/home/xkchen/sat_mean-gr_process.png', dpi = 300)
-# plt.savefig('/home/xkchen/sat_mean-gr_process.pdf', dpi = 300)
-plt.close()
-'''
-
-'''
-fig = plt.figure( figsize = (10.6, 4.8) )
-ax0 = fig.add_axes([0.09, 0.13, 0.40, 0.82])
-ax1 = fig.add_axes([0.57, 0.13, 0.40, 0.82])
-
-ax0.errorbar(lo_R * 1e3, lo_mem_dered_gr, ls = '--', color = 'b',)
-ax0.fill_between( lo_R * 1e3, y1 = lo_mem_dered_gr - lo_mem_dered_gr_err, y2 = lo_mem_dered_gr + lo_mem_dered_gr_err, color = 'b',
-				alpha = 0.15)
-
-ax0.errorbar(hi_R * 1e3, hi_mem_dered_gr, ls = '-', color = 'r', label = 'with redshift cut',)
-ax0.fill_between( hi_R * 1e3, y1 = hi_mem_dered_gr - hi_mem_dered_gr_err, y2 = hi_mem_dered_gr + hi_mem_dered_gr_err, color = 'r',
-				alpha = 0.15)
-
-ax0.plot(lo_nocut_R * 1e3, lo_nocut_dered_gr, ls = '--', color = 'b', linewidth = 3,)
-ax0.plot(hi_nocut_R * 1e3, hi_nocut_dered_gr, ls = '-', color = 'r', label = 'w/o redshift cut', linewidth = 3,)
-
-ax0.annotate( text = '$m_{sat}$ with deredden correction', xy = (0.25, 0.95), xycoords = 'axes fraction', fontsize = 13,)
-ax0.legend( loc = 3, frameon = False, fontsize = 13,)
-
-ax0.set_ylim( 1.23, 1.5 )
-ax0.set_ylabel('$ g \; - \; r $', fontsize = 13,)
-ax0.set_xlim( 9e0, 1e3)
-ax0.set_xscale('log')
-ax0.set_xlabel('$R \; [\\mathrm{k}pc] $', fontsize = 13,)
-ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 13,)
-
-
-ax1.errorbar(lo_R * 1e3, lo_mem_gr, ls = '--', color = 'b',)
-ax1.fill_between( lo_R * 1e3, y1 = lo_mem_gr - lo_mem_gr_err, y2 = lo_mem_gr + lo_mem_gr_err, color = 'b', alpha = 0.15)
-ax1.errorbar(hi_R * 1e3, hi_mem_gr, ls = '-', color = 'r', label = 'with redshift cut')
-ax1.fill_between( hi_R * 1e3, y1 = hi_mem_gr - hi_mem_gr_err, y2 = hi_mem_gr + hi_mem_gr_err, color = 'r', alpha = 0.15)
-
-ax1.plot(lo_nocut_R * 1e3, lo_nocut_gr, ls = '--', color = 'b', linewidth = 3, )
-ax1.plot(hi_nocut_R * 1e3, hi_nocut_gr, ls = '-', color = 'r', label = 'w/o redshift cut', linewidth = 3,)
-
-ax1.legend( loc = 3, frameon = False, fontsize = 15,)
-ax1.annotate( text = '$m_{sat}$ without deredden correction', xy = (0.20, 0.95), xycoords = 'axes fraction', fontsize = 13,)
-
-ax1.set_ylim( 1.23, 1.5 )
-ax1.set_ylabel('$ g \; - \; r $', fontsize = 20,)
-ax1.set_xlim( 9e0, 1e3)
-ax1.set_xscale('log')
-ax1.set_xlabel('$R \; [\\mathrm{k}pc] $', fontsize = 13,)
-ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 13,)
-
-plt.savefig('/home/xkchen/%s_sat_color_compare.png' % file_s, dpi = 300)
-plt.close()
-'''
-
-fig = plt.figure( figsize = (10.6, 4.8) )
-ax0 = fig.add_axes([0.09, 0.13, 0.40, 0.82])
-ax1 = fig.add_axes([0.57, 0.13, 0.40, 0.82])
-
-ax0.errorbar(sig_lo_R / 1e3, lo_sigm_g * h**2 * (1 + z_ref)**2, yerr = lo_sigm_g_err * h**2 * (1 + z_ref)**2, ls = '--', 
-	marker = None, color = 'b', alpha = 0.85, capsize = 3, label = fig_name[0] )
-ax0.errorbar(sig_hi_R / 1e3, hi_sigm_g * h**2 * (1 + z_ref)**2, yerr = hi_sigm_g_err * h**2 * (1 + z_ref)**2, ls = '-', 
-	marker = None, color = 'r', alpha = 0.85, capsize = 3, label = fig_name[1] )
-
-ax0.legend( loc = 1, frameon = False, fontsize = 15,)
-ax0.set_xlim( 1e-2, 1.1 )
-ax0.set_ylim( 4e0, 3e2 )
-ax0.set_ylabel('$\\Sigma_{g} \; [\\# \, \\mathrm{M}pc^{-2}]$', fontsize = 15,)
-ax0.set_yscale('log')
-ax0.set_xscale('log')
-ax0.set_xlabel('$R \; [\\mathrm{M}pc] $', fontsize = 15,)
-ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
-ax0.set_xticks([ 1e-2, 1e-1, 1e0])
-ax0.set_xticklabels( labels = ['$\\mathrm{0.01}$','$\\mathrm{0.1}$', '$\\mathrm{1}$'] )
-
-
-ax1.plot( lo_c_r / 1e3, lo_gr + (mA_r_lo - mA_g_lo), ls = '--', color = 'b', alpha = 0.45, linewidth = 3, 
-		label = '$\\mathrm{BCG} {+} \\mathrm{ICL}$, ' + fig_name[0])
-ax1.fill_between( lo_c_r / 1e3, y1 = lo_gr + (mA_r_lo - mA_g_lo) - lo_gr_err, y2 = lo_gr + (mA_r_lo - mA_g_lo) + lo_gr_err, 
-				color = 'b', alpha = 0.15,)
-
-ax1.plot( hi_c_r / 1e3, hi_gr + (mA_r_hi - mA_g_hi), ls = '-', color = 'r', alpha = 0.45, linewidth = 3, 
-		label = '$\\mathrm{BCG} {+} \\mathrm{ICL}$, ' + fig_name[1])
-ax1.fill_between( hi_c_r / 1e3, y1 = hi_gr + (mA_r_hi - mA_g_hi) - hi_gr_err, y2 = hi_gr + (mA_r_hi - mA_g_hi) + hi_gr_err, 
-				color = 'r', alpha = 0.15,)
-
-ax1.plot( sig_lo_R / 1e3, sig_lo_mem_dered_gr, ls = '--', color = 'b', alpha = 0.75, label = '$\\xi_{cg}$ estimator, ' + fig_name[0])
-ax1.fill_between( sig_lo_R / 1e3, y1 = sig_lo_mem_dered_gr - sig_lo_mem_dered_gr_err, 
-	y2 = sig_lo_mem_dered_gr + sig_lo_mem_dered_gr_err, color = 'b', alpha = 0.25,)
-
-ax1.plot( sig_hi_R / 1e3, sig_hi_mem_dered_gr, ls = '-', color = 'r', alpha = 0.75, label = '$\\xi_{cg}$ estimator, ' + fig_name[1],)
-ax1.fill_between( sig_hi_R / 1e3, y1 = sig_hi_mem_dered_gr - sig_hi_mem_dered_gr_err, 
-	y2 = sig_hi_mem_dered_gr + sig_hi_mem_dered_gr_err, color = 'r', alpha = 0.25,)
-
-h1 = ax1.errorbar( lo_R, lo_mem_dered_gr, yerr = lo_mem_dered_gr_err, ls = 'none', marker = 's', ms = 5, color = 'b', capsize = 3,
-	mec = 'b', mfc = 'b',)
-h2 = ax1.errorbar( hi_R, hi_mem_dered_gr, yerr = hi_mem_dered_gr_err, ls = 'none', marker = 'o', ms = 5, color = 'r', capsize = 3,
-	mec = 'r', mfc = 'r',)
-
-legend_0 = ax1.legend( handles = [h1, h2], labels = [ '$\\mathrm{Wen} {+} \\mathrm{2015}$' + ' member, ' + fig_name[0], 
-													  '$\\mathrm{Wen} {+} \\mathrm{2015}$' + ' member, ' + fig_name[1] ], 
-						loc = 2, frameon = False, fontsize = 12,)
-
-ax1.legend( loc = 3, frameon = False, fontsize = 11,)
-ax1.add_artist( legend_0 )
-
-ax1.set_ylim( 0.78, 1.70 )
-ax1.set_ylabel('$ g \; - \; r $', fontsize = 17,)
-ax1.set_xlim( 3e-3, 1.1 )
-ax1.set_xscale('log')
-ax1.set_xlabel('$R \; [\\mathrm{M}pc] $', fontsize = 15,)
-ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
-
-x_tick_arr = [ 1e-2, 1e-1, 1e0]
-tick_lis = ['$\\mathrm{0.01}$','$\\mathrm{0.1}$', '$\\mathrm{1}$']
-ax1.set_xticks( x_tick_arr )
-ax1.get_xaxis().set_major_formatter( ticker.FixedFormatter( tick_lis ) )
-ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
-
-plt.savefig('/home/xkchen/%s_ZLW_gr_compare.png' % file_s, dpi = 300)
-# plt.savefig('/home/xkchen/%s_ZLW_gr_compare.pdf' % file_s, dpi = 300)
-plt.close()
+		for nn in range( N_samples ):
+
+			jk_sub_dat = pds.read_csv( out_path + 'ZLW_cat_%s_%s-band_%d-jack-sub_member_color.csv' % (cat_lis[ ll ], band_info, nn),)
+			tt_R = np.array( jk_sub_dat['centric_R(Mpc/h)'] )
+
+			tt_g2r = np.array( jk_sub_dat['bar_g2r'] )
+			tt_g2i = np.array( jk_sub_dat['bar_g2i'] )
+			tt_r2i = np.array( jk_sub_dat['bar_r2i'] )
+
+			dered_tt_g2r = np.array( jk_sub_dat['dered_bar_g2r'] )
+			dered_tt_g2i = np.array( jk_sub_dat['dered_bar_g2i'] )
+			dered_tt_r2i = np.array( jk_sub_dat['dered_bar_r2i'] )
+
+			tt_lwt_g2r = np.array( jk_sub_dat['Lwt_g2r'] )
+			tt_lwt_g2i = np.array( jk_sub_dat['Lwt_g2i'] )
+			tt_lwt_r2i = np.array( jk_sub_dat['Lwt_r2i'] )
+
+			dered_lwt_g2r = np.array( jk_sub_dat['Lwt_dered_g2r'] )
+			dered_lwt_g2i = np.array( jk_sub_dat['Lwt_dered_g2i'] )
+			dered_lwt_r2i = np.array( jk_sub_dat['Lwt_dered_r2i'] )
+
+
+			idx_lim = tt_R < 1e-5 ## rule out radius have no galaxy ocupation
+			tt_R[ idx_lim ] = np.nan
+			tt_g2r[ idx_lim ] = np.nan
+			tt_g2i[ idx_lim ] = np.nan
+			tt_r2i[ idx_lim ] = np.nan
+
+			dered_tt_g2r[ idx_lim ] = np.nan
+			dered_tt_g2i[ idx_lim ] = np.nan
+			dered_tt_r2i[ idx_lim ] = np.nan
+
+			tt_lwt_g2r[ idx_lim ] = np.nan
+			tt_lwt_g2i[ idx_lim ] = np.nan
+			tt_lwt_r2i[ idx_lim ] = np.nan
+
+			dered_lwt_g2r[ idx_lim ] = np.nan
+			dered_lwt_g2i[ idx_lim ] = np.nan
+			dered_lwt_r2i[ idx_lim ] = np.nan
+
+			jk_rs.append( tt_R )
+			jk_g2r.append( tt_g2r )
+			jk_g2i.append( tt_g2i )
+			jk_r2i.append( tt_r2i )
+
+			dered_jk_g2r.append( dered_tt_g2r )
+			dered_jk_g2i.append( dered_tt_g2i )
+			dered_jk_r2i.append( dered_tt_r2i )
+
+			#. r_Lumi weighted case
+			jk_lwt_g2r.append( tt_lwt_g2r )
+			jk_lwt_g2i.append( tt_lwt_g2i )
+			jk_lwt_r2i.append( tt_lwt_r2i )
+
+			jk_lwt_dered_g2r.append( dered_lwt_g2r )
+			jk_lwt_dered_g2i.append( dered_lwt_g2i )
+			jk_lwt_dered_r2i.append( dered_lwt_r2i )
+
+		m_jk_R, m_jk_g2r, m_jk_g2r_err, std_lim_R = arr_jack_func(jk_g2r, jk_rs, N_samples)
+		m_jk_R, m_jk_g2i, m_jk_g2i_err, std_lim_R = arr_jack_func(jk_g2i, jk_rs, N_samples)
+		m_jk_R, m_jk_r2i, m_jk_r2i_err, std_lim_R = arr_jack_func(jk_r2i, jk_rs, N_samples)
+
+		m_dered_jk_R, m_dered_jk_g2r, m_dered_jk_g2r_err, std_lim_R = arr_jack_func(dered_jk_g2r, jk_rs, N_samples)
+		m_dered_jk_R, m_dered_jk_g2i, m_dered_jk_g2i_err, std_lim_R = arr_jack_func(dered_jk_g2i, jk_rs, N_samples)
+		m_dered_jk_R, m_dered_jk_r2i, m_dered_jk_r2i_err, std_lim_R = arr_jack_func(dered_jk_r2i, jk_rs, N_samples)
+
+		#. r_Lumi weighted case
+		m_jk_lwt_R, m_jk_lwt_g2r, m_jk_lwt_g2r_err, std_lim_R = arr_jack_func(jk_lwt_g2r, jk_rs, N_samples)
+		m_jk_lwt_R, m_jk_lwt_g2i, m_jk_lwt_g2i_err, std_lim_R = arr_jack_func(jk_lwt_g2i, jk_rs, N_samples)
+		m_jk_lwt_R, m_jk_lwt_r2i, m_jk_lwt_r2i_err, std_lim_R = arr_jack_func(jk_lwt_r2i, jk_rs, N_samples)
+
+		m_dered_jk_lwt_R, m_dered_jk_lwt_g2r, m_dered_jk_lwt_g2r_err, std_lim_R = arr_jack_func(jk_lwt_dered_g2r, jk_rs, N_samples)
+		m_dered_jk_lwt_R, m_dered_jk_lwt_g2i, m_dered_jk_lwt_g2i_err, std_lim_R = arr_jack_func(jk_lwt_dered_g2i, jk_rs, N_samples)
+		m_dered_jk_lwt_R, m_dered_jk_lwt_r2i, m_dered_jk_lwt_r2i_err, std_lim_R = arr_jack_func(jk_lwt_dered_r2i, jk_rs, N_samples)
+
+
+		## save
+		keys = [ 'R(cMpc/h)', 'g2r', 'g2r_err', 'g2i', 'g2i_err', 'r2i', 'r2i_err', 
+				'dered_g2r', 'dered_g2r_err', 'dered_g2i', 'dered_g2i_err', 'dered_r2i', 'dered_r2i_err', 
+				'Lwt_g2r', 'Lwt_g2i', 'Lwt_r2i', 'Lwt_g2r_err', 'Lwt_g2i_err', 'Lwt_r2i_err',
+				'Lwt_dered_g2r', 'Lwt_dered_g2i', 'Lwt_dered_r2i', 
+				'Lwt_dered_g2r_err', 'Lwt_dered_g2i_err', 'Lwt_dered_r2i_err']
+
+		values = [ m_jk_R, m_jk_g2r, m_jk_g2r_err, m_jk_g2i, m_jk_g2i_err, m_jk_r2i, m_jk_r2i_err, 
+				m_dered_jk_g2r, m_dered_jk_g2r_err, m_dered_jk_g2i, m_dered_jk_g2i_err, m_dered_jk_r2i, m_dered_jk_r2i_err, 
+				m_jk_lwt_g2r, m_jk_lwt_g2i, m_jk_lwt_r2i, m_jk_lwt_g2r_err, m_jk_lwt_g2i_err, m_jk_lwt_r2i_err, 
+				m_dered_jk_lwt_g2r, m_dered_jk_lwt_g2i, m_dered_jk_lwt_r2i, 
+				m_dered_jk_lwt_g2r_err, m_dered_jk_lwt_g2i_err, m_dered_jk_lwt_r2i_err ]
+
+		fill = dict(zip( keys, values) )
+		out_data = pds.DataFrame( fill )
+		out_data.to_csv( out_path + 'ZLW_cat_%s_%s-band_Mean-jack_member_color.csv' % (cat_lis[ ll ], band_info),)
 
 raise
 
-fig = plt.figure( figsize = (12.8, 4.8) )
-ax0 = fig.add_axes([0.07, 0.13, 0.40, 0.80])
-ax1 = fig.add_axes([0.55, 0.13, 0.40, 0.80])
-
-# ax0.errorbar(red_lo_R, red_lo_mem_dered_gr, yerr = red_lo_mem_dered_gr_err, ls = '--', marker = None, ms = 5, 
-# 	color = 'b', alpha = 0.50,)
-# ax0.errorbar(red_hi_R, red_hi_mem_dered_gr, yerr = red_hi_mem_dered_gr_err, ls = '-', marker = None, ms = 5, color = 'r', 
-# 	alpha = 0.50, label = 'Satellites of SDSS redMaPPer',)
-
-ax0.errorbar(lo_R * 1e3, lo_mem_dered_gr, yerr = lo_mem_dered_gr_err, ls = 'none', marker = 'o', ms = 6, color = 'b', 
-	alpha = 0.85, capsize = 3, mec = 'b', mfc = 'none',)
-ax0.errorbar(hi_R * 1e3, hi_mem_dered_gr, yerr = hi_mem_dered_gr_err, ls = 'none', marker = 'o', ms = 6, color = 'r', 
-	alpha = 0.85, mec = 'r', mfc = 'none', label = '$ \\mathrm{Satellites} \, \\mathrm{Wen} {+} \\mathrm{2015}$', capsize = 3,)
-
-# ax0.errorbar( sig_lo_dered_R, sig_lo_mem_dered_gr, yerr = sig_lo_mem_dered_gr_err, ls = '--', marker = None, ms = 5, 
-# 	color = 'b', alpha = 0.75,)
-# ax0.errorbar( sig_hi_dered_R, sig_hi_mem_dered_gr, yerr = sig_hi_mem_dered_gr_err, ls = '-', marker = None, ms = 5, color = 'r', 
-# 	alpha = 0.75, label = '$\\xi_{cg}$ estimator',)
-
-# ax0.plot( lo_R * 1e3, lo_mem_dered_gr, ls = '--', linewidth = 5, color = 'b', alpha = 0.5,)
-# ax0.plot( hi_R * 1e3, hi_mem_dered_gr, ls = '-', linewidth = 5, color = 'r', alpha = 0.5, 
-# 	label = 'Satellites of $\\mathrm{Wen} {+} \\mathrm{2015}$')
-
-ax0.plot( sig_lo_dered_R, sig_lo_mem_dered_gr, ls = '--', linewidth = 2, color = 'b', alpha = 0.5,)
-ax0.plot( sig_hi_dered_R, sig_hi_mem_dered_gr, ls = '-', linewidth = 2, color = 'r', alpha = 0.5, 
-	label = '$\\xi_{cg}$ estimator',)
-
-ax0.plot( hi_R * 1e3, hi_lwt_dered_gr, ls = '-', linewidth = 5, color = 'r', alpha = 0.5,)
-ax0.plot( lo_R * 1e3, lo_lwt_dered_gr, ls = '--', linewidth = 5, color = 'b', alpha = 0.5, 
-	label = '$ \\mathrm{Satellites} \, \\mathrm{Wen} {+} \\mathrm{2015} \,,L_{r} \, weighted$')
-
-l1, = ax0.plot( lo_c_r, lo_gr + (mA_r_lo - mA_g_lo), ls = '--', color = 'b', alpha = 0.75, )
-ax0.fill_between( lo_c_r, y1 = lo_gr + (mA_r_lo - mA_g_lo) - lo_gr_err, 
-					y2 = lo_gr + (mA_r_lo - mA_g_lo) + lo_gr_err, color = 'b', alpha = 0.15,)
-
-l2, = ax0.plot( hi_c_r, hi_gr + (mA_r_hi - mA_g_hi), ls = '-', color = 'r', alpha = 0.75, )
-ax0.fill_between( hi_c_r, y1 = hi_gr + (mA_r_hi - mA_g_hi) - hi_gr_err, y2 = hi_gr + (mA_r_hi - mA_g_hi) + hi_gr_err, 
-					color = 'r', alpha = 0.15, label = '$\\mathrm{BCG} {+} \\mathrm{ICL}$')
-
-ax0.annotate( text = '$m_{sat}$ with deredden correction', xy = (0.30, 0.95), xycoords = 'axes fraction', fontsize = 15,)
-
-legend_0 = ax0.legend( handles = [l1, l2], labels = [ fig_name[0], fig_name[1] ], loc = 6, frameon = False, fontsize = 15,)
-ax0.legend( loc = 3, frameon = False, fontsize = 15,)
-ax0.add_artist( legend_0 )
-
-ax0.set_ylim( 0.78, 1.60 )
-ax0.set_ylabel('$ g \; - \; r $', fontsize = 20,)
-ax0.set_xlim( 1e0, 1e3)
-ax0.set_xscale('log')
-ax0.set_xlabel('$R \; [\\mathrm{k}pc] $', fontsize = 18,)
-ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 18,)
-
-
-# ax1.errorbar(red_lo_R, red_lo_mem_gr, yerr = red_lo_mem_gr_err, ls = '--', marker = None, ms = 5, color = 'b', 
-# 	alpha = 0.50,)
-# ax1.errorbar(red_hi_R, red_hi_mem_gr, yerr = red_hi_mem_gr_err, ls = '-', marker = None, ms = 5, color = 'r', 
-# 	alpha = 0.50, label = 'Satellites of SDSS redMaPPer',)
-
-ax1.errorbar(lo_R * 1e3, lo_mem_gr, yerr = lo_mem_gr_err, ls = 'none', marker = 'o', ms = 6, color = 'b', alpha = 0.75, capsize = 3,
-	mec = 'b', mfc = 'none',)
-ax1.errorbar(hi_R * 1e3, hi_mem_gr, yerr = hi_mem_gr_err, ls = 'none', marker = 'o', ms = 6, color = 'r', alpha = 0.75, 
-	mec = 'r', mfc = 'none', label = '$ \\mathrm{Satellites} \, \\mathrm{Wen} {+} \\mathrm{2015} $', capsize = 3,)
-
-# ax1.errorbar( sig_lo_R, sig_lo_mem_gr, yerr = sig_lo_mem_gr_err, ls = '--', marker = None, ms = 5, color = 'b', 
-# 	alpha = 0.75,)
-# ax1.errorbar( sig_hi_R, sig_hi_mem_gr, yerr = sig_hi_mem_gr_err, ls = '-', marker = None, ms = 5, color = 'r', 
-# 	alpha = 0.75, label = '$\\xi_{cg}$ estimator',)
-
-# ax1.plot( lo_R * 1e3, lo_mem_gr, ls = '--', linewidth = 5, color = 'b', alpha = 0.5,)
-# ax1.plot( hi_R * 1e3, hi_mem_gr, ls = '-', linewidth = 5, color = 'r', alpha = 0.5, 
-# 	label = 'Satellites of $\\mathrm{Wen} {+} \\mathrm{2015}$',)
-
-ax1.plot( sig_lo_R, sig_lo_mem_gr, ls = '--', linewidth = 2, color = 'b', alpha = 0.5,)
-ax1.plot( sig_hi_R, sig_hi_mem_gr, ls = '-', linewidth = 2, color = 'r', alpha = 0.5, label = '$\\xi_{cg}$ estimator',)
-
-ax1.plot( hi_R * 1e3, hi_lwt_gr, ls = '-', linewidth = 5, color = 'r', alpha = 0.5, 
-		label = '$ \\mathrm{Satellites} \, \\mathrm{Wen} {+} \\mathrm{2015} \,,L_{r} \, weighted$')
-ax1.plot( lo_R * 1e3, lo_lwt_gr, ls = '--', linewidth = 5, color = 'b', alpha = 0.5,)
-
-l1, = ax1.plot( lo_c_r, lo_gr, ls = '--', color = 'b', alpha = 0.75, )
-ax1.fill_between( lo_c_r, y1 = lo_gr - lo_gr_err, y2 = lo_gr + lo_gr_err, color = 'b', alpha = 0.15,)
-
-l2, = ax1.plot( hi_c_r, hi_gr, ls = '-', color = 'r', alpha = 0.75, )
-ax1.fill_between( hi_c_r, y1 = hi_gr - hi_gr_err, y2 = hi_gr + hi_gr_err, color = 'r', alpha = 0.15, 
-	label = '$\\mathrm{BCG} {+} \\mathrm{ICL}$')
-
-legend_0 = ax1.legend( handles = [l1, l2], labels = [ fig_name[0], fig_name[1] ], loc = 6, frameon = False, fontsize = 15,)
-ax1.legend( loc = 3, frameon = False, fontsize = 15,)
-ax1.add_artist( legend_0 )
-
-ax1.annotate( text = '$m_{sat}$ without deredden correction', xy = (0.28, 0.95), xycoords = 'axes fraction', fontsize = 15,)
-
-ax1.set_ylim( 0.78, 1.60 )
-ax1.set_ylabel('$ g \; - \; r $', fontsize = 20,)
-ax1.set_xlim( 1e0, 1e3)
-ax1.set_xscale('log')
-ax1.set_xlabel('$R \; [\\mathrm{k}pc] $', fontsize = 18,)
-ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 18,)
-
-plt.savefig('/home/xkchen/%s_deredden_gr_compare.png' % file_s, dpi = 300)
-plt.close()

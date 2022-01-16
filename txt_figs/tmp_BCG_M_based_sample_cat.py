@@ -275,6 +275,12 @@ def rich_divid():
 	# data = pds.DataFrame( fill )
 	# data.to_csv( '/home/xkchen/tmp_run/data_files/figs/rich-bin_fixed-BCG-M_divid_line.csv' )
 
+	keys = [ 'a_x^2', 'b_x', 'c' ]
+	values = [ Pf[2], Pf[1], Pf[0] ]
+	fill = dict( zip(keys, values) )
+	data = pds.DataFrame( fill, index = ['k', 'v'] )
+	data.to_csv( '/home/xkchen/tmp_run/data_files/figs/rich-bin_fixed-BCG-M_divid_line_params.csv' )
+
 
 	plt.figure( )
 	ax = plt.subplot(111)
@@ -1588,12 +1594,15 @@ def adjust_age_bin():
 
 ###... Zu21 low-z sample division
 
-# rich_divid()
+rich_divid()
 
 # age_divid()
 
+
+## limed samples, use clusters within ( 10.75 <= lg_Mstar <= 11.75 )
 # limt_age_bin()
 
+
 #... age bin at fixed stellar mass, splitting in narrow z-bin
-adjust_age_bin()
+# adjust_age_bin()
 

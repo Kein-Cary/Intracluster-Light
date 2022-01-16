@@ -97,9 +97,9 @@ dat = pds.read_csv('/home/xkchen/mywork/ICL/data/cat_random/match_2_28/random_i-
 ra, dec, z = np.array( dat['ra'] ), np.array( dat['dec'] ), np.array( dat['z'] )
 imgx, imgy = np.array( dat['bcg_x'] ), np.array( dat['bcg_y'] )
 
-img_path = '/home/xkchen/figs/i_mag_test/img_cat/'
-cat_path = '/home/xkchen/figs/i_mag_test/source_cat/'
-sql_path = '/home/xkchen/figs/i_mag_test/SDSS_objs/'
+img_path = '/home/xkchen/tmp_run/data_files/figs/i_mag_test/img_cat/'
+cat_path = '/home/xkchen/tmp_run/data_files/figs/i_mag_test/source_cat/'
+sql_path = '/home/xkchen/tmp_run/data_files/figs/i_mag_test/SDSS_objs/'
 
 band_str = 'i'
 
@@ -143,6 +143,8 @@ for ii in range( 0,1 ):
 	Ns = len( s_ra )
 
 	com_imag = []
+	com_rmag = []
+
 	com_dex = []
 	com_ra, com_dec = [], []
 	dl = []
@@ -152,6 +154,7 @@ for ii in range( 0,1 ):
 		c_dat = pds.read_csv( out_file % (s_ra[tt], s_dec[tt]), skiprows = 1)
 		c_ra, c_dec = np.array(  c_dat['ra'] ), np.array(  c_dat['dec'] ) 
 		c_imag = np.array( c_dat['cModelMag_i'] )
+		c_rmag = np.array( c_dat['cModelMag_r'] )
 
 		_nl_ = len( c_ra )
 
@@ -172,6 +175,8 @@ for ii in range( 0,1 ):
 				com_ra.append( c_ra )
 				com_dec.append( c_dec )
 
+				com_rmag.append( c_rmag[0] )
+
 		if _nl_ > 1:
 
 			delt_ra = np.abs( s_ra[tt] - c_ra )
@@ -185,6 +190,8 @@ for ii in range( 0,1 ):
 				com_imag.append( c_imag[ delt == delt.min() ][0] )
 				com_ra.append( c_ra[ delt == delt.min() ][0] )
 				com_dec.append( c_dec[ delt == delt.min() ][0] )
+
+				com_rmag.append( c_rmag[ delt == delt.min() ][0] )
 
 	com_imag = np.array( com_imag )
 	com_ra = np.array( com_ra )

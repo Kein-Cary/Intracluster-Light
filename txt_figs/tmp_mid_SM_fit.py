@@ -18,7 +18,7 @@ from scipy import signal
 from scipy import interpolate as interp
 from scipy import integrate as integ
 
-from surface_mass_profile_decompose import cen_ln_p_func, mid_ln_p_func
+from surface_mass_profile_decompose import cen_ln_p_func
 from surface_mass_density import input_cosm_model, cosmos_param, rhom_set
 
 import corner
@@ -133,7 +133,24 @@ def lg_norm_err_fit_f(p, x, y, params, yerr):
 		return chi2
 	return np.inf
 
-### === MCMC function
+
+def cp_lg_norm_err_fit_f(p, x, y, yerr):
+	"""
+	fitting middle component in Logarithmic space
+	"""
+	_lg_SM0, _R_t, _sigm_tt = p[:]
+
+	_mass_cen = log_norm_func( x, _lg_SM0, _R_t, _sigm_tt )
+	_mass_2Mpc = log_norm_func( 2e3, _lg_SM0, _R_t, _sigm_tt )
+
+	_sum_mass = _mass_cen - _mass_2Mpc
+
+	delta = np.log10( _sum_mass ) - y
+	chi2 = np.sum( delta**2 / yerr**2 )
+
+	if np.isfinite( chi2 ):
+		return chi2
+	return np.inf
 
 
 ### === dataload
@@ -168,10 +185,19 @@ lo_xi2M_2Mpc = lo_interp_F( 2e3 )
 hi_xi2M_2Mpc = hi_interp_F( 2e3 )
 
 
+#. overall sample
+xi_rp = (lo_xi + hi_xi) / 2
+tot_rho_m = ( xi_rp * 1e3 * rho_m ) / a_ref**2 * h
+xi_to_Mf = interp.interp1d( lo_rp, tot_rho_m, kind = 'cubic',)
+
+sigma_2Mpc = xi_to_Mf( 2e3 )
+
+
 """
 ### === subsamples
-BG_path = '/home/xkchen/figs/re_measure_SBs/SM_profile/'
-fit_path = '/home/xkchen/figs/re_measure_SBs/SM_pro_fit/'
+BG_path = '/home/xkchen/figs/extend_bcgM_cat/SM_pros/'
+fit_path = '/home/xkchen/figs/extend_bcgM_cat/SM_pros_fit/'
+
 
 cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
 fig_name = ['Low $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $', 'High $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $']
@@ -182,33 +208,17 @@ band_str = 'gri'
 id_dered = True
 dered_str = '_with-dered'
 
-# id_dered = False
-# dered_str = ''
-
-out_lim_R = 350 # 400
-
 for mm in range( 2 ):
 
-	if id_dered == False:
-		dat = pds.read_csv( BG_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi.csv' % (cat_lis[mm], band_str) )
-		_cp_R, _cp_SM, _cp_SM_err = np.array(dat['R']), np.array(dat['medi_correct_surf_M']), np.array(dat['surf_M_err'])
-		obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
+	dat = pds.read_csv( BG_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi_with-dered.csv' % (cat_lis[mm], band_str) )
 
-		##.. cov_arr
-		with h5py.File( BG_path + '%s_%s-band-based_aveg-jack_surf-mass_cov_arr.h5' % (cat_lis[mm], band_str), 'r') as f:
-			cov_arr = np.array( f['cov_MX'] )
-			cor_arr = np.array( f['cor_MX'] )
+	_cp_R, _cp_SM, _cp_SM_err = np.array(dat['R']), np.array( dat['mean_correct_surf_M'] ), np.array(dat['surf_M_err'])
+	obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['mean_correct_surf_M'] ), np.array( dat['surf_M_err'] )
 
-	if id_dered == True:
-		dat = pds.read_csv( BG_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi_with-dered.csv' % (cat_lis[mm], band_str) )
-		_cp_R, _cp_SM, _cp_SM_err = np.array(dat['R']), np.array(dat['medi_correct_surf_M']), np.array(dat['surf_M_err'])
-		obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
-
-		##.. cov_arr
-		with h5py.File( BG_path + '%s_%s-band-based_aveg-jack_surf-mass_cov_arr_with-dered.h5' % (cat_lis[mm], band_str), 'r') as f:
-			cov_arr = np.array( f['cov_MX'] )
-			cor_arr = np.array( f['cor_MX'] )
-
+	##.. cov_arr
+	with h5py.File( BG_path + '%s_%s-band-based_aveg-jack_surf-mass_cov_arr_with-dered.h5' % (cat_lis[mm], band_str), 'r') as f:
+		cov_arr = np.array( f['cov_MX'] )
+		cor_arr = np.array( f['cor_MX'] )
 
 	id_rx = obs_R >= 10.
 	obs_R, surf_M, surf_M_err = obs_R[id_rx], surf_M[id_rx], surf_M_err[id_rx]
@@ -216,25 +226,25 @@ for mm in range( 2 ):
 	id_cov = np.where( id_rx )[0][0]
 	cov_arr = cov_arr[id_cov:, id_cov:]
 
-	#. mass in lg_Mstar
-	lg_M, lg_M_err = np.log10( surf_M ), np.sqrt( np.diag(cov_arr) ) # surf_M_err / ( np.log(10) * surf_M )
 
+	#. mass in lg_Mstar
+	lg_M, lg_M_err = np.log10( surf_M ), surf_M_err / ( np.log(10) * surf_M )
 
 	#.. use params of total sample for large scale
-	if id_dered == False:
-		c_dat = pds.read_csv( fit_path + 'total_all-color-to-M_beyond-%dkpc_xi2M-fit.csv' % out_lim_R )
-	if id_dered == True:
-		c_dat = pds.read_csv( fit_path + 'with-dered_total_all-color-to-M_beyond-%dkpc_xi2M-fit.csv' % out_lim_R )
+	out_lim_R = 350 # 350, 400
 
+	c_dat = pds.read_csv( fit_path + 'with-dered_total_all-color-to-M_beyond-%dkpc_xi2M-fit.csv' % out_lim_R )
 	lg_fb_gi = np.array( c_dat['lg_fb_gi'] )[0]
 	lg_fb_gr = np.array( c_dat['lg_fb_gr'] )[0]
 	lg_fb_ri = np.array( c_dat['lg_fb_ri'] )[0]
+
 
 	if mm == 0:
 		_out_M = ( lo_interp_F( obs_R ) - lo_xi2M_2Mpc ) * 10**lg_fb_gi
 
 	if mm == 1:
 		_out_M = ( hi_interp_F( obs_R ) - hi_xi2M_2Mpc ) * 10**lg_fb_gi
+
 
 	## .. centeral deV profile
 	c_dat = pds.read_csv( fit_path + '%s_%s-band-based_mass-profile_cen-deV_fit%s.csv' % (cat_lis[mm], band_str, dered_str),)
@@ -243,6 +253,7 @@ for mm in range( 2 ):
 	_cen_M = sersic_func( obs_R, 10**Ie_fit, Re_fit, Ne_fit)
 	_cen_M_2Mpc = sersic_func( 2e3, 10**Ie_fit, Re_fit, Ne_fit)
 
+
 	##.. mid-region
 	devi_M = surf_M - _out_M - ( _cen_M - _cen_M_2Mpc )
 
@@ -250,69 +261,93 @@ for mm in range( 2 ):
 	devi_err = lg_M_err
 	devi_R = obs_R
 
-	id_nan = np.isnan( devi_lgM )
+	if mm == 0:
 
-	id_M_lim = devi_lgM < 4.0
-	id_R_x0 = obs_R < 10
-	id_R_x1 = obs_R > 300
-	id_R_lim = id_R_x0 | id_R_x1
+		id_nan = np.isnan( devi_lgM )
 
-	id_lim = (id_nan | id_M_lim) | id_R_lim
-	lis_x = np.where( id_lim )[0]
+		id_M_lim = devi_lgM < 4.0
+		id_R_x0 = obs_R < 10
+		id_R_x1 = obs_R > 270 # 270
+		id_R_lim = id_R_x0 | id_R_x1
 
-	mid_cov = np.delete( cov_arr, tuple(lis_x), axis = 1)
-	mid_cov = np.delete( mid_cov, tuple(lis_x), axis = 0)
+		id_lim = (id_nan | id_M_lim) | id_R_lim
+		lis_x = np.where( id_lim )[0]
 
-	fit_R = obs_R[ id_lim == False ]
-	fit_SM = devi_M[ id_lim == False ]
-	fit_SM_err = surf_M_err[ id_lim == False ]
+		mid_cov = np.delete( cov_arr, tuple(lis_x), axis = 1)
+		mid_cov = np.delete( mid_cov, tuple(lis_x), axis = 0)
 
+		fit_R = obs_R[ id_lim == False ]
+		fit_SM = devi_M[ id_lim == False ]
+		fit_SM_err = surf_M_err[ id_lim == False ]
 
-	#. pre-fitting
-	po_param = [ mid_cov ]
+		#. pre-fitting
+		po_param = [ mid_cov ]
 
-	#... Log-norm
-	po = [ 6, 100, 1 ]
-	bounds = [ [3.5, 9.5], [10, 500], [0.1, 3] ]
-	E_return = optimize.minimize( lg_norm_err_fit_f, x0 = np.array( po ), args = ( fit_R, fit_SM, po_param, fit_SM_err), 
+		#... Log-norm
+		po = [ 6, 100, 1 ]
+		bounds = [ [3.5, 9.5], [10, 500], [0.1, 3] ]
+		E_return = optimize.minimize( lg_norm_err_fit_f, x0 = np.array( po ), args = ( fit_R, fit_SM, po_param, fit_SM_err), 
 									method = 'L-BFGS-B', bounds = bounds,)
+		print( E_return )
+		popt = E_return.x
 
-	popt = E_return.x
+	if mm == 1:
+
+		id_nan = np.isnan( devi_lgM )
+
+		id_M_lim = devi_lgM < 4
+		id_R_x0 = obs_R < 30
+		id_R_x1 = obs_R > 300
+
+		id_R_lim = id_R_x0 | id_R_x1
+		id_lim = (id_nan | id_M_lim) | id_R_lim
+
+
+		fit_R = obs_R[ id_lim == False ]
+
+		fit_SM = devi_M[ id_lim == False ]
+		fit_SM_err = surf_M_err[ id_lim == False ]
+
+		po = [ 6, 100, 1 ]
+
+		popt, pcov = optimize.curve_fit( log_norm_func, fit_R, fit_SM, p0 = np.array( po ), bounds = ([3.5, 10, 0.01], [9.5, 500, 3]),) # sigma = fit_SM_err,)
+		print( popt )
+
 
 	lg_SM_fit, Rt_fit, sigm_tt_fit = popt
 	fit_cross = log_norm_func( obs_R, lg_SM_fit, Rt_fit, sigm_tt_fit) - log_norm_func( 2e3, lg_SM_fit, Rt_fit, sigm_tt_fit)
 
+	fit_mid_M = log_norm_func( fit_R, lg_SM_fit, Rt_fit, sigm_tt_fit ) - log_norm_func( 2e3, lg_SM_fit, Rt_fit, sigm_tt_fit )
+	delta = fit_mid_M - fit_SM
+	chi2 = np.sum( delta**2 / fit_SM_err**2 )
+	n_free = len( fit_SM ) - 3
+	chi2nv = chi2 / n_free
+
+	print( chi2 )
+
 	#. save fitting
-	keys = ['lg_M0', 'R_t', 'sigma_t']
-	values = [ lg_SM_fit, Rt_fit, sigm_tt_fit ]
+	keys = ['lg_M0', 'R_t', 'sigma_t', 'chi2nv' ]
+	values = [ lg_SM_fit, Rt_fit, sigm_tt_fit, chi2nv ]
 	fill = dict( zip( keys, values) )
 	out_data = pds.DataFrame( fill, index = ['k', 'v'])
 	out_data.to_csv( fit_path + '%s_%s-band-based_xi2-sigma_mid-region_Lognorm-mcmc-fit%s.csv' % (cat_lis[mm], band_str, dered_str),)
 
 
-	#. 
-	po = [ 6, 30, 100]
-	bounds = [ [3.5, 8.5], [10, 100], [ 50, 200 ] ]
-	E_return = optimize.minimize( Drude_err_fit_f, x0 = np.array( po ), args = (fit_R, fit_SM, po_param, fit_SM_err), 
-									method = 'L-BFGS-B', bounds = bounds,)
-
-	popt = E_return.x
-
-	lg_AM_fit, Lw_fit, xc_fit = popt
-	fit_cross_1 = Drude_F( obs_R, lg_AM_fit, Lw_fit, xc_fit) - Drude_F( 2e3, lg_AM_fit, Lw_fit, xc_fit )
-
-	##... save the fitting
-	keys = ['lg_Am', 'Lw', 'R_cen']
-	values = [ lg_AM_fit, Lw_fit, xc_fit ]
-	fill = dict( zip( keys, values) )
-	out_data = pds.DataFrame( fill, index = ['k', 'v'])
-	out_data.to_csv( fit_path + '%s_%s-band-based_xi2-sigma_mid-region_Drude-mcmc-fit%s.csv' % (cat_lis[mm], band_str, dered_str),)
+	plt.figure()
+	plt.plot( obs_R, _cen_M, ls = ':', color = 'k', alpha = 0.5,)
+	plt.plot( obs_R, _out_M, ls = '--', color = 'k', alpha = 0.5,)
+	plt.plot( obs_R, surf_M, ls = '-', color = 'r', alpha = 0.5,)
+	plt.plot( obs_R, _cen_M + _out_M, ls = '-', color = 'k', alpha = 0.5,)
+	plt.yscale('log')
+	plt.xlim( 1e1, 1e3)
+	plt.ylim( 1e4, 1e8)
+	plt.xscale('log')
+	plt.savefig('/home/xkchen/%s_SM_check.png' % cat_lis[mm], dpi = 300)
+	plt.close()
 
 
 	plt.figure()
-
 	plt.plot( devi_R, fit_cross, ls = '--', color = 'r', label = 'Lognormal')
-	plt.plot( devi_R, fit_cross_1, ls = '--', color = 'b', label = 'Drude')
 
 	plt.plot( fit_R, fit_SM, 'gs', markersize = 5,)
 
@@ -328,13 +363,15 @@ for mm in range( 2 ):
 	plt.savefig('/home/xkchen/%s_%s-band-based_mass-profile_mid-region_fit-test%s.png' % (cat_lis[mm], band_str, dered_str), dpi = 300)
 	plt.close()
 
+raise
 """
 
 
 ### === all samples
-#. flux scaling correction
-BG_path = '/home/xkchen/figs/re_measure_SBs/SM_profile/'
-fit_path = '/home/xkchen/figs/re_measure_SBs/SM_pro_fit/'
+#.
+BG_path = '/home/xkchen/figs/extend_bcgM_cat/SM_pros/'
+fit_path = '/home/xkchen/figs/extend_bcgM_cat/SM_pros_fit/'
+
 
 band_str = 'gri'
 
@@ -342,59 +379,41 @@ band_str = 'gri'
 id_dered = True
 dered_str = 'with-dered_'
 
-# id_dered = False
-# dered_str = ''
-
-#...
-xi_rp = (lo_xi + hi_xi) / 2
-tot_rho_m = ( xi_rp * 1e3 * rho_m ) / a_ref**2 * h
-xi_to_Mf = interp.interp1d( lo_rp, tot_rho_m, kind = 'cubic',)
-
-sigma_2Mpc = xi_to_Mf( 2e3 )
 
 # SM(r)
-if id_dered == False:
+dat = pds.read_csv( BG_path + 'photo-z_tot-BCG-star-Mass_gri-band-based_aveg-jack_mass-Lumi_with-dered.csv' )
+_cp_R, _cp_SM, _cp_SM_err = np.array(dat['R']), np.array(dat['surf_mass']), np.array(dat['surf_mass_err'])
 
-	dat = pds.read_csv( BG_path + 'photo-z_tot-BCG-star-Mass_%s-band-based_aveg-jack_mass-Lumi.csv' % band_str,)
-	_cp_R, _cp_SM, _cp_SM_err = np.array(dat['R']), np.array(dat['surf_mass']), np.array(dat['surf_mass_err'])
+obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['surf_mass'] ), np.array( dat['surf_mass_err'] )
 
-	obs_R, surf_M, surf_M_err = np.array(dat['R']), np.array(dat['surf_mass']), np.array(dat['surf_mass_err'])
 
-	##.. cov_arr
-	with h5py.File( BG_path + 'photo-z_tot-BCG-star-Mass_%s-band-based_aveg-jack_surf-mass_cov_arr.h5' % band_str, 'r') as f:
-		cov_arr = np.array( f['cov_MX'] )
-		cor_arr = np.array( f['cor_MX'] )
-
-if id_dered == True:
-
-	dat = pds.read_csv( BG_path + 'photo-z_tot-BCG-star-Mass_gri-band-based_aveg-jack_mass-Lumi_with-dered.csv' )
-	_cp_R, _cp_SM, _cp_SM_err = np.array(dat['R']), np.array(dat['surf_mass']), np.array(dat['surf_mass_err'])
-
-	obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['surf_mass'] ), np.array( dat['surf_mass_err'] )
-
-	##.. cov_arr
-	with h5py.File( BG_path + 'photo-z_tot-BCG-star-Mass_%s-band-based_aveg-jack_surf-mass_cov_arr_with-dered.h5' % band_str, 'r') as f:
-		cov_arr = np.array( f['cov_MX'] )
-		cor_arr = np.array( f['cor_MX'] )
+##.. cov_arr
+with h5py.File( BG_path + 'photo-z_tot-BCG-star-Mass_%s-band-based_aveg-jack_surf-mass_cov_arr_with-dered.h5' % band_str, 'r') as f:
+	cov_arr = np.array( f['cov_MX'] )
+	cor_arr = np.array( f['cor_MX'] )
 
 id_rx = obs_R >= 9 # 9, 10
 obs_R, surf_M, surf_M_err = obs_R[id_rx], surf_M[id_rx], surf_M_err[id_rx]
-lg_M, lg_M_err = np.log10( surf_M ), surf_M_err / ( np.log(10) * surf_M )
 
 id_cov = np.where( id_rx )[0][0]
 cov_arr = cov_arr[id_cov:, id_cov:]
+
+lg_M, lg_M_err = np.log10( surf_M ), surf_M_err / ( np.log(10) * surf_M )
+
 
 # central part
 p_dat = pds.read_csv( fit_path + '%stotal-sample_%s-band-based_mass-profile_cen-deV_fit.csv' % (dered_str,band_str),)
 c_Ie, c_Re, c_ne = np.array( p_dat['Ie'] )[0], np.array( p_dat['Re'] )[0], np.array( p_dat['ne'] )[0]
 
-# parameters of scaled relation
-out_lim_R = 350 # 400
 
+##.. parameters of scaled relation
+out_lim_R = 350 # 350, 400
 c_dat = pds.read_csv( fit_path + '%stotal_all-color-to-M_beyond-%dkpc_xi2M-fit.csv' % (dered_str,out_lim_R),)
 lg_fb_gi = np.array( c_dat['lg_fb_gi'] )[0]
 lg_fb_gr = np.array( c_dat['lg_fb_gr'] )[0]
 lg_fb_ri = np.array( c_dat['lg_fb_ri'] )[0]
+
+# lg_fb_gi = np.log10( 1 / 450 )  ## 450, 500
 
 
 #...trans part
@@ -407,22 +426,29 @@ devi_lgM = np.log10( devi_M )
 devi_err = lg_M_err
 devi_R = obs_R
 
+##.. fitting points
 id_nan = np.isnan( devi_lgM )
 
-id_M_lim = devi_lgM < 4.0
+id_M_lim = devi_lgM < 1.0  # 4.0
 id_R_x0 = obs_R < 10
-id_R_x1 = obs_R > 300
+id_R_x1 = obs_R > 300  # 250
 id_R_lim = id_R_x0 | id_R_x1
 
 id_lim = (id_nan | id_M_lim) | id_R_lim
+
 lis_x = np.where( id_lim )[0]
 
 mid_cov = np.delete( cov_arr, tuple(lis_x), axis = 1)
 mid_cov = np.delete( mid_cov, tuple(lis_x), axis = 0)
 
+
 fit_R = obs_R[ id_lim == False ]
+
 fit_SM = devi_M[ id_lim == False ]
 fit_SM_err = surf_M_err[ id_lim == False ]
+
+cc_fit_SM = devi_lgM[ id_lim == False ]
+cc_fit_SM_err = lg_M_err[ id_lim == False ]
 
 
 #. pre-fitting test
@@ -434,47 +460,61 @@ bounds = [ [3.5, 9.5], [10, 500], [0.1, 3] ]
 E_return = optimize.minimize( lg_norm_err_fit_f, x0 = np.array( po ), args = (fit_R, fit_SM, po_param, fit_SM_err), 
 								method = 'L-BFGS-B', bounds = bounds,)
 
+print( E_return )
+
 popt = E_return.x
 lg_SM_fit, Rt_fit, sigm_tt_fit = popt
 fit_cross = log_norm_func( obs_R, lg_SM_fit, Rt_fit, sigm_tt_fit ) - log_norm_func( 2e3, lg_SM_fit, Rt_fit, sigm_tt_fit )
 
+fit_mid_M = log_norm_func( fit_R, lg_SM_fit, Rt_fit, sigm_tt_fit ) - log_norm_func( 2e3, lg_SM_fit, Rt_fit, sigm_tt_fit )
+delta = fit_mid_M - fit_SM
+chi2 = np.sum( delta**2 / fit_SM_err**2 )
+n_free = len( fit_SM ) - 3
+chi2nv = chi2 / n_free
+
 ##... save the fitting
-keys = ['lg_M0', 'R_t', 'sigma_t']
-values = [ lg_SM_fit, Rt_fit, sigm_tt_fit ]
+keys = ['lg_M0', 'R_t', 'sigma_t', 'chi2nv']
+values = [ lg_SM_fit, Rt_fit, sigm_tt_fit, chi2nv ]
 fill = dict( zip( keys, values) )
 out_data = pds.DataFrame( fill, index = ['k', 'v'])
 out_data.to_csv( fit_path + '%stotal_%s-band-based_xi2-sigma_mid-region_Lognorm-mcmc-fit.csv' % (dered_str, band_str),)
 
 
-#. 
-po = [ 6, 30, 100]
-bounds = [ [3.5, 8.5], [10, 100], [ 50, 200 ] ]
-E_return = optimize.minimize( Drude_err_fit_f, x0 = np.array( po ), args = (fit_R, fit_SM, po_param, fit_SM_err), 
-								method = 'L-BFGS-B', bounds = bounds,)
 
-popt = E_return.x
+# id_M_lim = devi_lgM < 4
+# id_R_x0 = obs_R < 40
+# id_R_x1 = obs_R > 300
 
-lg_AM_fit, Lw_fit, xc_fit = popt
-fit_cross_1 = Drude_F( obs_R, lg_AM_fit, Lw_fit, xc_fit) - Drude_F( 2e3, lg_AM_fit, Lw_fit, xc_fit )
+# id_R_lim = id_R_x0 | id_R_x1
+# id_lim = (id_nan | id_M_lim) | id_R_lim
 
-##... save the fitting
-keys = ['lg_Am', 'Lw', 'R_cen']
-values = [ lg_AM_fit, Lw_fit, xc_fit ]
-fill = dict( zip( keys, values) )
-out_data = pds.DataFrame( fill, index = ['k', 'v'])
-out_data.to_csv( fit_path + '%stotal_%s-band-based_xi2-sigma_mid-region_Drude-mcmc-fit.csv' % (dered_str, band_str),)
+# fit_R = obs_R[ id_lim == False ]
+
+# fit_SM = devi_M[ id_lim == False ]
+# fit_SM_err = surf_M_err[ id_lim == False ]
+
+# popt, pcov = optimize.curve_fit( log_norm_func, fit_R, fit_SM, p0 = np.array( po ), bounds = ([3.5, 10, 0.01], [9.5, 500, 3]),) # sigma = cc_fit_SM_err,)
+# print( popt )
+
+# cc_lg_SM, cc_Rt, cc_sigm_tt = popt
+# cc_fit_cross = log_norm_func( obs_R, cc_lg_SM, cc_Rt, cc_sigm_tt) - log_norm_func( 2e3, cc_lg_SM, cc_Rt, cc_sigm_tt)
 
 
 plt.figure()
+plt.errorbar( obs_R, surf_M, yerr = surf_M_err, ls = 'none', marker = 'o', color = 'r', alpha = 0.75,)
+plt.plot( obs_R, ( xi_to_Mf( obs_R) - sigma_2Mpc ) * 10**lg_fb_gi, ls = '-', color = 'k', alpha = 0.75,)
+plt.xscale('log')
+plt.yscale('log')
+plt.ylim( 1e4, 2e8 )
+plt.savefig('/home/xkchen/amplitude_compare.png', dpi = 300)
+plt.close()
 
+
+plt.figure()
 plt.plot( devi_R, fit_cross, ls = '--', color = 'r', label = 'Lognormal')
-plt.plot( devi_R, fit_cross_1, ls = '--', color = 'b', label = 'Drude')
-
 plt.plot( fit_R, fit_SM, 'gs', markersize = 5,)
-
 plt.errorbar( devi_R, devi_M, yerr = surf_M_err, xerr = None, color = 'k', marker = 'o', ms = 4, ls = 'none', 
-	ecolor = 'k', mec = 'k', mfc = 'none', capsize = 3,)
-
+				ecolor = 'k', mec = 'k', mfc = 'none', capsize = 3,)
 plt.legend( loc = 2 )
 plt.xlim( 1e1, 5e2)
 plt.xscale( 'log' )

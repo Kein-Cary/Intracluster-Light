@@ -19,7 +19,6 @@ from astropy.coordinates import SkyCoord
 from BCG_SB_pro_stack import single_img_SB_func
 from color_2_mass import SB_to_Lumi_func
 
-# from tmp_color_to_mass import SB_to_Lumi_func
 from tmp_color_to_mass import gr_ri_band_c2m_func
 from fig_out_module import absMag_to_Lumi_func
 
@@ -68,6 +67,7 @@ def cumu_mass_func(rp, surf_mass, N_grid = 100):
 
 	return cumu_mass
 
+#. cumulative mass derived from mass profile (assuming M/L along radii) 
 def BCG_M_L_color_pros_func( dat_file, lis_ra, lis_dec, lis_z, out_file, param_file, R_bins ):
 	"""
 	out_files : .csv files
@@ -146,12 +146,11 @@ def BCG_M_L_color_pros_func( dat_file, lis_ra, lis_dec, lis_z, out_file, param_f
 
 	return
 
-#. cumulative luminosity without model fitting on light profile case
+#. cumulative luminosity derived from magnitude within given radius
 def BCG_mag_comu_func( dat_file, lis_ra, lis_dec, lis_z, out_file, R_bins, param_file ):
 	"""
 	out_files : .csv files
 	"""
-
 	N_sam = len( lis_ra )
 
 	samp_rmag, samp_gmag, samp_imag = np.zeros( N_sam,), np.zeros( N_sam,), np.zeros( N_sam,)
@@ -257,6 +256,7 @@ def BCG_mag_comu_func( dat_file, lis_ra, lis_dec, lis_z, out_file, R_bins, param
 home = '/home/xkchen/data/SDSS/'
 load = '/home/xkchen/fig_tmp/'
 
+### === stellat mass within 20kpc (derived from mass profile)
 """
 for kk in range( 3 ):
 
@@ -282,10 +282,11 @@ for kk in range( 3 ):
 """
 
 """
-### === stellat mass within 20kpc
 dat_file = home + 'photo_files/BCG_mass_pro/clus_ra%.3f_dec%.3f_z%.3f_BCG_color_M_profile.csv'
 
 for kk in range( 3 ):
+	
+	#.. the catalog is the image catalog information of stacked samples
 
 	dat = pds.read_csv( load + 'BCG_R_lim_M_cat/%s-band_BCG-M_cat.csv' % band[kk], )
 	ra, dec, z = np.array( dat['ra'] ), np.array( dat['dec'] ), np.array( dat['z'] )
@@ -327,7 +328,7 @@ for kk in range( 3 ):
 """
 
 """
-### === BCG R-lim magnitude estimate
+### === BCG R-lim magnitude and mass estimation
 for kk in range( 3 ):
 
 	dat = pds.read_csv( load + 'BCG_R_lim_M_cat/%s-band_BCG-M_cat.csv' % band[kk], )
@@ -343,29 +344,24 @@ for kk in range( 3 ):
 raise
 """
 
-### === dust map query (on BCG positions)
-#. dust map with the recalibration by Schlafly & Finkbeiner (2011)
-import sfdmap
-E_map = sfdmap.SFDMap('/home/xkchen/module/dust_map/sfddata_maskin')
-from extinction_redden import A_wave
-Rv = 3.1
 
-for kk in range( 3 ):
+##..2021.11.22 ( Extended catalog )
 
-	dat = pds.read_csv( load + 'BCG_R_lim_M_cat/%s-band_BCG-M_cat.csv' % band[ kk ], )
-	ra, dec, z = np.array( dat['ra'] ), np.array( dat['dec'] ), np.array( dat['z'] )
+# dat = pds.read_csv('/home/xkchen/Extend_BCGM_bin_cat.csv')
 
-	pos_deg = SkyCoord( ra, dec, unit = 'deg')
-	p_EBV = E_map.ebv( pos_deg )
-	A_v = Rv * p_EBV
+# matched image catalog (exclude the two cluster cannot download image)
+dat = pds.read_csv('/home/xkchen/Extend_BCGM_bin_match-img_cat.csv')
 
-	Al_r = A_wave( L_wave[ 0 ], Rv) * A_v
-	Al_g = A_wave( L_wave[ 1 ], Rv) * A_v
-	Al_i = A_wave( L_wave[ 2 ], Rv) * A_v
+ra, dec, z = np.array( dat['ra'] ), np.array( dat['dec'] ), np.array( dat['z'] )
 
-	keys = [ 'ra', 'dec', 'z', 'E_bv', 'Al_r', 'Al_g', 'Al_i' ]
-	values = [ ra, dec, z, p_EBV, Al_r, Al_g, Al_i ]
-	fill = dict( zip( keys, values) )
-	out_data = pds.DataFrame( fill )
-	out_data.to_csv( '/home/xkchen/%s-band_BCG_dust_value.csv' % band[ kk ] )
+r_bins = np.logspace( 0, 2.48, 27 ) # unit : kpc
+
+out_file = '/home/xkchen/Extend_BCGM_BCG-mag_cat.csv'
+dat_file = home + 'photo_files/BCG_profile/BCG_prof_Z%.3f_ra%.3f_dec%.3f.txt'
+fit_params = '/home/xkchen/least-square_M-to-i-band-Lumi&color.csv'
+
+BCG_mag_comu_func( dat_file, ra, dec, z, out_file, r_bins, fit_params )
+
+
+raise
 

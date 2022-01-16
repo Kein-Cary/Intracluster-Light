@@ -532,10 +532,10 @@ for ii in range( 4, 5 ):
 
 	ax0.imshow( ref_img[::-1, :],)
 
-	clust = Circle( xy = (cen_x, cen_y), radius = R1Mpc, fill = False, ec = 'w', ls = '--', linewidth = 1, alpha = 0.75,)
+	clust = Circle( xy = (cen_x, cen_y), radius = R1Mpc, fill = False, ec = 'r', ls = '--', linewidth = 1, alpha = 0.75,)
 	ax0.add_patch(clust)
 
-	clust = Circle( xy = (cen_x, cen_y), radius = R100kpc, fill = False, ec = 'w', ls = '-', linewidth = 1, alpha = 0.75,)
+	clust = Circle( xy = (cen_x, cen_y), radius = R100kpc, fill = False, ec = 'r', ls = '-', linewidth = 1, alpha = 0.75,)
 	ax0.add_patch(clust)
 
 	ax0.set_xlim( -100, img.shape[1] + 100 )

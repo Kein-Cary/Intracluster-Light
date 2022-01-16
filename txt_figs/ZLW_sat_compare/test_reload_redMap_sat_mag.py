@@ -81,7 +81,7 @@ def sql_color( cat_ra, cat_dec, cat_ID, out_file ):
 
 	return
 
-##... read catalog
+##... read catalog and prepare for sdss sql
 cat_lis = [ 'low-age', 'hi-age' ]
 """
 for ll in range( 1,2 ):
@@ -115,20 +115,6 @@ for ll in range( 1,2 ):
 	# np.savetxt('/home/xkchen/figs/sat_cat_ZLW/redMap_cat_reload/' + 
 					'%s_redMaPPer-sat_galx_cat.dat' % cat_lis[ll], tmp_arr, fmt = ('%.0f', '%.5f', '%.5f'),)
 
-	# n_step = 10000
-
-	# for tt in range( 9 ):
-	# 	if tt == 8:
-	# 		da0 = np.int( tt * n_step )
-	# 		da1 = len( tmp_ra )
-	# 	else:
-	# 		da0 = np.int( tt * n_step )
-	# 		da1 = np.int( (tt + 1) * n_step )
-
-	# 	tmp_arr = np.array( [ np.r_[0, ordex_arr[ da0: da1 ] ], np.r_[ 1, tmp_ra[ da0: da1 ] ], np.r_[ 2, tmp_dec[ da0: da1 ] ] ] ).T
-	# 	np.savetxt('/home/xkchen/figs/sat_cat_ZLW/redMap_cat_reload/' + 
-					'%s_redMaPPer-sat_galx_cat_%d.dat' % (cat_lis[ll], tt), tmp_arr, fmt = ('%.0f', '%.5f', '%.5f'),)
-
 raise
 """
 
@@ -138,44 +124,6 @@ tot_cat = np.loadtxt('/home/xkchen/figs/sat_cat_ZLW/redMap_cat_reload/hi-age_red
 tot_ra, tot_dec = tot_cat[:,1], tot_cat[:,2]
 tot_dex = tot_cat[:,0]
 
-tmp_ra, tmp_dec = np.zeros( len(tot_ra), ), np.zeros( len(tot_ra), )
-tmp_objIDs = np.zeros( len(tot_ra), )
-
-tmp_r_mod_mag, tmp_g_mod_mag, tmp_i_mod_mag = np.zeros( len(tot_ra),), np.zeros( len(tot_ra),), np.zeros( len(tot_ra),)
-tmp_r_cmod_mag, tmp_g_cmod_mag, tmp_i_cmod_mag = np.zeros( len(tot_ra),), np.zeros( len(tot_ra),), np.zeros( len(tot_ra),)
-tmp_dered_rmag, tmp_dered_gmag, tmp_dered_imag = np.zeros( len(tot_ra),), np.zeros( len(tot_ra),), np.zeros( len(tot_ra),)
-
-tmp_dex = np.array( [] )
-
-for tt in range( 9 ):
-
-	dat = pds.read_csv( '/home/xkchen/figs/sat_cat_ZLW/redMap_cat_reload/hi-age_galax_mag_%d.csv' % tt, skiprows = 1 )
-
-	tmp_dex = np.r_[ tmp_dex, dat['col0'] ]
-	print( len( dat['ra'] ) )
-
-	_tt_dex = np.array( dat['col0'] )
-
-	tmp_objIDs[ _tt_dex ] = np.array( dat['objID'] )
-	tmp_r_mod_mag[ _tt_dex ] = np.array( dat['modelMag_r'] )
-	tmp_g_mod_mag[ _tt_dex ] = np.array( dat['modelMag_g'] )
-	tmp_i_mod_mag[ _tt_dex ] = np.array( dat['modelMag_i'] )
-
-	tmp_ra[ _tt_dex ] = np.array( dat['ra'] ) 
-	tmp_dec[ _tt_dex ] = np.array( dat['dec'] )
-
-	tmp_r_cmod_mag[ _tt_dex ] = np.array( dat['cModelMag_r'] )
-	tmp_g_cmod_mag[ _tt_dex ] = np.array( dat['cModelMag_g'] ) 
-	tmp_i_cmod_mag[ _tt_dex ] = np.array( dat['cModelMag_i'] ) 
-	
-	tmp_dered_rmag[ _tt_dex ] = np.array( dat['dered_r'] ) 
-	tmp_dered_gmag[ _tt_dex ] = np.array( dat['dered_g'] )
-	tmp_dered_imag[ _tt_dex ] = np.array( dat['dered_i'] ) 
-
-# plt.figure()
-# plt.plot(tot_ra, tot_dec, 'ro', alpha = 0.5,)
-# plt.plot(tmp_ra, tmp_dec, 'g*', alpha = 0.5,)
-# plt.show()
 
 #. missing match in total table squery
 dda = list( set(tot_dex).difference( set(tmp_dex) ) )
@@ -222,6 +170,8 @@ fill = dict( zip( keys, values) )
 out_data = pds.DataFrame( fill )
 out_data.to_csv( '/home/xkchen/figs/sat_cat_ZLW/redMap_cat_reload/redMaPPer-cat_hi-age_galx_mag.csv' )
 """
+
+
 
 ###... rematch member galaxies and clusters
 cat_lis = [ 'low-age', 'hi-age' ]

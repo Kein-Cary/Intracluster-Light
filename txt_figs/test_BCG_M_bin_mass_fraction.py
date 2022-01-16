@@ -57,6 +57,14 @@ def log_norm_func( r, lg_SM0, Rt, sigm_tt ):
 
 	return 10**lg_M
 
+def pdf_log_norm_func( r, Am, Rt, sigm_tt ):
+
+	mf0 = r * sigm_tt * np.sqrt( 2 * np.pi )
+	mf1 = -0.5 * ( np.log(r) - np.log(Rt) )**2 / sigm_tt**2
+	Pdf = Am * np.exp( mf1 ) / mf0
+
+	return Pdf
+
 def cumu_mass_func(rp, surf_mass, N_grid = 100):
 
 	try:
@@ -78,6 +86,7 @@ def cumu_mass_func(rp, surf_mass, N_grid = 100):
 		cumu_mass[ ii ] = integ.simps( 2 * np.pi * new_rp * new_mass, new_rp)
 
 	return cumu_mass
+
 
 ### === ### loda obs data
 z_ref = 0.25
@@ -108,58 +117,145 @@ lo_xi2M_2Mpc = lo_interp_F( 2e3 )
 hi_xi2M_2Mpc = hi_interp_F( 2e3 )
 
 
-## ... obs BCG + ICL mass profile
-#. mass estimation with deredden or not
+### === ### obs BCG + ICL mass profile
+
 cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
 fig_name = ['Low $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $', 'High $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $']
 
-file_s = 'BCG_Mstar_bin'
-out_path = '/home/xkchen/figs/re_measure_SBs/SM_profile/'
-fit_path = '/home/xkchen/figs/re_measure_SBs/SM_pro_fit/'
 band_str = 'gri'
 
-#... cluster mass and radius 
+file_s = 'BCG_Mstar_bin'
+
+out_path = '/home/xkchen/figs/extend_bcgM_cat/SM_pros/'
+fit_path = '/home/xkchen/figs/extend_bcgM_cat/SM_pros_fit/'
+
+
+#... cluster BCG mass and richness 
 dd_rich = []
-dd_z_obs = []
 dd_lg_Mstar = []
 
 for mm in range( 2 ):
 
 	#... lg_Mstar
-	l_dat = pds.read_csv('/home/xkchen/tmp_run/data_files/figs/%s_r-band_photo-z-match_rgi-common_cat_params.csv' % cat_lis[mm])
+	l_dat = pds.read_csv( '/home/xkchen/mywork/ICL/data/BCG_Mstar_extend_cat/BCG_M_bin/' + 
+						'%s_photo-z-match_rgi-common_cat_params.csv' % cat_lis[mm],)
 	l_rich = np.array( l_dat['rich'])
 	l_lgM = np.array( l_dat['lg_Mstar'])
 
-	#... mag
-	pdat = pds.read_csv( '/home/xkchen/tmp_run/data_files/figs/%s_BCG-color.csv' % cat_lis[mm] )
-	p_z = np.array( pdat['z'] )
-
-	dd_z_obs.append( p_z )
 	dd_rich.append( l_rich )
 	dd_lg_Mstar.append( l_lgM - 2 * np.log10( h ) )
+
+
+def compare_to_pre_select_cat():
+	"""
+	check the average properties is the same or not
+	"""
+	# ... cluster catalog before image match and selection
+	all_lo_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/BCG_Mstar_extend_cat/low_BCG_star-Mass_fixed_rich_cluster.csv')
+	all_lo_rich = np.array( all_lo_dat['Lambda'] )
+	all_lo_Mstar = np.array( all_lo_dat['LgMstar'] ) - 2 * np.log10( h )
+
+	all_hi_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/BCG_Mstar_extend_cat/high_BCG_star-Mass_fixed_rich_cluster.csv')
+	all_hi_rich = np.array( all_hi_dat['Lambda'] )
+	all_hi_Mstar = np.array( all_hi_dat['LgMstar'] ) - 2 * np.log10( h )
+
+
+	plt.figure()
+	plt.title( 'Low $ M_{\\ast}^{\\mathrm{BCG}}$' )
+	plt.hist( dd_rich[0], bins = 45, density = False, color = 'b', histtype = 'step', label = 'after selection')
+	plt.axvline( x = np.median( dd_rich[0] ), ls = '--', alpha = 0.5, color = 'b', label = 'median')
+	plt.axvline( x = np.mean( dd_rich[0] ), ls = '-', alpha = 0.5, color = 'b', label = 'mean')
+
+	plt.hist( all_lo_rich, bins = 45, density = False, color = 'r', histtype = 'step', label = 'before selection')
+	plt.axvline( x = np.median( all_lo_rich ), ls = '--', alpha = 0.5, color = 'r',)
+	plt.axvline( x = np.mean( all_lo_rich ), ls = '-', alpha = 0.5, color = 'r',)
+
+	plt.legend( loc = 1)
+	plt.xscale('log')
+	plt.xlabel('$\\lambda$')
+	plt.yscale('log')
+	plt.savefig('/home/xkchen/Low_BCG_M_rich_compare.png', dpi = 300)
+	plt.close()
+
+	plt.figure()
+	plt.title( 'High $ M_{\\ast}^{\\mathrm{BCG}}$' )
+	plt.hist( dd_rich[1], bins = 45, density = False, color = 'b', histtype = 'step', label = 'after selection')
+	plt.axvline( x = np.median( dd_rich[1] ), ls = '--', alpha = 0.5, color = 'b', label = 'median')
+	plt.axvline( x = np.mean( dd_rich[1] ), ls = '-', alpha = 0.5, color = 'b', label = 'mean')
+
+	plt.hist( all_hi_rich, bins = 45, density = False, color = 'r', histtype = 'step', label = 'before selection')
+	plt.axvline( x = np.median( all_hi_rich ), ls = '--', alpha = 0.5, color = 'r',)
+	plt.axvline( x = np.mean( all_hi_rich ), ls = '-', alpha = 0.5, color = 'r',)
+
+	plt.legend( loc = 1)
+	plt.xscale('log')
+	plt.xlabel('$\\lambda$')
+	plt.yscale('log')
+	plt.savefig('/home/xkchen/High_BCG_M_rich_compare.png', dpi = 300)
+	plt.close()
+
+
+	plt.figure()
+	plt.title( 'Low $ M_{\\ast}^{\\mathrm{BCG}}$' )
+	plt.hist( dd_lg_Mstar[0], bins = 45, density = False, color = 'b', histtype = 'step', label = 'after selection')
+	plt.axvline( x = np.median( dd_lg_Mstar[0] ), ls = '--', alpha = 0.5, color = 'b', label = 'median')
+	plt.axvline( x = np.mean( dd_lg_Mstar[0] ), ls = '-', alpha = 0.5, color = 'b', label = 'mean')
+
+	plt.hist( all_lo_Mstar, bins = 45, density = False, color = 'r', histtype = 'step', label = 'before selection')
+	plt.axvline( x = np.median( all_lo_Mstar ), ls = '--', alpha = 0.5, color = 'r',)
+	plt.axvline( x = np.mean( all_lo_Mstar ), ls = '-', alpha = 0.5, color = 'r',)
+
+	plt.legend( loc = 2,)
+	plt.xlabel('$\\lg M_{\\ast}^{BCG} [M_{\\odot}]$')
+	plt.savefig('/home/xkchen/Low_BCG_M_Mstar_compare.png', dpi = 300)
+	plt.close()
+
+	plt.figure()
+	plt.title( 'High $ M_{\\ast}^{\\mathrm{BCG}}$' )
+	plt.hist( dd_lg_Mstar[1], bins = 45, density = False, color = 'b', histtype = 'step', label = 'after selection')
+	plt.axvline( x = np.median( dd_lg_Mstar[1] ), ls = '--', alpha = 0.5, color = 'b', label = 'median')
+	plt.axvline( x = np.mean( dd_lg_Mstar[1] ), ls = '-', alpha = 0.5, color = 'b', label = 'mean')
+
+	plt.hist( all_hi_Mstar, bins = 45, density = False, color = 'r', histtype = 'step', label = 'before selection')
+	plt.axvline( x = np.median( all_hi_Mstar ), ls = '--', alpha = 0.5, color = 'r',)
+	plt.axvline( x = np.mean( all_hi_Mstar ), ls = '-', alpha = 0.5, color = 'r',)
+
+	plt.legend( loc = 1,)
+	plt.xlabel('$\\lg M_{\\ast}^{BCG} [M_{\\odot}]$')
+	plt.savefig('/home/xkchen/High_BCG_M_Mstar_compare.png', dpi = 300)
+	plt.close()
+
+# compare_to_pre_select_cat()
+
+
+### === M200m and R200m estimate
+Mh_clus = 10**14.41 # M_sun
+mrho_zref = rhom_set( z_ref )[1]
+mrho_zref = mrho_zref * h**2  # M_sun / kpc^3
+
+R200m = ( 3 * Mh_clus / (4 * np.pi * mrho_zref * 200) )**(1 / 3)
+
+
+lo_Mbcg = dd_lg_Mstar[0]
+hi_Mbcg = dd_lg_Mstar[1]
+
+lo_lg_medi_Mbcg = np.log10( np.median( 10**lo_Mbcg ) )
+hi_lg_medi_Mbcg = np.log10( np.median( 10**hi_Mbcg ) )
+
+lo_lg_mean_Mbcg = np.log10( np.mean( 10**lo_Mbcg ) )
+hi_lg_mean_Mbcg = np.log10( np.mean( 10**hi_Mbcg ) )
+
 
 #. mass estimation with deredden or not
 id_dered = True
 dered_str = '_with-dered'
 
-# id_dered = False
-# dered_str = ''
+out_lim_R = 350
 
-if id_dered == False:
-	#. surface mass profiles
-	dat = pds.read_csv( out_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi.csv' % (cat_lis[0], band_str),)
-	lo_R, lo_surf_M, lo_surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
-
-	dat = pds.read_csv( out_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi.csv' % (cat_lis[1], band_str),)
-	hi_R, hi_surf_M, hi_surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
-
-if id_dered == True:
-	#. surface mass profiles
-	dat = pds.read_csv( out_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi_with-dered.csv' % (cat_lis[0], band_str),)
-	lo_R, lo_surf_M, lo_surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
-
-	dat = pds.read_csv( out_path + '%s_%s-band-based_corrected_aveg-jack_mass-Lumi_with-dered.csv' % (cat_lis[1], band_str),)
-	hi_R, hi_surf_M, hi_surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
+c_dat = pds.read_csv( fit_path + 'with-dered_total_all-color-to-M_beyond-%dkpc_xi2M-fit.csv' % out_lim_R,)
+lg_fb_gi = np.array( c_dat['lg_fb_gi'] )[0]
+lg_fb_gr = np.array( c_dat['lg_fb_gr'] )[0]
+lg_fb_ri = np.array( c_dat['lg_fb_ri'] )[0]
 
 
 #. mass profile for central region
@@ -170,41 +266,54 @@ cen_dat = pds.read_csv( fit_path + '%s_%s-band-based_mass-profile_cen-deV_fit%s.
 hi_Ie, hi_Re, hi_Ne = np.array( cen_dat['Ie'] )[0], np.array( cen_dat['Re'] )[0], np.array( cen_dat['ne'] )[0]
 
 
-#... mass profile for the middle region
-#. lognormal
-mid_dat = pds.read_csv( fit_path + '%s_%s-band-based_xi2-sigma_mid-region_Lognorm-mcmc-fit%s.csv' % (cat_lis[0], band_str, dered_str),)
-lo_lgSM_fit, lo_Rt_fit, lo_sigm_t_fit = np.array( mid_dat['lg_M0'])[0], np.array( mid_dat['R_t'] )[0], np.array( mid_dat['sigma_t'] )[0]
-
-
-mid_dat = pds.read_csv( fit_path + '%s_%s-band-based_xi2-sigma_mid-region_Lognorm-mcmc-fit%s.csv' % (cat_lis[1], band_str, dered_str),)
-hi_lgSM_fit, hi_Rt_fit, hi_sigm_t_fit = np.array( mid_dat['lg_M0'])[0], np.array( mid_dat['R_t'] )[0], np.array( mid_dat['sigma_t'] )[0]
-
-
-## ... M200m and R200m estimate
-lo_M200m, lo_R200m = rich2R_Simet( dd_z_obs[0], dd_rich[0],)
-
-hi_M200m, hi_R200m = rich2R_Simet( dd_z_obs[1], dd_rich[1],)
-
-lo_medi_R200m = np.median( lo_R200m )
-lo_mean_R200m = np.mean( lo_R200m )
-
-hi_medi_R200m = np.median( hi_R200m )
-hi_mean_R200m = np.mean( hi_R200m )
-
-lo_Mbcg = dd_lg_Mstar[0]
-hi_Mbcg = dd_lg_Mstar[1]
-
-#..
+### === fitting profiles
 new_R = np.logspace( 0, np.log10(2.5e3), 100 )
 
+#. mass profile on large scale
+lo_out_SM = ( lo_interp_F( new_R ) - lo_xi2M_2Mpc ) * 10**lg_fb_gi
+hi_out_SM = ( hi_interp_F( new_R ) - hi_xi2M_2Mpc ) * 10**lg_fb_gi
+
 lo_cen_M = sersic_func( new_R, 10**lo_Ie, lo_Re, lo_Ne) - sersic_func( 2e3, 10**lo_Ie, lo_Re, lo_Ne)
-lo_mid_mass = log_norm_func( new_R, lo_lgSM_fit, lo_Rt_fit, lo_sigm_t_fit ) - log_norm_func( 2e3, lo_lgSM_fit, lo_Rt_fit, lo_sigm_t_fit )
-
 hi_cen_M = sersic_func( new_R, 10**hi_Ie, hi_Re, hi_Ne) - sersic_func( 2e3, 10**hi_Ie, hi_Re, hi_Ne)
-hi_mid_mass = log_norm_func( new_R, hi_lgSM_fit, hi_Rt_fit, hi_sigm_t_fit ) - log_norm_func( 2e3, hi_lgSM_fit, hi_Rt_fit, hi_sigm_t_fit )
 
 
-N_grid = 500
+### === mass profile for the middle region
+
+#. SM(r) fitting
+# mid_dat = pds.read_csv( fit_path + '%s_%s-band-based_xi2-sigma_mid-region_Lognorm-mcmc-fit%s.csv' % (cat_lis[0], band_str, dered_str),)
+# lo_lgSM_fit, lo_Rt_fit, lo_sigm_t_fit = np.array( mid_dat['lg_M0'])[0], np.array( mid_dat['R_t'] )[0], np.array( mid_dat['sigma_t'] )[0]
+# lo_mid_mass = log_norm_func( lo_rp, lo_lgSM_fit, lo_Rt_fit, lo_sigm_t_fit ) - log_norm_func( 2e3, lo_lgSM_fit, lo_Rt_fit, lo_sigm_t_fit )
+
+# id_nul = lo_mid_mass < 0.
+# lo_mid_mass[ id_nul ] = 0.
+
+# mid_dat = pds.read_csv( fit_path + '%s_%s-band-based_xi2-sigma_mid-region_Lognorm-mcmc-fit%s.csv' % (cat_lis[1], band_str, dered_str),)
+# hi_lgSM_fit, hi_Rt_fit, hi_sigm_t_fit = np.array( mid_dat['lg_M0'])[0], np.array( mid_dat['R_t'] )[0], np.array( mid_dat['sigma_t'] )[0]
+# hi_mid_mass = log_norm_func( hi_rp, hi_lgSM_fit, hi_Rt_fit, hi_sigm_t_fit ) - log_norm_func( 2e3, hi_lgSM_fit, hi_Rt_fit, hi_sigm_t_fit )
+
+# id_nul = hi_mid_mass < 0.
+# hi_mid_mass[ id_nul ] = 0.
+
+
+#. SM(r) ratio fitting
+mid_dat = pds.read_csv( fit_path + '%s_%s-band-based_mid-region_Lognorm_ratio-based_fit%s.csv' % (cat_lis[0], band_str, dered_str),)
+lo_Am_fit, lo_Rt_fit, lo_sigm_t_fit = np.array( mid_dat['Am'])[0], np.array( mid_dat['Rt'] )[0], np.array( mid_dat['sigma_t'] )[0]
+
+lo_mid_pdf = pdf_log_norm_func( new_R, lo_Am_fit, lo_Rt_fit, lo_sigm_t_fit)
+lo_fit_sum = lo_out_SM + lo_cen_M
+lo_mid_mass = lo_mid_pdf * lo_fit_sum / ( 1 - lo_mid_pdf )
+
+
+mid_dat = pds.read_csv( fit_path + '%s_%s-band-based_mid-region_Lognorm_ratio-based_fit%s.csv' % (cat_lis[1], band_str, dered_str),)
+hi_Am_fit, hi_Rt_fit, hi_sigm_t_fit = np.array( mid_dat['Am'])[0], np.array( mid_dat['Rt'] )[0], np.array( mid_dat['sigma_t'] )[0]
+
+hi_mid_pdf = pdf_log_norm_func( new_R, hi_Am_fit, hi_Rt_fit, hi_sigm_t_fit)
+hi_fit_sum = hi_out_SM + hi_cen_M
+hi_mid_mass = hi_mid_pdf * hi_fit_sum / ( 1 - hi_mid_pdf )
+
+
+
+N_grid = 250
 
 lo_mid_integ_M = cumu_mass_func( new_R, lo_mid_mass, N_grid = N_grid )
 lo_fun_mid_M = interp.interp1d( new_R, lo_mid_integ_M, kind = 'linear', fill_value = 'extrapolate',)
@@ -212,7 +321,8 @@ lo_fun_mid_M = interp.interp1d( new_R, lo_mid_integ_M, kind = 'linear', fill_val
 hi_mid_integ_M = cumu_mass_func( new_R, hi_mid_mass, N_grid = N_grid )
 hi_fun_mid_M = interp.interp1d( new_R, hi_mid_integ_M, kind = 'linear', fill_value = 'extrapolate',)
 
-lo_mod_trans_M = np.log10( lo_fun_mid_M( lo_medi_R200m ) )
-hi_mod_trans_M = np.log10( hi_fun_mid_M( hi_medi_R200m ) )
+lo_mod_trans_M = np.log10( lo_fun_mid_M( R200m ) )
+hi_mod_trans_M = np.log10( hi_fun_mid_M( R200m ) )
 
+print( lo_mod_trans_M, hi_mod_trans_M )
 

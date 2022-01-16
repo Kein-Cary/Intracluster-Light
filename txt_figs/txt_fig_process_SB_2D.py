@@ -22,14 +22,19 @@ import astropy.constants as C
 import scipy.stats as sts
 from astropy import cosmology as apcy
 from astropy.coordinates import SkyCoord
-from scipy import optimize
 from scipy import ndimage
 
+from astropy.convolution import Gaussian2DKernel
+from scipy.signal import convolve as scipy_convolve
+from astropy.convolution import convolve
+
+#..
 from img_random_SB_fit import random_SB_fit_func, clust_SB_fit_func, cc_rand_sb_func
 from img_BG_sub_SB_measure import BG_sub_sb_func
 from light_measure import light_measure_weit
 from img_cat_param_match import match_func
 from img_pre_selection import extra_match_func
+
 
 # cosmology model
 rad2asec = U.rad.to(U.arcsec)
@@ -50,15 +55,12 @@ phyR_psf = np.array( psf_FWHM ) * Da_ref * 10**3 / rad2asec
 
 
 ### === ### Background subtraction img
-#. flux scaling correction
-path = '/home/xkchen/figs/re_measure_SBs/SBs/'
-out_path = '/home/xkchen/figs/re_measure_SBs/BGs/'
+path = '/home/xkchen/figs/extend_bcgM_cat/SBs/'
+img_path = '/home/xkchen/figs/extend_bcgM_cat/SBs/'
+out_path = '/home/xkchen/figs/extend_bcgM_cat/BGs/'
 
-img_path = '/home/xkchen/figs/re_measure_SBs/SBs/'
 rand_path = '/home/xkchen/figs/re_measure_SBs/random_ref_SB/'
 
-
-color_s = [ 'r', 'g', 'b' ]
 
 # random profile
 rand_r, rand_sb, rand_err = [], [], []
@@ -96,12 +98,13 @@ for kk in range( 3 ):
 	nbg_tot_sb.append( tt_sb )
 	nbg_tot_err.append( tt_err )
 
-Da_ref = Test_model.angular_diameter_distance( z_ref ).value
+
 L_pix = Da_ref * 10**3 * pixel / rad2asec
 
 R1Mpc = 1000 / L_pix
 R2Mpc = 2000 / L_pix
 R3Mpc = 3000 / L_pix
+
 
 ### === ### 2D signal compare
 def sersic_func(r, Ie, re, ndex):
@@ -464,6 +467,7 @@ def full_stack_image_2D():
 
 # full_stack_image_2D()
 
+
 ##... center region
 def ri_aveg_img():
 
@@ -482,7 +486,6 @@ def ri_aveg_img():
 		i_band_rms = np.array( f['a'] )
 
 	inves_i_rms2 = 1 / i_band_rms**2
-
 
 	## random imgs
 	with h5py.File( rand_path + 'random_r-band_rand-stack_Mean_jack_img_z-ref-aveg.h5', 'r') as f:
@@ -720,11 +723,24 @@ def ri_aveg_img():
 # ri_aveg_img()
 
 
-for kk in range( 0,1 ):
+for kk in range( 1 ):
 
 	## flux imgs
 	with h5py.File( img_path + 'photo-z_match_tot-BCG-star-Mass_%s-band_Mean_jack_img_z-ref.h5' % band[kk], 'r') as f:
 		tmp_img = np.array( f['a'])
+
+	# with h5py.File( '/home/xkchen/figs/extend_bcgM_cat/entire_2D_check/' + 
+	# 				'photo-z_match_tot-BCG-star-Mass_%s-band_stack_test_img.h5' % band[kk], 'r') as f:
+	# 	tmp_img = np.array( f['a'])
+
+	##.. pre-results
+	# with h5py.File( '/home/xkchen/figs/extend_bcgM_cat/entire_2D_check/' + 
+	# 				'pre_tot-BCG-star-Mass_%s-band_stack_test_img.h5' % band[kk], 'r') as f:
+
+	# with h5py.File( '/home/xkchen/figs/extend_bcgM_cat/entire_2D_check/' + 
+	# 				'pre_gri-common_tot-BCG-star-Mass_%s-band_stack_test_img.h5' % band[kk], 'r') as f:
+	#	tmp_img = np.array( f['a'])
+
 	cen_x, cen_y = np.int( tmp_img.shape[1] / 2 ), np.int( tmp_img.shape[0] / 2 )
 
 	idnn = np.isnan( tmp_img )
@@ -750,33 +766,43 @@ for kk in range( 0,1 ):
 	sb_2Mpc = sersic_func( 2e3, I_e, R_e, 2.1)
 
 	shift_rand_img = rand_img / pixel**2 - offD + sb_2Mpc
-	BG_sub_img = tmp_img / pixel**2 - shift_rand_img
+
+	# BG_sub_img = tmp_img / pixel**2 - shift_rand_img
+
+	cp_rand_img_0 = shift_rand_img[::-1, ::-1]
+	cp_rand_img_1 = shift_rand_img[::-1, :]
+	cp_rand_img_2 = shift_rand_img[:, ::-1]
+	BG_sub_img = tmp_img / pixel**2 - cp_rand_img_2
+
 
 	idnn = np.isnan( BG_sub_img )
 	idy_lim, idx_lim = np.where( idnn == False)
 	x_lo_cut, x_up_cut = idx_lim.min(), idx_lim.max()
 	y_lo_cut, y_up_cut = idy_lim.min(), idy_lim.max()
 
+
 	## 2D signal
 	cut_img = tmp_img[ y_lo_lim: y_up_lim + 1, x_lo_lim: x_up_lim + 1 ] / pixel**2
-	id_nan = np.isnan( cut_img )
-	cut_img[id_nan] = 0.
+	# id_nan = np.isnan( cut_img )
+	# cut_img[id_nan] = 0.
 
 	cut_rand = rand_img[ y_lo_eff: y_up_eff + 1, x_lo_eff: x_up_eff + 1 ] / pixel**2
-	id_nan = np.isnan( cut_rand )
-	cut_rand[id_nan] = 0.
+	# id_nan = np.isnan( cut_rand )
+	# cut_rand[id_nan] = 0.
 
 	cut_off_rand = shift_rand_img[ y_lo_eff: y_up_eff + 1, x_lo_eff: x_up_eff + 1 ]
-	id_nan = np.isnan( cut_off_rand )
-	cut_off_rand[id_nan] = 0.
+	# id_nan = np.isnan( cut_off_rand )
+	# cut_off_rand[id_nan] = 0.
 
 	cut_BG_sub_img = BG_sub_img[ y_lo_cut: y_up_cut + 1, x_lo_cut: x_up_cut + 1 ]
-	id_nan = np.isnan( cut_BG_sub_img )
-	cut_BG_sub_img[id_nan] = 0.
+	# id_nan = np.isnan( cut_BG_sub_img )
+	# cut_BG_sub_img[id_nan] = 0.
+
 
 	y_peak, x_peak = np.where( cut_BG_sub_img == np.nanmax( cut_BG_sub_img ) )
 	y_peak, x_peak = y_peak[0], x_peak[0]
 	cen_region = cut_BG_sub_img[ y_peak - np.int( 3 * n500 ) : y_peak + np.int( 3 * n500 ) + 1, x_peak - np.int( 3 * n500 ) : x_peak + np.int( 3 * n500 ) + 1 ]
+
 
 	filt_img_0 = ndimage.gaussian_filter( cen_region, sigma = 3,)
 	mag_map_0 = 22.5 - 2.5 * np.log10( filt_img_0 )
@@ -790,17 +816,13 @@ for kk in range( 0,1 ):
 	filt_img_3 = ndimage.gaussian_filter( cen_region, sigma = 17,)
 	mag_map_3 = 22.5 - 2.5 * np.log10( filt_img_3 )
 
-	filt_img_4 = ndimage.gaussian_filter( cen_region, sigma = 21,)
+	filt_img_4 = ndimage.gaussian_filter( cen_region, sigma = 29,)  # sigma = 21, 22, 27, 25
 	mag_map_4 = 22.5 - 2.5 * np.log10( filt_img_4 )
 
-	# filt_img_5 = ndimage.gaussian_filter( cen_region, sigma = 215,)
-	# mag_map_5 = 22.5 - 2.5 * np.log10( filt_img_5 )
 
-	# filt_BG_sub_img = ndimage.gaussian_filter( cut_BG_sub_img, sigma = 115)
-	# filt_BG_sub_mag = 22.5 - 2.5 * np.log10( filt_BG_sub_img )
-
-	filt_BG_sub_img = ndimage.gaussian_filter( cut_BG_sub_img, sigma = 21,)
+	filt_BG_sub_img = ndimage.gaussian_filter( cut_BG_sub_img, sigma = 29,)
 	filt_BG_sub_mag = 22.5 - 2.5 * np.log10( filt_BG_sub_img )
+
 
 	## SB profiles in mag / arcsec^2
 	modi_rand_sb = rand_sb[kk] - offD + sb_2Mpc
@@ -817,15 +839,17 @@ for kk in range( 0,1 ):
 	nbg_clus_mag = nbg_clus_mag[ idnn == False ]
 	nbg_clus_mag_err = nbg_clus_mag_err[ idnn == False ]
 
+
+	##... figs
+	#...compare the center region only
 	color_lis = []
 
 	for jj in np.arange( 11 ):
 		color_lis.append( mpl.cm.rainbow_r( jj / 10) )
 
 	dd_lis = np.arange(26, 33, 1)
-	_mag_img = 22.5 - 2.5 * np.log10( cut_BG_sub_img )
 
-	#...compare the center region only
+
 	fig = plt.figure( figsize = (10.0, 4.8) )
 	ax2 = fig.add_axes([0.08, 0.12, 0.39, 0.80])
 	ax3 = fig.add_axes([0.59, 0.12, 0.39, 0.80])
@@ -850,6 +874,19 @@ for kk in range( 0,1 ):
 
 	ax2.contour( filt_BG_sub_mag, origin = 'lower',  levels = [31, 32, 100], colors = [ color_lis[8], color_lis[10], 'w'], 
 		extent = (0, x_up_cut + 1 - x_lo_cut, 0, y_up_cut + 1 - y_lo_cut), )
+
+
+	# dl0 = 250
+	# dl1 = 450
+
+	# Box = Rectangle( xy = (x_peak - dl0, y_peak - dl0), width = dl0, height = dl0, fill = False, 
+	# 					ec = 'r', ls = '--', linewidth = 1, alpha = 0.75)
+	# ax2.add_patch( Box )
+
+	# Box = Rectangle( xy = (x_peak - dl1, y_peak - dl1), width = dl1, height = dl1, fill = False, 
+	# 					ec = 'r', ls = '-', linewidth = 1, alpha = 0.75)
+	# ax2.add_patch( Box )	
+
 
 	me_map = mpl.colors.ListedColormap( 
 		[ color_lis[0], color_lis[2], color_lis[3], color_lis[4], color_lis[6], color_lis[8], color_lis[10] ] )
@@ -906,13 +943,13 @@ for kk in range( 0,1 ):
 	ax3.fill_between( rand_r[kk] / 1e3, y1 = modi_rand_mag - modi_rand_mag_err, y2 = modi_rand_mag + modi_rand_mag_err, color = 'k', alpha = 0.12,)
 
 	ax3.legend( loc = 1, fontsize = 14, frameon = False, markerfirst = False,)
-	ax3.annotate( text = 'r-band', xy = (0.20, 0.15), xycoords = 'axes fraction', fontsize = 15,)
+	ax3.annotate( s = 'r-band', xy = (0.20, 0.15), xycoords = 'axes fraction', fontsize = 15,)
 
 	ax3.axvline( x = phyR_psf / 1e3, ls = '-.', linewidth = 3.5, color = 'k', alpha = 0.20,)
 	ax3.text( 3.1e-3, 27, s = 'PSF', fontsize = 22, rotation = 'vertical', color = 'k', alpha = 0.25, fontstyle = 'italic',)
 
-	ax3.set_xlim( 3e-3, 1e0 )
-	ax3.set_ylim( 20, 33 )
+	ax3.set_xlim( 3e-3, 1e0  )
+	ax3.set_ylim( 20.5, 32.5 )
 
 	ax3.invert_yaxis()
 	ax3.set_xscale('log')
@@ -921,12 +958,13 @@ for kk in range( 0,1 ):
 
 	x_tick_arr = [ 1e-2, 1e-1, 1e0]
 	tick_lis = ['$\\mathrm{0.01}$','$\\mathrm{0.1}$', '$\\mathrm{1}$']
+
 	ax3.set_xticks( x_tick_arr )
 	ax3.get_xaxis().set_major_formatter( ticker.FixedFormatter( tick_lis ) )
 	ax3.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
 
 	ax3.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
 
-	plt.savefig('/home/xkchen/mass-bin_%s-band_BG-sub_2D.png' % band[kk], dpi = 300)
+	plt.savefig('/home/xkchen/mass_bin_%s_band_BG_sub_2D.png' % band[kk], dpi = 300)
 	plt.close()
 

@@ -120,7 +120,27 @@ def err_fit_func(p, x, y, params, yerr):
 	_sum_mass = np.log10( _mass_out * 10**bf )
 
 	delta = _sum_mass - y
+
 	cov_inv = np.linalg.pinv( cov_mx )
+	chi2 = delta.T.dot( cov_inv ).dot(delta)
+	# chi2 = np.sum( delta**2 / yerr**2 )
+
+	if np.isfinite( chi2 ):
+		return chi2
+	return np.inf
+
+def Ng_err_fit_func(p, x, y, params, yerr):
+
+	bf = p[0]
+
+	cov_mx, lg_sigma = params[:]
+
+	_mass_out = 10**lg_sigma
+	_sum_mass = np.log10( _mass_out * 10**bf )
+
+	delta = _sum_mass - y
+
+	# cov_inv = np.linalg.pinv( cov_mx )
 	# chi2 = delta.T.dot( cov_inv ).dot(delta)
 	chi2 = np.sum( delta**2 / yerr**2 )
 
@@ -128,39 +148,38 @@ def err_fit_func(p, x, y, params, yerr):
 		return chi2
 	return np.inf
 
+
 ### === load data
 z_ref = 0.25
 Dl_ref = Test_model.luminosity_distance( z_ref ).value
 a_ref = 1 / (z_ref + 1)
 
 ## ... satellite number density
-"""
-bin_R, siglow, errsiglow, sighig, errsighig, highoverlow, errhighoverlow = np.genfromtxt(
-															'/home/xkchen/tmp_run/data_files/figs/result_high_over_low.txt', unpack = True)
-#. convert to physical coordinate and using 'kpc' as Length unit
-bin_R = bin_R * 1e3 * a_ref / h
-siglow, errsiglow, sighig, errsighig = np.array( [siglow * h**2 / 1e6, errsiglow * h**2 / 1e6, 
-													sighig * h**2 / 1e6, errsighig * h**2 / 1e6] ) / a_ref**2
-
-id_nan = np.isnan( bin_R )
-bin_R = bin_R[ id_nan == False]
-siglow, errsiglow, sighig, errsighig = [ siglow[ id_nan == False], errsiglow[ id_nan == False], sighig[ id_nan == False], 
-										errsighig[ id_nan == False] ]
-"""
-lo_Ng_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/data_Zhiwei/' + 'g2r_all_sample/data/g-r_deext/low-BCG_g-r_deext_allinfo_noRG.csv')
+# lo_Ng_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/data_Zhiwei/' + 'g2r_all_sample/data/g-r_deext/low-BCG_g-r_deext_allinfo_noRG.csv')
+lo_Ng_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/data_Zhiwei/extend_bcgM/low_BCG_star-Mass_sigma-g_profile.csv')
 lo_n_rp, lo_Ng, lo_Ng_err = np.array(lo_Ng_dat['rbins']), np.array(lo_Ng_dat['sigma']), np.array(lo_Ng_dat['sigma_err'])
 
 siglow, errsiglow = lo_Ng * h**2 / a_ref**2 / 1e6, lo_Ng_err * h**2 / a_ref**2 / 1e6 # unit, '/kpc^{-2}'
 bin_R = lo_n_rp * 1e3 / h / (1 + z_ref)
 
-hi_Ng_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/data_Zhiwei/' + 'g2r_all_sample/data/g-r_deext/hi-BCG_g-r_deext_allinfo_noRG.csv')
+
+# hi_Ng_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/data_Zhiwei/' + 'g2r_all_sample/data/g-r_deext/hi-BCG_g-r_deext_allinfo_noRG.csv')
+hi_Ng_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/data_Zhiwei/extend_bcgM/high_BCG_star-Mass_sigma-g_profile.csv')
 hi_n_rp, hi_Ng, hi_Ng_err = np.array(hi_Ng_dat['rbins']), np.array(hi_Ng_dat['sigma']), np.array(hi_Ng_dat['sigma_err'])
 
 sighig, errsighig = hi_Ng * h**2 / a_ref**2 / 1e6, hi_Ng_err * h**2 / a_ref**2 / 1e6
 
 
+tot_Ng_dat = pds.read_csv('/home/xkchen/mywork/ICL/data/data_Zhiwei/extend_bcgM/total_sigma-g_profile.csv')
+tot_N_R, tot_Ng, tot_Ng_err = np.array(tot_Ng_dat['rbins']), np.array(tot_Ng_dat['sigma']), np.array(tot_Ng_dat['sigma_err'])
+
+tot_Ng, tot_Ng_err = tot_Ng * h**2 / a_ref**2 / 1e6, tot_Ng_err * h**2 / a_ref**2 / 1e6
+tot_N_R = tot_N_R * 1e3 / h / (1 + z_ref)
+
+
 lo_Ng_int_F = interp.interp1d( bin_R, siglow, kind = 'linear', fill_value = 'extrapolate',)
 hi_Ng_int_F = interp.interp1d( bin_R, sighig, kind = 'linear', fill_value = 'extrapolate',)
+tot_Ng_int_F = interp.interp1d( tot_N_R, tot_Ng, kind = 'linear', fill_value = 'extrapolate',)
 
 
 ## ... DM mass profile
@@ -196,211 +215,31 @@ line_c = ['b', 'r']
 mark_s = ['s', 'o']
 
 
-###...### subsamples
-"""
-## ... miscen params
-v_m = 200 # rho_mean = 200 * rho_c * omega_m
-c_mass = [5.87, 6.95]
-Mh0 = [14.24, 14.24]
-off_set = [230, 210] # in unit kpc / h
-f_off = [0.37, 0.20]
-
-## fitting outer region
-# icl_mode = 'misNFW'
-icl_mode = 'xi2M'
-# icl_mode = 'SG_N'
-
-out_lim_R = [300, 350, 400] # 300, 350, 400 kpc
-
-BG_path = '/home/xkchen/figs/re_measure_SBs/BGs/'
-out_path = '/home/xkchen/figs/re_measure_SBs/SM_profile/'
-fit_path = '/home/xkchen/figs/re_measure_SBs/SM_pro_fit/'
-
-id_dered = True
-dered_str = '_with-dered'
-
-# id_dered = False
-# dered_str = ''
-
-for mm in range( 2 ):
-
-	lg_fb_arr = []
-
-	for tt in range( 3 ):
-
-		if id_dered == False:
-
-			dat = pds.read_csv( out_path + '%s_gri-band-based_corrected_aveg-jack_mass-Lumi.csv' % cat_lis[mm],)
-			obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
-
-			##.. cov_arr
-			with h5py.File( out_path + '%s_gri-band-based_aveg-jack_log-surf-mass_cov_arr.h5' % cat_lis[mm], 'r') as f:
-				cov_arr = np.array( f['cov_MX'] )
-				cor_arr = np.array( f['cor_MX'] )
-
-		if id_dered == True:
-			dat = pds.read_csv( out_path + '%s_gri-band-based_corrected_aveg-jack_mass-Lumi_with-dered.csv' % cat_lis[mm],)
-			obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['medi_correct_surf_M'] ), np.array( dat['surf_M_err'] )
-
-			##.. cov_arr
-			with h5py.File( out_path + '%s_gri-band-based_aveg-jack_log-surf-mass_cov_arr_with-dered.h5' % cat_lis[mm], 'r') as f:
-				cov_arr = np.array( f['cov_MX'] )
-				cor_arr = np.array( f['cor_MX'] )
-
-		id_rx = obs_R >= 9
-		obs_R, surf_M, surf_M_err = obs_R[id_rx], surf_M[id_rx], surf_M_err[id_rx]
-
-		id_cov = np.where( id_rx )[0][0]
-		cov_arr = cov_arr[id_cov:, id_cov:]
-
-		lg_M, lg_M_err = np.log10( surf_M ), surf_M_err / ( np.log(10) * surf_M )
-
-		if icl_mode == 'misNFW':
-			## .. ICL part (mis_NFW)
-			misNFW_sigma = obs_sigma_func( obs_R * h, f_off[mm], off_set[mm], z_ref, c_mass[mm], Mh0[mm], v_m )
-			misNFW_sigma = misNFW_sigma * h # in unit of M_sun / kpc^2
-			sigma_2Mpc = obs_sigma_func( 2e3 * h, f_off[mm], off_set[mm], z_ref, c_mass[mm], Mh0[mm], v_m ) * h
-			lg_M_sigma = np.log10( misNFW_sigma - sigma_2Mpc )
-
-		if icl_mode == 'xi2M':
-			## .. use xi_hm for sigma estimation
-			if mm == 0:
-				xi_to_Mf = lo_interp_F
-
-			if mm == 1:
-				xi_to_Mf = hi_interp_F
-
-			misNFW_sigma = xi_to_Mf( obs_R )
-			sigma_2Mpc = xi_to_Mf( 2e3 )
-			lg_M_sigma = np.log10( misNFW_sigma - sigma_2Mpc )
-
-		if icl_mode == 'SG_N':
-			#... satellite number density
-			if mm == 0:
-				sig_rho_f = lo_Ng_int_F
-
-			if mm == 1:
-				sig_rho_f = hi_Ng_int_F
-
-			misNFW_sigma = sig_rho_f( obs_R )
-			sigma_2Mpc = sig_rho_f( 2e3 )
-			lg_M_sigma = np.log10( misNFW_sigma - sigma_2Mpc )
-
-		# out_lim_R = 350 # 300, 350, 400 kpc
-		idx_lim = obs_R >= out_lim_R[ tt ]
-		id_dex = np.where( idx_lim == True )[0][0]
-
-		fit_R = obs_R[idx_lim]
-		fit_M = lg_M[idx_lim]
-		fit_Merr = lg_M_err[idx_lim]
-		cut_cov = cov_arr[id_dex:, id_dex:]
-
-		po_param = [ cut_cov, lg_M_sigma[idx_lim] ]
-
-		if icl_mode != 'SG_N':
-			po = -2.5
-			bounds = [ [-4, -2] ]
-			E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_M, po_param, fit_Merr), method = 'L-BFGS-B', bounds = bounds,)
-
-		else:
-			po = 10.7
-			bounds = [ [9, 11] ]
-			E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_M, po_param, fit_Merr), method = 'L-BFGS-B', bounds = bounds,)
-
-		print(E_return)
-		popt = E_return.x
-		bf_fit = popt
-
-		lg_fb_arr.append( bf_fit )
-
-		_out_M = 10**lg_M_sigma * 10** bf_fit
-		_sum_fit = np.log10( _out_M )
-		devi_lgM = np.log10( surf_M - _out_M )
-
-		##.. model lines
-		new_R = np.logspace( 0, np.log10(2.5e3), 100)
-
-		if icl_mode == 'misNFW':
-			fit_out_M = ( obs_sigma_func( new_R * h, f_off[mm], off_set[mm], z_ref, c_mass[mm], Mh0[mm], v_m ) * h - sigma_2Mpc ) * 10** bf_fit
-
-		if icl_mode == 'xi2M':
-			fit_out_M = ( xi_to_Mf( new_R ) - sigma_2Mpc ) * 10**bf_fit
-
-		if icl_mode == 'SG_N':
-			fit_out_M = ( sig_rho_f( new_R ) - sigma_2Mpc ) * 10** bf_fit
-
-		plt.figure()
-		ax = plt.subplot(111)
-		ax.set_title( fig_name[mm])
-
-		ax.errorbar( obs_R, lg_M, yerr = lg_M_err, xerr = None, color = 'r', marker = '.', ls = 'none', ecolor = 'r', 
-			alpha = 0.75, mec = 'r', mfc = 'r', label = 'observed')
-
-		ax.plot( new_R, np.log10( fit_out_M ), ls = '-', color = 'b', alpha = 0.75, 
-			label = 'scaled $NFW_{projected}^{miscentering}$',)
-
-		ax.text( 1e1, 3.5, s = '$\\lgf{=}%.5f \; [R>=%dkpc]$' % (bf_fit, out_lim_R[ tt ]), color = 'k',)
-
-		ax.legend( loc = 1, )
-		ax.set_ylim( 3, 8.5)
-		ax.set_ylabel( '$ lg \\Sigma [M_{\\odot} / kpc^2]$' )
-
-		ax.set_xlim( 1e1, 3e3)
-		ax.set_xlabel( 'R [kpc]')
-		ax.set_xscale( 'log' )
-		plt.savefig('/home/xkchen/%s_beyond-%dkpc_fit_test.png' % (cat_lis[mm], out_lim_R[ tt ] ), dpi = 300)
-		plt.close()
-
-	keys = ['lg_fb_300', 'lg_fb_350', 'lg_fb_400']
-	values = [ ]
-	for oo in range( 3 ):
-		values.append( lg_fb_arr[oo] )
-
-	fill = dict( zip( keys, values) )
-	out_data = pds.DataFrame( fill, index = ['k', 'v'])
-	out_data.to_csv( fit_path + '%s_all-color-to-M_%s-fit%s.csv' % (cat_lis[mm], icl_mode, dered_str),)
-
-"""
-
-###...### total sample
+### ==== ### total sample
 # icl_mode = 'xi2M'
 icl_mode = 'SG_N'
 
 #. 
-out_path = '/home/xkchen/figs/re_measure_SBs/SM_profile/'
-fit_path = '/home/xkchen/figs/re_measure_SBs/SM_pro_fit/'
+out_path = '/home/xkchen/figs/extend_bcgM_cat/SM_pros/'
+fit_path = '/home/xkchen/figs/extend_bcgM_cat/SM_pros_fit/'
 
 
 #. mass estimation with deredden or not
-# id_dered = True
-# dered_str = 'with-dered_'
-
-id_dered = False
-dered_str = ''
+id_dered = True
+dered_str = 'with-dered_'
 
 out_lim_R = [ 300, 350, 400 ]
 band_str = 'gri'
 
 for pp in range( 3 ):
-	if id_dered == False:
 
-		dat = pds.read_csv( out_path + 'photo-z_tot-BCG-star-Mass_gri-band-based_aveg-jack_mass-Lumi.csv')
-		obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['surf_mass'] ), np.array( dat['surf_mass_err'] )
+	dat = pds.read_csv( out_path + 'photo-z_tot-BCG-star-Mass_gri-band-based_aveg-jack_mass-Lumi_with-dered.csv' )
+	obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['surf_mass'] ), np.array( dat['surf_mass_err'] )
 
-		##.. cov_arr
-		with h5py.File( out_path + 'photo-z_tot-BCG-star-Mass_gri-band-based_aveg-jack_log-surf-mass_cov_arr.h5', 'r') as f:
-			cov_arr = np.array( f['cov_MX'] )
-			cor_arr = np.array( f['cor_MX'] )
-
-	if id_dered == True:
-
-		dat = pds.read_csv( out_path + 'photo-z_tot-BCG-star-Mass_gri-band-based_aveg-jack_mass-Lumi_with-dered.csv' )
-		obs_R, surf_M, surf_M_err = np.array( dat['R'] ), np.array( dat['surf_mass'] ), np.array( dat['surf_mass_err'] )
-
-		##.. cov_arr
-		with h5py.File( out_path + 'photo-z_tot-BCG-star-Mass_gri-band-based_aveg-jack_log-surf-mass_cov_arr_with-dered.h5', 'r') as f:
-			cov_arr = np.array( f['cov_MX'] )
-			cor_arr = np.array( f['cor_MX'] )
+	##.. cov_arr
+	with h5py.File( out_path + 'photo-z_tot-BCG-star-Mass_gri-band-based_aveg-jack_log-surf-mass_cov_arr_with-dered.h5', 'r') as f:
+		cov_arr = np.array( f['cov_MX'] )
+		cor_arr = np.array( f['cor_MX'] )
 
 
 	id_rx = obs_R >= 10 # 9, 10
@@ -409,9 +248,10 @@ for pp in range( 3 ):
 	id_cov = np.where( id_rx )[0][0]
 	cov_arr = cov_arr[id_cov:, id_cov:]
 
-	lg_M, lg_M_err = np.log10( surf_M ), surf_M_err / ( np.log(10) * surf_M )
+	lg_M, lg_M_err = np.log10( surf_M ), np.sqrt( np.diag(cov_arr) ) # surf_M_err / ( np.log(10) * surf_M )
 
 	if icl_mode == 'xi2M':
+
 		## .. use xi_hm for sigma estimation
 		xi_rp = (lo_xi + hi_xi) / 2
 
@@ -424,13 +264,12 @@ for pp in range( 3 ):
 		lg_M_sigma = np.log10( misNFW_sigma - sigma_2Mpc )
 
 	if icl_mode == 'SG_N':
-		#... satellite number density
-		sig_aveg = (siglow + sighig) / 2
-		sig_rho_f = interp.interp1d( bin_R, sig_aveg, kind = 'linear', fill_value = 'extrapolate',)
 
-		misNFW_sigma = sig_rho_f( obs_R )
-		sigma_2Mpc = sig_rho_f( 2e3 )
+		#... satellite number density
+		misNFW_sigma = tot_Ng_int_F( obs_R )
+		sigma_2Mpc = tot_Ng_int_F( 2e3 )
 		lg_M_sigma = np.log10( misNFW_sigma - sigma_2Mpc )
+
 
 	idx_lim = obs_R >= out_lim_R[ pp ]
 	id_dex = np.where( idx_lim == True )[0][0]
@@ -451,7 +290,7 @@ for pp in range( 3 ):
 	else:
 		po = 10.7
 		bounds = [ [9, 11] ]
-		E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_M, po_param, fit_Merr), 
+		E_return = optimize.minimize( Ng_err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_M, po_param, fit_Merr), 
 			method = 'L-BFGS-B', bounds = bounds,)
 
 	print(E_return)
@@ -471,10 +310,11 @@ for pp in range( 3 ):
 		fit_out_M = ( xi_to_Mf( new_R ) - sigma_2Mpc ) * 10**bf_fit
 
 	if icl_mode == 'SG_N':
-		fit_out_M = ( sig_rho_f( new_R ) - sigma_2Mpc ) * 10** bf_fit
+		fit_out_M = ( tot_Ng_int_F( new_R ) - sigma_2Mpc ) * 10** bf_fit
 
 	plt.figure()
 	ax = plt.subplot(111)
+
 	ax.set_title('total, %s-band based' % band_str)
 
 	ax.errorbar( obs_R, lg_M, yerr = lg_M_err, xerr = None, color = 'r', marker = '.', ls = 'none', ecolor = 'r', 
@@ -488,6 +328,8 @@ for pp in range( 3 ):
 	if icl_mode == 'SG_N':
 		ax.plot( new_R, np.log10( fit_out_M ), ls = '-', color = 'b', alpha = 0.75, 
 			label = '$N_{g} * 10^{%.3f} M_{\\odot}$' % bf_fit,)
+
+	# ax.plot( new_R, np.log10( ( xi_to_Mf( new_R ) - sigma_2Mpc ) * 10**(-2.61) ), 'k:',)
 
 	ax.legend( loc = 1, )
 	ax.set_ylim( 3, 8.5)
@@ -507,3 +349,4 @@ for pp in range( 3 ):
 	fill = dict( zip( keys, values) )
 	out_data = pds.DataFrame( fill, index = ['k', 'v'])
 	out_data.to_csv( fit_path + '%stotal_all-color-to-M_beyond-%dkpc_%s-fit.csv' % (dered_str, out_lim_R[ pp ], icl_mode) )
+

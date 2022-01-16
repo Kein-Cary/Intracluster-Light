@@ -47,8 +47,8 @@ fig_name = ['Low $ \\lambda \\mid M_{\\ast}^{\\mathrm{BCG}} $',
 
 
 #. BCG color
-# clus_dat = pds.read_csv( '/home/xkchen/figs/sat_cat_ZLW/clust_sql_match_cat.csv' )
-clus_dat = pds.read_csv( '/home/xkchen/figs/ZLW_cat_15/ZLW_sat/clust_bcg-m_rich_sql_match_cat.csv' )
+# clus_dat = pds.read_csv( '/home/xkchen/figs/sat_cat_ZLW/ZLW_cat_clust_sql_match_cat.csv' )
+clus_dat = pds.read_csv( '/home/xkchen/figs/sat_cat_ZLW/ZLW_cat_clust_BCG-Mstar_rich_sql_match_cat.csv' )
 
 orin_dex = np.array( clus_dat['clust_id'] )
 clus_ra, clus_dec, clus_z = np.array( clus_dat['ra'] ), np.array( clus_dat['dec'] ), np.array( clus_dat['clus_z'] )
@@ -72,7 +72,7 @@ hi_bcg_gr = bcg_g_mag[ dex_lo == False ] - bcg_r_mag[ dex_lo == False ]
 R_cri = np.linspace( 0, 1.2, 9)
 N_ri = len( R_cri )
 
-
+"""
 #. satellites radii bins color
 for ll in range( 2 ):
 
@@ -152,6 +152,7 @@ for ll in range( 2 ):
 
 		f_tree.close()
 
+"""
 
 for jj in range( N_ri - 1 ):
 
@@ -252,7 +253,7 @@ for jj in range( N_ri - 1 ):
 	ax.set_ylabel('PDF', fontsize = 13,)
 	ax.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 13,)
 
-	ax.annotate( text = '$%.1f \\leq R \\leq %.1f Mpc$' % (R_cri[jj], R_cri[jj+1]), xy = (0.65, 0.15), 
+	ax.annotate( s = '$%.1f \\leq R \\leq %.1f Mpc$' % (R_cri[jj], R_cri[jj+1]), xy = (0.65, 0.15), 
 		xycoords = 'axes fraction', fontsize = 13,)
 	plt.savefig('/home/xkchen/BCG_color_compare_within-%.1f-Mpc.png' % R_cri[ jj+1 ], dpi = 300)
 	plt.close()

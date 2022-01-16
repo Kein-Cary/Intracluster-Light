@@ -70,6 +70,7 @@ def cumu_mass_func(rp, surf_mass, N_grid = 100):
 
 	return cumu_mass
 
+
 ### === ### galaxy mass estimation
 
 #... CSMF of Yang et al. 2012
@@ -123,6 +124,7 @@ def interp_csmf_func( N_norm, norm_lgM, id_norm = False, N_points = 250):
 	return interp_smf, interp_up_M
 
 """
+#... interpolation of CSMF
 def aveg_SGs_Mstar_f( low_lim = None, up_lim = None, N_points = 250):
 
 	csmf_dat = pds.read_csv('/home/xkchen/tmp_run/data_files/figs/cc_Yang_CSMF.txt', sep = ',')
@@ -374,6 +376,7 @@ def M2mpc_sub_fraction():
 
 	return test_R, eta, eta_mis
 
+
 ################################ sample measurement
 z_ref = 0.25
 Dl_ref = Test_model.luminosity_distance( z_ref ).value
@@ -458,31 +461,16 @@ lo_xi2M_2Mpc = lo_interp_F( 2e3 )
 hi_xi2M_2Mpc = hi_interp_F( 2e3 )
 
 
-#... cluster mass and radius 
-dd_rich = np.array( [] ) 
-dd_z_obs = np.array( [] )
-dd_lg_Mstar = np.array( [] )
-cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
-
-for mm in range( 2 ):
-
-	#... lg_Mstar
-	l_dat = pds.read_csv('/home/xkchen/tmp_run/data_files/figs/%s_r-band_photo-z-match_rgi-common_cat_params.csv' % cat_lis[mm])
-	l_rich = np.array( l_dat['rich'])
-	l_lgM = np.array( l_dat['lg_Mstar'])
-
-	#... mag
-	pdat = pds.read_csv( '/home/xkchen/tmp_run/data_files/figs/%s_BCG-color.csv' % cat_lis[mm] )
-	p_z = np.array( pdat['z'] )
-
-	dd_z_obs = np.r_[ dd_z_obs, p_z ]
-	dd_rich = np.r_[ dd_rich, l_rich ]
-	dd_lg_Mstar = np.r_[ dd_lg_Mstar, l_lgM - 2 * np.log10( h ) ]
-
-M200m, R200m = rich2R_Simet( dd_z_obs, dd_rich,)
-
-
 ###... total mass profile and satellite number density
+Mh_clus = 10**14.41  # M_sun
+c_mass = np.array( [ 6.95, 5.87 ] )
+
+mrho_zref = rhom_set( z_ref )[1]  ## M_sun * h^2 / kpc^3
+mrho_zref = mrho_zref * h**2      ## M_sun / kpc^3
+
+R200m = ( 3 * Mh_clus / (4 * np.pi * mrho_zref * 200) )**(1 / 3)
+
+
 xi_rp = (lo_xi + hi_xi) / 2
 tot_rho_m = ( xi_rp * 1e3 * rho_m ) / a_ref**2 * h
 xi_to_Mf = interp.interp1d( lo_rp, tot_rho_m, kind = 'cubic',)
@@ -502,16 +490,20 @@ Ng_2Mpc = sig_rho_f( 2e3 )
 N_grid = 500
 integ_Ng = cumu_mass_func( bin_R, Ng_sigma, N_grid = N_grid )
 fun_Ng = interp.interp1d( bin_R, integ_Ng, kind = 'linear', fill_value = 'extrapolate',)
-N_sat = fun_Ng( np.median( R200m ) )
+N_sat = fun_Ng( R200m )
 
 
 ### limited magnitude and satellite mass estimation
 #. lgM* = a*(g-r) + b*(r-i) + c*lg(Li) + d
-p_dat = pds.read_csv( '/home/xkchen/tmp_run/data_files/figs/M2L_Lumi_selected/least-square_M-to-i-band-Lumi&color.csv' )
+
+# p_dat = pds.read_csv( '/home/xkchen/tmp_run/data_files/figs/M2L_Lumi_selected/least-square_M-to-i-band-Lumi&color.csv' )
+p_dat = pds.read_csv( '/home/xkchen/figs/extend_bcgM_cat/Mass_Li_fit/least-square_M-to-i-band-Lumi&color.csv' )
+
 a_fit = np.array( p_dat['a'] )[0]
 b_fit = np.array( p_dat['b'] )[0]
 c_fit = np.array( p_dat['c'] )[0]
 d_fit = np.array( p_dat['d'] )[0]
+
 
 #. averaged g-r and r-i, Rykoff et al. 2014 (90percen member color)
 mean_gr = 1.4
@@ -520,10 +512,7 @@ mean_ri = 0.5
 #. faint galaxies mass estimation (low limitation of dwarf galaxy)
 dwf_g_M = 1e7 * h**2 # M_sun / h^2
 
-# #. limit from satellites number density profile
-# lim_i_cmag = 21 # mag
-# lim_i_Mag = lim_i_cmag - 5 * np.log10( Dl_ref * 1e6 ) + 5
-
+#. limit from satellites number density profile
 lim_i_Mag = -19.43 + 5 * np.log10( h )
 lim_Li = 10**( -0.4 * ( lim_i_Mag - Mag_sun[2] ) )
 
@@ -542,36 +531,40 @@ dt_Li = 10**( -0.4 * ( dt_iMag - Mag_sun[2] ) )
 dt_lgM = a_fit * mean_gr + b_fit * mean_ri + c_fit * np.log10(dt_Li) + d_fit
 dt_Mi = 10**dt_lgM * h**2
 
+#. satellites above the mass cut
 sum_M, N_glx, aveg_M = shift_aveg_SGs_Mstar_f( N_sat, np.log10( lim_Mi ), low_lim = np.log10( dt_Mi ) )
 lg_sum_M = np.log10( sum_M / h**2 )
 lg_aveg_M = np.log10( aveg_M / h**2 )
 
+#. satellite below the detection limits
 sum_dwf_M, N_dwf, aveg_dwf_M = shift_aveg_SGs_Mstar_f( N_sat, np.log10( lim_Mi ),low_lim = np.log10( dwf_g_M ), up_lim = np.log10( dt_Mi ),)
 lg_sum_dwf_M = np.log10( sum_dwf_M / h**2 )
 lg_aveg_dwf_M = np.log10( aveg_dwf_M / h**2 )
 
-#.. observed profile integrated mass
-# M_ICL = 5.4*1e11 # unit : M_sun
-# M_tran = 5.76*1e10
-# M_BCG = 3.4*1e11
-# #. total mass based on fitting profile integration
-# M_halo = 2.432 * 1e14
-# M_halo_no_sub = 3.13 * 1e14
+#. satellite of entire mass range
+sum_M_all, N_glx_all, aveg_M_all = shift_aveg_SGs_Mstar_f( N_sat, np.log10( lim_Mi ), low_lim = np.log10( dwf_g_M ) )
+lg_sum_M_all = np.log10( sum_M_all / h**2 )
+lg_aveg_M_all = np.log10( aveg_M_all / h**2 )
 
 
 #.. flux scaling correction mass
+fit_path = '/home/xkchen/figs/extend_bcgM_cat/SM_pros_fit/'
+
+
 id_dered = True
 dered_str = 'with-dered_'
 
-# id_dered = False
-# dered_str = ''
 
+#.. fitting on large scale
+out_lim_R = 350 # 350, 400
 
-fit_path = '/home/xkchen/figs/re_measure_SBs/SM_pro_fit/'
+c_dat = pds.read_csv( fit_path + '%stotal_all-color-to-M_beyond-%dkpc_xi2M-fit.csv' % (dered_str, out_lim_R),)
+lg_fb_gi = np.array( c_dat['lg_fb_gi'] )[0]
+lg_fb_gr = np.array( c_dat['lg_fb_gr'] )[0]
+lg_fb_ri = np.array( c_dat['lg_fb_ri'] )[0]
+
+#.. mass estimation
 m_dat = pds.read_csv( fit_path + '%smass_contribution_estimator.csv' % dered_str )
-
-lgM_ICL = np.array( m_dat['lg_M_ICL'] )[0]
-M_ICL = 10**lgM_ICL
 
 lgM_bcg = np.array( m_dat['lg_M_bcg'] )[0]
 M_BCG = 10**lgM_bcg
@@ -579,25 +572,48 @@ M_BCG = 10**lgM_bcg
 lgM_trans = np.array( m_dat['lg_M_trans'] )[0]
 M_tran = 10**lgM_trans
 
-lgM_halo = np.array( m_dat['lg_M_all'] )[0]
-M_halo = 10**lgM_halo
 
-M_halo_BG_sub = 10**np.array( m_dat['lg_M_all_BG_sub'] )[0]
+##... mass fraction from ICL integration
+# lgM_halo = np.array( m_dat['lg_M_all'] )[0]
+# M_halo = 10**lgM_halo
 
+# M_halo_BG_sub = 10**np.array( m_dat['lg_M_all_BG_sub'] )[0]
 
-sum_Mstar = M_ICL + M_BCG + 10**lg_sum_M
-pure_ICL = M_ICL - 10**lg_sum_dwf_M
+# lgM_ICL = np.array( m_dat['lg_M_ICL'] )[0]
+# M_ICL = 10**lgM_ICL
 
-eta_Mstar = np.array( [M_BCG, 10**lg_sum_M, pure_ICL - M_tran ] ) / sum_Mstar
-eta_Mstar_1 = np.array( [10**lg_sum_dwf_M, M_tran] ) / sum_Mstar
-
-eta_Mtot = np.array( [M_BCG, 10**lg_sum_M, pure_ICL - M_tran ] ) / M_halo
-eta_Mtot_1 = np.array( [10**lg_sum_dwf_M, M_tran] ) / M_halo
+# pure_ICL = M_ICL - 10**lg_sum_dwf_M
 
 
-###. figs
+##... mass fraction from the mass scaling
+lgM_halo = 14.41  ## the sample as Mh_cluster
+M_halo = 10**lgM_halo  # M_sun
+
+M_gamma = M_halo * 10**lg_fb_gi
+M_ICL = M_gamma - 10**lg_sum_dwf_M
+pure_ICL = M_ICL + 0.
+
+
+sum_Mstar = pure_ICL + M_BCG + 10**lg_sum_M + 10**lg_sum_dwf_M + M_tran
+
+eta_Mstar = np.array( [ M_BCG, 10**lg_sum_M, pure_ICL ] ) / sum_Mstar
+eta_Mstar_1 = np.array( [ 10**lg_sum_dwf_M, M_tran ] ) / sum_Mstar
+
+eta_Mtot = np.array( [ M_BCG, 10**lg_sum_M, pure_ICL ] ) / M_halo
+eta_Mtot_1 = np.array( [ 10**lg_sum_dwf_M, M_tran ] ) / M_halo
+
+
+#. satellite mass estimation
+keys = ['lgM_dwfG', 'lgM_abov_Mi', 'lgM_all_sate', 'lgM_aveg_dwfG', 'lgM_aveg_abov_Mi', 'lgM_aveg_all']
+values = [ lg_sum_dwf_M, lg_sum_M, lg_sum_M_all, lg_aveg_dwf_M, lg_aveg_M, lg_aveg_M_all ]
+fill = dict( zip( keys, values) )
+out_data = pds.DataFrame( fill, index = ['k', 'v'])
+out_data.to_csv( fit_path + '%ssatellite-mass_estimation.csv' % dered_str )
+
+
+### === ### figs
 csmf_param = np.loadtxt('/home/xkchen/tmp_run/data_files/figs/Yang_CSMF_fit-params.txt')
-M_mode, phi_mode, alpha_mode = csmf_param
+M_mode, phi_mode, alpha_mode = csmf_param  # mass in units of M_sun / h^2, phi in units of 
 
 lgM_bins = np.linspace( np.log10( dwf_g_M ), 11.65, 200) # the mass unit is M_sun / h^2
 
@@ -619,7 +635,7 @@ ax0.plot( cc_lgM_bins, norm_csmf_, ls = '-', color = 'k',
 	label = 'Conditional SMF ($M_{h} = 10^{14.41} \, M_{\\odot}$)',)
 ax0.fill_betweenx( y = np.linspace(1e-4, 1e3, 500), x1 = dt_lgM, x2 = 0, color = 'grey', alpha = 0.25,)
 
-ax0.annotate( text = '$\\Sigma M_{\\ast}^{ \\mathrm{unmasked} }{=}10^{%.1f} M_{\\odot}$' % lg_sum_dwf_M, xy = (0.03, 0.25), 
+ax0.annotate( text = '$M_{\\ast}^{ \\mathrm{unmasked} }{=}10^{%.1f} M_{\\odot}$' % lg_sum_dwf_M, xy = (0.03, 0.25), 
 	xycoords = 'axes fraction', fontsize = 14, color = 'k',)
 
 ax0.legend( loc = 3, frameon = False, fontsize = 14,)
@@ -629,7 +645,7 @@ ax0.set_ylim( 1e-3, 3e2 )
 ax0.set_ylabel('${\\rm d} N \, / \, {\\rm d} {\\rm \\mathcal{lg} } M_{\\ast} \; \\mathrm{per} \; \\mathrm{halo}$', fontsize = 15,)
 ax0.set_yscale('log')
 
-ax0.set_xlabel('${\\rm \\mathcal{lg} } \, M_{\\ast} \; [ M_{\\odot} ]$', fontsize = 15,)
+ax0.set_xlabel('${\\rm \\mathcal{lg} } \, (M_{\\ast} \, / \, M_{\\odot} )$', fontsize = 15,)
 ax0.xaxis.set_minor_locator( ticker.AutoMinorLocator() )
 ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
 
@@ -663,18 +679,29 @@ modi_lim = sum_eta_0 / ( 100 * sum_eta_1 )
 
 
 fig = plt.figure( figsize = (6.1, 5.4) )
-ax = fig.add_axes( [0.13, 0.08, 0.75, 0.85] )
+ax = fig.add_axes( [0.12, 0.08, 0.75, 0.85] )
 
-ax.bar( bar_x, height = eta_Mstar, width = 1, color = 'none', edgecolor = 'k', lw = 0.75,)
-ax.bar( bar_x[1], height = eta_Mstar_1[0], width = 1, bottom = eta_Mstar[1], color = 'dimgrey', edgecolor = 'k', lw = 0.75,)
-ax.bar( bar_x[0], height = eta_Mstar_1[1], width = 1, bottom = eta_Mstar[0], color = 'dimgrey', edgecolor = 'k', lw = 0.75,)
+ax.bar( bar_x, height = eta_Mstar, width = 1.25, color = 'none', edgecolor = 'k', lw = 0.75,)
+ax.bar( bar_x[0], height = eta_Mstar_1[1], width = 1.25, bottom = eta_Mstar[0], color = 'dimgrey', edgecolor = 'k', lw = 0.75,)
+ax.bar( bar_x[1], height = eta_Mstar_1[0], width = 1.25, bottom = eta_Mstar[1], color = 'none', edgecolor = 'k', lw = 0.75, hatch = '/////')
 
-ax.text( 4.0, 0.81, s = 'unmasked', fontsize = 15, color = 'dimgrey', horizontalalignment = 'center',)
-ax.text( 1.0, 0.09, s = 'transition', fontsize = 15, color = 'dimgrey', horizontalalignment = 'center',)
+# ax.text( 4.0, 0.86, s = 'unmasked', fontsize = 15, color = 'dimgrey', horizontalalignment = 'center',)
+# ax.text( 1.0, 0.11, s = 'transition', fontsize = 15, color = 'dimgrey', horizontalalignment = 'center',)
 
-ax.text( 1.0, 0.18, s = '%.1f%%' % ( (eta_Mstar[0] + eta_Mstar_1[1]) * 100 ), fontsize = 15, horizontalalignment = 'center',)
-ax.text( 2.5, 0.16, s = '%.1f%%' % (eta_Mstar[2] * 100), fontsize = 15, horizontalalignment = 'center',)
-ax.text( 4.0, 0.9, s = '%.1f%%' % ( (eta_Mstar[1] + eta_Mstar_1[0]) * 100), fontsize = 15, horizontalalignment = 'center',)
+# ax.text( 1.0, eta_Mstar_1[1] + eta_Mstar[0] + 0.03, s = '%.1f%%' % ( (eta_Mstar[0] + eta_Mstar_1[1]) * 100 ), fontsize = 15, horizontalalignment = 'center',)
+# ax.text( 2.5, eta_Mstar[2] + 0.03, s = '%.1f%%' % (eta_Mstar[2] * 100), fontsize = 15, horizontalalignment = 'center',)
+# ax.text( 4.0, eta_Mstar_1[0] + eta_Mstar[1] + 0.03, s = '%.1f%%' % ( (eta_Mstar[1] + eta_Mstar_1[0]) * 100), fontsize = 15, horizontalalignment = 'center',)
+
+ax.text( 1.0, eta_Mstar_1[1] + eta_Mstar[0] + 0.03, s = '%.1f%%' % ( (eta_Mstar[0] + eta_Mstar_1[1]) * 100 ) + 
+														' (%.3f%%)' % ( (eta_Mtot[0] + eta_Mtot_1[1]) * 100 ), fontsize = 12, horizontalalignment = 'center',)
+
+ax.text( 2.5, eta_Mstar[2] + 0.03, s = '%.1f%%' % (eta_Mstar[2] * 100) + ' (%.3f%%)' % ( eta_Mtot[2] * 100 ), fontsize = 12, horizontalalignment = 'center',)
+
+ax.text( 4.0, eta_Mstar_1[0] + eta_Mstar[1] + 0.03, s = '%.1f%%' % ( (eta_Mstar[1] + eta_Mstar_1[0]) * 100) + 
+														' (%.3f%%)' % ( (eta_Mtot[1] + eta_Mtot_1[0]) * 100 ), fontsize = 12, horizontalalignment = 'center',)
+
+
+ax.text( 2, 1.02, s = '$M_{\\ast}^{tot} \, / \, M_{h} \, = \, %.2f $' % (100 * sum_eta_1) + '%', fontsize = 15,)
 
 ax.set_xticks( bar_x )
 ax.set_xticklabels(labels = ['BCG', 'Satellites', 'ICL'])
@@ -689,16 +716,16 @@ ax.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
 ax.xaxis.set_minor_locator( ticker.AutoMinorLocator() )
 ax.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
 
-ax.text( 2, 1.02, s = '$M_{\\ast}^{tot} \, / \, M_{h} \, = \, %.2f $' % (100 * sum_eta_1) + '%', fontsize = 15,)
 
 sub_ax = ax.twinx()
-
-sub_ax.bar( bar_x[1], height = 100 * eta_Mtot_1[0], width = 1, bottom = 100 * eta_Mtot[1], color = 'dimgrey', edgecolor = 'k', lw = 0.75,)
-sub_ax.bar( bar_x[0], height = 100 * eta_Mtot_1[1], width = 1, bottom = 100 * eta_Mtot[0], color = 'dimgrey', edgecolor = 'k', lw = 0.75,)
-sub_ax.bar( bar_x, height = 100 * eta_Mtot, width = 1, color = 'none', edgecolor = 'k', lw = 0.75,)
-
 sub_ax.set_ylabel('$100{\\times} \, M_{\\ast} \, / \, M_{h}$', fontsize = 15,)
 sub_ax.set_ylim(0, top_y / modi_lim)
+
+_cp_ytick = np.linspace(0, 2, 11)
+_cp_tick_lis = [ '%.1f' % pp for pp in _cp_ytick ]
+sub_ax.set_yticks( _cp_ytick )
+sub_ax.set_yticklabels( labels = _cp_tick_lis )
+
 sub_ax.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
 sub_ax.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 15,)
 
