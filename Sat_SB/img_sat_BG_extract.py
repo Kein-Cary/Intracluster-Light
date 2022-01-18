@@ -88,7 +88,7 @@ def BG_build_func( BG_R, BG_SB, zx, pix_size, R_max, out_file):
 
 
 def sat_BG_extract_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, R_sat, sat_PA, band_str, zx, 
-						lim_dx0, lim_dx1, lim_dy0, lim_dy1, pix_size, BG_file, out_file):
+						lim_dx0, lim_dx1, lim_dy0, lim_dy1, pix_size, BG_file, out_file = None):
 	"""
 	R_sat : centric distance of satellites ( kpc )
 	sat_PA : position angle of satellites, relative tp their BCG
@@ -110,15 +110,11 @@ def sat_BG_extract_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, R_sat, sat_PA,
 	pix_ly = np.linspace( 0, BG_img.shape[0] - 1, BG_img.shape[0] )
 	pix_xy = np.meshgrid( pix_lx, pix_ly )
 
-	##. position angle estimate
-	# pix_chi = np.arctan2( (pix_xy[1] - BG_xn), (pix_xy[0] - BG_yn) )
-
 	Da = Test_model.angular_diameter_distance( zx ).value # Mpc
 
 	R_pix = ( R_sat * 1e-3 / Da * rad2asec ) / pix_size
 
 	off_xn, off_yn = R_pix * np.cos( sat_PA ), R_pix * np.sin( sat_PA )
-
 	tag_xn, tag_yn = BG_xn + off_xn, BG_yn + off_yn
 
 
@@ -140,18 +136,22 @@ def sat_BG_extract_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, R_sat, sat_PA,
 
 	cut_array = BG_img[ lb0: lb1,la0: la1 ]
 
-	#. save the cutout image
-	cp_cx, cp_cy = lim_dx0, lim_dy0
+	if out_file is not None:
+		#. save the cutout image
+		cp_cx, cp_cy = lim_dx0, lim_dy0
 
-	Ny, Nx = cut_array.shape[0], cut_array.shape[1]
+		Ny, Nx = cut_array.shape[0], cut_array.shape[1]
 
-	keys = ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2', 'CENTER_X','CENTER_Y', 'Z_OBS', 'Z', 'P_SCALE']
-	value = [ 'T', 32, 2, Nx, Ny, cp_cx, cp_cy, bcg_z, zx, pix_size ]
-	ff = dict( zip( keys, value) )
-	fill = fits.Header( ff )
-	fits.writeto( out_file % (band_str, bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec), cut_array, header = fill, overwrite = True)
+		keys = ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2', 'CENTER_X','CENTER_Y', 'Z_OBS', 'Z', 'P_SCALE']
+		value = [ 'T', 32, 2, Nx, Ny, cp_cx, cp_cy, bcg_z, zx, pix_size ]
+		ff = dict( zip( keys, value) )
+		fill = fits.Header( ff )
+		fits.writeto( out_file % (band_str, bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec), cut_array, header = fill, overwrite = True)
 
-	return tag_xn, tag_yn
+		return
+
+	else:
+		return tag_xn, tag_yn
 
 
 ### === extract BG img from origin SDSS image frame
@@ -218,7 +218,7 @@ def origin_img_cut_func( pos_file, img_file, band_str, sub_IDs, shufl_IDs, R_cut
 		cp_sx_1, cp_sy_1 = cp_cx + off_x, cp_cy + off_y
 
 
-		#. identify satellites beyond the image frame of shuffle cluster		
+		#. identify satellites beyond the image frame of shuffle cluster
 		Lx, Ly = cp_img_arr.shape[1], cp_img_arr.shape[0]
 
 		id_x_lim = ( cp_sx_1 < 0 ) | ( cp_sx_1 >= 2047 )
@@ -236,8 +236,6 @@ def origin_img_cut_func( pos_file, img_file, band_str, sub_IDs, shufl_IDs, R_cut
 
 		tm_sx, tm_sy = np.zeros( N_pot,), np.zeros( N_pot,)
 
-		id_err = np.zeros( N_pot,)  ##. records points cannot located in image frame
-
 		for tt in range( N_pot ):
 
 			tm_phi = np.array( [ np.pi + tp_chi[ tt ], np.pi - tp_chi[ tt ], np.pi * 2 - tp_chi[tt] ] )
@@ -252,24 +250,13 @@ def origin_img_cut_func( pos_file, img_file, band_str, sub_IDs, shufl_IDs, R_cut
 
 			id_up = id_ux & id_uy
 
-			if np.sum( id_up ) > 0:
+			tm_sx[ tt ] = tt_sx[ id_up ][0]
+			tm_sy[ tt ] = tt_sy[ id_up ][0]
 
-				tm_sx[ tt ] = tt_sx[ id_up ][0]
-				tm_sy[ tt ] = tt_sy[ id_up ][0]
-
-			else:
-				id_err[ tt ] = 1.
-
-		#. 
+		##. replace the symmetry points
 		cp_sx, cp_sy = cp_sx_1 + 0., cp_sy_1 + 0.
 		cp_sx[ id_lim ] = tm_sx
 		cp_sy[ id_lim ] = tm_sy
-
-
-		##. if there is somepoint is always can not located in image frame
-		##. then take the symmetry points of entire satellites sample
-		if np.sum( id_err ) > 0:
-			cp_sx, cp_sy = 2 * pix_cx - x_sat, 2 * pix_cy - y_sat
 
 
 		#. cutout images

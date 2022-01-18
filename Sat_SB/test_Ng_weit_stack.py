@@ -164,6 +164,8 @@ jack_main_func( id_cen, N_bin, n_rbins, ra, dec, z, clus_x, clus_y, d_file, band
 
 """
 
+
+"""
 ###... weight with Ng (Pm >= 0.8) of subsamples
 cat_lis = ['inner-mem', 'outer-mem']
 
@@ -184,6 +186,10 @@ for mm in range( 2 ):
 
 	mp_Ng = n_Ng[ idx[ id_lim ] ]
 
+	mp_ra, mp_dec, mp_z = ra[ id_lim ], dec[ id_lim ], z[ id_lim ]
+	mp_imgx, mp_imgy = clus_x[ id_lim ], clus_y[ id_lim ]
+
+
 	print('N_sample = ', len(ra),)
 	print('band = %s' % band_str,)
 	print('rank is %d' % rank )
@@ -203,7 +209,58 @@ for mm in range( 2 ):
 	jack_cont_arr = load + 'Extend_Mbcg_sat_stack/' + 'photo-z_match_tot-BCG-star-Mass_%s_%s-band' % (cat_lis[mm], band_str) + '_Mean_jack_pix-cont_z-ref.h5'
 
 	#.. with Ng weight
-	jack_main_func( id_cen, N_bin, n_rbins, ra, dec, z, clus_x, clus_y, d_file, band_str, sub_img, sub_pix_cont, 
+	jack_main_func( id_cen, N_bin, n_rbins, mp_ra, mp_dec, mp_z, mp_imgx, mp_imgy, d_file, band_str, sub_img, sub_pix_cont, 
+					sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr, 
+					id_cut = True, N_edg = 1, id_Z0 = False, z_ref = z_ref, id_sub = True, N_weit = mp_Ng )
+
+"""
+
+
+
+###... weight with Ng (Pm >= 0.8) of subsamples, radius bin at fixed i_Mag_10
+cat_lis = ['inner', 'middle', 'outer']
+
+for mm in range( 3 ):
+
+	pat = pds.read_csv( load + 'Extend_Mbcg_sat_cat/frame-lim_Pm-cut_exlu-BCG_iMag10-fix_%s_member_Ng.csv' % cat_lis[ mm ],)
+
+	n_ra, n_dec = np.array( pat['ra'] ), np.array( pat['dec'] )
+
+	#. number with P_mem >= 0.8 cut
+	n_Ng = np.array( pat['Ng_80'] )
+
+
+	n_coord = SkyCoord( ra = n_ra * U.deg, dec = n_dec * U.deg )
+
+	idx, sep, d3d = c_coord.match_to_catalog_sky( n_coord )
+	id_lim = sep.value < 2.7e-4
+
+	mp_Ng = n_Ng[ idx[ id_lim ] ]
+
+	mp_ra, mp_dec, mp_z = ra[ id_lim ], dec[ id_lim ], z[ id_lim ]
+	mp_imgx, mp_imgy = clus_x[ id_lim ], clus_y[ id_lim ]
+
+	print('N_sample = ', len(ra),)
+	print('band = %s' % band_str,)
+	print('rank is %d' % rank )
+
+
+	# XXX
+	sub_img = load + 'Extend_Mbcg_sat_stack/' + 'photo-z_match_tot-BCG-star-Mass_%s_%s-band' % (cat_lis[mm], band_str) + '_sub-%d_img.h5'
+	sub_pix_cont = load + 'Extend_Mbcg_sat_stack/' + 'photo-z_match_tot-BCG-star-Mass_%s_%s-band' % (cat_lis[mm], band_str) + '_sub-%d_pix-cont.h5'
+	sub_sb = load + 'Extend_Mbcg_sat_stack/' + 'photo-z_match_tot-BCG-star-Mass_%s_%s-band' % (cat_lis[mm], band_str) + '_sub-%d_SB-pro.h5'
+	# XXX
+
+	J_sub_img = load + 'Extend_Mbcg_sat_stack/' + 'photo-z_match_tot-BCG-star-Mass_%s_%s-band' % (cat_lis[mm], band_str) + '_jack-sub-%d_img_z-ref.h5'
+	J_sub_pix_cont = load + 'Extend_Mbcg_sat_stack/' + 'photo-z_match_tot-BCG-star-Mass_%s_%s-band' % (cat_lis[mm], band_str) + '_jack-sub-%d_pix-cont_z-ref.h5'
+	J_sub_sb = load + 'Extend_Mbcg_sat_stack/' + 'photo-z_match_tot-BCG-star-Mass_%s_%s-band' % (cat_lis[mm], band_str) + '_jack-sub-%d_SB-pro_z-ref.h5'
+
+	jack_SB_file = load + 'Extend_Mbcg_sat_stack/' + 'photo-z_match_tot-BCG-star-Mass_%s_%s-band' % (cat_lis[mm], band_str) + '_Mean_jack_SB-pro_z-ref.h5'
+	jack_img = load + 'Extend_Mbcg_sat_stack/' + 'photo-z_match_tot-BCG-star-Mass_%s_%s-band' % (cat_lis[mm], band_str) + '_Mean_jack_img_z-ref.h5'
+	jack_cont_arr = load + 'Extend_Mbcg_sat_stack/' + 'photo-z_match_tot-BCG-star-Mass_%s_%s-band' % (cat_lis[mm], band_str) + '_Mean_jack_pix-cont_z-ref.h5'
+
+	#.. with Ng weight
+	jack_main_func( id_cen, N_bin, n_rbins, mp_ra, mp_dec, mp_z, mp_imgx, mp_imgy, d_file, band_str, sub_img, sub_pix_cont, 
 					sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr, 
 					id_cut = True, N_edg = 1, id_Z0 = False, z_ref = z_ref, id_sub = True, N_weit = mp_Ng )
 

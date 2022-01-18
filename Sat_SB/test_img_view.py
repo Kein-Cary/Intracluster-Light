@@ -1,3 +1,4 @@
+from re import T
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle, Ellipse
@@ -5,24 +6,21 @@ from matplotlib.patches import Circle, Rectangle, Ellipse
 import h5py
 import numpy as np
 import pandas as pds
-import astropy.io.fits as fits
 
 import astropy.units as U
 import astropy.constants as C
 import astropy.io.fits as fits
 import astropy.io.ascii as asc
 import astropy.wcs as awc
+import scipy.stats as sts
 
 from scipy import optimize
 from astropy import cosmology as apcy
 from astropy.coordinates import SkyCoord
-from scipy.stats import binned_statistic as binned
 
-
-from mpi4py import MPI
-commd = MPI.COMM_WORLD
-rank = commd.Get_rank()
-cpus = commd.Get_size()
+from light_measure import light_measure_weit
+from img_sat_BG_extract import BG_build_func
+from img_sat_BG_extract import sat_BG_extract_func
 
 
 ##### cosmology model
@@ -30,15 +28,15 @@ Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
 H0 = Test_model.H0.value
 h = H0 / 100
 Omega_m = Test_model.Om0
-Omega_lambda = 1.-Omega_m
-Omega_k = 1.- (Omega_lambda + Omega_m)
+Omega_lambda = 1. - Omega_m
+Omega_k = 1. - (Omega_lambda + Omega_m)
 
 pixel = 0.396
 z_ref = 0.25
 band = ['r', 'g', 'i']
 
 
-### === figs
+### === satellite image extract test
 def sat_cut_img():
 
 	from img_sat_extract import sate_Extract_func
@@ -249,376 +247,348 @@ def sat_cut_test():
 # sat_cut_test()
 
 
-### === match the mophology properties and compare to SDSS
-def member_size_match_func( set_ra, set_dec, set_z, sat_ra, sat_dec, band_str, img_file, obj_file, out_file ):
+### === local test (Mock 2D background image and located satellites at z_ref)
+def local_test():
 
-	#. image information
-	img_data = fits.open( img_file % ( band_str, set_ra, set_dec, set_z ),)
-	Header = img_data[0].header
-	wcs_lis = awc.WCS( Header )
+	# BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/BGs/'
+	# cat_lis = ['inner-mem', 'outer-mem']
 
-	#. obj_cat
-	source = asc.read( obj_file % ( band_str, set_ra, set_dec, set_z),)
-	Numb = np.array(source['NUMBER'][-1])
-	A = np.array(source['A_IMAGE'])
-	B = np.array(source['B_IMAGE'])
-
-	theta = np.array(source['THETA_IMAGE'])
-
-	cx = np.array(source['X_IMAGE'])
-	cy = np.array(source['Y_IMAGE'])
-	p_type = np.array(source['CLASS_STAR'])
-
-	peak_x = np.array( source['XPEAK_IMAGE'])
-	peak_y = np.array( source['YPEAK_IMAGE'])
-
-	Kron = 16 # 8-R_kron
-
-	a = Kron * A
-	b = Kron * B
-
-	#. satellite locations
-	N_z = len( sat_ra )
-
-	s_cx, s_cy = wcs_lis.all_world2pix( sat_ra, sat_dec, 0)
-
-	tmp_R_a, tmp_R_b, tmp_PA = [], [], []
-
-	for tt in range( N_z ):
-
-		pp_cx, pp_cy = s_cx[ tt ], s_cy[ tt ]
-
-		#. find target galaxy in source catalog
-		d_cen_R = np.sqrt( (cx - pp_cx)**2 + (cy - pp_cy)**2 )
-
-		id_xcen = d_cen_R == d_cen_R.min()
-		id_order = np.where( id_xcen )[0][0]
-
-		kk_px, kk_py = cx[ id_order ], cy[ id_order ]
-
-		cen_ar = A[ id_order ] * 8
-		cen_br = B[ id_order ] * 8
-
-		cen_chi = theta[ id_order ]
-
-		tmp_R_a.append( cen_ar )
-		tmp_R_b.append( cen_br )
-		tmp_PA.append( cen_chi )
-
-	#.
-	keys = ['ra', 'dec', 'a', 'b', 'phi']
-	values = [ sat_ra, sat_dec, np.array(tmp_R_a), np.array(tmp_R_b), np.array(tmp_PA) ]
-	fill = dict( zip( keys, values) )
-	out_data = pds.DataFrame( fill )
-	out_data.to_csv( out_file % (band_str, set_ra, set_dec, set_z),)
-
-	return
-
-"""
-home = '/home/xkchen/data/SDSS/'
-
-c_dat = pds.read_csv( home + 'member_files/sat_cat_z02_03/Extend-BCGM_rgi-common_cat.csv')
-bcg_ra, bcg_dec, bcg_z = np.array( c_dat['ra'] ), np.array( c_dat['dec'] ), np.array( c_dat['z'] )
-clus_IDs = np.array( c_dat['clust_ID'] )
-
-s_dat = pds.read_csv( home + 'member_files/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv')
-sat_ra, sat_dec = np.array( s_dat['ra'] ), np.array( s_dat['dec'] )
-p_host_ID = np.array( s_dat['clus_ID'] )
+	##. fixed i_Mag_10
+	BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/BGs/'
+	cat_lis = ['inner', 'middle', 'outer']
 
 
-N_ss = len( bcg_ra )
+	##... SB profile of BCG+ICL+BG (as the background)
+	tmp_bR, tmp_BG, tmp_BG_err = [], [], []
+	tmp_img = []
 
-#. match
+	for mm in range( 3 ):
 
-m, n = divmod( N_ss, cpus)
-N_sub0, N_sub1 = m * rank, (rank + 1) * m
-if rank == cpus - 1:
-	N_sub1 += n
+		_sub_bg_R, _sub_bg_sb, _sub_bg_err = [], [], []
+		_sub_img = []
 
-sub_ra, sub_dec, sub_z = bcg_ra[N_sub0 : N_sub1], bcg_dec[N_sub0 : N_sub1], bcg_z[N_sub0 : N_sub1]
+		for kk in range( 3 ):
 
-sub_clusID = clus_IDs[N_sub0 : N_sub1]
+			#. 1D profile
+			# with h5py.File( BG_path + 
+			# 		'photo-z_match_tot-BCG-star-Mass_%s_%s-band_Mean_jack_SB-pro_z-ref.h5' % (cat_lis[mm], band[kk]), 'r') as f:
 
-N_sub = len( sub_ra )
+			with h5py.File( BG_path + 
+					'photo-z_match_tot-BCG-star-Mass_%s_%s-band_Mean_jack_SB-pro_z-ref.h5' % (cat_lis[mm], band[kk]), 'r') as f:
 
-for pp in range( 3 ):
+				tt_r = np.array(f['r'])
+				tt_sb = np.array(f['sb'])
+				tt_err = np.array(f['sb_err'])
 
-	band_str = band[ pp ]
+			#. 2D image
+			R_max = 3e3
 
-	for ll in range( N_sub ):
+			out_file = '/home/xkchen/%s_%s-band_BG_img.fits' % (cat_lis[mm], band[kk])
+			# BG_build_func( tt_r, tt_sb, z_ref, pixel, R_max, out_file)
 
-		ra_g, dec_g, z_g = sub_ra[ ll ], sub_dec[ ll ], sub_z[ ll ]
-		ID_tag = sub_clusID[ ll ]
+			tt_img = fits.open( out_file )
+			tt_img_arr = tt_img[0].data
 
-		id_vx = p_host_ID == ID_tag
-		lim_ra, lim_dec = sat_ra[ id_vx ], sat_dec[ id_vx ]
+			_sub_bg_R.append( tt_r )
+			_sub_bg_sb.append( tt_sb )
+			_sub_bg_err.append( tt_err )
+			_sub_img.append( tt_img_arr )
 
-
-		img_file = home + 'photo_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
-		gal_file = home + 'photo_files/detect_source_cat/photo-z_img_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
-		out_file = '/home/xkchen/project/tmp_obj_cat/clus_%s-band_ra%.3f_dec%.3f_z%.3f_mem-size_cat.csv'
-
-		member_size_match_func( ra_g, dec_g, z_g, lim_ra, lim_dec, band_str, img_file, gal_file, out_file )
-
-print('done!')
-commd.Barrier()
+		tmp_bR.append( _sub_bg_R )
+		tmp_BG.append( _sub_bg_sb )
+		tmp_BG_err.append( _sub_bg_err )
+		tmp_img.append( _sub_img )
 
 
-#. combine all satellites
-if rank == 0:
+	for mm in range( 2,3 ):
 
-	for tt in range( 3 ):
+		for kk in range( 3 ):
 
-		band_str = band[ tt ]
+			sub_img = tmp_img[mm][kk] + 0.
+			sub_cont = np.ones( ( sub_img.shape[0], sub_img.shape[1] ), )
+			r_bins = np.logspace( 0, 3.48, 55 )
 
-		tmp_s_ra, tmp_s_dec = np.array( [] ), np.array( [] )
-		tmp_s_a, tmp_s_b, tmp_s_phi = np.array( [] ), np.array( [] ), np.array( [] )
-		cp_bcg_ra, cp_bcg_dec, cp_bcg_z = np.array( [] ), np.array( [] ), np.array( [] )
+			xn, yn = np.int( sub_img.shape[1] / 2 ), np.int( sub_img.shape[0] / 2 )
 
-		for pp in range( N_ss ):
+			Intns, phy_r, Intns_err, npix, nratio = light_measure_weit( sub_img, sub_cont, pixel, xn, yn, z_ref, r_bins)
 
-			ra_g, dec_g, z_g = bcg_ra[ pp ], bcg_dec[ pp ], bcg_z[ pp ]
+			id_vx = npix > 0
+			_kk_R, _kk_sb, _kk_err = phy_r[ id_vx ], Intns[ id_vx ], Intns_err[ id_vx ]
 
-			dat = pds.read_csv('/home/xkchen/project/tmp_obj_cat/' + 
-							'clus_%s-band_ra%.3f_dec%.3f_z%.3f_mem-size_cat.csv' % (band_str, ra_g, dec_g, z_g),)
 
-			kk_ra, kk_dec = np.array( dat['ra'] ), np.array( dat['dec'] )
-			kk_a, kk_b, kk_phi = np.array( dat['a'] ), np.array( dat['b'] ), np.array( dat['phi'] )
+			fig = plt.figure( figsize = (10.0, 4.8) )
 
-			tmp_s_ra = np.r_[ tmp_s_ra, kk_ra ]
-			tmp_s_dec = np.r_[ tmp_s_dec, kk_dec ]
+			ax2 = fig.add_axes([0.05, 0.12, 0.39, 0.80])
+			ax3 = fig.add_axes([0.59, 0.12, 0.39, 0.80])
+			cb_ax2 = fig.add_axes( [0.44, 0.12, 0.02, 0.8] )
 
-			tmp_s_a = np.r_[ tmp_s_a, kk_a ]
-			tmp_s_b = np.r_[ tmp_s_b, kk_b ]
-			tmp_s_phi = np.r_[ tmp_s_phi, kk_phi ]
+			ax2.pcolormesh( np.log10( tmp_img[mm][kk] / pixel**2 ), cmap = 'rainbow', vmin = -3, vmax = 0,)
 
-			cp_bcg_ra = np.r_[ cp_bcg_ra, np.ones( len(kk_ra), ) * ra_g ]
-			cp_bcg_dec = np.r_[ cp_bcg_dec, np.ones( len(kk_ra), ) * dec_g ]
-			cp_bcg_z = np.r_[ cp_bcg_z, np.ones( len(kk_ra), ) * z_g ]
+			cmap = mpl.cm.rainbow
+			norm = mpl.colors.Normalize( vmin = -3, vmax = 0 )
+			c_ticks = np.array( [-3, -2, -1, 0] )
+			cbs = mpl.colorbar.ColorbarBase( ax = cb_ax2, cmap = cmap, norm = norm, extend = 'neither', ticks = c_ticks, 
+											orientation = 'vertical',)
 
-		keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'a', 'b', 'phi']
-		values = [ cp_bcg_ra, cp_bcg_dec, cp_bcg_z, tmp_s_ra, tmp_s_dec, tmp_s_a, tmp_s_b, tmp_s_phi ]
-		fill = dict( zip( keys, values ) )
-		data = pds.DataFrame( fill )
-		data.to_csv('/home/xkchen/Extend-BCGM_rgi-common_cat_%s-band_sat-size.csv' % band_str,)
+			cbs.set_label( '$\\lg \, \\mu $',)
 
-"""
+			ax3.plot( tmp_bR[mm][kk], tmp_BG[mm][kk], ls = '-', color = 'k', alpha = 0.5,)
+			ax3.plot( _kk_R, _kk_sb, ls = '--', color = 'r', alpha = 0.5, )
 
-dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_size/Extend-BCGM_rgi-common_cat_r-band_sat-size.csv')
+			ax3.set_xlim( 3e0, 3e3)
+			ax3.set_xscale('log')
+			ax3.set_xlabel('$R \; [kpc]$')
+
+			ax3.set_ylabel('$\\mu_{%s} \; [nanomaggies \, / \, arcsec^{2}]$' % band[kk],)
+			ax3.set_yscale('log')
+
+			plt.savefig('/home/xkchen/%s_%s-band_BG_img.png' % (cat_lis[mm],band[kk]), dpi = 300)
+			plt.close()
+
+# local_test()
+# raise
+
+
+### === take the stacked 2D image as background (then cutout background images baed on satellite location at z_ref)
+def BG_2D_with_stack_img():
+
+	##. fixed i_Mag_10, N_g weighted stacked cluster image
+	# BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/BGs/'
+	# cat_lis = ['inner', 'middle', 'outer']
+
+	# for mm in range( 3 ):
+
+	# 	for kk in range( 3 ):
+	# 		with h5py.File( BG_path + 
+	# 				'photo-z_match_tot-BCG-star-Mass_%s_%s-band_Mean_jack_img_z-ref.h5' % (cat_lis[mm], band[kk]), 'r') as f:
+	# 			tmp_img = np.array( f['a'] )
+
+	# 		Nx, Ny = tmp_img.shape[1], tmp_img.shape[0]
+	# 		ref_pix_x, ref_pix_y = Nx / 2, Ny / 2
+
+	# 		#. save the img file
+	# 		out_file = '/home/xkchen/stacked_cluster_%s_%s-band_img.fits' % (cat_lis[mm], band[kk])
+
+	# 		keys = ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2', 'CENTER_X','CENTER_Y', 'Z', 'P_SCALE' ]
+	# 		value = ['T', 32, 2, Nx, Ny, ref_pix_x, ref_pix_y, z_ref, pixel ]
+	# 		ff = dict( zip( keys, value) )
+	# 		fill = fits.Header( ff )
+	# 		fits.writeto( out_file, tmp_img, header = fill, overwrite = True)
+
+
+	##. use the entire cluster sample stacked image as background (without N_g weight)
+	for kk in range( 3 ):
+
+		with h5py.File('/home/xkchen/figs/extend_bcgM_cat/SBs/photo-z_match_tot-BCG-star-Mass_%s-band_Mean_jack_img_z-ref.h5' % band[kk], 'r') as f:
+			tmp_img = np.array( f['a'] )
+
+		Nx, Ny = tmp_img.shape[1], tmp_img.shape[0]
+		ref_pix_x, ref_pix_y = Nx / 2, Ny / 2
+
+		#. save the img file
+		out_file = '/home/xkchen/stacked_all_cluster_%s-band_img.fits' % band[kk]
+
+		keys = ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2', 'CENTER_X','CENTER_Y', 'Z', 'P_SCALE' ]
+		value = ['T', 32, 2, Nx, Ny, ref_pix_x, ref_pix_y, z_ref, pixel ]
+		ff = dict( zip( keys, value) )
+		fill = fits.Header( ff )
+		fits.writeto( out_file, tmp_img, header = fill, overwrite = True)
+
+# BG_2D_with_stack_img()
+
+
+
+### === SDSS origin image cut (for satellite background estimation)
+img_file = '/media/xkchen/My Passport/data/SDSS/photo_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
+
+##. origin image location of satellites
+cat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/' + 
+			'Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv')
+
+clus_ID = np.array( cat['clus_ID'] )
+
+set_IDs = np.array( list( set( clus_ID ) ) )
+set_IDs = set_IDs.astype( int )
+
+N_ss = len( set_IDs )
+
+
+##. shuffle cluster IDs
+rand_IDs = np.loadtxt('/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/shufle_test/img_tract_cat/' + 
+					'Extend-BCGM_rgi-common_frame-lim_Pm-cut_mem_shuffle-clus_cat.txt')
+rand_mp_IDs = rand_IDs[0].astype( int )   ## order will have error ( treat as the fiducial order list)
+# rand_mp_IDs = rand_IDs[2].astype( int )
+
+
+##. error raise up ordex (use row_0 in shuffle list)
+# err_dat = pds.read_csv('/home/xkchen/err_in_position_shuffle.csv')
+# err_IDs = np.array( err_dat['clus_ID'] )
+# err_ra, err_dec, err_z = np.array( err_dat['ra'] ), np.array( err_dat['dec'] ), np.array( err_dat['z'] )
+
+
+# ordex = []
+
+# for kk in range( len(err_ra) ):
+
+# 	id_vx = np.where( set_IDs == err_IDs[ kk ] )[0][0]
+# 	ordex.append( id_vx )
+
+
+# ##. combine shuffle
+# t0_rand_arr = rand_IDs[0].astype( int )
+# t1_rand_arr = rand_IDs[2].astype( int )
+
+# cp_rand_arr = t0_rand_arr + 0
+# cp_rand_arr[ ordex ] = t1_rand_arr[ ordex ]
+
+# np.savetxt('/home/xkchen/Extend-BCGM_rgi-common_frame-lim_Pm-cut_mem_extra-shuffle-clus_cat.txt', cp_rand_arr)
+
+
+
+band_str = 'i'
+
+dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/shufle_test/img_tract_cat/' + 
+			'Extend-BCGM_rgi-common_frame-limit_Pm-cut_exlu-BCG_Sat_%s-band_origin-img_position.csv' % band_str )
 
 bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
 sat_ra, sat_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
-sat_a, sat_b = np.array( dat['a'] ), np.array( dat['b'] )
+bcg_x, bcg_y = np.array( dat['bcg_x'] ), np.array( dat['bcg_y'] )
+sat_x, sat_y = np.array( dat['sat_x'] ), np.array( dat['sat_y'] )
+tt_clus_ID = np.array( dat['clus_ID'] )
 
-sat_coord = SkyCoord( ra = sat_ra * U.deg, dec = sat_dec * U.deg )
+err_ra, err_dec, err_z = [], [], []
+err_IDs = []
 
-#. SDSS cat. table
-cat = fits.open('/home/xkchen/figs/extend_Zphoto_cat/zphot_01_033_cat/redMaPPer_z-phot_0.1-0.33_member_params.fit')
-cat_arr = cat[1].data
+for kk in range( N_ss ):
 
-ref_ra, ref_dec = cat_arr['ra'], cat_arr['dec']
+	#. target cluster satellites
+	id_vx = tt_clus_ID == set_IDs[ kk ]
 
-deV_R_r = cat_arr['deVRad_r'] 
-exp_R_r = cat_arr['expRad_r']
+	sub_ra, sub_dec = sat_ra[ id_vx ], sat_dec[ id_vx ]
+	ra_g, dec_g, z_g = bcg_ra[ id_vx ][0], bcg_dec[ id_vx ][0], bcg_z[ id_vx ][0]
 
-petr_R_r = cat_arr['petroRad_r']
-petr_R90_r = cat_arr['petroR90_r']
-petr_R50_r = cat_arr['petroR50_r']
-
-ref_coord = SkyCoord( ra = ref_ra * U.deg, dec = ref_dec * U.deg )
-
-idx, sep, d3d = sat_coord.match_to_catalog_sky( ref_coord )
-id_lim = sep.value < 2.7e-4
+	img = fits.open( img_file % (band_str, ra_g, dec_g, z_g),)
+	img_arr = img[0].data
 
 
-mp_deV_R_r = deV_R_r[ idx[ id_lim ] ]
-mp_exp_R_r = exp_R_r[ idx[ id_lim ] ]
+	x_cen, y_cen = bcg_x[ id_vx ][0], bcg_y[ id_vx ][0]
+	x_sat, y_sat = sat_x[ id_vx ], sat_y[ id_vx ]
 
-mp_petr_R_r = petr_R_r[ idx[ id_lim ] ]
-mp_petr_R90_r = petr_R90_r[ idx[ id_lim ] ]
-mp_petr_R50_r = petr_R50_r[ idx[ id_lim ] ]
+	sat_R = np.sqrt( (x_sat - x_cen)**2 + (y_sat - y_cen)**2 )
+	sat_theta = np.arctan2( (y_sat - y_cen), (x_sat - x_cen) )
 
-lim_a, lim_b = sat_a[ id_lim ] * pixel, sat_b[ id_lim ] * pixel
-
-R_arr = [ mp_deV_R_r, mp_exp_R_r, mp_petr_R_r, mp_petr_R90_r, mp_petr_R50_r ]
-line_s = ['$R_{deV}$', '$R_{exp}$', '$R_{petro}$', '$R_{petro\,90}$', '$R_{petro\,50}$' ]
+	off_x, off_y = sat_R * np.cos( sat_theta ), sat_R * np.sin( sat_theta )
 
 
-bins_x = np.linspace( 0, 20, 100)
-bins_dx = np.linspace( -20, 10, 100)
+	#. shuffle clusters and matched images
+	id_ux = clus_ID == rand_mp_IDs[ kk ]
 
-fig = plt.figure( figsize = (12.8, 4.8) )
-ax0 = fig.add_axes([0.05, 0.10, 0.40, 0.80])
-ax1 = fig.add_axes([0.55, 0.10, 0.40, 0.80])
+	cp_ra_g, cp_dec_g, cp_z_g = bcg_ra[ id_ux ][0], bcg_dec[ id_ux ][0], bcg_z[ id_ux ][0]
 
-ax0.hist( lim_a, bins = bins_x, density = True, histtype = 'step', color = 'k', alpha = 0.5, label = '$a_{mask}$')
-ax0.axvline( x = np.median( lim_a ), ls = '--', color = 'k', alpha = 0.5, ymin = 0.75, ymax = 1, label = 'Median')
-ax0.axvline( x = np.mean( lim_a ), ls = '-', color = 'k', alpha = 0.5, ymin = 0.75, ymax = 1, label = 'Mean')
+	cp_img = fits.open( img_file % (band_str, cp_ra_g, cp_dec_g, cp_z_g),)
+	cp_img_arr = cp_img[0].data
 
-for pp in range( len(line_s) ):
+	#. image center
+	pix_cx, pix_cy = cp_img_arr.shape[1] / 2, cp_img_arr.shape[0] / 2
 
-	ax0.hist( R_arr[ pp ], bins = bins_x, density = True, histtype = 'step', color = mpl.cm.rainbow( pp / len(line_s) ), 
-			alpha = 0.5, label = line_s[ pp ],)
-
-	ax0.axvline( x = np.median( R_arr[pp] ), ls = '--', color = mpl.cm.rainbow( pp / len(line_s) ), alpha = 0.5, ymin = 0, ymax = 0.25,)
-	ax0.axvline( x = np.mean( R_arr[pp]), ls = '-', color = mpl.cm.rainbow( pp / len(line_s) ), alpha = 0.5, ymin = 0, ymax = 0.25,)
+	cp_cx, cp_cy = bcg_x[ id_ux ][0], bcg_y[ id_ux ][0]
+	cp_sx_1, cp_sy_1 = cp_cx + off_x, cp_cy + off_y
 
 
-	ax1.hist( R_arr[ pp ] - lim_a, bins = bins_dx, density = True, histtype = 'step', color = mpl.cm.rainbow( pp / len(line_s) ), 
-			alpha = 0.5, label = line_s[ pp ] + ' ${-}$ ' + '$a_{mask}$', )
-	ax1.axvline( x = np.median( R_arr[pp] - lim_a), ls = '--', color = mpl.cm.rainbow( pp / len(line_s) ), alpha = 0.5, ymin = 0, ymax = 0.25,)
-	ax1.axvline( x = np.mean( R_arr[pp] - lim_a), ls = '-', color = mpl.cm.rainbow( pp / len(line_s) ), alpha = 0.5, ymin = 0, ymax = 0.25,)
+	#. identify satellites beyond the image frame of shuffle cluster
+	Lx, Ly = cp_img_arr.shape[1], cp_img_arr.shape[0]
 
-ax0.set_xlabel('$R \; [arcsec]$')
-ax1.set_xlabel('$\\Delta R \; [arcsec]$')
-ax0.legend( loc = 1)
-ax1.legend( loc = 1)
+	id_x_lim = ( cp_sx_1 < 0 ) | ( cp_sx_1 >= 2047 )
+	id_y_lim = ( cp_sy_1 < 0 ) | ( cp_sy_1 >= 1488 )
 
-plt.savefig('/home/xkchen/mask_a-size_compare.png', dpi = 300)
-plt.close()
+	id_lim = id_x_lim + id_y_lim
 
-
-fig = plt.figure( figsize = (13.12, 4.8) )
-ax0 = fig.add_axes([0.05, 0.10, 0.40, 0.80])
-ax1 = fig.add_axes([0.55, 0.10, 0.40, 0.80])
-
-ax0.hist( lim_b, bins = bins_x, density = True, histtype = 'step', color = 'k', alpha = 0.5, label = '$b_{mask}$')
-ax0.axvline( x = np.median( lim_b ), ls = '--', color = 'k', alpha = 0.5, ymin = 0.75, ymax = 1, label = 'Median')
-ax0.axvline( x = np.mean( lim_b ), ls = '-', color = 'k', alpha = 0.5, ymin = 0.75, ymax = 1, label = 'Mean')
-
-for pp in range( len(line_s) ):
-
-	ax0.hist( R_arr[ pp ], bins = bins_x, density = True, histtype = 'step', color = mpl.cm.rainbow( pp / len(line_s) ), 
-			alpha = 0.5, label = line_s[ pp ],)
-
-	ax0.axvline( x = np.median( R_arr[pp] ), ls = '--', color = mpl.cm.rainbow( pp / len(line_s) ), alpha = 0.5, ymin = 0, ymax = 0.25,)
-	ax0.axvline( x = np.mean( R_arr[pp]), ls = '-', color = mpl.cm.rainbow( pp / len(line_s) ), alpha = 0.5, ymin = 0, ymax = 0.25,)
+	tp_sx, tp_sy = cp_sx_1[ id_lim ], cp_sy_1[ id_lim ]
+	tp_chi = sat_theta[ id_lim ]
+	tp_Rs = sat_R[ id_lim ]
 
 
-	ax1.hist( R_arr[ pp ] - lim_b, bins = bins_dx, density = True, histtype = 'step', color = mpl.cm.rainbow( pp / len(line_s) ), 
-			alpha = 0.5, label = line_s[ pp ] + ' ${-}$ ' + '$b_{mask}$', )
-	ax1.axvline( x = np.median( R_arr[pp] - lim_b), ls = '--', color = mpl.cm.rainbow( pp / len(line_s) ), alpha = 0.5, ymin = 0, ymax = 0.25,)
-	ax1.axvline( x = np.mean( R_arr[pp] - lim_b), ls = '-', color = mpl.cm.rainbow( pp / len(line_s) ), alpha = 0.5, ymin = 0, ymax = 0.25,)
+	#. loop for satellites position adjust 
+	N_pot = np.sum( id_lim )
 
-ax0.set_xlabel('$R \; [arcsec]$')
-ax1.set_xlabel('$\\Delta R \; [arcsec]$')
-ax0.legend( loc = 1)
-ax1.legend( loc = 1)
+	tm_sx, tm_sy = np.zeros( N_pot,), np.zeros( N_pot,)
 
-plt.savefig('/home/xkchen/mask_b-size_compare.png', dpi = 300)
-plt.close()
+	id_err = np.zeros( N_pot,)  ##. records points cannot located in image frame
 
+	for tt in range( N_pot ):
+
+		tm_phi = np.array( [ np.pi + tp_chi[ tt ], np.pi - tp_chi[ tt ], np.pi * 2 - tp_chi[tt] ] )
+
+		tm_off_x = tp_Rs[ tt ] * np.cos( tm_phi )
+		tm_off_y = tp_Rs[ tt ] * np.sin( tm_phi )
+
+		tt_sx, tt_sy = cp_cx + tm_off_x, cp_cy + tm_off_y
+
+		id_ux = ( tt_sx >= 0 ) & ( tt_sx < 2047 )
+		id_uy = ( tt_sy >= 0 ) & ( tt_sy < 1488 )
+
+		id_up = id_ux & id_uy
+
+		if np.sum( id_up ) > 0:
+
+			tm_sx[ tt ] = tt_sx[ id_up ][0]
+			tm_sy[ tt ] = tt_sy[ id_up ][0]
+
+		else:
+			id_err[ tt ] = 1.
+
+	#. 
+	cp_sx, cp_sy = cp_sx_1 + 0., cp_sy_1 + 0.
+	cp_sx[ id_lim ] = tm_sx
+	cp_sy[ id_lim ] = tm_sy
+
+
+	##. if there is somepoint is always can not located in image frame
+	##. then take the symmetry points of entire satellites sample
+	if np.sum( id_err ) > 0:
+
+		# cp_sx, cp_sy = 2 * pix_cx - x_sat, 2 * pix_cy - y_sat
+		# _sm_cp_cx, _sm_cp_cy = 2 * pix_cx - x_cen, 2 * pix_cy - y_cen
+
+		err_IDs.append( set_IDs[ kk ] )
+		err_ra.append( ra_g )
+		err_dec.append( dec_g )
+		err_z.append( z_g )
+
+
+	# plt.figure( figsize = (10, 5),)
+	# ax0 = plt.subplot(121)
+	# ax1 = plt.subplot(122)
+
+	# ax0.imshow( img_arr, origin = 'lower', cmap = 'Greys', vmin = 1e-4, vmax = 1e0, norm = mpl.colors.LogNorm(),)
+	# ax0.scatter( x_sat, y_sat, s = 10, marker = 'o', facecolors = 'none', edgecolors = 'r',)
+	# ax0.scatter( x_cen, y_cen, s = 5, marker = 's', facecolors = 'none', edgecolors = 'b',)
+
+	# ax1.imshow( cp_img_arr, origin = 'lower', cmap = 'Greys', vmin = 1e-4, vmax = 1e0, norm = mpl.colors.LogNorm(),)
+	# ax1.scatter( cp_cx, cp_cy, s = 5, marker = 's', facecolors = 'none', edgecolors = 'r',)
+
+	# if np.sum( id_err ) > 0:
+	# 	ax1.scatter( _sm_cp_cx, _sm_cp_cy, s = 5, marker = 's', facecolors = 'none', edgecolors = 'b',)
+
+	# ax1.scatter( cp_sx_1, cp_sy_1, s = 12, marker = 'o', facecolors = 'none', edgecolors = 'g', label = 'relative offset')
+	# ax1.scatter( tp_sx, tp_sy, s = 8, marker = '*', facecolors = 'none', edgecolors = 'r',)
+	# ax1.scatter( tm_sx, tm_sy, s = 8, marker = 'd', facecolors = 'none', edgecolors = 'r',)
+
+	# # plt.savefig('/home/xkchen/random_sat-Pos_set.png', dpi = 300)
+	# plt.savefig('/home/xkchen/random_sat-Pos_set_%d.png' % kk, dpi = 300)
+	# plt.close()
 
 raise
 
+##. record for row_0 in shuffle list
+err_IDs = np.array( err_IDs )
+err_ra = np.array( err_ra )
+err_dec = np.array( err_dec )
+err_z = np.array( err_z )
 
-"""
-### === sample properties
+keys = [ 'ra', 'dec', 'z', 'clus_ID' ]
+values = [ err_ra, err_dec, err_z, err_IDs ]
+fill = dict( zip( keys, values ) )
+out_data = pds.DataFrame( fill )
+out_data.to_csv( '/home/xkchen/err_in_position_shuffle.csv')
 
-##. all member
-# s_dat = pds.read_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_member-cat.csv' )
-
-##. frame limited catalog
-# s_dat = pds.read_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-limit_member-cat.csv')
-
-##. frame limited + P_mem cut catalog
-# s_dat = pds.read_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-limit_Pm-cut_member-cat.csv')
-
-##. frame limited + P_mem cut catalog + exclude BCGs
-s_dat = pds.read_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv')
-
-
-bcg_ra, bcg_dec, bcg_z = np.array( s_dat['bcg_ra'] ), np.array( s_dat['bcg_dec'] ), np.array( s_dat['bcg_z'] )
-p_ra, p_dec = np.array( s_dat['ra'] ), np.array( s_dat['dec'] )
-
-p_cID = np.array( s_dat['clus_ID'] )
-p_gr = np.array( s_dat['g-r'] )
-p_z = np.array( s_dat['z_spec'] )
-
-p_Rsat = np.array( s_dat['R_cen'] )
-p_R2Rv = np.array( s_dat['Rcen/Rv'] )
-
-
-R_cut = 0.191 # np.median( p_Rcen )
-id_vx = p_R2Rv <= R_cut
-
-
-##. satellite properties
-data = fits.open('/home/xkchen/figs/extend_Zphoto_cat/zphot_01_033_cat/redMaPPer_z-phot_0.1-0.33_member_params.fit')
-l_ra, l_dec = data[1].data['ra'], data[1].data['dec']
-l_z = data[1].data['z']
-Mag_r = data[1].data['absMagR']
-
-
-p_coord = SkyCoord( ra = p_ra * U.deg, dec = p_dec * U.deg )
-l_coord = SkyCoord( ra = l_ra * U.deg, dec = l_dec * U.deg )
-
-idx, sep, d3d = p_coord.match_to_catalog_sky( l_coord )
-id_lim = sep.value < 2.7e-4
-
-mp_zll = l_z[ idx[ id_lim ] ]
-mp_Magr = Mag_r[ idx[ id_lim ] ] 
-
-id_nul = mp_zll < 0.
-z_devi = mp_zll[ id_nul == False ] - bcg_z[ id_nul == False ]
-
-
-plt.figure()
-plt.text( 0.2, 1.0, s = '$P_{mem} \\geq 0.8 $')
-plt.plot( p_Rsat, p_R2Rv, 'k.', alpha = 0.5,)
-plt.plot( p_Rsat, p_Rsat, 'r-', alpha = 0.75,)
-
-plt.axvline( x = 0.213, ls = ':', color = 'b', alpha = 0.5,)
-plt.axhline( y = 0.191, ls = '--', color = 'b', alpha = 0.5,)
-
-plt.xlabel( '$R_{Sat} \; [Mpc / h]$' )
-plt.ylabel( '$R_{Sat} / R_{200m}$' )
-plt.savefig('/home/xkchen/R-phy_R-scaled.png', dpi = 300)
-plt.close()
-
-
-plt.figure()
-plt.hist( p_R2Rv, bins = 55, density = True, histtype = 'step',)
-plt.axvline( x = np.median(p_R2Rv), ls = '--', label = 'Median', ymin = 0, ymax = 0.35,)
-plt.axvline( x = np.mean( p_R2Rv), ls = '-', label = 'Mean', ymin = 0, ymax = 0.35,)
-
-plt.axvline( x = 0.191, ls = ':', label = 'Division', color = 'r',)
-
-plt.legend( loc = 1)
-plt.xlabel('$R_{Sat} \, / \, R_{200m}$')
-plt.savefig('/home/xkchen/redMap_sate_Rcen_hist.png', dpi = 300)
-plt.close()
-
-
-plt.figure()
-plt.hist( z_devi, bins = np.linspace(-0.2, 0.2, 55), density = True, histtype = 'step', color = 'k',)
-
-plt.axvline( x = np.median( z_devi ), ls = '--', label = 'Median', color = 'k',)
-plt.axvline( x = np.mean( z_devi ), ls = '-', label = 'Mean', color = 'k',)
-
-plt.axvline( x = np.median( z_devi ) - np.std( z_devi ), ls = ':', color = 'k',)
-plt.axvline( x = np.median( z_devi ) + np.std( z_devi ), ls = ':', color = 'k',)
-
-plt.legend( loc = 1)
-plt.xlabel('$z_{mem} - z_{BCG}$')
-plt.savefig('/home/xkchen/z_diffi.png', dpi = 300)
-plt.close()
-
-
-plt.figure()
-plt.hist( mp_Magr[ id_vx ], bins = np.linspace(-26, -16, 65), density = True, histtype = 'step', color = 'b', label = 'Inner')
-
-plt.axvline( x = np.median( mp_Magr[ id_vx ] ), ls = '--', label = 'Median', color = 'b',)
-plt.axvline( x = np.mean( mp_Magr[ id_vx ] ), ls = '-', label = 'Mean', color = 'b',)
-
-plt.hist( mp_Magr[ id_vx == False ], bins = np.linspace(-26, -16, 65), density = True, histtype = 'step', color = 'r', label = 'Outer')
-
-plt.axvline( x = np.median( mp_Magr[ id_vx == False ] ), ls = '--', color = 'r',)
-plt.axvline( x = np.mean( mp_Magr[ id_vx == False ] ), ls = '-', color = 'r',)
-
-plt.legend( loc = 1)
-plt.xlabel('$Mag_{r}$')
-plt.savefig('/home/xkchen/abs_r_mag_compare.png', dpi = 300)
-plt.close()
-
-"""

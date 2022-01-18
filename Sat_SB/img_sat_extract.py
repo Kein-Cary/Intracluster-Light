@@ -141,12 +141,15 @@ def mask_with_G_tag( img_arry, cen_x, cen_y, cen_ar, cen_br, cen_cr, cen_chi, ga
 
 
 ### === 
-def sate_Extract_func( d_file, bcg_ra, bcg_dec, bcg_z, ra_set, dec_set, z_set, band, gal_file, out_file, R_cut, 
+def sate_Extract_func( d_file, bcg_ra, bcg_dec, bcg_z, ra_set, dec_set, band, gal_file, out_file, R_cut, 
 						offset_file = None, sdss_phot_file = None, alt_G_size = None, pixel = 0.396):
 	"""
 	d_file : path where image data saved (include file-name structure:'/xxx/xxx/xxx.xxx')
 	bcg_ra, bcg_dec, bcg_z : the cluster or BCG information (for image load)
-	z_set, ra_set, dec_set : the information of satellites (for location found in frame)
+	----------------
+	ra_set, dec_set : the information of satellites (for location found in frame)
+	assuming redshift of satellites are the same as cluster
+
 	band : filter information
 	gal_file : the source catalog based on SExTractor calculation
 	out_file : '.fits' file, the extracout satellite images
@@ -212,7 +215,7 @@ def sate_Extract_func( d_file, bcg_ra, bcg_dec, bcg_z, ra_set, dec_set, z_set, b
 	##. cutout satellite images
 	for pp in range( N_sat ):
 
-		kk_ra, kk_dec, kk_z = ra_set[ pp ], dec_set[ pp ], z_set[ pp ]
+		kk_ra, kk_dec = ra_set[ pp ], dec_set[ pp ]
 
 
 		#. find target galaxy in source catalog
@@ -297,16 +300,17 @@ def sate_Extract_func( d_file, bcg_ra, bcg_dec, bcg_z, ra_set, dec_set, z_set, b
 	return
 
 
-def sate_surround_mask_func(d_file, cat_file, bcg_ra, bcg_dec, bcg_z, ra_set, dec_set, z_set, band, gal_file, out_mask_file, R_cut, 
+def sate_surround_mask_func(d_file, cat_file, bcg_ra, bcg_dec, bcg_z, ra_set, dec_set, band, gal_file, out_mask_file, R_cut, 
 						offset_file = None, sdss_phot_file = None, 
 						extra_cat = None, extra_img = None, 
 						alter_fac = None, alt_bright_R = None, alt_G_size = None, stack_info = None, pixel = 0.396):
 	"""
 	d_file : path where image data saved (include file-name structure:'/xxx/xxx/xxx.xxx')
 	cat_file : table of stars and saturated pixels
-
 	bcg_ra, bcg_dec, bcg_z : the cluster or BCG information (for image load)
-	z_set, ra_set, dec_set : the information of satellites (for location found in frame)
+	----------------
+	ra_set, dec_set : the information of satellites (for location found in frame)
+	assuming redshift of satellites are the same as cluster
 
 	band : filter information
 
@@ -467,7 +471,7 @@ def sate_surround_mask_func(d_file, cat_file, bcg_ra, bcg_dec, bcg_z, ra_set, de
 
 	for pp in range( N_sat ):
 
-		kk_ra, kk_dec, kk_z = ra_set[ pp], dec_set[ pp], z_set[ pp]
+		kk_ra, kk_dec = ra_set[ pp], dec_set[ pp]
 
 		pp_cx, pp_cy = s_xn[ pp ], s_yn[ pp ]
 

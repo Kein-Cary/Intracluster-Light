@@ -22,6 +22,8 @@ from astropy.table import Table, QTable
 
 #.
 from Mass_rich_radius import rich2R_Simet
+from img_sat_fig_out_mode import zref_sat_pos_func
+
 
 ###... cosmology model
 Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
@@ -33,36 +35,6 @@ Omega_k = 1.- (Omega_lambda + Omega_m)
 
 rad2arcsec = U.rad.to(U.arcsec)
 
-### === 
-def zref_sat_pos_func( cat_file, z_ref, out_file, pix_size ):
-	"""
-	this part use for calculate BCG position after pixel resampling. 
-	"""
-	dat = pds.read_csv( cat_file )
-	bcg_ra, bcg_dec, bcg_z = np.array(dat['bcg_ra']), np.array(dat['bcg_dec']), np.array(dat['bcg_z'])
-
-	ra, dec = np.array(dat['sat_ra']), np.array(dat['sat_dec'])
-	z = bcg_z + 0.
-
-	sat_x, sat_y = np.array(dat['cut_cx']), np.array(dat['cut_cy'])
-
-	Da_z = Test_model.angular_diameter_distance(z).value
-	Da_ref = Test_model.angular_diameter_distance(z_ref).value
-
-	L_ref = Da_ref * pix_size / rad2arcsec
-	L_z = Da_z * pix_size / rad2arcsec
-	eta = L_ref / L_z
-
-	ref_satx = sat_x / eta
-	ref_saty = sat_y / eta
-
-	keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'sat_x', 'sat_y' ]
-	values = [ bcg_ra, bcg_dec, bcg_z, ra, dec, ref_satx, ref_saty ]
-	fill = dict(zip(keys, values))
-	data = pds.DataFrame(fill)
-	data.to_csv( out_file )
-
-	return
 
 ### === mem cat
 def entire_sample_func():
@@ -381,7 +353,6 @@ def catalog_build():
 	# extra_cat_match_func( ra, dec, z, out_sat_file, out_img_file)   ## member match
 
 
-
 	##... image frame limited satellite sample (how many member located in current image catalog)
 	img_cat_file = '/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_cat.csv'
 	img_file = '/media/xkchen/My Passport/data/SDSS/photo_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
@@ -536,36 +507,71 @@ data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rg
 
 
 ### === satellite position record and match
+##... need to go through the image catalog and record the satellite location firstly
+
 def divi_match():
 
 	band = ['r', 'g', 'i']
 
+	##... position at z_ref
 	# for kk in range( 3 ):
 
-	# 	cat_file = '/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-limit_member_%s-band_pos.csv' % band[ kk ]
-	# 	out_file = '/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-limit_member_%s-band_pos_z-ref.csv' % band[ kk ]
+	# 	band_str = band[ kk ]
+
+	# 	dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/' + 
+	# 						'Extend-BCGM_rgi-common_frame-limit_member_%s-band_pos-compare.csv' % band_str )
+
+	# 	bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
+	# 	sat_ra, sat_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
+
+	# 	mx, my = np.array( dat['mx'] ), np.array( dat['my'] )
+	# 	pk_x, pk_y = np.array( dat['peak_x'] ), np.array( dat['peak_y'] )
+
+	# 	_off_cx, _off_cy = mx - 1, my - 1    #. position adjust
+
+
+	# 	# off_R = np.sqrt( (mx - pk_x)**2 + (my - pk_y)**2 )
+
+	# 	# plt.figure()
+	# 	# plt.hist( off_R, bins = np.linspace(0, 5, 100), density = True, histtype = 'step',)
+	# 	# plt.axvline( x = np.median( off_R ), ls = '--', label = 'median',)
+	# 	# plt.axvline( x = np.mean( off_R ), ls = '-', label = 'mean',)
+	# 	# plt.xlabel('$\\Delta_{cen-peak} \; [pixels]$')
+	# 	# plt.savefig('/home/xkchen/%s-band_position_compare.png' % band_str, dpi = 300)
+	# 	# plt.close()
+
+	# 	keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'cut_cx', 'cut_cy']
+	# 	values = [ bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, _off_cx, _off_cy ]
+	# 	fill = dict( zip( keys, values) )
+	# 	out_data = pds.DataFrame( fill )
+	# 	out_data.to_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/' + 
+	# 					'Extend-BCGM_rgi-common_frame-limit_member_%s-band_pos.csv' % band_str,)
+
+	# 	cat_file = '/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-limit_member_%s-band_pos.csv' % band_str
+	# 	out_file = '/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-limit_member_%s-band_pos_z-ref.csv' % band_str
+
 	# 	z_ref = 0.25
 	# 	pix_size = 0.396
 
 	# 	zref_sat_pos_func( cat_file, z_ref, out_file, pix_size )
 
 
-	# s_dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv')
-	# bcg_ra, bcg_dec, bcg_z = np.array( s_dat['bcg_ra'] ), np.array( s_dat['bcg_dec'] ), np.array( s_dat['bcg_z'] )
-	# p_ra, p_dec = np.array( s_dat['ra'] ), np.array( s_dat['dec'] )
+	s_dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv')
+	bcg_ra, bcg_dec, bcg_z = np.array( s_dat['bcg_ra'] ), np.array( s_dat['bcg_dec'] ), np.array( s_dat['bcg_z'] )
+	p_ra, p_dec = np.array( s_dat['ra'] ), np.array( s_dat['dec'] )
 
 	##... divided by scaled radius
 	# s_dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_inner-mem_cat.csv')
-	# # s_dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_outer-mem_cat.csv')
+	# s_dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_outer-mem_cat.csv')
 	# bcg_ra, bcg_dec, bcg_z = np.array( s_dat['bcg_ra'] ), np.array( s_dat['bcg_dec'] ), np.array( s_dat['bcg_z'] )
 	# p_ra, p_dec = np.array( s_dat['sat_ra'] ), np.array( s_dat['sat_dec'] )
 
 
 	##... divided by physic-R
 	# s_dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_R-phy_inner-mem_cat.csv')
-	s_dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_R-phy_outer-mem_cat.csv')
-	bcg_ra, bcg_dec, bcg_z = np.array( s_dat['bcg_ra'] ), np.array( s_dat['bcg_dec'] ), np.array( s_dat['bcg_z'] )
-	p_ra, p_dec = np.array( s_dat['sat_ra'] ), np.array( s_dat['sat_dec'] )
+	# s_dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_R-phy_outer-mem_cat.csv')
+	# bcg_ra, bcg_dec, bcg_z = np.array( s_dat['bcg_ra'] ), np.array( s_dat['bcg_dec'] ), np.array( s_dat['bcg_z'] )
+	# p_ra, p_dec = np.array( s_dat['sat_ra'] ), np.array( s_dat['sat_dec'] )
 
 
 	pre_coord = SkyCoord( ra = p_ra * U.deg, dec = p_dec * U.deg )
@@ -574,30 +580,27 @@ def divi_match():
 
 		dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-limit_member_%s-band_pos.csv' % band[ kk ])
 		kk_ra, kk_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
-		kk_orix, kk_oriy = np.array( dat['ori_imgx'] ), np.array( dat['ori_imgy'] )
 		kk_imgx, kk_imgy = np.array( dat['cut_cx'] ), np.array( dat['cut_cy'] )
 
 		kk_coord = SkyCoord( ra = kk_ra * U.deg, dec = kk_dec * U.deg )
 
 		idx, sep, d3d = pre_coord.match_to_catalog_sky( kk_coord )
-		id_lim = sep.value < 2.7e-5
+		id_lim = sep.value < 2.7e-4
 
 		mp_ra, mp_dec = kk_ra[ idx[ id_lim ] ], kk_dec[ idx[ id_lim ] ]
-		mp_orix, mp_oriy = kk_orix[ idx[ id_lim ] ], kk_oriy[ idx[ id_lim ] ]
 		mp_imgx, mp_imgy = kk_imgx[ idx[ id_lim ] ], kk_imgy[ idx[ id_lim ] ]
 
-		keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'ori_imgx', 'ori_imgy', 'cut_cx', 'cut_cy']
-		values = [ bcg_ra, bcg_dec, bcg_z, p_ra, p_dec, mp_orix, mp_oriy, mp_imgx, mp_imgy ]
+		keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'cut_cx', 'cut_cy']
+		values = [ bcg_ra, bcg_dec, bcg_z, p_ra, p_dec, mp_imgx, mp_imgy ]
 		fill = dict( zip( keys, values ) )
 		data = pds.DataFrame( fill )
-		# data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_member_%s-band_pos.csv' % band[kk] )
+		data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_member_%s-band_pos.csv' % band[kk] )
 
 		# data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_inner-mem_%s-band_pos.csv' % band[kk] )
 		# data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_outer-mem_%s-band_pos.csv' % band[kk] )
 		
 		# data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_R-phy_inner-mem_%s-band_pos.csv' % band[kk] )
-		data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_R-phy_outer-mem_%s-band_pos.csv' % band[kk] )
-
+		# data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_R-phy_outer-mem_%s-band_pos.csv' % band[kk] )
 
 		#. z-ref position
 		dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-limit_member_%s-band_pos_z-ref.csv' % band[ kk ])
@@ -607,7 +610,7 @@ def divi_match():
 		kk_coord = SkyCoord( ra = kk_ra * U.deg, dec = kk_dec * U.deg )
 
 		idx, sep, d3d = pre_coord.match_to_catalog_sky( kk_coord )
-		id_lim = sep.value < 2.7e-5
+		id_lim = sep.value < 2.7e-4
 
 		mp_ra, mp_dec = kk_ra[ idx[ id_lim ] ], kk_dec[ idx[ id_lim ] ]	
 		mp_imgx, mp_imgy = kk_imgx[ idx[ id_lim ] ], kk_imgy[ idx[ id_lim ] ]
@@ -616,17 +619,19 @@ def divi_match():
 		values = [ bcg_ra, bcg_dec, bcg_z, p_ra, p_dec, mp_imgx, mp_imgy ]
 		fill = dict( zip( keys, values ) )
 		data = pds.DataFrame( fill )
-		# data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_member_%s-band_pos_z-ref.csv' % band[kk] )
+		data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_member_%s-band_pos_z-ref.csv' % band[kk] )
 
 		# data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_inner-mem_%s-band_pos_z-ref.csv' % band[kk] )
 		# data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_outer-mem_%s-band_pos_z-ref.csv' % band[kk] )
-	
+
 		# data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_R-phy_inner-mem_%s-band_pos_z-ref.csv' % band[kk] )
-		data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_R-phy_outer-mem_%s-band_pos_z-ref.csv' % band[kk] )
+		# data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_R-phy_outer-mem_%s-band_pos_z-ref.csv' % band[kk] )
 
 	return
 
-# divi_match()
+divi_match()
+
+raise
 
 
 ##... record the member or richness of cluster sample (for Ng_weit stacking)

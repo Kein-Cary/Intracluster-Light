@@ -13,6 +13,10 @@ import statistics as sts
 from scipy import interpolate as interp
 from astropy import cosmology as apcy
 
+#.
+from img_sat_fig_out_mode import arr_jack_func
+
+
 ## constant
 kpc2cm = U.kpc.to(U.cm)
 Mpc2pc = U.Mpc.to(U.pc)
@@ -71,13 +75,16 @@ def cumula_flux(angl_r, bin_fdens,):
 	return flux_arr
 
 def fdens_deriv(r_angle, obs_r, obs_fmean, ):
+	"""
+	obs_r, obs_fmean : 	
+	"""
 
-	cumu_f = cumula_flux(obs_r, obs_fmean)
+	cumu_f = cumula_flux( obs_r, obs_fmean )
 
 	asinh_x = np.log(obs_r + np.sqrt(obs_r**2 + 1) )
 	asinh_f = np.log(cumu_f + np.sqrt(cumu_f**2 + 1) )
 
-	fit_func = interp.splrep(asinh_x, asinh_f, s = 0)
+	fit_func = interp.splrep( asinh_x, asinh_f, s = 0)
 
 	new_x = np.log(r_angle + np.sqrt(r_angle**2 + 1) )
 	new_f = interp.splev(new_x, fit_func, der = 0)
@@ -88,20 +95,16 @@ def fdens_deriv(r_angle, obs_r, obs_fmean, ):
 	dx_f = 1 / np.sqrt( r_angle**2 + 1)
 
 	sb_f = deri_f * dy_f * dx_f / (2 * np.pi * r_angle)
-	'''
-	fit_func = interp.splrep(obs_r, cumu_f, s = 0)
-	new_x = r_angle
-	new_f = interp.splev(new_x, fit_func, der = 1)
 
-	sb_f = new_f / (2 * np.pi * r_angle)
-	'''
 	return sb_f
 
 
-def single_img_SB_func(band_str, set_z, set_ra, set_dec, pros_file, r_bins, z_ref = None):
+def single_img_SB_func(band_str, set_z, set_ra, set_dec, pros_file, r_bins, z_ref = None, n_skip = None):
 	"""
 	The return varable is surface brightness profile
 	for satellites, set_z is the redshift of cluster (or the BCGs)
+	r_bins : in units of kpc
+	n_skip : rows number to skip. default is 1 (for SDSS query case)
 	"""
 	band_id = band.index( band_str )
 
@@ -117,7 +120,12 @@ def single_img_SB_func(band_str, set_z, set_ra, set_dec, pros_file, r_bins, z_re
 	Da_g = Test_model.angular_diameter_distance(z_g).value
 	r_angl = (r_bins * 1e-3) / Da_g * rad2asec
 
-	cat_pro = pds.read_csv( pros_file % (ra_g, dec_g), skiprows = 1)
+
+	if n_skip is None:
+		cat_pro = pds.read_csv( pros_file % (ra_g, dec_g), skiprows = 1)
+
+	else:
+		cat_pro = pds.read_csv( pros_file % (ra_g, dec_g), skiprows = n_skip)
 
 	dat_band = np.array( cat_pro.band )
 	dat_bins = np.array( cat_pro.bin )
@@ -125,10 +133,10 @@ def single_img_SB_func(band_str, set_z, set_ra, set_dec, pros_file, r_bins, z_re
 	dat_pro_err = np.array( cat_pro.profErr )
 
 	idx = dat_band == pro_id
-	tt_pro = dat_pro[idx]
-	tt_proErr = dat_pro_err[idx]
-	tt_bin = dat_bins[idx]
-	tt_r = cat_Rii[tt_bin]
+	tt_pro = dat_pro[ idx ]
+	tt_proErr = dat_pro_err[ idx ]
+	tt_bin = dat_bins[ idx ]
+	tt_r = cat_Rii[ tt_bin ]
 
 	id_lim = r_angl <= tt_r.max()
 	use_angl_r = r_angl[ id_lim ]
@@ -145,11 +153,13 @@ def single_img_SB_func(band_str, set_z, set_ra, set_dec, pros_file, r_bins, z_re
 
 	return out_rbins, out_fdens
 
-def aveg_SB_func(band_str, set_z, set_ra, set_dec, pros_file, z_ref, out_file, r_bins):
-
+def aveg_SB_func(band_str, set_z, set_ra, set_dec, pros_file, out_file, r_bins, z_ref = None, n_skip = None):
 	"""
 	The return varable is surface brightness profile
+	r_bins : in units of kpc
+	n_skip : rows number to skip. default is 1 (for SDSS query case)
 	"""
+
 	band_id = band.index( band_str )
 
 	if band_id == 0:
@@ -169,7 +179,12 @@ def aveg_SB_func(band_str, set_z, set_ra, set_dec, pros_file, z_ref, out_file, r
 		Da_g = Test_model.angular_diameter_distance(z_g).value
 		r_angl = (r_bins * 1e-3) / Da_g * rad2asec
 
-		cat_pro = pds.read_csv( pros_file % (ra_g, dec_g), skiprows = 1)
+
+		if n_skip is None:
+			cat_pro = pds.read_csv( pros_file % (ra_g, dec_g), skiprows = 1 )
+
+		else:
+			cat_pro = pds.read_csv( pros_file % (ra_g, dec_g), skiprows = n_skip )
 
 		dat_band = np.array( cat_pro.band )
 		dat_bins = np.array( cat_pro.bin )
@@ -186,8 +201,13 @@ def aveg_SB_func(band_str, set_z, set_ra, set_dec, pros_file, z_ref, out_file, r
 		use_angl_r = r_angl[ id_lim ]
 		fdens = fdens_deriv( use_angl_r, tt_r, tt_pro,)
 
-		fdens = fdens * ( (1 + z_g) / (1 + z_ref) )**4
-		fdens_arr[tt][id_lim] = fdens
+		if z_ref is not None:
+			out_fdens = fdens * ( (1 + z_g) / (1 + z_ref) )**4
+
+		else:
+			out_fdens = fdens * 1.
+
+		fdens_arr[tt][id_lim] = out_fdens
 
 	m_fdens = np.nanmean( fdens_arr, axis = 0 )
 	std_fdens = np.nanstd( fdens_arr, axis = 0 )
@@ -201,6 +221,77 @@ def aveg_SB_func(band_str, set_z, set_ra, set_dec, pros_file, z_ref, out_file, r
 	fill = dict(zip(keys, values))
 	data = pds.DataFrame(fill)
 	data.to_csv( out_file )
+
+	return
+
+
+### === jackknife subsample average
+def jack_aveg_SB_func( N_sample, sat_ra, sat_dec, band_str, clus_z, prof_cat, r_bins, jk_sub_file, jk_aveg_file, z_ref = None):
+	"""
+	N_sample : number of jackknife subsample
+	sat_ra, sat_dec, band_str, clus_z : satellite information, including, ra, dec, band, and host cluster redshift
+	prof_cat : profMean catalog match to SDSS photometric_cat
+	r_bins : radius bin for surface brightness profile measurement, in units of kpc
+	jk_sub_file : '.csv' files
+	jk_aveg_file : '.csv' files
+	"""
+
+	zN = len( sat_ra )
+
+	#. jackknife subsample
+	id_arr = np.arange(0, zN, 1)
+	id_group = id_arr % N_sample
+
+	lis_ra, lis_dec, lis_z = [], [], []
+
+	#. sub-sample
+	for nn in range( N_sample ):
+
+		id_xbin = np.where( id_group == nn )[0]
+
+		lis_ra.append( sat_ra[ id_xbin ] )
+		lis_dec.append( sat_dec[ id_xbin ] )
+		lis_z.append( clus_z[ id_xbin ] )
+
+
+	#. jackknife sub-sample
+	for nn in range( N_sample ):
+
+		id_arry = np.linspace( 0, N_sample - 1, N_sample )
+		id_arry = id_arry.astype( int )
+		jack_id = list( id_arry )
+		jack_id.remove( jack_id[nn] )
+		jack_id = np.array( jack_id )
+
+		set_ra, set_dec, set_z = np.array([]), np.array([]), np.array([])
+
+		for oo in ( jack_id ):
+			set_ra = np.r_[ set_ra, lis_ra[oo] ]
+			set_dec = np.r_[ set_dec, lis_dec[oo] ]
+			set_z = np.r_[ set_z, lis_z[oo] ]
+
+		_nn_file = jk_sub_file % nn
+
+		aveg_SB_func( band_str, set_z, set_ra, set_dec, prof_cat, _nn_file, r_bins, z_ref = z_ref )
+
+	#. mean of jackknife sample
+	tmp_r, tmp_sb = [], []
+	for nn in range( N_sample ):
+
+		pro_dat = pds.read_csv( jk_sub_file % nn,)
+
+		tt_r, tt_sb = np.array( pro_dat['R_ref'] ), np.array( pro_dat['SB_fdens'] )
+
+		tmp_r.append( tt_r )
+		tmp_sb.append( tt_sb )
+
+	mean_R, mean_sb, mean_sb_err, lim_R = arr_jack_func( tmp_sb, tmp_r, N_sample )
+
+	keys = [ 'R', 'aveg_sb', 'aveg_sb_err' ]
+	values = [ mean_R, mean_sb, mean_sb_err ]
+	fill = dict(zip( keys, values) )
+	out_data = pds.DataFrame( fill )
+	out_data.to_csv( jk_aveg_file )
 
 	return
 
