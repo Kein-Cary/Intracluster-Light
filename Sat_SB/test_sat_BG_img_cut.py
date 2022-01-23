@@ -6,7 +6,6 @@ from matplotlib.ticker import MultipleLocator, AutoMinorLocator
 import h5py
 import numpy as np
 import pandas as pds
-import astropy.io.fits as fits
 
 import astropy.units as U
 import astropy.constants as C
@@ -255,7 +254,8 @@ print('rank = %d' % rank)
 """
 
 
-### === BG_img cutout (based on mocked 2D image of BCG+ICL, fixed i_Mag_10 case)
+#*********************************# fixed i_Mag_10 case
+### === satellite location at z_ref mapping
 # load = '/home/xkchen/fig_tmp/'
 # home = '/home/xkchen/data/SDSS/'
 
@@ -268,7 +268,7 @@ for kk in range( 3 ):
 
 	##. load the tract information
 	dat = pds.read_csv( home + 'member_files/BG_tract_cat/'
-		'Extend-BCGM_rgi-common_frame-lim_Pm-cut_inner-mem_%s-band_BG-tract_cat.csv' % band_str,)
+			'Extend-BCGM_rgi-common_frame-lim_Pm-cut_inner-mem_%s-band_BG-tract_cat.csv' % band_str,)
 
 	bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
 	sat_ra, sat_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
@@ -279,6 +279,10 @@ for kk in range( 3 ):
 	lim_dx0, lim_dx1 = np.array( dat['low_dx'] ), np.array( dat['up_dx'] )
 	lim_dy0, lim_dy1 = np.array( dat['low_dy'] ), np.array( dat['up_dy'] )
 	cut_Nx, cut_Ny = np.array( dat['cut_Nx'] ), np.array( dat['cut_Ny'] )
+
+	cat = pds.read_csv( home + 'member_files/sat_cat_z02_03/' + 
+			'Extend-BCGM_rgi-common_frame-lim_Pm-cut_inner-mem_cat.csv')
+	clus_ID = np.array( cat['clus_ID'] )
 
 
 	dat = pds.read_csv( home + 'member_files/BG_tract_cat/'
@@ -303,14 +307,16 @@ for kk in range( 3 ):
 	cut_Nx = np.r_[ cut_Nx, np.array( dat['cut_Nx'] ) ]
 	cut_Ny = np.r_[ cut_Ny, np.array( dat['cut_Ny'] ) ]
 
-	ref_coord = SkyCoord( ra = sat_ra * U.deg, dec = sat_dec * U.deg )
+	cat = pds.read_csv( home + 'member_files/sat_cat_z02_03/' + 
+			'Extend-BCGM_rgi-common_frame-lim_Pm-cut_outer-mem_cat.csv')
+	clus_ID = np.r_[ clus_ID, np.array( cat['clus_ID'] ) ]
+
 
 	#. mock_2D_BG tract catalog
 	keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'R_sat', 'sat_PA', 
-						'cut_Nx', 'cut_Ny', 'low_dx', 'up_dx', 'low_dy', 'up_dy' ]
+						'cut_Nx', 'cut_Ny', 'low_dx', 'up_dx', 'low_dy', 'up_dy', 'clus_ID' ]
 	values = [ bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, R_sat, sat_PA, 
-						cut_Nx, cut_Ny, lim_dx0, lim_dx1, lim_dy0, lim_dy1 ]
-
+						cut_Nx, cut_Ny, lim_dx0, lim_dx1, lim_dy0, lim_dy1, clus_ID ]
 	fill = dict( zip( keys, values ) )
 	data = pds.DataFrame( fill )
 	data.to_csv( home + 'member_files/BG_tract_cat/' + 
@@ -321,59 +327,108 @@ for kk in range( 3 ):
 
 	band_str = band[ kk ]
 
+	#. map table
+	dat = pds.read_csv( home + 'member_files/BG_tract_cat/' + 
+			'Extend-BCGM_rgi-common_frame-lim_Pm-cut_%s-band_BG-tract_cat.csv' % band_str,)
+
+	kk_bcg_ra, kk_bcg_dec, kk_bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
+	kk_s_ra, kk_s_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
+	kk_clus_ID = np.array( dat['clus_ID'] )
+
+	kk_R_sat = np.array( dat['R_sat'] )
+	kk_sat_PA = np.array( dat['sat_PA'] )
+
+	kk_lim_dx0 = np.array( dat['low_dx'] )
+	kk_lim_dx1 = np.array( dat['up_dx'] )
+
+	kk_lim_dy0 = np.array( dat['low_dy'] )
+	kk_lim_dy1 = np.array( dat['up_dy'] )
+
+	kk_cut_Nx = np.array( dat['cut_Nx'] )
+	kk_cut_Ny = np.array( dat['cut_Ny'] )
+
+
 	for mm in range( 3 ):
 
 		#. subsample need to match
-		s_dat = pds.read_csv( load + 'Extend_Mbcg_sat_cat/' + 
-				'frame-lim_Pm-cut_exlu-BCG_iMag10-fix_%s_member_%s-band_pos-zref.csv' % (cat_lis[mm], band_str),)
+		s_dat = pds.read_csv( home + 'member_files/sat_cat_z02_03/' + 
+					'frame-lim_Pm-cut_exlu-BCG_iMag10-fix_%s_member.csv' % cat_lis[ mm ],)
+
 		bcg_ra, bcg_dec, bcg_z = np.array( s_dat['bcg_ra'] ), np.array( s_dat['bcg_dec'] ), np.array( s_dat['bcg_z'] )
 		sat_ra, sat_dec = np.array( s_dat['sat_ra'] ), np.array( s_dat['sat_dec'] )
+		clus_IDs = np.array( s_dat['clus_ID'] )
 
-		pre_coord = SkyCoord( ra = sat_ra * U.deg, dec = sat_dec * U.deg )
+		print( len(bcg_ra) )
 
-		#. map table
-		dat = pds.read_csv( home + 'member_files/BG_tract_cat/' + 
-				'Extend-BCGM_rgi-common_frame-lim_Pm-cut_%s-band_BG-tract_cat.csv' % band_str,)
-
-		kk_R_sat = np.array( dat['R_sat'] )
-		kk_sat_PA = np.array( dat['sat_PA'] )
-
-		kk_lim_dx0 = np.array( dat['low_dx'] )
-		kk_lim_dx1 = np.array( dat['up_dx'] )
-
-		kk_lim_dy0 = np.array( dat['low_dy'] )
-		kk_lim_dy1 = np.array( dat['up_dy'] )
-
-		kk_cut_Nx = np.array( dat['cut_Nx'] )
-		kk_cut_Ny = np.array( dat['cut_Ny'] )
-
-		kk_ra, kk_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
-		kk_coord = SkyCoord( ra = kk_ra * U.deg, dec = kk_dec * U.deg )
+		set_IDs = np.array( list( set(clus_IDs) ) )
+		set_IDs = set_IDs.astype( int )
+		N_cs = len( set_IDs )
 
 
-		idx, sep, d3d = pre_coord.match_to_catalog_sky( kk_coord )
-		id_lim = sep.value < 2.7e-4
+		#. image tract information
+		mp_bcg_ra, mp_bcg_dec, mp_bcg_z = np.array([]), np.array([]), np.array([])
+		mp_sat_ra, mp_sat_dec = np.array([]), np.array([])
 
-		mp_ra, mp_dec = kk_ra[ idx[ id_lim ] ], kk_dec[ idx[ id_lim ] ]
-		print( np.sum( mp_ra - sat_ra ) )
-		print( np.sum( mp_dec - sat_dec ) )
+		mp_Rsat, mp_PA = np.array([]), np.array([])
+		mp_lim_x0, mp_lim_x1 = np.array([]), np.array([])
+		mp_lim_y0, mp_lim_y1 = np.array([]), np.array([])
+		mp_cut_Nx, mp_cut_Ny = np.array([]), np.array([])
 
-		mp_Rsat = kk_R_sat[ idx[ id_lim ] ]
-		mp_PA = kk_sat_PA[ idx[ id_lim ] ]
 
-		mp_lim_x0 = kk_lim_dx0[ idx[ id_lim ] ]
-		mp_lim_x1 = kk_lim_dx1[ idx[ id_lim ] ]
+		for tt in range( N_cs ):
 
-		mp_lim_y0 = kk_lim_dy0[ idx[ id_lim ] ]
-		mp_lim_y1 = kk_lim_dy1[ idx[ id_lim ] ]
+			id_x = clus_IDs == set_IDs[ tt ]
 
-		mp_cut_Nx = kk_cut_Nx[ idx[ id_lim ] ]
-		mp_cut_Ny = kk_cut_Ny[ idx[ id_lim ] ]
+			tt_ra, tt_dec = sat_ra[ id_x ], sat_dec[ id_x ]
+			tt_cen_ra, tt_cen_dec, tt_cen_z = bcg_ra[ id_x ][0], bcg_dec[ id_x ][0], bcg_z[ id_x ][0]
 
-		#. save catalog
+			sub_coord = SkyCoord( ra = tt_ra * U.deg, dec = tt_dec * U.deg)
+
+
+			id_y = kk_clus_ID == set_IDs[ tt ]
+
+			cp_ra, cp_dec = kk_s_ra[ id_y ], kk_s_dec[ id_y ]
+
+			cp_R_sat, cp_sat_PA = kk_R_sat[ id_y ], kk_sat_PA[ id_y ]
+			cp_lim_x0, cp_lim_x1 = kk_lim_dx0[ id_y ], kk_lim_dx1[ id_y ]
+			cp_lim_y0, cp_lim_y1 = kk_lim_dy0[ id_y ], kk_lim_dy1[ id_y ]
+			cp_cut_Nx, cp_cut_Ny = kk_cut_Nx[ id_y ], kk_cut_Ny[ id_y ]
+
+			kk_coord = SkyCoord( ra = cp_ra * U.deg, dec = cp_dec * U.deg )
+
+
+			#. map
+			idx, sep, d3d = kk_coord.match_to_catalog_sky( sub_coord )
+			id_lim = sep.value < 2.7e-4
+
+			_mm_ra, _mm_dec = cp_ra[ id_lim ], cp_dec[ id_lim ]  ## for mapping check
+			_N_sat = len( _mm_ra )
+
+
+			mp_bcg_ra = np.r_[ mp_bcg_ra, np.ones( _N_sat,) * tt_cen_ra ]
+			mp_bcg_dec = np.r_[ mp_bcg_dec, np.ones( _N_sat,) * tt_cen_dec ]
+			mp_bcg_z = np.r_[ mp_bcg_z, np.ones( _N_sat,) * tt_cen_z ]
+			
+			mp_sat_ra = np.r_[ mp_sat_ra, tt_ra[ idx[ id_lim ] ] ]
+			mp_sat_dec = np.r_[ mp_sat_dec, tt_dec[ idx[ id_lim ] ] ]
+
+			mp_Rsat = np.r_[ mp_Rsat, cp_R_sat[ id_lim ] ]
+			mp_PA = np.r_[ mp_PA, cp_sat_PA[ id_lim ] ]
+
+			mp_lim_x0 = np.r_[ mp_lim_x0, cp_lim_x0[ id_lim ] ]
+			mp_lim_x1 = np.r_[ mp_lim_x1, cp_lim_x1[ id_lim ] ]
+
+			mp_lim_y0 = np.r_[ mp_lim_y0, cp_lim_y0[ id_lim ] ]
+			mp_lim_y1 = np.r_[ mp_lim_y1, cp_lim_y1[ id_lim ] ]
+
+			mp_cut_Nx = np.r_[ mp_cut_Nx, cp_cut_Nx[ id_lim ] ]
+			mp_cut_Ny = np.r_[ mp_cut_Ny, cp_cut_Ny[ id_lim ] ]
+
+		print( len( mp_PA ) )
+		##. save catalog
 		keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'R_sat', 'sat_PA', 
 							'cut_Nx', 'cut_Ny', 'low_dx', 'up_dx', 'low_dy', 'up_dy' ]
-		values = [ bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, mp_Rsat, mp_PA, 
+		values = [ mp_bcg_ra, mp_bcg_dec, mp_bcg_z, mp_sat_ra, mp_sat_dec, mp_Rsat, mp_PA, 
 							mp_cut_Nx, mp_cut_Ny, mp_lim_x0, mp_lim_x1, mp_lim_y0, mp_lim_y1 ]
 
 		fill = dict( zip( keys, values ) )
@@ -384,7 +439,12 @@ for kk in range( 3 ):
 """
 
 
+### === BG_img cutout (based on mocked 2D image of BCG+ICL)
 """
+load = '/home/xkchen/fig_tmp/'
+home = '/home/xkchen/data/SDSS/'
+cat_lis = ['inner', 'middle', 'outer']
+
 for kk in range( 3 ):
 
 	band_str = band[ kk ]
@@ -509,9 +569,8 @@ for kk in range( 3 ):
 			_kk_dy0, _kk_dy1 = set_dy0[ pp ], set_dy1[ pp ]
 			_kk_Nx, _kk_Ny = set_Nx[ pp ], set_Ny[ pp ]
 
-			# BG_file = home + 'member_files/BG_2D_file/stacked_cluster_%s_%s-band_img.fits' % (cat_lis[mm], band_str)  ##. stacked image with Ng weight
-
-			BG_file = home + 'member_files/BG_2D_file/stacked_all_cluster_%s-band_img.fits' % band_str  ##. stacked image without Ng weight
+			BG_file = home + 'member_files/BG_2D_file/stacked_cluster_%s_%s-band_img.fits' % (cat_lis[mm], band_str)  ##. stacked image with Ng weight
+			# BG_file = home + 'member_files/BG_2D_file/stacked_all_cluster_%s-band_img.fits' % band_str              ##. stacked image without Ng weight
 
 			out_file = home + 'member_files/BG_imgs_nomock/clus_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_BG.fits'
 
@@ -608,4 +667,4 @@ for kk in range( 1 ):
 	resamp_func( d_file, sub_z, sub_ra, sub_dec, ra_set, dec_set, img_x, img_y, band_str, out_file, z_ref, id_dimm = id_dimm )
 
 print( '%d rank, done!' % rank )
-raise
+

@@ -230,42 +230,52 @@ for mm in range( 3 ):
 
 
 
-plt.figure()
-ax1 = plt.subplot(111)
+fig = plt.figure( )
+ax1 = fig.add_axes( [0.13, 0.32, 0.85, 0.63] )
+sub_ax1 = fig.add_axes( [0.13, 0.11, 0.85, 0.21] )
 
 for kk in range( 1 ):
 
-	ax1.errorbar( nbg_R[0][kk], nbg_SB[0][kk], yerr = nbg_err[0][kk], marker = '', ls = '-', color = color_s[0],
-		ecolor = color_s[0], mfc = 'none', mec = color_s[0], capsize = 1.5,)
+	ax1.errorbar( nbg_R[0][kk], nbg_SB[0][kk], yerr = nbg_err[0][kk], marker = '', ls = ':', color = color_s[0],
+		ecolor = color_s[0], mfc = 'none', mec = color_s[0], capsize = 1.5, alpha = 0.75,)
 
-	ax1.errorbar( nbg_R[1][kk], nbg_SB[1][kk], yerr = nbg_err[1][kk], marker = '', ls = '-', color = color_s[1],
-		ecolor = color_s[1], mfc = 'none', mec = color_s[1], capsize = 1.5, label = '%s-band' % band[kk],)
+	ax1.errorbar( nbg_R[1][kk], nbg_SB[1][kk], yerr = nbg_err[1][kk], marker = '', ls = '--', color = color_s[0],
+		ecolor = color_s[0], mfc = 'none', mec = color_s[0], capsize = 1.5, alpha = 0.75,) #label = 'Shuffle')
 
-	ax1.errorbar( nbg_R[2][kk], nbg_SB[2][kk], yerr = nbg_err[2][kk], marker = '', ls = '-', color = color_s[2],
-		ecolor = color_s[2], mfc = 'none', mec = color_s[2], capsize = 1.5,)
+	ax1.errorbar( nbg_R[2][kk], nbg_SB[2][kk], yerr = nbg_err[2][kk], marker = '', ls = '-', color = color_s[0],
+		ecolor = color_s[0], mfc = 'none', mec = color_s[0], capsize = 1.5, alpha = 0.75,)
 
+	_kk_tmp_F = interp.interp1d( nbg_R[2][kk], nbg_SB[2][kk], kind = 'cubic', fill_value = 'extrapolate')
 
-	ax1.errorbar( pre_nbg_R[0][kk], pre_nbg_SB[0][kk], yerr = pre_nbg_err[0][kk], marker = '', ls = '--', color = color_s[0],
-		ecolor = color_s[0], mfc = 'none', mec = color_s[0], capsize = 1.5,)
+	sub_ax1.plot( nbg_R[0][kk], nbg_SB[0][kk] / _kk_tmp_F( nbg_R[0][kk] ), ls = ':', color = color_s[0], alpha = 0.75,)
+	sub_ax1.plot( nbg_R[1][kk], nbg_SB[1][kk] / _kk_tmp_F( nbg_R[1][kk] ), ls = '--', color = color_s[0], alpha = 0.75,)
 
-	ax1.errorbar( pre_nbg_R[1][kk], pre_nbg_SB[1][kk], yerr = pre_nbg_err[1][kk], marker = '', ls = '--', color = color_s[1],
-		ecolor = color_s[1], mfc = 'none', mec = color_s[1], capsize = 1.5, label = 'mock BG')
-
-	ax1.errorbar( pre_nbg_R[2][kk], pre_nbg_SB[2][kk], yerr = pre_nbg_err[2][kk], marker = '', ls = '--', color = color_s[2],
-		ecolor = color_s[2], mfc = 'none', mec = color_s[2], capsize = 1.5,)
+	sub_ax1.plot( nbg_R[2][kk], nbg_SB[2][kk] / nbg_SB[2][kk], ls = '-', color = color_s[0], alpha = 0.75,)
+	sub_ax1.fill_between( nbg_R[2][kk], y1 = (nbg_SB[2][kk] - nbg_err[2][kk]) / nbg_SB[2][kk], 
+				y2 = (nbg_SB[2][kk] + nbg_err[2][kk]) / nbg_SB[2][kk], color = color_s[0], alpha = 0.12,)
 
 legend_2 = ax1.legend( [ fig_name[0], fig_name[1], fig_name[2] ], loc = 3, frameon = False,)
 
 ax1.legend( loc = 1, frameon = False, fontsize = 12,)
 ax1.add_artist( legend_2 )
 
-ax1.set_xlim( 1e0, 4e2 )
+ax1.set_xlim( 1e0, 1.5e2 )
 ax1.set_xscale('log')
 ax1.set_xlabel('R [kpc]')
 
-ax1.set_ylim( 5e-5, 6e0)
+ax1.set_ylim( 1e-4, 4e0 )
 ax1.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$')
 ax1.set_yscale('log')
+
+sub_ax1.set_xlim( ax1.get_xlim() )
+sub_ax1.set_xscale('log')
+sub_ax1.set_xlabel('$R \; [kpc]$')
+sub_ax1.set_ylabel('$\\mu \; / \; \\mu_{outer}$', labelpad = 8)
+
+sub_ax1.set_ylim( 0.89, 1.60 )
+
+sub_ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
+ax1.set_xticklabels( labels = [] )
 
 plt.savefig('/home/xkchen/sat_BG-sub_compare.png', dpi = 300)
 plt.close()

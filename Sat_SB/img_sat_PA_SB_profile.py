@@ -89,6 +89,7 @@ def PA_SB_Zx_func(data, weit_data, pix_size, cx, cy, z0, R_bins):
 	N_pix_h = np.zeros(len(rbin), dtype = np.float)
 	nsum_ratio_h = np.zeros(len(rbin), dtype = np.float)
 
+
 	#. surface brightness along the column direction
 	intens_r_v = np.zeros(len(rbin), dtype = np.float)
 	intens_v = np.zeros(len(rbin), dtype = np.float)
@@ -96,6 +97,16 @@ def PA_SB_Zx_func(data, weit_data, pix_size, cx, cy, z0, R_bins):
 
 	N_pix_v = np.zeros(len(rbin), dtype = np.float)
 	nsum_ratio_v = np.zeros(len(rbin), dtype = np.float)
+
+
+	#. surface brightness along the diagonal direction
+	intens_r_d = np.zeros(len(rbin), dtype = np.float)
+	intens_d = np.zeros(len(rbin), dtype = np.float)
+	intens_d_err = np.zeros(len(rbin), dtype = np.float)	
+
+	N_pix_d = np.zeros(len(rbin), dtype = np.float)
+	nsum_ratio_d = np.zeros(len(rbin), dtype = np.float)
+
 
 	dr = np.sqrt( ( (2*pix_id[0] + 1) / 2 - (2*xn + 1) / 2)**2 + ( (2*pix_id[1] + 1) / 2 - (2*yn + 1) / 2)**2)
 	diff_x = (2 * pix_id[0] + 1) / 2 - (2 * xn + 1) / 2
@@ -119,13 +130,15 @@ def PA_SB_Zx_func(data, weit_data, pix_size, cx, cy, z0, R_bins):
 		if bool_sum == 0:
 			intens_r_h[k] = 0.5 * (r_iner + r_out) # in unit of kpc
 			intens_r_v[k] = 0.5 * (r_iner + r_out) # in unit of kpc
+			intens_r_d[k] = 0.5 * (r_iner + r_out) # in unit of kpc
+
 			continue
 
 		else:
 			#. points located in radius bin
 			id_vx = (dr >= rbin[k]) & (dr < rbin[k + 1])
 
-			#. points along the row direction
+			##. points along the row direction
 			id_ux_0 = np.abs( diff_x ) < rbin[ k ]
 			id_uy_0 = ( np.abs( diff_y ) >= rbin[ k ] ) & ( np.abs( diff_y ) < rbin[ k+1 ] )
 			id_lim_0 = ( id_ux_0 & id_uy_0 ) & id_vx
@@ -178,7 +191,7 @@ def PA_SB_Zx_func(data, weit_data, pix_size, cx, cy, z0, R_bins):
 				intens_h_err[k] = RMS
 
 
-			#. points along the columns direction
+			##. points along the columns direction
 			id_ux_1 = np.abs( diff_y ) < rbin[ k ]
 			id_uy_1 = ( np.abs( diff_x ) >= rbin[ k ] ) & ( np.abs( diff_x ) < rbin[ k+1 ] )
 			id_lim_1 = ( id_ux_1 & id_uy_1 ) & id_vx
@@ -230,6 +243,58 @@ def PA_SB_Zx_func(data, weit_data, pix_size, cx, cy, z0, R_bins):
 			else:
 				intens_v_err[k] = RMS
 
+
+			##. points along the diagonal direction
+			id_qx = ( np.abs( diff_x ) <= rbin[ k ] ) & ( np.abs( diff_y ) <= rbin[ k ] )
+			id_lim_2 = id_qx & id_vx
+
+			weit_arr_2 = weit_data[ id_lim_2 ]
+
+			samp_flux = data[ id_lim_2 ]
+			samp_chi = chi[ id_lim_2 ]
+			tot_flux = np.nansum( samp_flux * weit_arr_2 ) / np.nansum( weit_arr_2 )
+
+			idnn = np.isnan( samp_flux )
+			N_pix_d[ k ] = np.sum( idnn == False )
+			nsum_ratio_d[ k ] = np.nansum( weit_arr_2 ) / np.sum( idnn == False )			
+
+			intens_d[ k ] = tot_flux
+			cen_r = np.nansum( dr[ id_lim_2 ] * weit_arr_2 ) / np.nansum( weit_arr_2 ) * pix_size
+			intens_r_d[ k ] = cen_r * Da0 * 1e3 / rad2arcsec
+
+			tmpf = []
+			for tt in range(len(phi) - 1):
+
+				iv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt+1])
+
+				if np.sum( iv ) == 0:
+					continue
+
+				else:
+					set_samp = samp_flux[ iv ]
+					set_weit = weit_arr_2[ iv ]
+
+					ttf = np.nansum( set_samp * set_weit ) / np.nansum( set_weit )
+					tmpf.append( ttf )
+
+			# rms of flux
+			tmpf = np.array( tmpf )
+			id_inf = np.isnan( tmpf )
+			tmpf[ id_inf ] = np.nan
+			id_zero = tmpf == 0
+			tmpf[id_zero] = np.nan
+
+			id_nan = np.isnan( tmpf )
+			id_fals = id_nan == False
+			Tmpf = tmpf[ id_fals ]
+
+			RMS = np.std(Tmpf)
+
+			if len(Tmpf) > 1:
+				intens_d_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+			else:
+				intens_d_err[k] = RMS
+
 	#..
 	idzo = N_pix_h < 1
 
@@ -254,10 +319,24 @@ def PA_SB_Zx_func(data, weit_data, pix_size, cx, cy, z0, R_bins):
 	nsum_ratio_v[idzo] = 0.
 	SB_v, SB_v_err = SB_v / pix_size**2, SB_v_err / pix_size**2
 
+
+	idzo = N_pix_d < 1
+
+	SB_d = intens_d.copy()
+	SB_d[idzo] = 0.
+	SB_d_err = intens_d_err.copy()
+	SB_d_err[idzo] = 0.
+
+	SB_d_R = intens_r_d.copy()
+	nsum_ratio_d[idzo] = 0.
+	SB_d, SB_d_err = SB_d / pix_size**2, SB_d_err / pix_size**2
+
+
 	h_array = [ SB_h_R, SB_h, SB_h_err, N_pix_h, nsum_ratio_h ]
 	v_array = [ SB_v_R, SB_v, SB_v_err, N_pix_v, nsum_ratio_v ]
+	d_array = [ SB_d_R, SB_d, SB_d_err, N_pix_d, nsum_ratio_d ]
 
-	return h_array, v_array
+	return h_array, v_array, d_array
 
 
 ### === average of jackknife
@@ -302,10 +381,12 @@ def aveg_jack_PA_SB_func( J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, N_b
 
 		xn, yn = np.int( tmp_img.shape[1] / 2), np.int( tmp_img.shape[0] / 2)
 
-		h_array, v_array = PA_SB_Zx_func( tmp_img, tmp_cont, pix_size, xn, yn, zx, r_bins )
+		h_array, v_array, d_array = PA_SB_Zx_func( tmp_img, tmp_cont, pix_size, xn, yn, zx, r_bins )
 
 		SB_h_R, SB_h, SB_h_err, N_pix_h, nsum_ratio_h = h_array[:]
 		SB_v_R, SB_v, SB_v_err, N_pix_v, nsum_ratio_v = v_array[:]
+		SB_d_R, SB_d, SB_d_err, N_pix_d, nsum_ratio_d = d_array[:]
+
 
 		id_hx = N_pix_h < 1.
 		SB_h_R[ id_hx ] = np.nan
@@ -317,9 +398,14 @@ def aveg_jack_PA_SB_func( J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, N_b
 		SB_v[ id_vx ] = np.nan
 		SB_v_err[ id_vx ] = np.nan
 
+		id_dx = N_pix_d < 1.
+		SB_d_R[ id_dx ] = np.nan
+		SB_d[ id_dx ] = np.nan
+		SB_d_err[ id_dx ] = np.nan
+
 		#. save
-		keys = [ 'r_h', 'sb_h', 'sb_err_h', 'r_v', 'sb_v', 'sb_err_v' ]
-		values = [ SB_h_R, SB_h, SB_h_err, SB_v_R, SB_v, SB_v_err ]
+		keys = [ 'r_h', 'sb_h', 'sb_err_h', 'r_v', 'sb_v', 'sb_err_v', 'r_d', 'sb_d', 'sb_err_d' ]
+		values = [ SB_h_R, SB_h, SB_h_err, SB_v_R, SB_v, SB_v_err, SB_d_R, SB_d, SB_d_err ]
 		fill = dict( zip( keys, values ) )
 		data = pds.DataFrame( fill )
 		data.to_csv( J_sub_sb % nn )
@@ -330,6 +416,9 @@ def aveg_jack_PA_SB_func( J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, N_b
 
 	tmp_v_sb = []
 	tmp_v_r = []
+
+	tmp_d_sb = []
+	tmp_d_r = []
 
 	for nn in range( N_bin ):
 
@@ -349,16 +438,61 @@ def aveg_jack_PA_SB_func( J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, N_b
 		tmp_v_sb.append( sb_arr )
 		tmp_v_r.append( r_arr )
 
-	## only save the sb result in unit " nanomaggies / arcsec^2 "
-	tt_jk_R_h, tt_jk_SB_h, tt_jk_err_h, lim_R_h = jack_SB_func(tmp_h_sb, tmp_h_r, band_str, N_bin )[4:]
-	tt_jk_R_v, tt_jk_SB_v, tt_jk_err_v, lim_R_v = jack_SB_func(tmp_v_sb, tmp_v_r, band_str, N_bin )[4:]
+		r_arr = np.array( n_dat['r_d'] )
+		sb_arr = np.array( n_dat['sb_d'] )
+		sb_err = np.array( n_dat['sb_err_d'] )
 
-	sb_lim_r_h = np.ones( len( tt_jk_R_h ) ) * lim_R_h
-	sb_lim_r_v = np.ones( len( tt_jk_R_v ) ) * lim_R_v
+		tmp_d_sb.append( sb_arr )
+		tmp_d_r.append( r_arr )
+
+
+	## only save the sb result in unit " nanomaggies / arcsec^2 "
+	tt_jk_R_h, tt_jk_SB_h, tt_jk_err_h, lim_R_h = jack_SB_func( tmp_h_sb, tmp_h_r, band_str, N_bin )[4:]
+	tt_jk_R_v, tt_jk_SB_v, tt_jk_err_v, lim_R_v = jack_SB_func( tmp_v_sb, tmp_v_r, band_str, N_bin )[4:]
+	tt_jk_R_d, tt_jk_SB_d, tt_jk_err_d, lim_R_d = jack_SB_func( tmp_d_sb, tmp_d_r, band_str, N_bin )[4:]
+
+	#. adjust the array length
+	Len = [ len( tt_jk_R_h ), len( tt_jk_R_v ), len( tt_jk_R_d ) ]
+	L_max = np.max( Len )
+
+	out_R_v = np.ones( L_max, ) * np.nan
+	out_SB_v = np.ones( L_max, ) * np.nan
+	out_err_v = np.ones( L_max, ) * np.nan
+
+	out_R_v[:Len[0] ] = tt_jk_R_v[:Len[0] ]
+	out_SB_v[:Len[0] ] = tt_jk_SB_v[:Len[0] ]
+	out_err_v[:Len[0] ] = tt_jk_err_v[:Len[0] ]
+
+
+	out_R_h = np.ones( L_max, ) * np.nan
+	out_SB_h = np.ones( L_max, ) * np.nan
+	out_err_h = np.ones( L_max, ) * np.nan
+
+	out_R_h[:Len[1] ] = tt_jk_R_h[:Len[1] ]
+	out_SB_h[:Len[1] ] = tt_jk_SB_h[:Len[1] ]
+	out_err_h[:Len[1] ] = tt_jk_err_h[:Len[1] ]
+
+
+	out_R_d = np.ones( L_max, ) * np.nan
+	out_SB_d = np.ones( L_max, ) * np.nan
+	out_err_d = np.ones( L_max, ) * np.nan
+
+	out_R_d[:Len[2] ] = tt_jk_R_d[:Len[2] ]
+	out_SB_d[:Len[2] ] = tt_jk_SB_d[:Len[2] ]
+	out_err_d[:Len[2] ] = tt_jk_err_d[:Len[2] ]
+
+	sb_lim_r_h = np.ones( len( out_R_h ) ) * lim_R_h
+	sb_lim_r_v = np.ones( len( out_R_v ) ) * lim_R_v
+	sb_lim_r_d = np.ones( len( out_R_d ) ) * lim_R_d
 
 	#.
-	keys = [ 'r_h', 'sb_h', 'sb_err_h', 'lim_R_h', 'r_v', 'sb_v', 'sb_err_v', 'lim_R_v' ]
-	values = [ tt_jk_R_h, tt_jk_SB_h, tt_jk_err_h, sb_lim_r_h, tt_jk_R_v, tt_jk_SB_v, tt_jk_err_v, sb_lim_r_v ]
+	keys = [ 'r_h', 'sb_h', 'sb_err_h', 'lim_R_h', 
+			'r_v', 'sb_v', 'sb_err_v', 'lim_R_v', 
+			'r_d', 'sb_d', 'sb_err_d', 'lim_R_d' ]
+	values = [ out_R_h, out_SB_h, out_err_h, sb_lim_r_h, 
+				out_R_v, out_SB_v, out_err_v, sb_lim_r_v, 
+				out_R_d, out_SB_d, out_err_d, sb_lim_r_d ]
+
 	fill = dict( zip( keys, values ) )
 	data = pds.DataFrame( fill )
 	data.to_csv( jack_SB_file )

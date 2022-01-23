@@ -120,7 +120,7 @@ out_data.to_csv( '/home/xkchen/Extend-BCGM_rgi-common_frame-limit_exlu-BCG_Sat_%
 raise
 
 
-### === satellite peak_xy and centric_xy compare (based on the cutout satellite images)
+### === satellite peak_xy and centric_xy compare (based on the cutout satellite images, before pixel resampling)
 img_file = home + 'member_files/mask_imgs/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_mask-img.fits'
 
 band_str = band[ rank ]

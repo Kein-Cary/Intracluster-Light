@@ -453,9 +453,10 @@ clus_IDs = np.array( s_dat['clus_ID'] )
 # out_s_ra, out_s_dec = p_ra[ id_vx ], p_dec[ id_vx ]
 # out_Rsat = p_Rsat[ id_vx ]
 # out_R2Rv = p_R2Rv[ id_vx ]
+# out_clus_ID = clus_IDs[ id_vx ]
 
-# keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'R_sat', 'R2Rv'] 
-# values = [ out_c_ra, out_c_dec, out_c_z, out_s_ra, out_s_dec, out_Rsat, out_R2Rv ]
+# keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'R_sat', 'R2Rv', 'clus_ID'] 
+# values = [ out_c_ra, out_c_dec, out_c_z, out_s_ra, out_s_dec, out_Rsat, out_R2Rv, out_clus_ID]
 # fill = dict( zip( keys, values ) )
 # data = pds.DataFrame( fill )
 # data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_inner-mem_cat.csv')
@@ -466,9 +467,10 @@ clus_IDs = np.array( s_dat['clus_ID'] )
 # out_s_ra, out_s_dec = p_ra[ id_vx == False ], p_dec[ id_vx == False ]
 # out_Rsat = p_Rsat[ id_vx == False ]
 # out_R2Rv = p_R2Rv[ id_vx == False ]
+# out_clus_ID = clus_IDs[ id_vx == False ]
 
-# keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'R_sat', 'R2Rv']
-# values = [ out_c_ra, out_c_dec, out_c_z, out_s_ra, out_s_dec, out_Rsat, out_R2Rv ]
+# keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'R_sat', 'R2Rv', 'clus_ID']
+# values = [ out_c_ra, out_c_dec, out_c_z, out_s_ra, out_s_dec, out_Rsat, out_R2Rv, out_clus_ID ]
 # fill = dict( zip( keys, values ) )
 # data = pds.DataFrame( fill )
 # data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_outer-mem_cat.csv')
@@ -483,9 +485,10 @@ out_c_ra, out_c_dec, out_c_z = bcg_ra[ id_vx ], bcg_dec[ id_vx ], bcg_z[ id_vx ]
 out_s_ra, out_s_dec = p_ra[ id_vx ], p_dec[ id_vx ]
 out_Rsat = p_Rsat[ id_vx ]
 out_R2Rv = p_R2Rv[ id_vx ]
+out_clus_ID = clus_IDs[ id_vx ]
 
-keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'R_sat', 'R2Rv' ] 
-values = [ out_c_ra, out_c_dec, out_c_z, out_s_ra, out_s_dec, out_Rsat, out_R2Rv ]
+keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'R_sat', 'R2Rv', 'clus_ID' ] 
+values = [ out_c_ra, out_c_dec, out_c_z, out_s_ra, out_s_dec, out_Rsat, out_R2Rv, out_clus_ID ]
 fill = dict( zip( keys, values ) )
 data = pds.DataFrame( fill )
 data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_R-phy_inner-mem_cat.csv')
@@ -496,9 +499,10 @@ out_c_ra, out_c_dec, out_c_z = bcg_ra[ id_vx == False ], bcg_dec[ id_vx == False
 out_s_ra, out_s_dec = p_ra[ id_vx == False ], p_dec[ id_vx == False ]
 out_Rsat = p_Rsat[ id_vx == False ]
 out_R2Rv = p_R2Rv[ id_vx == False ]
+out_clus_ID = clus_IDs[ id_vx == False ]
 
-keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'R_sat', 'R2Rv']
-values = [ out_c_ra, out_c_dec, out_c_z, out_s_ra, out_s_dec, out_Rsat, out_R2Rv ]
+keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'R_sat', 'R2Rv', 'clus_ID' ]
+values = [ out_c_ra, out_c_dec, out_c_z, out_s_ra, out_s_dec, out_Rsat, out_R2Rv, out_clus_ID ]
 fill = dict( zip( keys, values ) )
 data = pds.DataFrame( fill )
 data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_R-phy_outer-mem_cat.csv')

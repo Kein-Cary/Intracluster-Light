@@ -417,35 +417,30 @@ N_ss = len( set_IDs )
 rand_IDs = np.loadtxt('/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/shufle_test/img_tract_cat/' + 
 					'Extend-BCGM_rgi-common_frame-lim_Pm-cut_mem_shuffle-clus_cat.txt')
 rand_mp_IDs = rand_IDs[0].astype( int )   ## order will have error ( treat as the fiducial order list)
-# rand_mp_IDs = rand_IDs[2].astype( int )
-
-
-##. error raise up ordex (use row_0 in shuffle list)
-# err_dat = pds.read_csv('/home/xkchen/err_in_position_shuffle.csv')
-# err_IDs = np.array( err_dat['clus_ID'] )
-# err_ra, err_dec, err_z = np.array( err_dat['ra'] ), np.array( err_dat['dec'] ), np.array( err_dat['z'] )
-
-
-# ordex = []
-
-# for kk in range( len(err_ra) ):
-
-# 	id_vx = np.where( set_IDs == err_IDs[ kk ] )[0][0]
-# 	ordex.append( id_vx )
-
-
-# ##. combine shuffle
-# t0_rand_arr = rand_IDs[0].astype( int )
-# t1_rand_arr = rand_IDs[2].astype( int )
-
-# cp_rand_arr = t0_rand_arr + 0
-# cp_rand_arr[ ordex ] = t1_rand_arr[ ordex ]
-
-# np.savetxt('/home/xkchen/Extend-BCGM_rgi-common_frame-lim_Pm-cut_mem_extra-shuffle-clus_cat.txt', cp_rand_arr)
-
 
 
 band_str = 'i'
+
+##. error raise up ordex (use row_0 in shuffle list)
+err_dat = pds.read_csv( '/home/xkchen/err_in_%s-band_position_shuffle.csv' % band_str,)
+err_IDs = np.array( err_dat['clus_ID'] )
+err_ra, err_dec, err_z = np.array( err_dat['ra'] ), np.array( err_dat['dec'] ), np.array( err_dat['z'] )
+
+ordex = []
+for kk in range( len(err_ra) ):
+
+	id_vx = np.where( set_IDs == err_IDs[ kk ] )[0][0]
+	ordex.append( id_vx )
+
+##. combine shuffle
+t0_rand_arr = rand_IDs[0].astype( int )
+t1_rand_arr = rand_IDs[2].astype( int )
+
+cp_rand_arr = t0_rand_arr + 0
+cp_rand_arr[ ordex ] = t1_rand_arr[ ordex ]
+
+np.savetxt('/home/xkchen/Extend-BCGM_rgi-common_frame-lim_Pm-cut_mem_%s-band_extra-shuffle-clus_cat.txt' % band_str, cp_rand_arr)
+raise
 
 dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/shufle_test/img_tract_cat/' + 
 			'Extend-BCGM_rgi-common_frame-limit_Pm-cut_exlu-BCG_Sat_%s-band_origin-img_position.csv' % band_str )
@@ -459,10 +454,12 @@ tt_clus_ID = np.array( dat['clus_ID'] )
 err_ra, err_dec, err_z = [], [], []
 err_IDs = []
 
-for kk in range( N_ss ):
+# for kk in range( N_ss ):
+for kk in range( len( ordex ) ):
 
 	#. target cluster satellites
-	id_vx = tt_clus_ID == set_IDs[ kk ]
+	# id_vx = tt_clus_ID == set_IDs[ kk ]
+	id_vx = tt_clus_ID == set_IDs[ ordex[ kk ] ]
 
 	sub_ra, sub_dec = sat_ra[ id_vx ], sat_dec[ id_vx ]
 	ra_g, dec_g, z_g = bcg_ra[ id_vx ][0], bcg_dec[ id_vx ][0], bcg_z[ id_vx ][0]
@@ -481,7 +478,8 @@ for kk in range( N_ss ):
 
 
 	#. shuffle clusters and matched images
-	id_ux = clus_ID == rand_mp_IDs[ kk ]
+	# id_ux = clus_ID == rand_mp_IDs[ kk ]
+	id_ux = clus_ID == t1_rand_arr[ ordex[ kk ] ]
 
 	cp_ra_g, cp_dec_g, cp_z_g = bcg_ra[ id_ux ][0], bcg_dec[ id_ux ][0], bcg_z[ id_ux ][0]
 
@@ -545,38 +543,41 @@ for kk in range( N_ss ):
 
 	##. if there is somepoint is always can not located in image frame
 	##. then take the symmetry points of entire satellites sample
+	print( np.sum( id_err ) )
+
 	if np.sum( id_err ) > 0:
 
-		# cp_sx, cp_sy = 2 * pix_cx - x_sat, 2 * pix_cy - y_sat
-		# _sm_cp_cx, _sm_cp_cy = 2 * pix_cx - x_cen, 2 * pix_cy - y_cen
+		cp_sx, cp_sy = 2 * pix_cx - x_sat, 2 * pix_cy - y_sat
+		_sm_cp_cx, _sm_cp_cy = 2 * pix_cx - x_cen, 2 * pix_cy - y_cen
 
-		err_IDs.append( set_IDs[ kk ] )
-		err_ra.append( ra_g )
-		err_dec.append( dec_g )
-		err_z.append( z_g )
+		# err_IDs.append( set_IDs[ kk ] )
+		# err_ra.append( ra_g )
+		# err_dec.append( dec_g )
+		# err_z.append( z_g )
 
 
-	# plt.figure( figsize = (10, 5),)
-	# ax0 = plt.subplot(121)
-	# ax1 = plt.subplot(122)
+	plt.figure( figsize = (10, 5),)
+	ax0 = plt.subplot(121)
+	ax1 = plt.subplot(122)
 
-	# ax0.imshow( img_arr, origin = 'lower', cmap = 'Greys', vmin = 1e-4, vmax = 1e0, norm = mpl.colors.LogNorm(),)
-	# ax0.scatter( x_sat, y_sat, s = 10, marker = 'o', facecolors = 'none', edgecolors = 'r',)
-	# ax0.scatter( x_cen, y_cen, s = 5, marker = 's', facecolors = 'none', edgecolors = 'b',)
+	ax0.imshow( img_arr, origin = 'lower', cmap = 'Greys', vmin = 1e-4, vmax = 1e0, norm = mpl.colors.LogNorm(),)
+	ax0.scatter( x_sat, y_sat, s = 10, marker = 'o', facecolors = 'none', edgecolors = 'r',)
+	ax0.scatter( x_cen, y_cen, s = 5, marker = 's', facecolors = 'none', edgecolors = 'b',)
 
-	# ax1.imshow( cp_img_arr, origin = 'lower', cmap = 'Greys', vmin = 1e-4, vmax = 1e0, norm = mpl.colors.LogNorm(),)
-	# ax1.scatter( cp_cx, cp_cy, s = 5, marker = 's', facecolors = 'none', edgecolors = 'r',)
+	ax1.imshow( cp_img_arr, origin = 'lower', cmap = 'Greys', vmin = 1e-4, vmax = 1e0, norm = mpl.colors.LogNorm(),)
+	ax1.scatter( cp_cx, cp_cy, s = 5, marker = 's', facecolors = 'none', edgecolors = 'r',)
 
-	# if np.sum( id_err ) > 0:
-	# 	ax1.scatter( _sm_cp_cx, _sm_cp_cy, s = 5, marker = 's', facecolors = 'none', edgecolors = 'b',)
+	if np.sum( id_err ) > 0:
+		ax1.scatter( _sm_cp_cx, _sm_cp_cy, s = 5, marker = 's', facecolors = 'none', edgecolors = 'b',)
 
-	# ax1.scatter( cp_sx_1, cp_sy_1, s = 12, marker = 'o', facecolors = 'none', edgecolors = 'g', label = 'relative offset')
-	# ax1.scatter( tp_sx, tp_sy, s = 8, marker = '*', facecolors = 'none', edgecolors = 'r',)
-	# ax1.scatter( tm_sx, tm_sy, s = 8, marker = 'd', facecolors = 'none', edgecolors = 'r',)
+	ax1.scatter( cp_sx_1, cp_sy_1, s = 12, marker = 'o', facecolors = 'none', edgecolors = 'g', label = 'relative offset')
+	ax1.scatter( tp_sx, tp_sy, s = 8, marker = '*', facecolors = 'none', edgecolors = 'r',)
+	ax1.scatter( tm_sx, tm_sy, s = 8, marker = 'd', facecolors = 'none', edgecolors = 'r',)
 
-	# # plt.savefig('/home/xkchen/random_sat-Pos_set.png', dpi = 300)
-	# plt.savefig('/home/xkchen/random_sat-Pos_set_%d.png' % kk, dpi = 300)
-	# plt.close()
+	# plt.savefig('/home/xkchen/random_sat-Pos_set.png', dpi = 300)
+	plt.savefig('/home/xkchen/random_sat-Pos_set_%d.png' % kk, dpi = 300)
+	plt.close()
+
 
 raise
 

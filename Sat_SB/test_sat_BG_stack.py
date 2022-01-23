@@ -190,7 +190,7 @@ for ll in range( 3 ):
 		sat_ra, sat_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
 		img_x, img_y = np.array( dat['sat_x'] ), np.array( dat['sat_y'] )
 
-		print('N_sample = ', len( bcg_ra ) )
+		# print('N_sample = ', len( bcg_ra ) )
 
 		# XXX
 		sub_img = out_path + 'Extend_BCGM_gri-common_iMag10-fix_' + cat_lis[ll] + '_%s-band_BG' % band_str + '_sub-%d_img.h5'
@@ -213,7 +213,6 @@ for ll in range( 3 ):
 print('%d-rank, Done' % rank )
 
 raise
-
 
 
 ### === 
@@ -319,5 +318,4 @@ for mm in range( 2 ):
 								rank, id_cut = True, N_edg = N_edg, id_Z0 = False, z_ref = z_ref, id_sub = False, weit_img = mask_file )
 
 print('%d-rank, Done' % rank )
-
 

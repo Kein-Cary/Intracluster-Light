@@ -39,15 +39,24 @@ band = ['r', 'g', 'i']
 
 
 ### === ### data load
-
-#. fixed i_Mag10 case
 path = '/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/SBs/'
+
+#. Mock 2D light distribution of BCG+ICL
 # BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/BGs/'
 # out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/nBG_SBs/'
 
+
 #. use stacked cluster image as Background (without Ng weighted + no mask weight)
-BG_path = '/home/xkchen/figs_cp/stacked_BG/no_mask_weit/BGs/'
-out_path = '/home/xkchen/figs_cp/stacked_BG/no_mask_weit/nBG_SBs/'
+# BG_path = '/home/xkchen/figs_cp/stacked_BG/no_mask_weit/BGs/'
+# out_path = '/home/xkchen/figs_cp/stacked_BG/no_mask_weit/nBG_SBs/'
+
+#. use stacked cluster image as Background (without Ng weighted + mask weight)
+# BG_path = '/home/xkchen/figs_cp/stacked_BG/mask_weit/BGs/'
+# out_path = '/home/xkchen/figs_cp/stacked_BG/mask_weit/nBG_SBs/'
+
+#. use stacked cluster image as Background (Ng weighted + mask weight)
+BG_path = '/home/xkchen/figs_cp/Ng_weit_stack_BG/BGs/'
+out_path = '/home/xkchen/figs_cp/Ng_weit_stack_BG/nBG_SBs/'
 
 
 
