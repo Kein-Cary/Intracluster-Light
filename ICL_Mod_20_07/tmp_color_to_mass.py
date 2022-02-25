@@ -41,11 +41,10 @@ l_wave = np.array( [6166, 4686, 7480] )
 Mag_sun = [ 4.65, 5.11, 4.53 ]
 
 ### === color to mass (my fitting)
-def ri_band_c2m_func(r2i_arr, i_lumi_arr, fit_params):
+def ri_band_c2m_func( c_arr, lumi_arr, fit_params):
 	a_i, b_i, c_i = fit_params[:]
-	lg_Lumi = np.log10( i_lumi_arr )
-
-	fit_lg_m = a_i * r2i_arr + b_i * lg_Lumi + c_i
+	lg_Lumi = np.log10( lumi_arr )
+	fit_lg_m = a_i * c_arr + b_i * lg_Lumi + c_i
 	M = 10**fit_lg_m
 	return M
 
@@ -53,7 +52,6 @@ def gr_ri_band_c2m_func(g2r_arr, r2i_arr, i_lumi_arr, fit_params):
 
 	a_i, b_i, c_i, d_i = fit_params[:]
 	lg_Lumi = np.log10( i_lumi_arr )
-
 	fit_lg_m = a_i * g2r_arr + b_i * r2i_arr + c_i * lg_Lumi + d_i
 	M = 10**fit_lg_m
 	return M
@@ -94,7 +92,7 @@ def get_c2mass_func(r_arr, band_str, sb_arr, color_arr, z_obs, fit_file, N_grid 
 
 	g2r_arr, r2i_arr = color_arr[0], color_arr[1]
 
-
+	##. color + color + luminosity
 	if band_str == 'gri':
 		fit_dat = pds.read_csv( fit_file )
 		a_fit = np.array( fit_dat['a'] )[0]
@@ -105,7 +103,9 @@ def get_c2mass_func(r_arr, band_str, sb_arr, color_arr, z_obs, fit_file, N_grid 
 		fit_params = [ a_fit, b_fit, c_fit, d_fit ]
 		t_mass = gr_ri_band_c2m_func( g2r_arr, r2i_arr, t_Lumi, fit_params )
 
-	if band_str == 'ri':
+	# if band_str == 'ri':
+	##. or for color + luminosity case 
+	else:
 		fit_dat = pds.read_csv( fit_file )
 		a_fit = np.array( fit_dat['a'] )[0]
 		b_fit = np.array( fit_dat['b'] )[0]
@@ -214,6 +214,7 @@ def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_
 		id_lim = (idnan == False) & ( idx_lim )
 
 		i_R, i_sb, i_sb_err = i_R[ id_lim ], i_sb[ id_lim ], i_sb_err[ id_lim ]
+
 
 		gr_arr, gr_err = color_func( g_sb, g_sb_err, r_sb, r_sb_err )
 		ri_arr, ri_err = color_func( r_sb, r_sb_err, i_sb, i_sb_err )

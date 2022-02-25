@@ -22,7 +22,6 @@ from fig_out_module import arr_jack_func
 
 from light_measure import cov_MX_func
 from img_random_SB_fit import cc_rand_sb_func
-
 from surface_mass_density import cumu_mass_func
 
 

@@ -16,7 +16,7 @@ from scipy import integrate as integ
 
 from surface_mass_density import sigmam, sigmac
 from surface_mass_density import input_cosm_model, cosmos_param, rhom_set
-from color_2_mass import get_c2mass_func, gi_band_c2m_func
+
 
 ### === ### cosmology
 rad2asec = U.rad.to(U.arcsec)

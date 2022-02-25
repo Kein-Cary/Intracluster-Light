@@ -11,7 +11,7 @@ from fig_out_module import arr_jack_func
 from light_measure import jack_SB_func
 from fig_out_module import color_func
 
-## SB model for random image
+### === ### SB model for random image
 def cc_inves_x2(x, x0, A, alpha, B):
     return A * (np.abs(x - x0))**(-1*alpha) + B
 
@@ -78,6 +78,7 @@ def BG_sub_sb_func(N_sample, jk_sub_sb, sb_out_put, band_str, BG_file, trunk_R =
         f['sb_err'] = np.array(tt_jk_err)
 
     return
+
 
 ### === ### surface mass, color, and gradient profiles
 def sub_color_func( N_samples, tt_r_file, tt_g_file, tt_i_file, sub_color_file, aveg_C_file, id_dered = False, Al_arr = None, low_R_lim = None):
