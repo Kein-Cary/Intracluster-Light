@@ -145,6 +145,7 @@ def BCG_M_L_color_pros_func( dat_file, lis_ra, lis_dec, lis_z, out_file, param_f
 	return
 
 #. cumulative luminosity derived from magnitude within given radius
+#. here assume the mass calibration is based on 'g-r', 'r-i', and i-band luminosity
 def BCG_mag_comu_func( dat_file, lis_ra, lis_dec, lis_z, out_file, R_bins, param_file ):
 	"""
 	out_files : .csv files

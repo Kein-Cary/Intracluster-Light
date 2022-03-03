@@ -16,8 +16,6 @@ from scipy import optimize
 import scipy.stats as sts
 from scipy.interpolate import splev, splrep
 from scipy import integrate as integ
-
-from fig_out_module import color_func
 from fig_out_module import arr_jack_func
 
 from light_measure import cov_MX_func
@@ -269,6 +267,7 @@ def get_c2mass_func( r_arr, band_str, sb_arr, color_arr, z_obs, N_grid = 100, ou
 
 	return
 
+
 ### === ### mean of jackknife sub-sample
 def sersic_func(r, Ie, re, ndex):
 	belta = 2 * ndex - 0.324
@@ -384,7 +383,7 @@ def jk_sub_Mass_func(N_samples, band_str, sub_SB_file, low_R_lim, up_R_lim, out_
 
 	return
 
-def aveg_mass_pro_func(N_samples, band_str, jk_sub_m_file, jk_aveg_m_file, lgM_cov_file, M_cov_file = None):
+def aveg_mass_pro_func(N_samples, jk_sub_m_file, jk_aveg_m_file, lgM_cov_file, M_cov_file = None):
 
 	### jack mean and figs
 	tmp_r, tmp_mass = [], []

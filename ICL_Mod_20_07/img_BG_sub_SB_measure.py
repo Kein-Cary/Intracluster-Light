@@ -81,7 +81,8 @@ def BG_sub_sb_func(N_sample, jk_sub_sb, sb_out_put, band_str, BG_file, trunk_R =
 
 
 ### === ### surface mass, color, and gradient profiles
-def sub_color_func( N_samples, tt_r_file, tt_g_file, tt_i_file, sub_color_file, aveg_C_file, id_dered = False, Al_arr = None, low_R_lim = None):
+def sub_color_func( N_samples, tt_r_file, tt_g_file, tt_i_file, sub_color_file, aveg_C_file, 
+    id_dered = False, Al_arr = None, low_R_lim = None):
     """
     Al_arr : extinction array, in order r-band, g-band, i-band
     """
@@ -185,7 +186,7 @@ def B03_surfM_func( N_samples, band_str, low_R_lim, up_R_lim, sub_sb_file, sub_s
     jk_sub_Mass_func( N_samples, band_str, sub_sb_file, low_R_lim, up_R_lim, sub_sm_file, Dl_g, z_g, c_inv = c_inv )
 
     #. average mass profile of subsamples
-    aveg_mass_pro_func( N_samples, band_str, sub_sm_file, aveg_jk_sm_file, lgM_cov_file, M_cov_file = M_cov_file )
+    aveg_mass_pro_func( N_samples, sub_sm_file, aveg_jk_sm_file, lgM_cov_file, M_cov_file = M_cov_file )
 
     return
 
@@ -203,7 +204,7 @@ def fit_surfM_func( N_samples, band_str, low_R_lim, up_R_lim, sub_sb_file, sub_s
     jk_sub_Mass_func( N_samples, band_str, sub_sb_file, low_R_lim, up_R_lim, sub_sm_file, Dl_g, z_g, fit_file = fit_file )
 
     #. average mass profile of subsamples
-    aveg_mass_pro_func( N_samples, band_str, sub_sm_file, aveg_jk_sm_file, lgM_cov_file, M_cov_file = M_cov_file )
+    aveg_mass_pro_func( N_samples, sub_sm_file, aveg_jk_sm_file, lgM_cov_file, M_cov_file = M_cov_file )
 
     return
 
