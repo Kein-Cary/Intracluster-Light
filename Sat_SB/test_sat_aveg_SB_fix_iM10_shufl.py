@@ -42,16 +42,17 @@ band = ['r', 'g', 'i']
 
 #. fixed i_Mag10 case
 path = '/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/SBs/'
-pre_BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/BGs/'
-pre_out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/nBG_SBs/'
+pre_BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/mock_BG/BGs/'
+pre_out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/mock_BG/nBG_SBs/'
 
-#. shuffle BG case (without mask weight)
-# BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/shufle_test/BGs/'
-# out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/shufle_test/nBG_SBs/'
 
-#. shuffle BG case (with mask weight)
-BG_path = '/home/xkchen/figs_cp/shuffle/BGs/'
-out_path = '/home/xkchen/figs_cp/shuffle/nBG_SBs/'
+#. shuffle BG case (without satellite mask weight, r-band only)
+# BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/shufle_test/no_satmask_weit/BGs/'
+# out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/shufle_test/no_satmask_weit/nBG_SBs/'
+
+#. shuffle BG case (with satellite mask weight)
+BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/shufle_test/satmask_weit/BGs/'
+out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/shufle_test/satmask_weit/nBG_SBs/'
 
 
 
@@ -71,7 +72,7 @@ for mm in range( 3 ):
 
 	sub_R, sub_sb, sub_err = [], [], []
 
-	for kk in range( 1 ):
+	for kk in range( 3 ):
 
 		#. 1D profiles
 		with h5py.File( path + 'Extend_BCGM_gri-common_iMag10-fix_%s_%s-band_Mean_jack_SB-pro_z-ref.h5' % (cat_lis[mm], band[kk]), 'r') as f:
@@ -96,7 +97,7 @@ for mm in range( 3 ):
 
 	_sub_bg_R, _sub_bg_sb, _sub_bg_err = [], [], []
 
-	for kk in range( 1 ):
+	for kk in range( 3 ):
 
 		with h5py.File( BG_path + 'Extend_BCGM_gri-common_iMag10-fix_%s_%s-band_shufl_BG_Mean_jack_SB-pro_z-ref.h5' % (cat_lis[mm], band[kk]), 'r') as f:
 
@@ -112,13 +113,13 @@ for mm in range( 3 ):
 	tmp_bg_SB.append( _sub_bg_sb )
 	tmp_bg_err.append( _sub_bg_err )
 
-
+"""
 ##... BG-sub SB(r) of sat. ( background stacking )
 N_sample = 100
 
 for mm in range( 3 ):
 
-	for kk in range( 1 ):
+	for kk in range( 3 ):
 
 		sat_sb_file = path + 'Extend_BCGM_gri-common_iMag10-fix_%s_%s-band_' % (cat_lis[mm], band[kk]) + 'jack-sub-%d_SB-pro_z-ref.h5'
 		bg_sb_file = BG_path + 'Extend_BCGM_gri-common_iMag10-fix_%s_%s-band_shufl_BG_Mean_jack_SB-pro_z-ref.h5' % (cat_lis[mm], band[kk])
@@ -126,15 +127,15 @@ for mm in range( 3 ):
 
 		stack_BG_sub_func( sat_sb_file, bg_sb_file, band[ kk ], N_sample, out_file )
 
+"""
 
-##.. figs and comparison
+### === figs and comparison
 nbg_R, nbg_SB, nbg_err = [], [], []
-
 for mm in range( 3 ):
 
 	sub_R, sub_sb, sub_err = [], [], []
 
-	for kk in range( 1 ):
+	for kk in range( 3 ):
 
 		dat = pds.read_csv( out_path + 'Extend_BCGM_gri-common_iMag10-fix_%s_%s-band_aveg-jack_BG-sub_SB.csv' % (cat_lis[mm], band[kk]),)
 
@@ -149,15 +150,12 @@ for mm in range( 3 ):
 	nbg_err.append( sub_err )
 
 
-
-### === figs
 pre_bg_R, pre_bg_SB, pre_bg_err = [], [], []
-
 for mm in range( 3 ):
 
 	_sub_bg_R, _sub_bg_sb, _sub_bg_err = [], [], []
 
-	for kk in range( 1 ):
+	for kk in range( 3 ):
 
 		with h5py.File( pre_BG_path + 'Extend_BCGM_gri-common_iMag10-fix_%s_%s-band_BG_Mean_jack_SB-pro_z-ref.h5' % (cat_lis[mm], band[kk]), 'r') as f:
 
@@ -180,7 +178,7 @@ for mm in range( 3 ):
 
 	sub_R, sub_sb, sub_err = [], [], []
 
-	for kk in range( 1 ):
+	for kk in range( 3 ):
 
 		dat = pds.read_csv( pre_out_path + 'Extend_BCGM_gri-common_iMag10-fix_%s_%s-band_aveg-jack_BG-sub_SB.csv' % (cat_lis[mm], band[kk]),)
 
@@ -201,21 +199,22 @@ for mm in range( 3 ):
 	plt.figure()
 	ax1 = plt.subplot(111)
 
-	for kk in range( 1 ):
+	for kk in range( 3 ):
 
-		l1 = ax1.errorbar( tmp_R[mm][kk], tmp_sb[mm][kk], yerr = tmp_err[mm][kk], marker = '.', ls = '-', color = 'r',
-			ecolor = 'r', mfc = 'none', mec = 'r', capsize = 1.5, )
+		l1 = ax1.errorbar( tmp_R[mm][kk], tmp_sb[mm][kk], yerr = tmp_err[mm][kk], marker = '.', ls = '-', color = color_s[kk],
+			ecolor = color_s[kk], mfc = 'none', mec = color_s[kk], capsize = 1.5, label = '%s-band' % band[kk],)
 
-		l2, = ax1.plot( tmp_bg_R[mm][kk], tmp_bg_SB[mm][kk], ls = '--', color = 'r', alpha = 0.75,)
-		ax1.fill_between( tmp_bg_R[mm][kk], y1 = tmp_bg_SB[mm][kk] - tmp_bg_err[mm][kk], y2 = tmp_bg_SB[mm][kk] + tmp_bg_err[mm][kk], color = 'r', alpha = 0.12)
+		l2, = ax1.plot( tmp_bg_R[mm][kk], tmp_bg_SB[mm][kk], ls = '--', color = color_s[kk], alpha = 0.75,)
+		ax1.fill_between( tmp_bg_R[mm][kk], y1 = tmp_bg_SB[mm][kk] - tmp_bg_err[mm][kk], y2 = tmp_bg_SB[mm][kk] + tmp_bg_err[mm][kk], color = color_s[kk], alpha = 0.12)
 
-		l3, = ax1.plot( pre_bg_R[mm][kk], pre_bg_SB[mm][kk], ls = ':', color = 'b', alpha = 0.75,)
-		ax1.fill_between( pre_bg_R[mm][kk], y1 = pre_bg_SB[mm][kk] - pre_bg_err[mm][kk], y2 = pre_bg_SB[mm][kk] + pre_bg_err[mm][kk], color = 'b', alpha = 0.12)
+		# l3, = ax1.plot( pre_bg_R[mm][kk], pre_bg_SB[mm][kk], ls = ':', color = color_s[kk], alpha = 0.75,)
+		# ax1.fill_between( pre_bg_R[mm][kk], y1 = pre_bg_SB[mm][kk] - pre_bg_err[mm][kk], y2 = pre_bg_SB[mm][kk] + pre_bg_err[mm][kk], color = color_s[kk], alpha = 0.12)
 
-	legend_2 = ax1.legend( handles = [l1, l2, l3], labels = ['Satellite + Background', 'Background [shuffle]', 'Background [mock image]'], loc = 3, frameon = False,)
+	# legend_2 = ax1.legend( handles = [l1, l2, l3], labels = ['Satellite + Background', 'Background [shuffle]', 'Background [mock image]'], loc = 4, frameon = False,)
+	legend_2 = ax1.legend( handles = [l1, l2 ], labels = ['Satellite + Background', 'Background [shuffle]'], loc = 4, frameon = False,)
 	ax1.legend( loc = 1, frameon = False,)
 	ax1.add_artist( legend_2 )
-	ax1.annotate( s = fig_name[mm] + ', %s-band' % band[kk], xy = (0.75, 0.90), xycoords = 'axes fraction',)
+	ax1.annotate( s = fig_name[mm], xy = (0.75, 0.65), xycoords = 'axes fraction',)
 
 	# ax1.set_xlim( 1e0, 4e2 )
 	ax1.set_xscale('log')
@@ -234,25 +233,25 @@ fig = plt.figure( )
 ax1 = fig.add_axes( [0.13, 0.32, 0.85, 0.63] )
 sub_ax1 = fig.add_axes( [0.13, 0.11, 0.85, 0.21] )
 
-for kk in range( 1 ):
+for kk in range( 3 ):
 
-	ax1.errorbar( nbg_R[0][kk], nbg_SB[0][kk], yerr = nbg_err[0][kk], marker = '', ls = ':', color = color_s[0],
-		ecolor = color_s[0], mfc = 'none', mec = color_s[0], capsize = 1.5, alpha = 0.75,)
+	ax1.errorbar( nbg_R[0][kk], nbg_SB[0][kk], yerr = nbg_err[0][kk], marker = '', ls = ':', color = color_s[kk],
+		ecolor = color_s[kk], mfc = 'none', mec = color_s[kk], capsize = 1.5, alpha = 0.75, label = '%s-band' % band[kk],)
 
-	ax1.errorbar( nbg_R[1][kk], nbg_SB[1][kk], yerr = nbg_err[1][kk], marker = '', ls = '--', color = color_s[0],
-		ecolor = color_s[0], mfc = 'none', mec = color_s[0], capsize = 1.5, alpha = 0.75,) #label = 'Shuffle')
+	ax1.errorbar( nbg_R[1][kk], nbg_SB[1][kk], yerr = nbg_err[1][kk], marker = '', ls = '--', color = color_s[kk],
+		ecolor = color_s[kk], mfc = 'none', mec = color_s[kk], capsize = 1.5, alpha = 0.75,) #label = 'Shuffle')
 
-	ax1.errorbar( nbg_R[2][kk], nbg_SB[2][kk], yerr = nbg_err[2][kk], marker = '', ls = '-', color = color_s[0],
-		ecolor = color_s[0], mfc = 'none', mec = color_s[0], capsize = 1.5, alpha = 0.75,)
+	ax1.errorbar( nbg_R[2][kk], nbg_SB[2][kk], yerr = nbg_err[2][kk], marker = '', ls = '-', color = color_s[kk],
+		ecolor = color_s[kk], mfc = 'none', mec = color_s[kk], capsize = 1.5, alpha = 0.75,)
 
 	_kk_tmp_F = interp.interp1d( nbg_R[2][kk], nbg_SB[2][kk], kind = 'cubic', fill_value = 'extrapolate')
 
-	sub_ax1.plot( nbg_R[0][kk], nbg_SB[0][kk] / _kk_tmp_F( nbg_R[0][kk] ), ls = ':', color = color_s[0], alpha = 0.75,)
-	sub_ax1.plot( nbg_R[1][kk], nbg_SB[1][kk] / _kk_tmp_F( nbg_R[1][kk] ), ls = '--', color = color_s[0], alpha = 0.75,)
+	sub_ax1.plot( nbg_R[0][kk], nbg_SB[0][kk] / _kk_tmp_F( nbg_R[0][kk] ), ls = ':', color = color_s[kk], alpha = 0.75,)
+	sub_ax1.plot( nbg_R[1][kk], nbg_SB[1][kk] / _kk_tmp_F( nbg_R[1][kk] ), ls = '--', color = color_s[kk], alpha = 0.75,)
 
-	sub_ax1.plot( nbg_R[2][kk], nbg_SB[2][kk] / nbg_SB[2][kk], ls = '-', color = color_s[0], alpha = 0.75,)
+	sub_ax1.plot( nbg_R[2][kk], nbg_SB[2][kk] / nbg_SB[2][kk], ls = '-', color = color_s[kk], alpha = 0.75,)
 	sub_ax1.fill_between( nbg_R[2][kk], y1 = (nbg_SB[2][kk] - nbg_err[2][kk]) / nbg_SB[2][kk], 
-				y2 = (nbg_SB[2][kk] + nbg_err[2][kk]) / nbg_SB[2][kk], color = color_s[0], alpha = 0.12,)
+				y2 = (nbg_SB[2][kk] + nbg_err[2][kk]) / nbg_SB[2][kk], color = color_s[kk], alpha = 0.12,)
 
 legend_2 = ax1.legend( [ fig_name[0], fig_name[1], fig_name[2] ], loc = 3, frameon = False,)
 
@@ -272,7 +271,8 @@ sub_ax1.set_xscale('log')
 sub_ax1.set_xlabel('$R \; [kpc]$')
 sub_ax1.set_ylabel('$\\mu \; / \; \\mu_{outer}$', labelpad = 8)
 
-sub_ax1.set_ylim( 0.89, 1.60 )
+# sub_ax1.set_ylim( 0.89, 1.60 )
+sub_ax1.set_ylim( 0.90, 1.10 )
 
 sub_ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
 ax1.set_xticklabels( labels = [] )

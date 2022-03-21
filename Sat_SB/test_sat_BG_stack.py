@@ -58,15 +58,12 @@ N_edg = 1
 n_rbins = 35
 
 
-"""
-### === 
-d_file = home + 'member_files/BG_imgs/clus_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_BG.fits'  ## at z-ref
-
-## use to apply the same weight as the masked images
-mask_file = home + 'member_files/resamp_imgs/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
-
+### === use to apply the same weight as the masked images
 #. ( divided by 0.191 * R200m ) or ( 0.213 Mpc / h, no-scaled radius)
 #. BG_imgs based on mock 2D image of BGC+ICL
+"""
+d_file = home + 'member_files/BG_imgs/clus_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_BG.fits'  ## at z-ref
+mask_file = home + 'member_files/resamp_imgs/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
 
 N_bin = 100   ## number of jackknife subsample
 
@@ -109,15 +106,14 @@ print('%d-rank, Done' % rank )
 """
 
 
-"""
-### === 
-d_file = home + 'member_files/BG_imgs/clus_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_BG.fits'  ## at z-ref
 
-## use to apply the same weight as the masked images
-mask_file = home + 'member_files/resamp_imgs/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
-
+### === use to apply the same weight as the masked images
 #. divided by R_sat + fixed i_Mag within 10kpc
 #. BG_imgs based on mock 2D image of BGC+ICL (stacked with cluster satellite number weighted)
+
+"""
+d_file = home + 'member_files/BG_imgs/clus_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_BG.fits'  ## at z-ref
+mask_file = home + 'member_files/resamp_imgs/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
 
 N_bin = 100   ## number of jackknife subsample
 
@@ -163,13 +159,12 @@ print('%d-rank, Done' % rank )
 
 
 
-### === 
+### === use to apply the same weight as the masked images
 #. divided by R_sat + fixed i_Mag within 10kpc
 #. BG_imgs based on stacked image of BGC+ICL (stacked with cluster satellite number weighted)
 
+"""
 d_file = home + 'member_files/BG_imgs_nomock/clus_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_BG.fits'  ## at z-ref
-
-## use to apply the same weight as the masked images
 mask_file = home + 'member_files/resamp_imgs/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
 
 N_bin = 100   ## number of jackknife subsample
@@ -212,26 +207,25 @@ for ll in range( 3 ):
 
 print('%d-rank, Done' % rank )
 
-raise
+"""
 
 
-### === 
-#. divided by R_sat + fixed i_Mag within 10kpc
+
+### === divided by R_sat + fixed i_Mag within 10kpc
 #. shuffle images-cluster match order, and cutout satellite images from SDSS original images
 
+"""
 N_bin = 100   ## number of jackknife subsample
-
 cat_lis = ['inner', 'middle', 'outer']
 
 d_file = home + 'member_files/shuffl_cut_img/resamp_img/clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp.fits'
-
 mask_file = home + 'member_files/resamp_imgs/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
 
 tt0 = time.time()
 
 for ll in range( 3 ):
 
-	for kk in range( 1 ):
+	for kk in range( 1,3 ):
 
 		band_str = band[ kk ]
 
@@ -265,14 +259,17 @@ for ll in range( 3 ):
 print('%d-rank, Done' % rank )
 print( 'time = ', time.time() - tt0 )
 
-raise
+"""
 
 
 
-### === 
-#. divided by R_sat + fixed i_Mag within 10kpc + red-sequence separation
+### === divided by R_sat + fixed i_Mag within 10kpc + red-sequence separation
+##. at z-ref (use the mock image based on 1D BCG+ICL SB profile)
+# d_file = home + 'member_files/BG_imgs/clus_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_BG.fits'
 
-d_file = home + 'member_files/BG_imgs/clus_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_BG.fits'  ## at z-ref
+##. shuffle images-cluster match order, and cutout satellite images from SDSS original images
+d_file = home + 'member_files/shuffl_cut_img/resamp_img/clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp.fits'
+
 
 ## use to apply the same weight as the masked images
 mask_file = home + 'member_files/resamp_imgs/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'

@@ -510,7 +510,7 @@ print('rank = %d' % rank)
 
 
 ### === BG_img cutout (based on stacked cluster image, which is BCG+ICL)
-
+"""
 load = '/home/xkchen/fig_tmp/'
 home = '/home/xkchen/data/SDSS/'
 
@@ -579,11 +579,10 @@ for kk in range( 3 ):
 
 print('rank = %d' % rank)
 
-raise
-
+"""
 
 #*********************************#
-### === shuttle the order of BCG and images, random select satellite images
+### === shuffle the order of BCG and images, random select satellite images
 from img_sat_BG_extract import origin_img_cut_func
 from img_sat_resamp import resamp_func
 
@@ -591,54 +590,51 @@ from img_sat_resamp import resamp_func
 load = '/home/xkchen/fig_tmp/'
 home = '/home/xkchen/data/SDSS/'
 
-"""
-#. BCG position file
-post_file = home + 'member_files/BG_tract_cat/Extend-BCGM_rgi-common_frame-limit_Pm-cut_exlu-BCG_Sat_%s-band_origin-img_position.csv'
-img_file = home + 'photo_files/pos_offset_correct_imgs/mask_img/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
+
+# #. BCG position file
+# post_file = home + 'member_files/BG_tract_cat/Extend-BCGM_rgi-common_frame-limit_Pm-cut_exlu-BCG_Sat_%s-band_origin-img_position.csv'
+# img_file = home + 'photo_files/pos_offset_correct_imgs/mask_img/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
 
 
-#. target cluster (want to know background of satellites)
-dat = pds.read_csv( home + 'member_files/sat_cat_z02_03/' + 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv')
+# #. target cluster (want to know background of satellites)
+# dat = pds.read_csv( home + 'member_files/sat_cat_z02_03/' + 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv')
 
-targ_IDs = np.array( dat['clus_ID'] )
+# targ_IDs = np.array( dat['clus_ID'] )
 
-set_IDs = np.array( list( set( targ_IDs ) ) )
-set_IDs = set_IDs.astype( int )
+# set_IDs = np.array( list( set( targ_IDs ) ) )
+# set_IDs = set_IDs.astype( int )
 
-N_cc = len( set_IDs )
-
-
-#. shuffle cluster IDs
-# rand_IDs = np.loadtxt( home + 'member_files/BG_tract_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_mem_shuffle-clus_cat.txt')
-rand_IDs = np.loadtxt( home + 'member_files/BG_tract_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_mem_extra-shuffle-clus_cat.txt')
-rand_mp_IDs = rand_IDs.astype( int )
+# N_cc = len( set_IDs )
 
 
-#. shuffle cutout images
-m, n = divmod( N_cc, cpus )
-N_sub0, N_sub1 = m * rank, (rank + 1) * m
-if rank == cpus - 1:
-	N_sub1 += n
+# #. shuffle cluster IDs
+# R_cut = 320
+# out_file = home + 'member_files/shuffl_cut_img/mask_img/clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_img.fits'
 
+# for kk in range( 1,3 ):
 
-sub_clusID = set_IDs[N_sub0 : N_sub1]
-sub_rand_mp_ID = rand_mp_IDs[N_sub0 : N_sub1]
+# 	band_str = band[ kk ]
 
-R_cut = 320
-out_file = home + 'member_files/shuffl_cut_img/mask_img/clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_img.fits'
+# 	# rand_IDs = np.loadtxt( home + 'member_files/BG_tract_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_mem_shuffle-clus_cat.txt')
+# 	rand_IDs = np.loadtxt( home + 'member_files/BG_tract_cat/Extend-BCGM_rgi-common_frame-lim_Pm-cut_mem_%s-band_extra-shuffle-clus_cat.txt' % band_str)
+# 	rand_mp_IDs = rand_IDs.astype( int )
 
-for kk in range( 1 ):
+# 	#. shuffle cutout images
+# 	m, n = divmod( N_cc, cpus )
+# 	N_sub0, N_sub1 = m * rank, (rank + 1) * m
+# 	if rank == cpus - 1:
+# 		N_sub1 += n
 
-	band_str = band[ kk ]
+# 	sub_clusID = set_IDs[N_sub0 : N_sub1]
+# 	sub_rand_mp_ID = rand_mp_IDs[N_sub0 : N_sub1]
 
-	origin_img_cut_func( post_file, img_file, band_str, sub_clusID, sub_rand_mp_ID, R_cut, pixel, out_file)
+# 	origin_img_cut_func( post_file, img_file, band_str, sub_clusID, sub_rand_mp_ID, R_cut, pixel, out_file)
 
-print('%d-rank, cut Done!' % rank)
-"""
+# print('%d-rank, cut Done!' % rank)
 
 
 #. resampling... 
-for kk in range( 1 ):
+for kk in range( 1,3 ):
 
 	band_str = band[ kk ]
 
@@ -667,4 +663,4 @@ for kk in range( 1 ):
 	resamp_func( d_file, sub_z, sub_ra, sub_dec, ra_set, dec_set, img_x, img_y, band_str, out_file, z_ref, id_dimm = id_dimm )
 
 print( '%d rank, done!' % rank )
-
+raise

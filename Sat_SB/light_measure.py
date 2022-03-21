@@ -32,7 +32,6 @@ band = ['r', 'g', 'i', 'u', 'z']
 l_wave = np.array([6166, 4686, 7480, 3551, 8932])
 mag_add = np.array([0, 0, 0, -0.04, 0.02])
 
-
 ### cumulative flux & surface brightness 'overdensity'
 def cumula_flux_func(angl_r, bin_fdens,):
 	"""
@@ -82,22 +81,24 @@ def over_dens_sb_func(data, weit_data, pix_size, cx, cy, z0, R_bins,):
 	theta = np.arctan2((pix_id[1,:]-cy), (pix_id[0,:]-cx))
 	chi = theta * 180 / np.pi
 
-	rbin = R_bins # have been divided bins, in unit of pixels
+	rbin = R_bins + 0.  # have been divided bins, in unit of pixels
 	angl_r = R_bins * pix_size
 
 	set_r = rbin * pix_size * Da0 * 1e3 / rad2arcsec # in unit of kpc
 
-	intens = np.zeros(len(rbin), dtype = np.float)
-	intens_r = np.zeros(len(rbin), dtype = np.float)
-	intens_err = np.zeros(len(rbin), dtype = np.float)
+	N_bins = len( rbin )
 
-	N_pix = np.zeros(len(rbin), dtype = np.float)
-	nsum_ratio = np.zeros(len(rbin), dtype = np.float)
+	intens = np.zeros(N_bins, dtype = np.float)
+	intens_r = np.zeros(N_bins, dtype = np.float)
+	intens_err = np.zeros(N_bins, dtype = np.float)
+
+	N_pix = np.zeros(N_bins, dtype = np.float)
+	nsum_ratio = np.zeros(N_bins, dtype = np.float)
 
 	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*cx + 1) / 2)**2 + 
 		((2*pix_id[1] + 1) / 2 - (2*cy + 1) / 2)**2)
 
-	for k in range(len(rbin) - 1):
+	for k in range(N_bins - 1):
 		cdr = rbin[k + 1] - rbin[k]
 		d_phi = (cdr / ( 0.5 * (rbin[k] + rbin[k + 1]) ) ) * 180 / np.pi
 		N_phi = np.int(360 / d_phi) + 1
@@ -449,17 +450,19 @@ def light_measure_Z0_weit(data, weit_data, pix_size, cx, cy, R_bins):
 	theta = np.arctan2((pix_id[1,:] - yn), (pix_id[0,:] - xn))
 	chi = theta * 180 / np.pi
 	# radius in unit of pixel number
-	rbin = R_bins
+	rbin = R_bins + 0.
 
-	intens = np.zeros(len(rbin), dtype = np.float)
-	intens_err = np.zeros(len(rbin), dtype = np.float)
-	Angl_r = np.zeros(len(rbin), dtype = np.float)
-	N_pix = np.zeros(len(rbin), dtype = np.float)
-	nsum_ratio = np.zeros(len(rbin), dtype = np.float)
+	N_bins = len( rbin )
+
+	intens = np.zeros(N_bins, dtype = np.float)
+	intens_err = np.zeros(N_bins, dtype = np.float)
+	Angl_r = np.zeros(N_bins, dtype = np.float)
+	N_pix = np.zeros(N_bins, dtype = np.float)
+	nsum_ratio = np.zeros(N_bins, dtype = np.float)
 
 	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*xn + 1) / 2)**2 + ((2*pix_id[1] + 1) / 2 - (2*yn + 1) / 2)**2)
 
-	for k in range(len(rbin) - 1):
+	for k in range(N_bins - 1):
 		cdr = rbin[k + 1] - rbin[k]
 		d_phi = (cdr / ( 0.5 * (rbin[k] + rbin[k + 1]) ) ) * 180 / np.pi
 		N_phi = np.int(360 / d_phi) + 1
@@ -630,7 +633,7 @@ def light_measure_weit(data, weit_data, pix_size, cx, cy, z0, R_bins):
 	weit_data : the weight array for surface brightness profile measurement, it's must be 
 	the same size as the 'data' array
 	"""
-	Da0 = Test_model.angular_diameter_distance(z0).value ## in unit 'Mpc'
+	Da0 = Test_model.angular_diameter_distance( z0 ).value ## in unit 'Mpc'
 	Nx = data.shape[1]
 	Ny = data.shape[0]
 	x0 = np.linspace(0, Nx-1, Nx)
@@ -654,19 +657,21 @@ def light_measure_weit(data, weit_data, pix_size, cx, cy, z0, R_bins):
 	theta = np.arctan2((pix_id[1,:] - yn), (pix_id[0,:] - xn))
 	chi = theta * 180 / np.pi
 
-	rbin = R_bins # have been divided bins, in unit of pixels
+	rbin = R_bins + 0.  # have been divided bins, in unit of pixels
 	set_r = rbin * pix_size * Da0 * 1e3 / rad2arcsec # in unit of kpc
 
-	intens = np.zeros(len(rbin), dtype = np.float)
-	intens_r = np.zeros(len(rbin), dtype = np.float)
-	intens_err = np.zeros(len(rbin), dtype = np.float)
+	N_bins = len( rbin )
 
-	N_pix = np.zeros(len(rbin), dtype = np.float)
-	nsum_ratio = np.zeros(len(rbin), dtype = np.float)
+	intens = np.zeros(N_bins, dtype = np.float)
+	intens_r = np.zeros(N_bins, dtype = np.float)
+	intens_err = np.zeros(N_bins, dtype = np.float)
+
+	N_pix = np.zeros(N_bins, dtype = np.float)
+	nsum_ratio = np.zeros(N_bins, dtype = np.float)
 
 	dr = np.sqrt(((2*pix_id[0] + 1) / 2 - (2*xn + 1) / 2)**2 + ((2*pix_id[1] + 1) / 2 - (2*yn + 1) / 2)**2)
 
-	for k in range(len(rbin) - 1):
+	for k in range(N_bins - 1):
 		cdr = rbin[k + 1] - rbin[k]
 		d_phi = (cdr / ( 0.5 * (rbin[k] + rbin[k + 1]) ) ) * 180 / np.pi
 		N_phi = np.int(360 / d_phi) + 1
@@ -740,10 +745,400 @@ def light_measure_weit(data, weit_data, pix_size, cx, cy, z0, R_bins):
 	return Intns, Intns_r, Intns_err, N_pix, nsum_ratio
 
 
+### surface brightness profile along given circles
+def light_measure_circle( data, weit_data, pix_size, cx, cy, R_bins, id_phy = False, z0 = None):
+	"""
+	use for measuring surface brightness(SB) profile in angle coordinate,
+		directly measure SB profile from observation img.
+	data : the image use to measure SB profile
+	pix_size : pixel size, in unit of "arcsec"
+	cx, cy : the central position of objs in the image frame
+	weit_data : the weight array for surface brightness profile measurement, it's must be 
+				the same size as the 'data' array
+	R_bins : radius bin edges for SB measurement, in unit of pixel
+	
+	---------
+	if the observed redshift is given, z0 = z_obs, and set id_phy = True
+	"""
+
+	Nx = data.shape[1]
+	Ny = data.shape[0]
+	x0 = np.linspace(0, Nx-1, Nx)
+	y0 = np.linspace(0, Ny-1, Ny)
+	pix_id = np.array(np.meshgrid(x0,y0))
+
+	#..center pixel point
+	dev_05_x = cx - np.int( cx )
+	dev_05_y = cy - np.int( cy )
+
+	if dev_05_x > 0.5:
+		xn = np.int( cx ) + 1
+	else:
+		xn = np.int( cx )
+
+	if dev_05_y > 0.5:
+		yn = np.int( cy ) + 1
+	else:
+		yn = np.int( cy )
+
+	theta = np.arctan2((pix_id[1,:] - yn), (pix_id[0,:] - xn))
+	chi = theta * 180 / np.pi
+
+	# radius in unit of pixel number
+	rbin = R_bins.astype( int )
+
+	N_bins = len( rbin )
+
+	intens = np.zeros(N_bins, dtype = np.float)
+	Angl_r = np.zeros(N_bins, dtype = np.float)
+	N_pix = np.zeros(N_bins, dtype = np.float)
+	nsum_ratio = np.zeros(N_bins, dtype = np.float)
+
+	dr = np.sqrt(( pix_id[0] - xn )**2 + ( pix_id[1] - yn)**2)
+
+	for k in range( N_bins ):
+
+		ir = dr == rbin[ k ]
+
+		bool_sum = np.sum(ir)
+
+		if bool_sum == 0:
+			Angl_r[k] = rbin[ k ] * pix_size		
+
+		else:
+			weit_arr = weit_data[ir]
+			samp_flux = data[ir]
+			samp_chi = chi[ir]
+
+			tot_flux = np.nansum(samp_flux * weit_arr) / np.nansum(weit_arr)
+			idnn = np.isnan( samp_flux )
+			N_pix[k] = np.sum( idnn == False )
+			nsum_ratio[k] = np.nansum(weit_arr) / np.sum( idnn == False )
+
+			intens[k] = tot_flux + 0.
+			Angl_r[k] = np.nansum( dr[ir] * weit_arr ) / np.nansum( weit_arr ) * pix_size
+
+	idzo = N_pix < 1
+
+	Intns = intens.copy()
+	Intns[idzo] = 0.
+	nsum_ratio[idzo] = 0.
+
+	Intns = Intns / pix_size**2
+
+	if id_phy:
+
+		Da0 = Test_model.angular_diameter_distance( z0 ).value ## in unit 'Mpc'
+		phy_r = Angl_r * Da0 * 1e3 / rad2arcsec # in unit of kpc
+		return Intns, phy_r, N_pix, nsum_ratio
+
+	else:
+		return Intns, Angl_r, N_pix, nsum_ratio
+
+def PA_SB_Zx_func(data, weit_data, pix_size, cx, cy, z0, R_bins):
+	"""
+	measure liht profile in physical coordinate (radius in units of kpc)
+	---------------------
+	data: data used to measure (2D-array)
+	Nbin: number of bins will devide
+	R_bins : radius bin edges for SB measurement, in unit of pixels
+	cx, cy: cluster central position in image frame (in inuit pixel)
+	pix_size: pixel size
+	z : the redshift of data
+	weit_data : the weight array for surface brightness profile measurement, it's must be 
+	the same size as the 'data' array
+	"""
+	Da0 = Test_model.angular_diameter_distance(z0).value ## in unit 'Mpc'
+	Nx = data.shape[1]
+	Ny = data.shape[0]
+	x0 = np.linspace(0, Nx-1, Nx)
+	y0 = np.linspace(0, Ny-1, Ny)
+	pix_id = np.array(np.meshgrid(x0,y0))
+
+	#..center pixel point
+	dev_05_x = cx - np.int( cx )
+	dev_05_y = cy - np.int( cy )
+
+	if dev_05_x > 0.5:
+		xn = np.int( cx ) + 1
+	else:
+		xn = np.int( cx )
+
+	if dev_05_y > 0.5:
+		yn = np.int( cy ) + 1
+	else:
+		yn = np.int( cy )
+
+	theta = np.arctan2((pix_id[1,:] - yn), (pix_id[0,:] - xn))
+	chi = theta * 180 / np.pi
+
+	rbin = R_bins # have been divided bins, in unit of pixels
+	set_r = rbin * pix_size * Da0 * 1e3 / rad2arcsec # in unit of kpc
+
+
+	#. surface brightness along the row direction
+	intens_r_h = np.zeros(len(rbin), dtype = np.float)
+	intens_h = np.zeros(len(rbin), dtype = np.float)
+	intens_h_err = np.zeros(len(rbin), dtype = np.float)
+
+	N_pix_h = np.zeros(len(rbin), dtype = np.float)
+	nsum_ratio_h = np.zeros(len(rbin), dtype = np.float)
+
+
+	#. surface brightness along the column direction
+	intens_r_v = np.zeros(len(rbin), dtype = np.float)
+	intens_v = np.zeros(len(rbin), dtype = np.float)
+	intens_v_err = np.zeros(len(rbin), dtype = np.float)
+
+	N_pix_v = np.zeros(len(rbin), dtype = np.float)
+	nsum_ratio_v = np.zeros(len(rbin), dtype = np.float)
+
+
+	#. surface brightness along the diagonal direction
+	intens_r_d = np.zeros(len(rbin), dtype = np.float)
+	intens_d = np.zeros(len(rbin), dtype = np.float)
+	intens_d_err = np.zeros(len(rbin), dtype = np.float)	
+
+	N_pix_d = np.zeros(len(rbin), dtype = np.float)
+	nsum_ratio_d = np.zeros(len(rbin), dtype = np.float)
+
+
+	dr = np.sqrt( ( (2*pix_id[0] + 1) / 2 - (2*xn + 1) / 2)**2 + ( (2*pix_id[1] + 1) / 2 - (2*yn + 1) / 2)**2)
+	diff_x = (2 * pix_id[0] + 1) / 2 - (2 * xn + 1) / 2
+	diff_y = (2 * pix_id[1] + 1) / 2 - (2 * yn + 1) / 2
+
+
+	for k in range(len(rbin) - 1):
+
+		cdr = rbin[k + 1] - rbin[k]
+		d_phi = (cdr / ( 0.5 * (rbin[k] + rbin[k + 1]) ) ) * 180 / np.pi
+		N_phi = np.int(360 / d_phi) + 1
+		phi = np.linspace(0, 360, N_phi)
+		phi = phi - 180
+
+		r_iner = set_r[k] ## useing radius in unit of kpc
+		r_out = set_r[k + 1]
+
+		ir = (dr >= rbin[k]) & (dr < rbin[k + 1])
+		bool_sum = np.sum(ir)
+
+		if bool_sum == 0:
+			intens_r_h[k] = 0.5 * (r_iner + r_out) # in unit of kpc
+			intens_r_v[k] = 0.5 * (r_iner + r_out) # in unit of kpc
+			intens_r_d[k] = 0.5 * (r_iner + r_out) # in unit of kpc
+
+			continue
+
+		else:
+			#. points located in radius bin
+			id_vx = (dr >= rbin[k]) & (dr < rbin[k + 1])
+
+
+			##. points along the row direction
+			id_ux_0 = np.abs( diff_x ) < rbin[ k ]
+			id_uy_0 = ( np.abs( diff_y ) >= rbin[ k ] ) & ( np.abs( diff_y ) < rbin[ k+1 ] )
+			id_lim_0 = ( id_ux_0 & id_uy_0 ) & id_vx
+
+			weit_arr_0 = weit_data[ id_lim_0 ]
+
+			samp_flux = data[ id_lim_0 ]
+			samp_chi = chi[ id_lim_0 ]
+			tot_flux = np.nansum( samp_flux * weit_arr_0 ) / np.nansum( weit_arr_0 )
+
+			idnn = np.isnan( samp_flux )
+			N_pix_v[ k ] = np.sum( idnn == False )
+			nsum_ratio_v[ k ] = np.nansum( weit_arr_0 ) / np.sum( idnn == False )			
+
+			intens_v[ k ] = tot_flux
+			cen_r = np.nansum( dr[ id_lim_0 ] * weit_arr_0 ) / np.nansum( weit_arr_0 ) * pix_size
+			intens_r_v[ k ] = cen_r * Da0 * 1e3 / rad2arcsec
+
+			tmpf = []
+			for tt in range(len(phi) - 1):
+
+				iv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt+1])
+
+				if np.sum( iv ) == 0:
+					continue
+
+				else:
+					set_samp = samp_flux[ iv ]
+					set_weit = weit_arr_0[ iv ]
+
+					ttf = np.nansum( set_samp * set_weit ) / np.nansum( set_weit )
+					tmpf.append( ttf )
+
+			# rms of flux
+			tmpf = np.array( tmpf )
+			id_inf = np.isnan( tmpf )
+			tmpf[ id_inf ] = np.nan
+			id_zero = tmpf == 0
+			tmpf[id_zero] = np.nan
+
+			id_nan = np.isnan( tmpf )
+			id_fals = id_nan == False
+			Tmpf = tmpf[ id_fals ]
+
+			RMS = np.std(Tmpf)
+
+			if len(Tmpf) > 1:
+				intens_v_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+			else:
+				intens_v_err[k] = RMS
+
+
+			##. points along the columns direction
+			id_ux_1 = np.abs( diff_y ) < rbin[ k ]
+			id_uy_1 = ( np.abs( diff_x ) >= rbin[ k ] ) & ( np.abs( diff_x ) < rbin[ k+1 ] )
+			id_lim_1 = ( id_ux_1 & id_uy_1 ) & id_vx
+
+			weit_arr_1 = weit_data[ id_lim_1 ]
+
+			samp_flux = data[ id_lim_1 ]
+			samp_chi = chi[ id_lim_1 ]
+			tot_flux = np.nansum( samp_flux * weit_arr_1 ) / np.nansum( weit_arr_1 )
+
+			idnn = np.isnan( samp_flux )
+			N_pix_h[ k ] = np.sum( idnn == False )
+			nsum_ratio_h[ k ] = np.nansum( weit_arr_1 ) / np.sum( idnn == False )			
+
+			intens_h[ k ] = tot_flux
+			cen_r = np.nansum( dr[ id_lim_1 ] * weit_arr_1 ) / np.nansum( weit_arr_1 ) * pix_size
+			intens_r_h[ k ] = cen_r * Da0 * 1e3 / rad2arcsec
+
+			tmpf = []
+			for tt in range(len(phi) - 1):
+
+				iv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt+1])
+
+				if np.sum( iv ) == 0:
+					continue
+
+				else:
+					set_samp = samp_flux[ iv ]
+					set_weit = weit_arr_1[ iv ]
+
+					ttf = np.nansum( set_samp * set_weit ) / np.nansum( set_weit )
+					tmpf.append( ttf )
+
+			# rms of flux
+			tmpf = np.array( tmpf )
+			id_inf = np.isnan( tmpf )
+			tmpf[ id_inf ] = np.nan
+			id_zero = tmpf == 0
+			tmpf[id_zero] = np.nan
+
+			id_nan = np.isnan( tmpf )
+			id_fals = id_nan == False
+			Tmpf = tmpf[ id_fals ]
+
+			RMS = np.std(Tmpf)
+
+			if len(Tmpf) > 1:
+				intens_h_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+			else:
+				intens_h_err[k] = RMS
+
+
+			##. points along the diagonal direction
+			id_qx = ( np.abs( diff_x ) <= rbin[ k ] ) & ( np.abs( diff_y ) <= rbin[ k ] )
+			id_lim_2 = id_qx & id_vx
+
+			weit_arr_2 = weit_data[ id_lim_2 ]
+
+			samp_flux = data[ id_lim_2 ]
+			samp_chi = chi[ id_lim_2 ]
+			tot_flux = np.nansum( samp_flux * weit_arr_2 ) / np.nansum( weit_arr_2 )
+
+			idnn = np.isnan( samp_flux )
+			N_pix_d[ k ] = np.sum( idnn == False )
+			nsum_ratio_d[ k ] = np.nansum( weit_arr_2 ) / np.sum( idnn == False )			
+
+			intens_d[ k ] = tot_flux
+			cen_r = np.nansum( dr[ id_lim_2 ] * weit_arr_2 ) / np.nansum( weit_arr_2 ) * pix_size
+			intens_r_d[ k ] = cen_r * Da0 * 1e3 / rad2arcsec
+
+			tmpf = []
+			for tt in range(len(phi) - 1):
+
+				iv = (samp_chi >= phi[tt]) & (samp_chi <= phi[tt+1])
+
+				if np.sum( iv ) == 0:
+					continue
+
+				else:
+					set_samp = samp_flux[ iv ]
+					set_weit = weit_arr_2[ iv ]
+
+					ttf = np.nansum( set_samp * set_weit ) / np.nansum( set_weit )
+					tmpf.append( ttf )
+
+			# rms of flux
+			tmpf = np.array( tmpf )
+			id_inf = np.isnan( tmpf )
+			tmpf[ id_inf ] = np.nan
+			id_zero = tmpf == 0
+			tmpf[id_zero] = np.nan
+
+			id_nan = np.isnan( tmpf )
+			id_fals = id_nan == False
+			Tmpf = tmpf[ id_fals ]
+
+			RMS = np.std(Tmpf)
+
+			if len(Tmpf) > 1:
+				intens_d_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+			else:
+				intens_d_err[k] = RMS
+
+	#..
+	idzo = N_pix_h < 1
+
+	SB_h = intens_h.copy()
+	SB_h[idzo] = 0.
+	SB_h_err = intens_h_err.copy()
+	SB_h_err[idzo] = 0.
+
+	SB_h_R = intens_r_h.copy()
+	nsum_ratio_h[idzo] = 0.
+	SB_h, SB_h_err = SB_h / pix_size**2, SB_h_err / pix_size**2
+
+
+	idzo = N_pix_v < 1
+
+	SB_v = intens_v.copy()
+	SB_v[idzo] = 0.
+	SB_v_err = intens_v_err.copy()
+	SB_v_err[idzo] = 0.
+
+	SB_v_R = intens_r_v.copy()
+	nsum_ratio_v[idzo] = 0.
+	SB_v, SB_v_err = SB_v / pix_size**2, SB_v_err / pix_size**2
+
+
+	idzo = N_pix_d < 1
+
+	SB_d = intens_d.copy()
+	SB_d[idzo] = 0.
+	SB_d_err = intens_d_err.copy()
+	SB_d_err[idzo] = 0.
+
+	SB_d_R = intens_r_d.copy()
+	nsum_ratio_d[idzo] = 0.
+	SB_d, SB_d_err = SB_d / pix_size**2, SB_d_err / pix_size**2
+
+
+	h_array = [ SB_h_R, SB_h, SB_h_err, N_pix_h, nsum_ratio_h ]
+	v_array = [ SB_v_R, SB_v, SB_v_err, N_pix_v, nsum_ratio_v ]
+	d_array = [ SB_d_R, SB_d, SB_d_err, N_pix_d, nsum_ratio_d ]
+
+	return h_array, v_array, d_array
+
+
 ### SB profile measure with modification in large scale
 ### 	[with weight array applied]
 def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbins, N_bin, SN_lim, 
-	band_str, edg_bins = None):
+	band_str, edg_bins = None, ):
 
 	### stacking in angle coordinate
 
@@ -854,6 +1249,7 @@ def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbi
 
 	## only save the sb result in unit " nanomaggies / arcsec^2 "
 	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(cc_tmp_sb, cc_tmp_r, band_str, N_bin,)[4:]
+	#tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, band_str, N_bin,)[4:]
 
 	with h5py.File(alter_jk_sb, 'w') as f:
 		f['r'] = np.array(tt_jk_R)
@@ -863,7 +1259,7 @@ def lim_SB_pros_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbi
 	return
 
 def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb, n_rbins, N_bin, SN_lim, z_ref,
-	band_str, edg_bins = None):
+	band_str, edg_bins = None,):
 
 	### stacking in angle coordinate
 
@@ -980,6 +1376,7 @@ def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb
 
 	## only save the sb result in unit " nanomaggies / arcsec^2 "
 	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(cc_tmp_sb, cc_tmp_r, band_str, N_bin,)[4:]
+	#tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func(tmp_sb, tmp_r, band_str, N_bin,)[4:]
 
 	with h5py.File(alter_jk_sb, 'w') as f:
 		f['r'] = np.array(tt_jk_R)
@@ -987,3 +1384,4 @@ def zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, alter_sub_sb, alter_jk_sb
 		f['sb_err'] = np.array(tt_jk_err)
 
 	return
+

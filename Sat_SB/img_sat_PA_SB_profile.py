@@ -39,7 +39,96 @@ l_wave = np.array([6166, 4686, 7480, 3551, 8932])
 mag_add = np.array([0, 0, 0, -0.04, 0.02])
 
 
-### === light profile measurement
+### === light profile measurement ( surface brightness profile along given circles )
+def light_measure_circle( data, weit_data, pix_size, cx, cy, R_bins, id_phy = False, z0 = None):
+	"""
+	use for measuring surface brightness(SB) profile in angle coordinate,
+		directly measure SB profile from observation img.
+	data : the image use to measure SB profile
+	pix_size : pixel size, in unit of "arcsec"
+	cx, cy : the central position of objs in the image frame
+	weit_data : the weight array for surface brightness profile measurement, it's must be 
+				the same size as the 'data' array
+	R_bins : radius bin edges for SB measurement, in unit of pixel
+	
+	---------
+	if the observed redshift is given, z0 = z_obs, and set id_phy = True
+	"""
+
+	Nx = data.shape[1]
+	Ny = data.shape[0]
+	x0 = np.linspace(0, Nx-1, Nx)
+	y0 = np.linspace(0, Ny-1, Ny)
+	pix_id = np.array(np.meshgrid(x0,y0))
+
+	#..center pixel point
+	dev_05_x = cx - np.int( cx )
+	dev_05_y = cy - np.int( cy )
+
+	if dev_05_x > 0.5:
+		xn = np.int( cx ) + 1
+	else:
+		xn = np.int( cx )
+
+	if dev_05_y > 0.5:
+		yn = np.int( cy ) + 1
+	else:
+		yn = np.int( cy )
+
+	theta = np.arctan2((pix_id[1,:] - yn), (pix_id[0,:] - xn))
+	chi = theta * 180 / np.pi
+
+	# radius in unit of pixel number
+	rbin = R_bins.astype( int )
+
+	N_bins = len( rbin )
+
+	intens = np.zeros(N_bins, dtype = np.float)
+	Angl_r = np.zeros(N_bins, dtype = np.float)
+	N_pix = np.zeros(N_bins, dtype = np.float)
+	nsum_ratio = np.zeros(N_bins, dtype = np.float)
+
+	dr = np.sqrt(( pix_id[0] - xn )**2 + ( pix_id[1] - yn)**2)
+
+	for k in range( N_bins ):
+
+		ir = dr == rbin[ k ]
+
+		bool_sum = np.sum(ir)
+
+		if bool_sum == 0:
+			Angl_r[k] = rbin[ k ] * pix_size		
+
+		else:
+			weit_arr = weit_data[ir]
+			samp_flux = data[ir]
+			samp_chi = chi[ir]
+
+			tot_flux = np.nansum(samp_flux * weit_arr) / np.nansum(weit_arr)
+			idnn = np.isnan( samp_flux )
+			N_pix[k] = np.sum( idnn == False )
+			nsum_ratio[k] = np.nansum(weit_arr) / np.sum( idnn == False )
+
+			intens[k] = tot_flux + 0.
+			Angl_r[k] = np.nansum( dr[ir] * weit_arr ) / np.nansum( weit_arr ) * pix_size
+
+	idzo = N_pix < 1
+
+	Intns = intens.copy()
+	Intns[idzo] = 0.
+	nsum_ratio[idzo] = 0.
+
+	Intns = Intns / pix_size**2
+
+	if id_phy:
+
+		Da0 = Test_model.angular_diameter_distance( z0 ).value ## in unit 'Mpc'
+		phy_r = Angl_r * Da0 * 1e3 / rad2arcsec # in unit of kpc
+		return Intns, phy_r, N_pix, nsum_ratio
+
+	else:
+		return Intns, Angl_r, N_pix, nsum_ratio
+
 def PA_SB_Zx_func(data, weit_data, pix_size, cx, cy, z0, R_bins):
 	"""
 	measure liht profile in physical coordinate (radius in units of kpc)
@@ -138,6 +227,7 @@ def PA_SB_Zx_func(data, weit_data, pix_size, cx, cy, z0, R_bins):
 			#. points located in radius bin
 			id_vx = (dr >= rbin[k]) & (dr < rbin[k + 1])
 
+
 			##. points along the row direction
 			id_ux_0 = np.abs( diff_x ) < rbin[ k ]
 			id_uy_0 = ( np.abs( diff_y ) >= rbin[ k ] ) & ( np.abs( diff_y ) < rbin[ k+1 ] )
@@ -150,12 +240,12 @@ def PA_SB_Zx_func(data, weit_data, pix_size, cx, cy, z0, R_bins):
 			tot_flux = np.nansum( samp_flux * weit_arr_0 ) / np.nansum( weit_arr_0 )
 
 			idnn = np.isnan( samp_flux )
-			N_pix_h[ k ] = np.sum( idnn == False )
-			nsum_ratio_h[ k ] = np.nansum( weit_arr_0 ) / np.sum( idnn == False )			
+			N_pix_v[ k ] = np.sum( idnn == False )
+			nsum_ratio_v[ k ] = np.nansum( weit_arr_0 ) / np.sum( idnn == False )			
 
-			intens_h[ k ] = tot_flux
+			intens_v[ k ] = tot_flux
 			cen_r = np.nansum( dr[ id_lim_0 ] * weit_arr_0 ) / np.nansum( weit_arr_0 ) * pix_size
-			intens_r_h[ k ] = cen_r * Da0 * 1e3 / rad2arcsec
+			intens_r_v[ k ] = cen_r * Da0 * 1e3 / rad2arcsec
 
 			tmpf = []
 			for tt in range(len(phi) - 1):
@@ -186,9 +276,9 @@ def PA_SB_Zx_func(data, weit_data, pix_size, cx, cy, z0, R_bins):
 			RMS = np.std(Tmpf)
 
 			if len(Tmpf) > 1:
-				intens_h_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+				intens_v_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
 			else:
-				intens_h_err[k] = RMS
+				intens_v_err[k] = RMS
 
 
 			##. points along the columns direction
@@ -203,12 +293,12 @@ def PA_SB_Zx_func(data, weit_data, pix_size, cx, cy, z0, R_bins):
 			tot_flux = np.nansum( samp_flux * weit_arr_1 ) / np.nansum( weit_arr_1 )
 
 			idnn = np.isnan( samp_flux )
-			N_pix_v[ k ] = np.sum( idnn == False )
-			nsum_ratio_v[ k ] = np.nansum( weit_arr_1 ) / np.sum( idnn == False )			
+			N_pix_h[ k ] = np.sum( idnn == False )
+			nsum_ratio_h[ k ] = np.nansum( weit_arr_1 ) / np.sum( idnn == False )			
 
-			intens_v[ k ] = tot_flux
+			intens_h[ k ] = tot_flux
 			cen_r = np.nansum( dr[ id_lim_1 ] * weit_arr_1 ) / np.nansum( weit_arr_1 ) * pix_size
-			intens_r_v[ k ] = cen_r * Da0 * 1e3 / rad2arcsec
+			intens_r_h[ k ] = cen_r * Da0 * 1e3 / rad2arcsec
 
 			tmpf = []
 			for tt in range(len(phi) - 1):
@@ -239,9 +329,9 @@ def PA_SB_Zx_func(data, weit_data, pix_size, cx, cy, z0, R_bins):
 			RMS = np.std(Tmpf)
 
 			if len(Tmpf) > 1:
-				intens_v_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
+				intens_h_err[k] = RMS / np.sqrt(len(Tmpf) - 1)
 			else:
-				intens_v_err[k] = RMS
+				intens_h_err[k] = RMS
 
 
 			##. points along the diagonal direction

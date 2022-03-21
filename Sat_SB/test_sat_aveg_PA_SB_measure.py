@@ -1,6 +1,6 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle
+from matplotlib.patches import Circle, Ellipse, Rectangle
 import matplotlib.ticker as ticker
 from matplotlib.ticker import MultipleLocator, AutoMinorLocator
 
@@ -82,6 +82,20 @@ def bin_divid_test():
 
 	Nx, Ny = test_img.shape[1], test_img.shape[0]
 	xn, yn = np.int( Nx / 2), np.int( Ny / 2)
+	
+	#. cutout edge pixels
+	id_Nul = np.isnan( test_img )
+	eff_y, eff_x = np.where( id_Nul == False)
+
+	lim_x0, lim_x1 = np.min( eff_x ), np.max( eff_x )
+	lim_y0, lim_y1 = np.min( eff_y ), np.max( eff_y )
+
+	cut_img = test_img[ lim_y0: lim_y1, lim_x0 : lim_x1]
+
+
+	##... test SB varables
+	lim_R0 = 250  ## pixel number
+	lim_R1 = lim_R0 * np.sqrt( 2 )
 
 	x_pix, y_pix = np.arange( Nx ), np.arange( Ny )
 	lx, ly = np.meshgrid( x_pix, y_pix )
@@ -94,45 +108,176 @@ def bin_divid_test():
 	diff_y = (2 * ly + 1) / 2 - (2 * yn + 1) / 2
 
 
-	r_bins = np.logspace( 0, 2.56, 35 )
+	#. limited radius bin
+	id_vx = ( dR >= lim_R0 ) & ( dR < lim_R1 )
+	set_px, set_py = np.where( id_vx )
 
-	weit_arry = np.ones( (Ny, Nx),)
-
-	h_array, v_array, d_array = PA_SB_Zx_func( test_img, weit_arry, pixel, xn, yn, z_ref, r_bins )
-
-	SB_h_R, SB_h, SB_h_err, N_pix_h, nsum_ratio_h = h_array[:]
-	SB_v_R, SB_v, SB_v_err, N_pix_v, nsum_ratio_v = v_array[:]
-	SB_d_R, SB_d, SB_d_err, N_pix_d, nsum_ratio_d = d_array[:]
-
-	id_hx = N_pix_h > 0.
-	SB_h_R, SB_h, SB_h_err = SB_h_R[ id_hx ], SB_h[ id_hx ], SB_h_err[ id_hx ]
-
-	id_vx = N_pix_v > 0.
-	SB_v_R, SB_v, SB_v_err = SB_v_R[ id_vx ], SB_v[ id_vx ], SB_v_err[ id_vx ]
-
-	id_dx = N_pix_d > 0.
-	SB_d_R, SB_d, SB_d_err = SB_d_R[ id_vx ], SB_d[ id_vx ], SB_d_err[ id_vx ]
+	sub_flux_A = test_img[ id_vx ]
+	id_nn = np.isnan( sub_flux_A )
+	mean_sub_F_A = np.nansum( sub_flux_A[ id_nn == False ] ) / np.sum( id_nn == False)
 
 
-	plt.figure()
-	ax = plt.subplot(111)
+	#. points along the row direction
+	id_uy_0 = ( np.abs( diff_y ) >= lim_R0 ) & ( np.abs( diff_y ) < lim_R1 )
+	id_lim_0 = id_uy_0 & id_vx
+	set_px_0, set_py_0 = np.where( id_lim_0 )
 
-	ax.errorbar( SB_h_R, SB_h, yerr = SB_h_err, marker = '', ls = '-', color = 'r',
-				ecolor = 'r', mfc = 'none', mec = 'r', capsize = 1.5, alpha = 0.75, label = 'horizontal')
+	sub_flux_V = test_img[ id_lim_0 ]
+	id_nn = np.isnan( sub_flux_V )
+	mean_sub_F_V = np.nansum( sub_flux_V[ id_nn == False ] ) / np.sum( id_nn == False)
 
-	ax.errorbar( SB_v_R, SB_v, yerr = SB_v_err, marker = '', ls = '-', color = 'b',
-				ecolor = 'b', mfc = 'none', mec = 'b', capsize = 1.5, alpha = 0.75, label = 'vertical')
+	#. points along the columns direction
+	id_uy_1 = ( np.abs( diff_x ) >= lim_R0 ) & ( np.abs( diff_x ) < lim_R1 )
+	id_lim_1 = id_uy_1 & id_vx
+	set_px_1, set_py_1 = np.where( id_lim_1 )
 
-	ax.errorbar( SB_d_R, SB_d, yerr = SB_d_err, marker = '', ls = '-', color = 'g',
-				ecolor = 'g', mfc = 'none', mec = 'g', capsize = 1.5, alpha = 0.75, label = 'diagnal')
+	sub_flux_H = test_img[ id_lim_1 ]
+	id_nn = np.isnan( sub_flux_H )
+	mean_sub_F_H = np.nansum( sub_flux_H[ id_nn == False ] ) / np.sum( id_nn == False)
 
-	ax.set_xscale('log')
-	ax.set_yscale('log')
-	ax.legend(loc = 1,)
-	plt.savefig('/home/xkchen/PA_SB_test.png', dpi = 300)
+	#. points along the diagonal line
+	id_qx = ( np.abs( diff_x ) <= lim_R0 ) & ( np.abs( diff_y ) <= lim_R0 )
+	id_lim_2 = id_qx & id_vx
+	set_px_2, set_py_2 = np.where( id_lim_2 )
+
+	sub_flux_D = test_img[ id_lim_2 ]
+	id_nn = np.isnan( sub_flux_D )
+	mean_sub_F_D = np.nansum( sub_flux_D[ id_nn == False ] ) / np.sum( id_nn == False)
+
+	mean_SB = np.array( [mean_sub_F_A, mean_sub_F_V, mean_sub_F_H, mean_sub_F_D ] ) / pixel**2
+	put_x = np.array( [1, 2, 3, 4] )
+
+
+	fig = plt.figure()
+	ax = fig.add_axes([0.15, 0.10, 0.75, 0.75])
+
+	ax.plot( put_x, mean_SB, 'ro', )
+	ax.set_xticks( put_x )
+
+	x_tick_lis = [ '$\\mu_{A}$', '$\\mu_{V}$', '$\\mu_{H}$', '$\\mu_{D}$' ]
+	ax.set_xticklabels( x_tick_lis )
+
+	ax.set_ylabel('$\\mu \; [nanomaggies \, / \, arcsec^2]$')
+
+	plt.savefig('/home/xkchen/SB_compare.png', dpi = 300)
+	plt.close()
+
+
+	fig = plt.figure( figsize = (13.12, 9.8) )
+	ax0 = fig.add_axes([0.05, 0.53, 0.40, 0.45])
+	ax1 = fig.add_axes([0.55, 0.53, 0.40, 0.45])
+	ax2 = fig.add_axes([0.05, 0.03, 0.40, 0.45])
+	ax3 = fig.add_axes([0.55, 0.03, 0.40, 0.45])
+
+	ax0.imshow( test_img / pixel**2, origin = 'lower', cmap = 'winter', norm = mpl.colors.LogNorm(),)
+	ax1.imshow( test_img / pixel**2, origin = 'lower', cmap = 'winter', norm = mpl.colors.LogNorm(),)
+	ax2.imshow( test_img / pixel**2, origin = 'lower', cmap = 'winter', norm = mpl.colors.LogNorm(),)
+	ax3.imshow( test_img / pixel**2, origin = 'lower', cmap = 'winter', norm = mpl.colors.LogNorm(),)
+
+	ax0.plot( set_px, set_py, 'o', color = 'r', alpha = 0.25, markersize = 4,)
+	ax1.plot( set_px_0, set_py_0, 's', color = 'r', alpha = 0.25, markersize = 4,)
+	ax2.plot( set_px_1, set_py_1, 's', color = 'r', alpha = 0.25, markersize = 4,)
+	ax3.plot( set_px_2, set_py_2, 's', color = 'r', alpha = 0.25, markersize = 4,)
+
+	ax0.text( x = 500, y = 410, s = 'Azimuth average ($\\mu_{A}$)', color = 'r', fontsize = 16,)
+	ax1.text( x = 500, y = 410, s = 'Horizontal average ($\\mu_{H}$)', color = 'r', fontsize = 16,)
+	ax2.text( x = 500, y = 410, s = 'Vertical average ($\\mu_{V}$)', color = 'r', fontsize = 16,)
+	ax3.text( x = 500, y = 410, s = 'Diagnal average ($\\mu_{D}$)', color = 'r', fontsize = 16,)
+
+
+	clust = Circle( xy = (xn, yn), radius = lim_R0, fill = False, ec = 'k', ls = '-', linewidth = 1,)
+	ax0.add_patch( clust )
+	clust = Circle( xy = (xn, yn), radius = lim_R1, fill = False, ec = 'k', ls = '-', linewidth = 1,)
+	ax0.add_patch( clust )
+
+	clust = Circle( xy = (xn, yn), radius = lim_R0, fill = False, ec = 'k', ls = '-', linewidth = 1,)
+	ax1.add_patch( clust )
+	clust = Circle( xy = (xn, yn), radius = lim_R1, fill = False, ec = 'k', ls = '-', linewidth = 1,)
+	ax1.add_patch( clust )
+
+	S_box = Rectangle( xy = (xn - lim_R0, yn - lim_R0), width = lim_R0, height = lim_R0, fill = False, ec = 'k', ls = '-', linewidth = 1,)
+	ax1.add_patch( S_box )
+	S_box = Rectangle( xy = (xn - lim_R1, yn - lim_R1), width = lim_R1, height = lim_R1, fill = False, ec = 'k', ls = '-', linewidth = 1,)
+	ax1.add_patch( S_box )
+
+
+	clust = Circle( xy = (xn, yn), radius = lim_R0, fill = False, ec = 'k', ls = '-', linewidth = 1,)
+	ax2.add_patch( clust )
+	clust = Circle( xy = (xn, yn), radius = lim_R1, fill = False, ec = 'k', ls = '-', linewidth = 1,)
+	ax2.add_patch( clust )
+
+	S_box = Rectangle( xy = (xn - lim_R0, yn - lim_R0), width = lim_R0, height = lim_R0, fill = False, ec = 'k', ls = '-', linewidth = 1,)
+	ax2.add_patch( S_box )
+	S_box = Rectangle( xy = (xn - lim_R1, yn - lim_R1), width = lim_R1, height = lim_R1, fill = False, ec = 'k', ls = '-', linewidth = 1,)
+	ax2.add_patch( S_box )
+
+	clust = Circle( xy = (xn, yn), radius = lim_R0, fill = False, ec = 'k', ls = '-', linewidth = 1,)
+	ax3.add_patch( clust )
+	clust = Circle( xy = (xn, yn), radius = lim_R1, fill = False, ec = 'k', ls = '-', linewidth = 1,)
+	ax3.add_patch( clust )
+
+	S_box = Rectangle( xy = (xn - lim_R0, yn - lim_R0), width = lim_R0, height = lim_R0, fill = False, ec = 'k', ls = '-', linewidth = 1,)
+	ax3.add_patch( S_box )
+	S_box = Rectangle( xy = (xn - lim_R1, yn - lim_R1), width = lim_R1, height = lim_R1, fill = False, ec = 'k', ls = '-', linewidth = 1,)
+	ax3.add_patch( S_box )
+
+	ax0.set_xlim( xn - 400, xn + 400 )
+	ax0.set_ylim( xn - 400, xn + 400 )
+
+	ax1.set_xlim( xn - 400, xn + 400 )
+	ax1.set_ylim( xn - 400, xn + 400 )
+
+	ax2.set_xlim( xn - 400, xn + 400 )
+	ax2.set_ylim( xn - 400, xn + 400 )
+
+	ax3.set_xlim( xn - 400, xn + 400 )
+	ax3.set_ylim( xn - 400, xn + 400 )
+
+	plt.savefig('/home/xkchen/binned_view.png', dpi = 300)
 	plt.close()
 
 	raise
+
+	# r_bins = np.logspace( 0, 2.56, 35 )
+
+	# weit_arry = np.ones( (Ny, Nx),)
+
+	# h_array, v_array, d_array = PA_SB_Zx_func( test_img, weit_arry, pixel, xn, yn, z_ref, r_bins )
+
+	# SB_h_R, SB_h, SB_h_err, N_pix_h, nsum_ratio_h = h_array[:]
+	# SB_v_R, SB_v, SB_v_err, N_pix_v, nsum_ratio_v = v_array[:]
+	# SB_d_R, SB_d, SB_d_err, N_pix_d, nsum_ratio_d = d_array[:]
+
+	# id_hx = N_pix_h > 0.
+	# SB_h_R, SB_h, SB_h_err = SB_h_R[ id_hx ], SB_h[ id_hx ], SB_h_err[ id_hx ]
+
+	# id_vx = N_pix_v > 0.
+	# SB_v_R, SB_v, SB_v_err = SB_v_R[ id_vx ], SB_v[ id_vx ], SB_v_err[ id_vx ]
+
+	# id_dx = N_pix_d > 0.
+	# SB_d_R, SB_d, SB_d_err = SB_d_R[ id_vx ], SB_d[ id_vx ], SB_d_err[ id_vx ]
+
+
+	# plt.figure()
+	# ax = plt.subplot(111)
+
+	# ax.errorbar( SB_h_R, SB_h, yerr = SB_h_err, marker = '', ls = '-', color = 'r',
+	# 			ecolor = 'r', mfc = 'none', mec = 'r', capsize = 1.5, alpha = 0.75, label = 'horizontal')
+
+	# ax.errorbar( SB_v_R, SB_v, yerr = SB_v_err, marker = '', ls = '-', color = 'b',
+	# 			ecolor = 'b', mfc = 'none', mec = 'b', capsize = 1.5, alpha = 0.75, label = 'vertical')
+
+	# ax.errorbar( SB_d_R, SB_d, yerr = SB_d_err, marker = '', ls = '-', color = 'g',
+	# 			ecolor = 'g', mfc = 'none', mec = 'g', capsize = 1.5, alpha = 0.75, label = 'diagnal')
+
+	# ax.set_xscale('log')
+	# ax.set_yscale('log')
+	# ax.legend(loc = 1,)
+	# plt.savefig('/home/xkchen/PA_SB_test.png', dpi = 300)
+	# plt.close()
+
+	# raise
+
 
 	fig = plt.figure( figsize = (13.12, 9.84) )
 	ax0 = fig.add_axes([0.05, 0.55, 0.40, 0.45])
@@ -153,21 +298,18 @@ def bin_divid_test():
 		#. points along the row direction
 		id_uy_0 = ( np.abs( diff_y ) >= r_bins[ kk ] ) & ( np.abs( diff_y ) < r_bins[ kk+1 ] )
 		id_lim_0 = id_uy_0 & id_vx
-
 		set_px_0, set_py_0 = np.where( id_lim_0 )
 
 
 		#. points along the columns direction
 		id_uy_1 = ( np.abs( diff_x ) >= r_bins[ kk ] ) & ( np.abs( diff_x ) < r_bins[ kk+1 ] )
 		id_lim_1 = id_uy_1 & id_vx
-
 		set_px_1, set_py_1 = np.where( id_lim_1 )
 
 
 		#. points along the diagonal line
 		id_qx = ( np.abs( diff_x ) <= r_bins[ kk ] ) & ( np.abs( diff_y ) <= r_bins[ kk ] )
 		id_lim_2 = id_qx & id_vx
-
 		set_px_2, set_py_2 = np.where( id_lim_2 )
 
 
@@ -206,12 +348,11 @@ def bin_divid_test():
 
 	return
 
-# bin_divid_test()
-# raise
+bin_divid_test()
+raise
 
 
 ### === measure test
-
 # img_path = '/home/xkchen/fig_tmp/Extend_Mbcg_sat_stack/'
 # SB_path = '/home/xkchen/figs/'
 
@@ -252,8 +393,7 @@ for mm in range( 3 ):
 	for kk in range( 3 ):
 
 		band_str = band[ kk ]
-
-		dat = pds.read_csv('/home/xkchen/figs_cp/aveg_PA_SBs/' + 
+		dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/iMag_fix_Rbin/aveg_PA_SBs/' + 
 						'Extend_BCGM_gri-common_iMag10-fix_%s_%s-band_Mean_jack_SB-pro_z-ref.csv' % (cat_lis[mm], band_str),)
 		sub_R_h = np.array( dat['r_h'] )
 		sub_sb_h = np.array( dat['sb_h'] )

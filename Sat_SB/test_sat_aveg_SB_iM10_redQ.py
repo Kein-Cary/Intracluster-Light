@@ -53,23 +53,22 @@ color_s = [ 'r', 'g', 'darkred' ]
 line_c = [ 'b', 'r', 'm']
 line_s = [ '--', '-', '-.']
 
-"""
-id_redQ = ['below', 'above'][1]
 
 ##... BG-sub SB(r) of sat. ( background stacking )
-N_sample = 50
+# N_sample = 50
 
-for mm in range( 3 ):
+# for tt in range( 2 ):
+# 	id_redQ = ['below', 'above'][ tt ]
 
-	for kk in range( 3 ):
+# 	for mm in range( 3 ):
 
-		sat_sb_file = path + 'Extend_BCGM_gri-common_iMag10-fix_%s_%s_%s-band_' % (cat_lis[mm], id_redQ, band[kk]) + 'jack-sub-%d_SB-pro_z-ref.h5'
-		bg_sb_file = BG_path + 'Extend_BCGM_gri-common_iMag10-fix_%s_%s_%s-band_BG_Mean_jack_SB-pro_z-ref.h5' % (cat_lis[mm], id_redQ, band[kk])
-		out_file = out_path + 'Extend_BCGM_gri-common_iMag10-fix_%s_%s_%s-band_aveg-jack_BG-sub_SB.csv' % (cat_lis[mm], id_redQ, band[kk])
+# 		for kk in range( 3 ):
 
-		stack_BG_sub_func( sat_sb_file, bg_sb_file, band[ kk ], N_sample, out_file )
+# 			sat_sb_file = path + 'Extend_BCGM_gri-common_iMag10-fix_%s_%s_%s-band_' % (cat_lis[mm], id_redQ, band[kk]) + 'jack-sub-%d_SB-pro_z-ref.h5'
+# 			bg_sb_file = BG_path + 'Extend_BCGM_gri-common_iMag10-fix_%s_%s_%s-band_BG_Mean_jack_SB-pro_z-ref.h5' % (cat_lis[mm], id_redQ, band[kk])
+# 			out_file = out_path + 'Extend_BCGM_gri-common_iMag10-fix_%s_%s_%s-band_aveg-jack_BG-sub_SB.csv' % (cat_lis[mm], id_redQ, band[kk])
 
-"""
+# 			stack_BG_sub_func( sat_sb_file, bg_sb_file, band[ kk ], N_sample, out_file )
 
 
 ### === ### figs
