@@ -84,7 +84,12 @@ for tt in range( 3 ):
 
 		##... image mask
 		cat_file = home + 'photo_files/star_cats/source_SQL_Z%.3f_ra%.3f_dec%.3f.csv'
-		out_mask_file = home + 'member_files/mask_imgs/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_mask-img.fits'
+
+		# id_bcg = True   ### if mask out BCG or not~(False)
+		# out_mask_file = home + 'member_files/mask_imgs/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_mask-img.fits'
+
+		id_bcg = False  ### if mask out BCG or not~(False)   
+		out_mask_file = home + 'member_files/rich_binned_sat_test/mask_img/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_mask-img.fits'
 
 		stack_cat = '/home/xkchen/project/tmp_obj_cat/clus_%s-band_ra%.3f_dec%.3f_z%.3f_Sat-cat.csv'
 
@@ -110,14 +115,12 @@ for tt in range( 3 ):
 			extra_img = [ home + 'photo_data/frame-r-ra%.3f-dec%.3f-redshift%.3f.fits.bz2',
 						  home + 'photo_data/frame-g-ra%.3f-dec%.3f-redshift%.3f.fits.bz2']
 
-		tt2 = time.time()
-
 		sate_surround_mask_func( d_file, cat_file, ra_g, dec_g, z_g, lim_ra, lim_dec, band_str, gal_file, out_mask_file, R_cut, 
-								offset_file = offset_file, extra_cat = extra_cat, extra_img = extra_img, stack_info = stack_cat )
+								offset_file = offset_file, extra_cat = extra_cat, extra_img = extra_img, stack_info = stack_cat,
+								bcg_mask = id_bcg )
 
-		print( time.time() - tt2 )
+print( '%s band finished!' % band_str )
 
-raise
 """
 
 
@@ -134,8 +137,14 @@ for tt in range( 3 ):
 	sat_cx, sat_cy = np.array( dat['cut_cx'] ), np.array( dat['cut_cy'] )
 
 
-	d_file = home + 'member_files/mask_imgs/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_mask-img.fits'
-	out_file = home + 'member_files/resamp_imgs/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
+	##. satellite image cut without BCG
+	# d_file = home + 'member_files/mask_imgs/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_mask-img.fits'
+	# out_file = home + 'member_files/resamp_imgs/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
+
+	##. satellite image cut with BCG
+	d_file = home + 'member_files/rich_binned_sat_test/mask_img/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_mask-img.fits'
+	out_file = home + 'member_files/rich_binned_sat_test/resamp_img/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
+
 
 	id_dimm = True
 

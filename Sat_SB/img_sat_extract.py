@@ -76,22 +76,30 @@ def cat_combine( cat_lis, ra, dec, z, alt_G_size, head_info, img_lis):
 	return tot_Numb, tot_cx, tot_cy, tot_a, tot_b, tot_theta
 
 
-def mask_with_G_tag( img_arry, cen_x, cen_y, cen_ar, cen_br, cen_cr, cen_chi, gal_arr):
+def mask_with_G_tag( img_arry, cen_x, cen_y, cen_ar, cen_br, cen_chi, gal_arr):
 	## cen_x, cen_y : location of target galaxy in image frame
 
 	cx, cy, a, b, theta = gal_arr[:]
 
-	ef1 = ( cx - cen_x ) * np.cos( cen_chi ) + ( cy - cen_y ) * np.sin( cen_chi )
-	ef2 = ( cy - cen_y ) * np.cos( cen_chi ) - ( cx - cen_x ) * np.sin( cen_chi )
-	er = ef1**2 / cen_ar**2 + ef2**2 / cen_br**2
-	idx = er < 1
+	##. identify galaxies those will no mask appled on
+	dex_bcgs = np.array( [] )
 
-	if np.sum( idx ) >= 1:
-		id_bcg = np.where( idx == True )[0]
+	for pp in range( len( cen_x ) ):
 
-	if np.sum( idx ) == 0:
-		id_bcg = np.array( [] )
+		ef1 = ( cx - cen_x[ pp ] ) * np.cos( cen_chi[ pp ] ) + ( cy - cen_y[ pp ] ) * np.sin( cen_chi[ pp ] )
+		ef2 = ( cy - cen_y[ pp ] ) * np.cos( cen_chi[ pp ] ) - ( cx - cen_x[ pp ] ) * np.sin( cen_chi[ pp ] )
+		er = ef1**2 / cen_ar[ pp ]**2 + ef2**2 / cen_br[ pp ]**2
+		idx = er < 1
 
+		if np.sum( idx ) >= 1:
+			id_bcg = np.where( idx == True )[0]
+
+		if np.sum( idx ) == 0:
+			id_bcg = np.array( [] )
+		
+		dex_bcgs = np.r_[ dex_bcgs, id_bcg ]
+
+	##.
 	major = a / 2
 	minor = b / 2
 	senior = np.sqrt(major**2 - minor**2)
@@ -115,7 +123,7 @@ def mask_with_G_tag( img_arry, cen_x, cen_y, cen_ar, cen_br, cen_cr, cen_chi, ga
 		cr = senior[k]
 		chi = theta[k] * np.pi / 180
 
-		if k in id_bcg:
+		if k in dex_bcgs:
 			continue
 
 		else:
@@ -228,7 +236,6 @@ def sate_Extract_func( d_file, bcg_ra, bcg_dec, bcg_z, ra_set, dec_set, band, ga
 		kk_px, kk_py = cx[ id_order ], cy[ id_order ]
 		kk_major_R = a[ id_order ]
 
-
 		cen_ar = A[ id_order ] * 3
 		cen_br = B[ id_order ] * 3
 
@@ -303,7 +310,8 @@ def sate_Extract_func( d_file, bcg_ra, bcg_dec, bcg_z, ra_set, dec_set, band, ga
 def sate_surround_mask_func(d_file, cat_file, bcg_ra, bcg_dec, bcg_z, ra_set, dec_set, band, gal_file, out_mask_file, R_cut, 
 						offset_file = None, sdss_phot_file = None, 
 						extra_cat = None, extra_img = None, 
-						alter_fac = None, alt_bright_R = None, alt_G_size = None, stack_info = None, pixel = 0.396):
+						alter_fac = None, alt_bright_R = None, alt_G_size = None, stack_info = None, pixel = 0.396, 
+						bcg_mask = True):
 	"""
 	d_file : path where image data saved (include file-name structure:'/xxx/xxx/xxx.xxx')
 	cat_file : table of stars and saturated pixels
@@ -331,6 +339,8 @@ def sate_surround_mask_func(d_file, cat_file, bcg_ra, bcg_dec, bcg_z, ra_set, de
 	
 	stack_info : record the position of stacking center (here is the center of satellite galaxies)
 	pixel : pixel scale, in unit of 'arcsec'
+	------------------
+	bcg_mask = True~( BCG will be masked out in satellite stacking), or False~(BCG will be blanked during masking)
 	"""
 
 	ra_g, dec_g, z_g = bcg_ra, bcg_dec, bcg_z
@@ -339,8 +349,9 @@ def sate_surround_mask_func(d_file, cat_file, bcg_ra, bcg_dec, bcg_z, ra_set, de
 	img_data = fits.open( d_file % (band, bcg_ra, bcg_dec, bcg_z),)
 
 	Header = img_data[0].header
-	wcs_lis = awc.WCS( Header )
+	# wcs_lis = awc.WCS( Header )
 
+	x_bcg, y_bcg = WCS_to_pixel_func( ra_g, dec_g, Header )
 
 	if offset_file is not None:
 		off_dat = pds.read_csv( offset_file % (band, ra_g, dec_g, z_g), )
@@ -391,6 +402,7 @@ def sate_surround_mask_func(d_file, cat_file, bcg_ra, bcg_dec, bcg_z, ra_set, de
 	## ... stars
 	mask = cat_file % ( z_g, ra_g, dec_g )
 	cat = pds.read_csv( mask, skiprows = 1 )
+
 	set_ra = np.array( cat['ra'] )
 	set_dec = np.array( cat['dec'] )
 	set_mag = np.array( cat['r'] )
@@ -448,16 +460,12 @@ def sate_surround_mask_func(d_file, cat_file, bcg_ra, bcg_dec, bcg_z, ra_set, de
 	Lr = np.r_[sub_A0[sub_A0 > 0], sub_A2[sub_A2 > 0] ]
 	Sr = np.r_[sub_B0[sub_A0 > 0], sub_B2[sub_A2 > 0] ]
 	phi = np.r_[sub_chi0[sub_A0 > 0], sub_chi2[sub_A2 > 0] ]
-	N_star = len( comx )
-
 
 	gal_x = np.r_[ cx, Ecat_x ]
 	gal_y = np.r_[ cy, Ecat_y ]
 	gal_a = np.r_[ a, Ecat_a ]
 	gal_b = np.r_[ b, Ecat_b ]
 	gal_chi = np.r_[ theta, Ecat_chi ]
-
-	gal_arr = [ gal_x, gal_y, gal_a, gal_b, gal_chi ]
 
 
 	## ... array to record satellite location
@@ -472,9 +480,7 @@ def sate_surround_mask_func(d_file, cat_file, bcg_ra, bcg_dec, bcg_z, ra_set, de
 	for pp in range( N_sat ):
 
 		kk_ra, kk_dec = ra_set[ pp], dec_set[ pp]
-
 		pp_cx, pp_cy = s_xn[ pp ], s_yn[ pp ]
-
 
 		#. find target galaxy in source catalog
 		d_cen_R = np.sqrt( (cx - pp_cx)**2 + (cy - pp_cy)**2 )
@@ -482,21 +488,18 @@ def sate_surround_mask_func(d_file, cat_file, bcg_ra, bcg_dec, bcg_z, ra_set, de
 		id_xcen = d_cen_R == d_cen_R.min()
 		id_order = np.where( id_xcen )[0][0]
 
-		#. use the position derived by SExtractor in each band
-		kk_px, kk_py = cx[ id_order ], cy[ id_order ]
-
-		tmp_ini_x = np.r_[ tmp_ini_x, kk_px ]
-		tmp_ini_y = np.r_[ tmp_ini_y, kk_py ]
-
-
 		##... select samller region (compare to 8 Kron radius in ICL mask)
 		cen_ar = A[ id_order ] * 2 # 1.5
 		cen_br = B[ id_order ] * 2 # 1.5
-
 		cen_cr = np.sqrt( cen_ar**2 - cen_br**2 )
 		cen_chi = theta[ id_order ] * np.pi / 180
 
 		kk_major_R = a[ id_order ]
+
+		#. use the position derived by SExtractor in each band
+		kk_px, kk_py = cx[ id_order ], cy[ id_order ]
+		tmp_ini_x = np.r_[ tmp_ini_x, kk_px ]
+		tmp_ini_y = np.r_[ tmp_ini_y, kk_py ]
 
 
 		##.. cutout surrounding region and processing it only
@@ -541,8 +544,31 @@ def sate_surround_mask_func(d_file, cat_file, bcg_ra, bcg_dec, bcg_z, ra_set, de
 		lim_gal_arr = [ lim_obj_x, lim_obj_y, lim_a, lim_b, lim_chi ]
 
 		#. galaxy mask
-		pre_mask_img = mask_with_G_tag( pre_cut_img, pre_cut_cx, pre_cut_cy, cen_ar, cen_br, cen_cr, cen_chi, lim_gal_arr )
+		if bcg_mask == True:
 
+			tag_cx, tag_cy = [ pre_cut_cx ], [ pre_cut_cy ]
+			tag_ar, tag_br, tag_chi = [ cen_ar ], [ cen_br ], [ cen_chi ]
+
+			pre_mask_img = mask_with_G_tag( pre_cut_img, tag_cx, tag_cy, tag_ar, tag_br, tag_chi, lim_gal_arr )
+
+		else:
+			#. find the index of BCG~(in galaxy array)
+			cp_d_R = np.sqrt( (cx - x_bcg)**2 + (cy - y_bcg)**2 )
+
+			cp_id_cen = cp_d_R == cp_d_R.min()
+			cp_ordex = np.where( cp_id_cen )[0][0]
+
+			cp_cen_ar = A[ cp_ordex ] * 2 # 1.5
+			cp_cen_br = B[ cp_ordex ] * 2 # 1.5
+			cp_cen_chi = theta[ cp_ordex ] * np.pi / 180
+
+			cp_cen_x = cx[ cp_ordex ] - d_x0
+			cp_cen_y = cy[ cp_ordex ] - d_y0
+
+			tag_cx, tag_cy = [ pre_cut_cx, cp_cen_x ], [ pre_cut_cy, cp_cen_y ]
+			tag_ar, tag_br, tag_chi = [ cen_ar, cp_cen_ar ], [ cen_br, cp_cen_br ], [ cen_chi, cp_cen_chi ]
+
+			pre_mask_img = mask_with_G_tag( pre_cut_img, tag_cx, tag_cy, tag_ar, tag_br, tag_chi, lim_gal_arr )
 
 		#. stars select surrounding this region
 		_off_x0, _off_x1 = comx + Lr, comx - Lr

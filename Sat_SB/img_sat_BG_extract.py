@@ -212,7 +212,7 @@ def origin_img_cut_func( pos_file, img_file, band_str, sub_IDs, shufl_IDs, R_cut
 		cp_img_arr = cp_img[0].data
 
 		#. image center
-		pix_cx, pix_cy = cp_img_arr.shape[1] / 2, cp_img_arr.shape[0] / 2
+		# pix_cx, pix_cy = cp_img_arr.shape[1] / 2, cp_img_arr.shape[0] / 2
 
 		cp_cx, cp_cy = bcg_x[ id_ux ][0], bcg_y[ id_ux ][0]
 		cp_sx_1, cp_sy_1 = cp_cx + off_x, cp_cy + off_y

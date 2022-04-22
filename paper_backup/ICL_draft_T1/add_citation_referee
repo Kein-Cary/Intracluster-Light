@@ -1,0 +1,175 @@
+@ARTICLE{2020MNRAS.491.5317I,
+       author = {{Infante-Sainz}, Ra{\'u}l and {Trujillo}, Ignacio and {Rom{\'a}n}, Javier},
+        title = "{The Sloan Digital Sky Survey extended point spread functions}",
+      journal = {\mnras},
+     keywords = {instrumentation: detectors, methods: data analysis, techniques: image processing, techniques: photometric, galaxies: haloes, Astrophysics - Instrumentation and Methods for Astrophysics, Astrophysics - Astrophysics of Galaxies},
+         year = 2020,
+        month = feb,
+       volume = {491},
+       number = {4},
+        pages = {5317-5329},
+          doi = {10.1093/mnras/stz3111},
+archivePrefix = {arXiv},
+       eprint = {1911.01430},
+ primaryClass = {astro-ph.IM},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2020MNRAS.491.5317I},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
+
+
+@ARTICLE{2017MNRAS.467.2217B,
+       author = {{Bernardi}, M. and {Meert}, A. and {Sheth}, R.~K. and {Fischer}, J. -L. and {Huertas-Company}, M. and {Maraston}, C. and {Shankar}, F. and {Vikram}, V.},
+        title = "{The high mass end of the stellar mass function: Dependence on stellar population models and agreement between fits to the light profile}",
+      journal = {\mnras},
+     keywords = {galaxies: luminosity function, mass function, galaxies: fundamental parameters, galaxies: photometry, Astrophysics - Astrophysics of Galaxies, Astrophysics - Cosmology and Nongalactic Astrophysics},
+         year = 2017,
+        month = may,
+       volume = {467},
+       number = {2},
+        pages = {2217-2233},
+          doi = {10.1093/mnras/stx176},
+archivePrefix = {arXiv},
+       eprint = {1604.01036},
+ primaryClass = {astro-ph.GA},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2017MNRAS.467.2217B},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
+
+@ARTICLE{2011ApJ...731...89T,
+       author = {{Tal}, Tomer and {van Dokkum}, Pieter G.},
+        title = "{The Faint Stellar Halos of Massive Red Galaxies from Stacks of More than 42,000 SDSS LRG Images}",
+      journal = {\apj},
+     keywords = {galaxies: elliptical and lenticular, cD, galaxies: evolution, galaxies: interactions, galaxies: structure, Astrophysics - Cosmology and Nongalactic Astrophysics, Astrophysics - Astrophysics of Galaxies},
+         year = 2011,
+        month = apr,
+       volume = {731},
+       number = {2},
+          eid = {89},
+        pages = {89},
+          doi = {10.1088/0004-637X/731/2/89},
+archivePrefix = {arXiv},
+       eprint = {1102.4330},
+ primaryClass = {astro-ph.CO},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2011ApJ...731...89T},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
+
+@ARTICLE{2019MNRAS.487.1580W,
+       author = {{Wang}, Wenting and {Han}, Jiaxin and {Sonnenfeld}, Alessandro and {Yasuda}, Naoki and {Li}, Xiangchong and {Jing}, Yipeng and {More}, Surhud and {Price}, Paul A. and {Lupton}, Robert and {Rykoff}, Eli S. and {Stark}, David V. and {Lan}, Ting-Wen and {Takada}, Masahiro and {Huang}, Song and {Luo}, Wentao and {Bahcall}, Neta A. and {Komiyama}, Yutaka},
+        title = "{The stellar halo of isolated central galaxies in the Hyper Suprime-Cam imaging survey}",
+      journal = {\mnras},
+     keywords = {Galaxy: halo, dark matter, Astrophysics - Astrophysics of Galaxies},
+         year = 2019,
+        month = aug,
+       volume = {487},
+       number = {2},
+        pages = {1580-1606},
+          doi = {10.1093/mnras/stz1339},
+archivePrefix = {arXiv},
+       eprint = {1811.04714},
+ primaryClass = {astro-ph.GA},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2019MNRAS.487.1580W},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
+
+@ARTICLE{2021ApJ...919...25W,
+       author = {{Wang}, Wenting and {Li}, Xiangchong and {Shi}, Jingjing and {Han}, Jiaxin and {Yasuda}, Naoki and {Jing}, Yipeng and {More}, Surhud and {Takada}, Masahiro and {Miyatake}, Hironao and {Nishizawa}, Atsushi J.},
+        title = "{The Stellar Mass in and around Isolated Central Galaxies: Connections to the Total Mass Distribution through Galaxy-Galaxy Lensing in the Hyper Suprime-Cam Survey}",
+      journal = {\apj},
+     keywords = {Galaxy photometry, Galaxy dark matter halos, Galaxy counts, Galaxy evolution, Galaxy mass distribution, Galaxy groups, 611, 1880, 588, 594, 606, 597, Astrophysics - Astrophysics of Galaxies, Astrophysics - Cosmology and Nongalactic Astrophysics},
+         year = 2021,
+        month = sep,
+       volume = {919},
+       number = {1},
+          eid = {25},
+        pages = {25},
+          doi = {10.3847/1538-4357/ac0e38},
+archivePrefix = {arXiv},
+       eprint = {2104.05355},
+ primaryClass = {astro-ph.GA},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2021ApJ...919...25W},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
+
+@ARTICLE{2014MNRAS.443.1433D,
+       author = {{D'Souza}, Richard and {Kauffman}, Guinevere and {Wang}, Jing and {Vegetti}, Simona},
+        title = "{Parametrizing the stellar haloes of galaxies}",
+      journal = {\mnras},
+     keywords = {Galaxy: formation, Galaxy: halo, Galaxy: structure, Astrophysics - Astrophysics of Galaxies},
+         year = 2014,
+        month = sep,
+       volume = {443},
+       number = {2},
+        pages = {1433-1450},
+          doi = {10.1093/mnras/stu1194},
+archivePrefix = {arXiv},
+       eprint = {1404.2123},
+ primaryClass = {astro-ph.GA},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2014MNRAS.443.1433D},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
+
+@ARTICLE{2002ApJ...576..720K,
+       author = {{Kelson}, Daniel D. and {Zabludoff}, Ann I. and {Williams}, K.~A. and {Trager}, S.~C. and {Mulchaey}, J.~S. and {Bolte}, Michael},
+        title = "{Determination of the Dark Matter Profile of A2199 from Integrated Starlight}",
+      journal = {\apj},
+     keywords = {Cosmology: Dark Matter, Galaxies: Clusters: Individual: Alphanumeric: A2199, Galaxies: Elliptical and Lenticular, cD, Galaxies: Individual: NGC Number: NGC 6166, Galaxies: Kinematics and Dynamics, Galaxies: Stellar Content, Astrophysics},
+         year = 2002,
+        month = sep,
+       volume = {576},
+       number = {2},
+        pages = {720-737},
+          doi = {10.1086/341891},
+archivePrefix = {arXiv},
+       eprint = {astro-ph/0205316},
+ primaryClass = {astro-ph},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2002ApJ...576..720K},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
+
+@ARTICLE{2015ApJ...807...56B,
+       author = {{Bender}, Ralf and {Kormendy}, John and {Cornell}, Mark E. and {Fisher}, David B.},
+        title = "{Structure and Formation of cD Galaxies: NGC 6166 in ABELL 2199}",
+      journal = {\apj},
+     keywords = {galaxies: elliptical and lenticular, cD, galaxies: evolution, galaxies: formation, galaxies: kinematics and dynamics, galaxies: photometry, galaxies: structure, Astrophysics - Astrophysics of Galaxies},
+         year = 2015,
+        month = jul,
+       volume = {807},
+       number = {1},
+          eid = {56},
+        pages = {56},
+          doi = {10.1088/0004-637X/807/1/56},
+archivePrefix = {arXiv},
+       eprint = {1411.2598},
+ primaryClass = {astro-ph.GA},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2015ApJ...807...56B},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
+
+@ARTICLE{2018MNRAS.473.5446V,
+       author = {{Veale}, Melanie and {Ma}, Chung-Pei and {Greene}, Jenny E. and {Thomas}, Jens and {Blakeslee}, John P. and {Walsh}, Jonelle L. and {Ito}, Jennifer},
+        title = "{The MASSIVE survey - VIII. Stellar velocity dispersion profiles and environmental dependence of early-type galaxies}",
+      journal = {\mnras},
+     keywords = {galaxies: elliptical and lenticular, cD, galaxies: evolution, galaxies: formation, galaxies: kinematics and dynamics, galaxies: structure, Astrophysics - Astrophysics of Galaxies, Astrophysics - Cosmology and Nongalactic Astrophysics},
+         year = 2018,
+        month = feb,
+       volume = {473},
+       number = {4},
+        pages = {5446-5467},
+          doi = {10.1093/mnras/stx2717},
+archivePrefix = {arXiv},
+       eprint = {1708.00870},
+ primaryClass = {astro-ph.GA},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2018MNRAS.473.5446V},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
+

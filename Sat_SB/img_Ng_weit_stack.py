@@ -1,4 +1,6 @@
-import time
+"""
+this file use to stack cluster image with the satellite number as weight
+"""
 
 import h5py
 import numpy as np

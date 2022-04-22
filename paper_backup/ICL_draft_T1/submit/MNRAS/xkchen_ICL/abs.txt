@@ -1,0 +1,27 @@
+The bright central galaxies~(BCGs) dominate the inner portion of the
+diffuse cluster light, but it is still unclear where the intracluster
+light~(ICL) takes over. To investigate the BCG-ICL transition, we stack
+the images of ${\sim}3000$ clusters between $0.2{<}z{<}0.3$ in the SDSS
+$gri$ bands, and measure their BCG+ICL stellar surface mass profile
+$\Sigma_{*}^{\texttt{BI}}$ down to
+$3{\times}10^4\,M_{\odot}/\mathrm{kpc}^{2}$ at
+$R{\simeq}1\,\mathrm{Mpc}$~(${\sim}32$ mag/arcsec$^2$ in the $r$-band).
+We develop a physically-motivated method to decompose
+$\Sigma_{*}^{\texttt{BI}}$ into three components, including an inner de
+Vaucouleurs' profile, an outer ICL that follows the dark matter
+distribution measured from weak lensing, and an intriguing transitional
+component between 70 and 200 kpc. To investigate the origin of this
+transition, we split the clusters into two subsamples by their BCG
+stellar mass $M_*^{\mathrm{BCG}}$~(mass enclosed roughly within 50 kpc)
+while making sure they have the same distribution of satellite
+richness. The $\Sigma_{*}^{\texttt{BI}}$ profiles of the two subsamples
+differ by more than a factor of two at R < 50 kpc, consistent with
+their 0.34 dex difference in $M_*^{\mathrm{BCG}}$, whereas on scales
+beyond 400 kpc the two profiles converge to the same amplitudes,
+suggesting a satellite-stripping origin of the outer ICL.  Remarkably,
+however, the discrepancy between the two $\Sigma_{*}^{\texttt{BI}}$
+profiles persist at above 50\% level on all scales below 200 kpc, thereby revealing
+the BCG sphere of influence with radius $R_{\mathrm{SOI}}{\simeq}$ 200
+kpc. Finally, we speculate that the surprisingly large sphere of
+influence of the BCG is tied to the elevated escape velocity profile
+within $r_s$, the characteristic radius of the dark matter haloes.
