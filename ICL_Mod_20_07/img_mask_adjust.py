@@ -44,7 +44,7 @@ def cat_combine( cat_lis, ra, dec, z, alt_G_size, head_info, img_lis):
 
 			c_ra, c_dec = pixel_to_WCS_func( cx, cy, ext_head )
 
-			#.. reverse to target filter
+			#.. reverse to target filter / band
 			m_cx, m_cy = WCS_to_pixel_func( c_ra, c_dec, head_info )
 
 			if alt_G_size is not None:
@@ -235,7 +235,7 @@ def adjust_mask_func( d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, 
 			Ecat_num = 0
 			Ecat_x, Ecat_y, Ecat_a, Ecat_b, Ecat_chi = np.array([]), np.array([]), np.array([]), np.array([]), np.array([])
 
-		## stars
+		## stars (star position need to calibrated by the offset)
 		mask = cat_file % ( z_g, ra_g, dec_g )
 		cat = pds.read_csv( mask, skiprows = 1 )
 		set_ra = np.array( cat['ra'] )
@@ -411,62 +411,4 @@ def adjust_mask_func( d_file, cat_file, z_set, ra_set, dec_set, band, gal_file, 
 		data.to_csv(stack_info)
 
 	return
-
-def main():
-
-	## follow lines may need re-write
-	from mpi4py import MPI
-	commd = MPI.COMM_WORLD
-	rank = commd.Get_rank()
-	cpus = commd.Get_size()
-
-	home = '/home/xkchen/data/SDSS/'
-	load = '/home/xkchen/data/SDSS/'
-
-	### test-1000 sample (r band)
-	dat = pds.read_csv('/home/xkchen/fig_tmp/test_1000_no_select.csv')
-	ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
-	clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
-
-	zN = len( z )
-	m, n = divmod(zN, cpus)
-	N_sub0, N_sub1 = m * rank, (rank + 1) * m
-	if rank == cpus - 1:
-		N_sub1 += n
-
-	d_file = home + 'wget_data/frame-%s-ra%.3f-dec%.3f-redshift%.3f.fits.bz2'
-
-	cat_file = home + 'corrected_star_cat/dr12/source_SQL_Z%.3f_ra%.3f_dec%.3f.txt'
-	gal_file = home + 'source_detect_cat/cluster_%s-band_mask_ra%.3f_dec%.3f_z%.3f.cat'
-	extra_cat = home + 'source_detect_cat/clus_photo-G_match_ra%.3f_dec%.3f_z%.3f.csv'
-
-	bcg_mask = 1
-	band = 'r'
-
-	'''
-	### masking test for normal stars.
-	size_arr = np.array([10, 20])
-
-	for mm in range( 2 ):
-
-		out_file = '/home/xkchen/fig_tmp/norm_mask/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_' + '%d-FWHM-ov2.fits' % (size_arr[mm])
-
-		adjust_mask_func(d_file, cat_file, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1], 
-			band, gal_file, out_file, bcg_mask, extra_cat, size_arr[mm],)
-	'''
-
-	### masking test for bright stars
-	size_arr = np.array([25, 50])
-
-	for mm in range( 2 ):
-
-		out_file = '/home/xkchen/fig_tmp/bright_mask/cluster_mask_%s_ra%.3f_dec%.3f_z%.3f_' + '%d-FWHM-ov2_bri-star.fits' % (size_arr[mm])
-
-		adjust_mask_func(d_file, cat_file, z[N_sub0 :N_sub1], ra[N_sub0 :N_sub1], dec[N_sub0 :N_sub1], 
-			band, gal_file, out_file, bcg_mask, extra_cat, alter_fac = None, alt_bright_R = size_arr[mm],)
-
-	raise
-
-if __name__ == "__main__":
-	main()
 

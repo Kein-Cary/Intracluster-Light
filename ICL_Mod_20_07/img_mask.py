@@ -13,7 +13,8 @@ from astropy import cosmology as apcy
 from img_pre_selection import WCS_to_pixel_func, pixel_to_WCS_func
 from groups import groups_find_func
 
-def source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file, stack_info = None,):
+def source_detect_func( d_file, z_set, ra_set, dec_set, band, out_file, config_file, params_file, 
+						tmp_file = None, stack_info = None):
 	"""
 	d_file : path where image data saved (include file-name structure:
 	'/xxx/xxx/xxx.xxx')
@@ -21,11 +22,26 @@ def source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file, stack_inf
 	set_ra, set_dec, set_z : ra, dec, z of will be masked imgs
 	band: band of image data, 'str' type
 	out_file : save sources information (detected by SExTractor)
+
+	config_file : the '.sex' file of sextractor, setting for source detection
+	params_file : the '.param' file of sextractor, setting for output parameters (i.e. position, Kron radius)
+
+	tmp_file : ".fits" file, image use to find objects ( in case d_file is '.fits.bz2' or others non-fits files)
+
 	"""
+
 	Nz = len(z_set)
-	#param_A = 'default_mask_A.sex'
-	param_A = 'default_mask_A_g.sex'
-	out_param = 'default_mask_A.param'
+
+	# #param_A = 'default_mask_A.sex'
+	# param_A = 'default_mask_A_g.sex'
+	# out_param = 'default_mask_A.param'
+
+	param_A = config_file
+	out_param = params_file
+
+	print( 'param_sex = ', param_A )
+	print( 'out params = ', out_param )
+
 	bcg_x, bcg_y = [], []
 
 	for q in range( Nz ):
@@ -41,25 +57,31 @@ def source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file, stack_inf
 
 		wcs_lis = awc.WCS( head )
 		# xn, yn = wcs_lis.all_world2pix(ra_g * U.deg, dec_g * U.deg, 1)
+
 		xn, yn = WCS_to_pixel_func( ra_g, dec_g, head )
 
 		bcg_x.append( xn )
 		bcg_y.append( yn )
 
-		hdu = fits.PrimaryHDU()
-		hdu.data = img
-		hdu.header = head
-		hdu.writeto('/home/xkchen/project/tmp/img_ra%.3f_dec%.3f_z%.3f.fits' % (ra_g, dec_g, z_g), overwrite = True)
+
+		if tmp_file is not None:
+
+			#. need to change the d_file in format of fits
+			hdu = fits.PrimaryHDU()
+			hdu.data = img
+			hdu.header = head
+			hdu.writeto( tmp_file % (ra_g, dec_g, z_g), overwrite = True)
+
+			file_source = tmp_file % (ra_g, dec_g, z_g)
+
+		else:
+			file_source = d_file % (band, ra_g, dec_g, z_g )
 
 		out_cat = out_file % (band, ra_g, dec_g, z_g)
-
-		file_source = '/home/xkchen/project/tmp/img_ra%.3f_dec%.3f_z%.3f.fits' % (ra_g, dec_g, z_g)
 
 		cmd = 'sex '+ file_source + ' -c %s -CATALOG_NAME %s -PARAMETERS_NAME %s' % (param_A, out_cat, out_param)
 		a = subpro.Popen(cmd, shell = True)
 		a.wait()
-
-		continue
 
 	if stack_info != None:
 		keys = ['ra', 'dec', 'z', 'bcg_x', 'bcg_y']
@@ -136,7 +158,7 @@ def mask_with_BCG( img_file, cen_x, cen_y, cen_ar, cen_br, cen_cr, cen_chi, gal_
 
 	return mask_img
 
-def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, stack_info = None, pixel = 0.396, source_det = False):
+def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_file1, bcg_mask, stack_info = None, pixel = 0.396 ):
 	"""
 	d_file : path where image data saved (include file-name structure:
 	'/xxx/xxx/xxx.xxx')
@@ -159,9 +181,6 @@ def mask_func(d_file, cat_file, z_set, ra_set, dec_set, band, out_file0, out_fil
 	out_param = 'default_mask_A.param'
 	bcg_x, bcg_y = [], []
 
-	## source detection
-	if source_det == True:
-		source_detect_func(d_file, z_set, ra_set, dec_set, band, out_file0, stack_info,)
 
 	## masking
 	for q in range(Nz):
