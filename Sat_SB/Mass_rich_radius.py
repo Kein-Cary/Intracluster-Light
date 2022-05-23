@@ -50,9 +50,15 @@ def rich2R_Simet(z, lamda, N_dist = 501):
 	Based on Simet et al. 2017, the reuslt is r200m (virial radius)
 	"""
 	M = np.logspace(13.5, 15.5, N_dist)
-	lamda0, M0, sigma_lnM = 40, 10**14.344, 0.25
-	alpha = 1.33
 	V_num = 200
+
+	# lamda0, M0, sigma_lnM = 40, 10**14.344, 0.25
+	# alpha = 1.33
+
+	##. recalibration
+	lamda0, M0, sigma_lnM = 40, 10**14.369, 0.021
+	alpha = 1.30
+
 
 	R200 = np.zeros(len(lamda), dtype = np.float)
 	M200 = np.zeros(len(lamda), dtype = np.float)
@@ -89,9 +95,14 @@ def rich2R_critical(z, lamda, N_dist = 501):
 	for given redshift (r200c).
 	"""
 	M = np.logspace(13.5, 15.5, N_dist)
-	lamda0, M0, sigma_lnM = 40, 10**14.344, 0.25
-	alpha = 1.33
 	V_num = 200
+
+	# lamda0, M0, sigma_lnM = 40, 10**14.344, 0.25
+	# alpha = 1.33
+
+	lamda0, M0, sigma_lnM = 40, 10**14.369, 0.021
+	alpha = 1.30
+
 
 	R200 = np.zeros(len(lamda), dtype = np.float)
 	M200 = np.zeros(len(lamda), dtype = np.float)

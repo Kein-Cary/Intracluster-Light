@@ -618,67 +618,11 @@ def count_N_sat():
 
 	return
 
-def count_shufl_N_sat():
-
-	cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/cat/'
-
-	bin_rich = [ 20, 30, 50, 210 ]
-
-	##. radius binned satellite
-	sub_name = ['inner', 'middle', 'outer']
-	##... 
-	R_bins = [ 0, 200, 400 ]   ## kpc
-
-	#... number count for the entire sample
-	for kk in range( 3 ):
-		
-		##. entire all sample
-		dat = pds.read_csv( cat_path + 'clust_rich_%d-%d_cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
-		clus_IDs = np.array( dat['clust_ID'] )
-		clus_IDs = clus_IDs.astype( int )
-
-		N_w = len( clus_IDs )
-
-
-		##. member table
-		dat = pds.read_csv(cat_path + 
-			'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
-
-		bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
-		cp_clus_IDs = np.array( dat['clus_ID'] )
-		cp_clus_IDs = cp_clus_IDs.astype( int )
-
-		##. shuffle list
-		N_shufl = 20
-
-		cp_Ng = np.zeros( (N_shufl, len(bcg_ra) ), dtype = np.int )
-
-		rand_IDs = np.loadtxt( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/shufl_cat/' + 
-				'clust_rich_%d-%d_shuffle-clus_cat.txt' % (bin_rich[kk], bin_rich[kk+1]),)
-
-		for dd in range( N_shufl ):
-
-			rand_mp_IDs = rand_IDs[ dd ].astype( int )
-
-			for tt in range( N_w ):
-
-				sub_IDs = rand_mp_IDs[ tt ]
-
-				id_vx = cp_clus_IDs == sub_IDs
-				cp_Ng[dd,id_vx ] = np.sum( id_vx )
-
-		#. save cp_Ng for BG_img stacking weight
-		np.savetxt( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/shufl_cat/' + 
-			'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_shufl-sat-Ng.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
-
-	return
-
 
 # clust_member_match()
 # sat_scaleR_binned()
 # sat_phyR_binned()
-# count_N_sat()
-count_shufl_N_sat()
+count_N_sat()
 
 raise
 

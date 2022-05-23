@@ -126,7 +126,7 @@ for tt in range( 1,2 ):
 # for tt in range( len(bin_rich) - 1 ):
 for tt in range( 1,2 ):
 
-	for kk in range( 2,3 ):
+	for kk in range( 3 ):
 
 		band_str = band[ kk ]
 
@@ -183,3 +183,6 @@ for tt in range( 1,2 ):
 					sub_z_bg, z_ref, id_dimm = id_dimm )
 
 	print( '%d rank, done!' % rank )
+
+raise
+

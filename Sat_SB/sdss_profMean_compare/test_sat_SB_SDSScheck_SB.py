@@ -25,8 +25,6 @@ from astropy.table import Table, QTable
 from img_sat_pros_stack import single_img_SB_func
 from img_sat_pros_stack import aveg_SB_func
 from img_sat_pros_stack import jack_aveg_SB_func
-
-from img_sat_fig_out_mode import zref_sat_pos_func
 from img_sat_fig_out_mode import arr_jack_func
 
 

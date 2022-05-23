@@ -16,6 +16,7 @@ from astropy import cosmology as apcy
 from astropy.coordinates import SkyCoord
 
 #.
+import time
 from mpi4py import MPI
 commd = MPI.COMM_WORLD
 rank = commd.Get_rank()
@@ -35,19 +36,26 @@ z_ref = 0.25
 band = ['r', 'g', 'i']
 
 
-
-### === histogram comparison
+### === 
 bin_rich = [ 20, 30, 50, 210 ]
-sub_name = ['low-rich', 'medi-rich', 'high-rich']
 
-line_c = [ 'b', 'g', 'r']
-line_s = [ '--', '-', ':']
+##. radius binned satellite
+sub_name = ['inner', 'middle', 'outer']
 
+
+# out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/shufl_list/radius_bin_table/'
+# out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/shufl_list/cp_tables/'
+
+##. rebinned radii subsamples
+out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/shufl_list/'
+
+
+fig_name = ['Inner', 'Middle', 'Outer']
 line_name = ['$\\lambda \\leq 30$', '$30 \\leq \\lambda \\leq 50$', '$\\lambda \\geq 50$']
 
-cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/cat/'
 
-band_str = 'r'
+band_str = 'i'
+pp = 1
 
 for tt in range( 3 ):
 
@@ -63,14 +71,15 @@ for tt in range( 3 ):
 	tmp_pos_R_phy_N = []
 	tmp_diff_R_phy_N = []
 
+
 	for dd in range( 20 ):
 	# for dd in range( 40 ):
 	# for dd in range( 100 ):
 
-		##. origin satellite location
-		dat = pds.read_csv( cat_path + 
-			'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_sat_%s-band_origin-img_position.csv' % 
-				(bin_rich[tt], bin_rich[tt + 1], band_str),)
+		##. member cat
+		dat = pds.read_csv( out_path + 
+			'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR-%s-mem_%s-band_' % 
+			( bin_rich[pp], bin_rich[pp + 1], sub_name[tt], band_str) + 'sat-shufl-%d_origin-img_position.csv' % dd,)
 
 		bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
 		sat_ra, sat_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
@@ -82,23 +91,10 @@ for tt in range( 3 ):
 		R_sat_pix = np.sqrt( (sat_x - bcg_x)**2 + (sat_y - bcg_y)**2 )
 
 
-		##. satellite properties
-		pat = pds.read_csv( cat_path + 
-			'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv' % (bin_rich[tt], bin_rich[tt + 1]),)
-		R_sat = np.array( pat['R_cen'] )
-		z_obs = np.array( pat['bcg_z'] )
-
-		a_obs = 1 / (z_obs + 1)
-		sdss_Rsat = R_sat * 1e3 * a_obs / h   ##. physical radius, kpc
-
-
-		##. shuffle list~(20 times for test)
-		cat = pds.read_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/shufl_list/tables/' + 
-			'clust_rich_%d-%d_%s-band_sat-shuffle-%d_position.csv' % (bin_rich[tt], bin_rich[tt + 1], band_str, dd),)
-
-		##. shuffle list~(100 times)
-		# cat = pds.read_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/shufl_list/shufl_100_tables/' + 
-		# 	'clust_rich_%d-%d_%s-band_sat-shuffle-%d_position.csv' % (bin_rich[tt], bin_rich[tt + 1], band_str, dd),)
+		##. shuffle list
+		cat = pds.read_csv( out_path + 
+			'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR-%s-mem_%s-band_' % 
+			( bin_rich[pp], bin_rich[pp + 1], sub_name[tt], band_str) + 'sat-shufl-%d_cat.csv' % dd,)
 
 		mp_sat_x, mp_sat_y = np.array( cat['cp_sx'] ), np.array( cat['cp_sy'] )
 		mp_sat_PA = np.array( cat['cp_PA'] )
@@ -157,7 +153,7 @@ for tt in range( 3 ):
 		tmp_diff_N_sat.append( diff_N_sat )
 
 
-		##. binned in coordinate~( relative to BCGs but in pixel coordinate)
+		##. binned in coordinate~( relative to BCGs )
 		pre_Cbcg_x = R_sat_pix * np.cos( sat_PA )
 		pre_Cbcg_y = R_sat_pix * np.sin( sat_PA )
 
@@ -223,99 +219,7 @@ for tt in range( 3 ):
 		tmp_diff_R_phy_N.append( cc_diff_N_sat )
 
 
-		# ##.
-		# fig = plt.figure()
-		# ax = fig.add_axes([0.12, 0.12, 0.80, 0.80])
-
-		# ax.set_title( line_name[ tt ] )
-
-		# edg_phis = np.linspace(0, np.pi / 2, 55)
-		# ax.hist( modi_sat_PA, bins = edg_phis, density = True, color = 'k', ls = '-', histtype = 'step', label = 'Before shuffling')
-		# ax.hist( pre_modi_PA, bins = edg_phis, density = True, color = 'r', ls = '--', histtype = 'step', label = 'After shuffling')
-
-		# ax.set_xlabel('Position angle [rad]')
-		# ax.legend( loc = 'lower center', frameon = False,)
-
-		# plt.savefig('/home/xkchen/clust_%d-%d_%s-band_sat_PA_comparison.png' % (bin_rich[tt], bin_rich[tt + 1], band_str), dpi = 300)
-		# plt.close()
-
-
-		# fig = plt.figure()
-		# ax = fig.add_axes([0.12, 0.12, 0.80, 0.80])
-
-		# ax.set_title( line_name[ tt ] )
-
-		# binx_R = np.logspace(0, 3.5, 50 )
-
-		# # ax.hist( sdss_Rsat, bins = binx_R, density = True, color = 'b', ls = ':', histtype = 'step', label = 'SDSS',)
-		# ax.hist( pre_Rsat, bins = binx_R, density = True, color = 'k', ls = '-', histtype = 'step', label = 'Before shuffling',)
-		# ax.hist( pos_Rsat, bins = binx_R, density = True, color = 'r', ls = '--', histtype = 'step', label = 'After shuffling',)
-
-		# ax.set_xlabel('$R_{sat} \; [kpc]$')
-		# ax.set_xscale('log')
-		# ax.set_xlim( 1, 3e3 )
-
-		# ax.set_ylim( 1e-6, 1e-2 )
-		# ax.set_yscale( 'log' )
-
-		# ax.legend( loc = 1, frameon = False,)
-
-		# plt.savefig('/home/xkchen/clust_%d-%d_%s-band_sat_R-phy_comparison.png' % (bin_rich[tt], bin_rich[tt + 1], band_str), dpi = 300)
-		# plt.close()
-
-
-		# fig = plt.figure( figsize = (20, 4.8) )
-		# ax0 = fig.add_axes([0.04, 0.09, 0.27, 0.84])
-		# ax1 = fig.add_axes([0.37, 0.09, 0.27, 0.84])
-		# ax2 = fig.add_axes([0.69, 0.09, 0.27, 0.84])
-
-		# ax0.set_title('Before shuffling (%s)' % line_name[tt],)
-		# tf = ax0.imshow( pre_N_sat, origin = 'lower', cmap = 'rainbow', vmin = 1, vmax = 75,)
-		# plt.colorbar( tf, ax = ax0, fraction = 0.038, pad = 0.01, label = '$N_{sat}$')
-
-		# y_ticks = np.arange( -0.5, 19.5 )
-		# dex_y = np.arange( 0, 19, 3 )
-
-		# x_ticks = np.arange( -0.5, 24.5 )
-		# dex_x = np.arange( 0, 24, 4 )
-
-		# ax0.set_xticks( x_ticks[ dex_x ] )
-		# ax0.set_xticklabels( ['%.1f' % ll for ll in edg_x[dex_x] ] )
-
-		# ax0.set_yticks( y_ticks[ dex_y ] )
-		# ax0.set_yticklabels( ['%.1f' % ll for ll in edg_y[dex_y] ] )
-
-		# ax0.set_xlabel( 'X-coordinate of satellites' )
-		# ax0.set_ylabel( 'Y-coordinate of satellites' )
-
-
-		# ax1.set_title('After shuffling')
-		# tf = ax1.imshow( pos_N_sat, origin = 'lower', cmap = 'rainbow', vmin = 1, vmax = 75,)
-		# plt.colorbar( tf, ax = ax1, fraction = 0.038, pad = 0.01, label = '$N_{sat}$')
-
-		# ax1.set_xticks( x_ticks[ dex_x ] )
-		# ax1.set_xticklabels( ['%.1f' % ll for ll in edg_x[dex_x] ] )
-
-		# ax1.set_yticks( y_ticks[ dex_y ] )
-		# ax1.set_yticklabels( ['%.1f' % ll for ll in edg_y[dex_y] ] )
-		# ax1.set_xlabel( 'X-coordinate of satellites' )
-
-		# ax2.set_title('Diff_img = After shuffling - Before shuffling')
-		# tf = ax2.imshow( diff_N_sat / np.sqrt( pre_N_sat ), origin = 'lower', cmap = 'bwr', vmin = -5, vmax = 5,)
-		# plt.colorbar( tf, ax = ax2, fraction = 0.038, pad = 0.01, label = '$N_{diff} \, / \, \\sqrt{N_{pre}}$')
-
-		# ax2.set_xticks( x_ticks[ dex_x ] )
-		# ax2.set_xticklabels( ['%.1f' % ll for ll in edg_x[dex_x] ] )
-
-		# ax2.set_yticks( y_ticks[ dex_y ] )
-		# ax2.set_yticklabels( ['%.1f' % ll for ll in edg_y[dex_y] ] )
-		# ax2.set_xlabel( 'X-coordinate of satellites' )
-
-		# plt.savefig('/home/xkchen/clust_%d-%d_%s-band_sat_pos_comparison.png' % (bin_rich[tt], bin_rich[tt + 1], band_str), dpi = 300)
-		# plt.close()
-
-
-	###... average case
+	##. figs
 	tmp_pre_R_phy_N = np.array( tmp_pre_R_phy_N )
 	tmp_pos_R_phy_N = np.array( tmp_pos_R_phy_N )
 	tmp_diff_R_phy_N = np.array( tmp_diff_R_phy_N )
@@ -325,14 +229,12 @@ for tt in range( 3 ):
 	Mean_diff_R_phy_N = np.mean( tmp_diff_R_phy_N, axis = 0 )
 
 
-
 	fig = plt.figure( figsize = (20.4, 4.8) )
 	ax0 = fig.add_axes( [0.04, 0.09, 0.27, 0.84] )
 	ax1 = fig.add_axes( [0.37, 0.09, 0.27, 0.84] )
 	ax2 = fig.add_axes( [0.69, 0.09, 0.27, 0.84] )
 
-
-	ax0.set_title('Before shuffling (%s)' % line_name[tt],)
+	ax0.set_title('Before shuffling (%s, %s)' % (line_name[pp], fig_name[tt]),)
 	tf = ax0.imshow( Mean_pre_R_phy_N, origin = 'lower', cmap = 'rainbow', vmin = 1, vmax = 500, norm = mpl.colors.LogNorm(),)
 	plt.colorbar( tf, ax = ax0, fraction = 0.038, pad = 0.01, label = '$N_{sat}$')
 
@@ -381,78 +283,9 @@ for tt in range( 3 ):
 	ax2.set_xlabel( 'X [kpc]' )
 	# ax2.set_ylabel( 'Y [kpc]' )
 
-	plt.savefig('/home/xkchen/clust_%d-%d_%s-band_sat_R-phy_2D_hist.png' % (bin_rich[tt], bin_rich[tt + 1], band_str), dpi = 300)
+	plt.savefig('/home/xkchen/clust_%d-%d-%s_%s-band_sat_R-phy_2D_hist.png' % 
+				(bin_rich[pp], bin_rich[pp+1], sub_name[tt], band_str), dpi = 300)
 	plt.close()
-
-
-
-	tmp_pre_PA_Rs_N = np.array( tmp_pre_PA_Rs_N )
-	tmp_pos_PA_Rs_N = np.array( tmp_pos_PA_Rs_N )
-	tmp_diff_PA_Rs_N = np.array( tmp_diff_PA_Rs_N )
-
-	Mean_pre_PA_Rs_N = np.mean( tmp_pre_PA_Rs_N, axis = 0 )
-	Mean_pos_PA_Rs_N = np.mean( tmp_pos_PA_Rs_N, axis = 0 )
-	Mean_diff_PA_Rs_N = np.mean( tmp_diff_PA_Rs_N, axis = 0 )
-
-
-
-	fig = plt.figure( figsize = (20.4, 4.8) )
-	ax0 = fig.add_axes( [0.04, 0.09, 0.27, 0.84] )
-	ax1 = fig.add_axes( [0.37, 0.09, 0.27, 0.84] )
-	ax2 = fig.add_axes( [0.69, 0.09, 0.27, 0.84] )
-
-	ax0.set_title('Before shuffling (%s)' % line_name[tt],)
-	tf = ax0.imshow( Mean_pre_PA_Rs_N, origin = 'lower', cmap = 'rainbow', vmin = 1, vmax = 500, norm = mpl.colors.LogNorm(),)
-	plt.colorbar( tf, ax = ax0, fraction = 0.038, pad = 0.01, label = '$N_{sat}$')
-
-
-	y_ticks = np.arange( -0.5, 19.5 )
-	dex_y = np.arange( 0, 19, 2 )
-
-	x_ticks = np.arange( -0.5, 24.5 )
-	dex_x = np.arange( 0, 24, 3 )
-
-	ax0.set_xticks( x_ticks[ dex_x ] )
-	ax0.set_xticklabels( ['%.0f' % ll for ll in edg_cen_x[dex_x] ] )
-
-	ax0.set_yticks( y_ticks[ dex_y ] )
-	ax0.set_yticklabels( ['%.0f' % ll for ll in edg_cen_y[dex_y] ] )
-
-	ax0.set_xlabel( 'X-coordinate of satellites' )
-	ax0.set_ylabel( 'Y-coordinate of satellites' )
-
-
-	ax1.set_title('After shuffling')
-	tf = ax1.imshow( Mean_pos_PA_Rs_N, origin = 'lower', cmap = 'rainbow', vmin = 1, vmax = 500, norm = mpl.colors.LogNorm(),)
-	cb = plt.colorbar( tf, ax = ax1, fraction = 0.038, pad = 0.01, label = '$N_{sat}$')
-	# cb.cmap.set_under('w')
-
-	ax1.set_xticks( x_ticks[ dex_x ] )
-	ax1.set_xticklabels( ['%.0f' % ll for ll in edg_cen_x[dex_x] ] )
-
-	ax1.set_yticks( y_ticks[ dex_y ] )
-	ax1.set_yticklabels( ['%.0f' % ll for ll in edg_cen_y[dex_y] ] )
-
-	ax1.set_xlabel( 'X-coordinate of satellites' )
-	# ax1.set_ylabel( 'Y-coordinate of satellites' )
-
-
-	ax2.set_title('Diff_img = After shuffling - Before shuffling')
-	tf = ax2.imshow( Mean_diff_PA_Rs_N / np.mean( Mean_pos_PA_Rs_N ), origin = 'lower', cmap = 'bwr', vmin = -1, vmax = 1,)
-	plt.colorbar( tf, ax = ax2, fraction = 0.038, pad = 0.01, label = '$N_{diff} \, / \, \\sqrt{ \\bar{N}_{pos}}$')
-
-	ax2.set_xticks( x_ticks[ dex_x ] )
-	ax2.set_xticklabels( ['%.0f' % ll for ll in edg_cen_x[dex_x] ] )
-
-	ax2.set_yticks( y_ticks[ dex_y ] )
-	ax2.set_yticklabels( ['%.0f' % ll for ll in edg_cen_y[dex_y] ] )
-
-	ax2.set_xlabel( 'X-coordinate of satellites' )
-	# ax2.set_ylabel( 'Y-coordinate of satellites' )
-
-	plt.savefig('/home/xkchen/clust_%d-%d_%s-band_sat_Rpix-PA_comparison.png' % (bin_rich[tt], bin_rich[tt + 1], band_str), dpi = 300)
-	plt.close()
-
 
 
 	tmp_pre_N_sat = np.array( tmp_pre_N_sat )
@@ -469,7 +302,7 @@ for tt in range( 3 ):
 	ax1 = fig.add_axes([0.37, 0.09, 0.27, 0.84])
 	ax2 = fig.add_axes([0.69, 0.09, 0.27, 0.84])
 
-	ax0.set_title('Before shuffling (%s)' % line_name[tt],)
+	ax0.set_title('Before shuffling (%s, %s)' % (line_name[pp], fig_name[tt]),)
 	tf = ax0.imshow( Mean_pre_N_sat, origin = 'lower', cmap = 'rainbow', vmin = 1, vmax = 75,)
 	plt.colorbar( tf, ax = ax0, fraction = 0.038, pad = 0.01, label = '$N_{sat}$')
 
@@ -501,9 +334,6 @@ for tt in range( 3 ):
 	ax1.set_xlabel( 'X-coordinate of satellites' )
 
 	ax2.set_title('Diff_img = After shuffling - Before shuffling')
-	# tf = ax2.imshow( Mean_diff_N_sat / np.sqrt( Mean_pos_N_sat ), origin = 'lower', cmap = 'bwr', vmin = -5, vmax = 5,)
-	# plt.colorbar( tf, ax = ax2, fraction = 0.038, pad = 0.01, label = '$N_{diff} \, / \, \\sqrt{N_{pre}}$')
-
 	tf = ax2.imshow( Mean_diff_N_sat / np.mean( Mean_pos_N_sat ), origin = 'lower', cmap = 'bwr', vmin = -1, vmax = 1,)
 	plt.colorbar( tf, ax = ax2, fraction = 0.038, pad = 0.01, label = '$N_{diff} \, / \, \\sqrt{ \\bar{N}_{pos}}$')
 
@@ -514,5 +344,6 @@ for tt in range( 3 ):
 	ax2.set_yticklabels( ['%.1f' % ll for ll in edg_y[dex_y] ] )
 	ax2.set_xlabel( 'X-coordinate of satellites' )
 
-	plt.savefig('/home/xkchen/clust_%d-%d_%s-band_sat_pos_comparison.png' % (bin_rich[tt], bin_rich[tt + 1], band_str), dpi = 300)
+	plt.savefig('/home/xkchen/clust_%d-%d-%s_%s-band_sat_pos_comparison.png' % 
+				(bin_rich[pp], bin_rich[pp+1], sub_name[tt], band_str), dpi = 300)
 	plt.close()

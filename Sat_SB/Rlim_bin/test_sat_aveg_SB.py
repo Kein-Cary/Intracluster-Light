@@ -10,7 +10,6 @@ import astropy.io.fits as fits
 
 import astropy.units as U
 import astropy.constants as C
-import astropy.io.fits as fits
 import astropy.io.ascii as asc
 import astropy.wcs as awc
 

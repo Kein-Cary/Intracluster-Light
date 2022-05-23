@@ -126,6 +126,9 @@ def BG_build_func( BG_R, BG_SB, zx, pix_size, R_max, out_file):
 def sat_BG_extract_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, R_sat, sat_PA, band_str, zx, 
 						lim_dx0, lim_dx1, lim_dy0, lim_dy1, pix_size, BG_file, out_file = None):
 	"""
+	cut out background from the mock 2D image~( given by the 1D BCG+ICL profile)
+	or the stacked 2D image of BCG+ICL
+	-------------------------
 	R_sat : centric distance of satellites ( kpc )
 	sat_PA : position angle of satellites, relative tp their BCG
 	band_str : band ('r', 'g', 'i')
@@ -190,7 +193,8 @@ def sat_BG_extract_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, R_sat, sat_PA,
 		return tag_xn, tag_yn
 
 
-### === extract BG img from origin SDSS image frame ?????
+### === extract Background cutout from the origin SDSS image frame
+##. shuffle is among those clusters have simillar properties~( such as richness )
 def origin_img_cut_func( clus_cat_file, img_file, band_str, sub_IDs, shufl_IDs, set_bcg_ra, set_bcg_dec, set_bcg_z, 
 						set_sat_ra, set_sat_dec, shufl_sat_x, shufl_sat_y, R_cut, pix_size, out_file):
 	"""
@@ -292,6 +296,7 @@ def origin_img_cut_func( clus_cat_file, img_file, band_str, sub_IDs, shufl_IDs, 
 	return
 
 
+##. usimg symmetry points within the same cluster as background
 def self_shufl_img_cut_func( pos_file, img_file, band_str, sub_IDs, R_cut, pix_size, out_file, err_file = None, err_grop = None):
 	"""
 	pos_file : '.csv' file, record satellites location in their cluster image frame.

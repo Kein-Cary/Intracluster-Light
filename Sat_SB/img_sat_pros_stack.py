@@ -180,11 +180,19 @@ def aveg_SB_func(band_str, set_z, set_ra, set_dec, pros_file, out_file, r_bins, 
 		r_angl = (r_bins * 1e-3) / Da_g * rad2asec
 
 
+		##.
+		# if n_skip is None:
+		# 	cat_pro = pds.read_csv( pros_file % (ra_g, dec_g), skiprows = 1 )
+
+		# else:
+		# 	cat_pro = pds.read_csv( pros_file % (ra_g, dec_g), skiprows = n_skip )
+
 		if n_skip is None:
-			cat_pro = pds.read_csv( pros_file % (ra_g, dec_g), skiprows = 1 )
+			cat_pro = pds.read_csv( pros_file % (ra_g, dec_g),)
 
 		else:
 			cat_pro = pds.read_csv( pros_file % (ra_g, dec_g), skiprows = n_skip )
+
 
 		dat_band = np.array( cat_pro.band )
 		dat_bins = np.array( cat_pro.bin )
