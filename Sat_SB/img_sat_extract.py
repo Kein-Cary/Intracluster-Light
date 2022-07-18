@@ -226,7 +226,7 @@ def sate_Extract_func( d_file, bcg_ra, bcg_dec, bcg_z, ra_set, dec_set, band, ga
 		kk_ra, kk_dec = ra_set[ pp ], dec_set[ pp ]
 
 
-		#. find target galaxy in source catalog
+		##. find target galaxy in source catalog
 		pp_cx, pp_cy = s_xn[ pp ], s_yn[ pp ]
 
 		d_cen_R = np.sqrt( (cx - pp_cx)**2 + (cy - pp_cy)**2 )

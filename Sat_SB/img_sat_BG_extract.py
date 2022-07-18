@@ -155,7 +155,9 @@ def sat_BG_extract_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, R_sat, sat_PA,
 
 
 ### === extract BG img from origin SDSS image frame
-def origin_img_cut_func( pos_file, img_file, band_str, sub_IDs, shufl_IDs, R_cut, pix_size, out_file):
+##. shuffle is among those clusters have simillar properties~( such as richness )
+def origin_img_cut_func( clus_cat_file, img_file, band_str, sub_IDs, shufl_IDs, set_bcg_ra, set_bcg_dec, set_bcg_z, 
+						set_sat_ra, set_sat_dec, shufl_sat_x, shufl_sat_y, R_cut, pix_size, out_file):
 	"""
 	pos_file : '.csv' file, record satellites location in their cluster image frame.
 	img_file : '.fits' file, images will match the background patch cells
@@ -171,19 +173,158 @@ def origin_img_cut_func( pos_file, img_file, band_str, sub_IDs, shufl_IDs, R_cut
 	pix_size : pixel scale, in units of arcsec
 
 	"""
+	dat = pds.read_csv( clus_cat_file )  ## files record satellites location in image frame
 
-	dat = pds.read_csv( pos_file % band_str )  ## files record satellites location in image frame
+	bcg_ra, bcg_dec, bcg_z = np.array( dat['ra'] ), np.array( dat['dec'] ), np.array( dat['z'] )
 
-	bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
-	sat_ra, sat_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
-
-	bcg_x, bcg_y = np.array( dat['bcg_x'] ), np.array( dat['bcg_y'] )
-	sat_x, sat_y = np.array( dat['sat_x'] ), np.array( dat['sat_y'] )
-
-	sat_PA = np.array( dat['sat_PA2bcg'] )
-	ref_IDs = np.array( dat['clus_ID'] )
-
+	ref_IDs = np.array( dat['clust_ID'] )
 	ref_IDs = ref_IDs.astype( int )
+
+
+	N_ss = len( sub_IDs )
+
+	for kk in range( N_ss ):
+
+		sub_ra, sub_dec = set_sat_ra[ kk ], set_sat_dec[ kk ]
+		ra_g, dec_g, z_g = set_bcg_ra[ kk ], set_bcg_dec[ kk ], set_bcg_z[ kk ]
+
+
+		#. shuffle mapped cluster
+		id_ux = ref_IDs == shufl_IDs[ kk ]
+		cp_ra_g, cp_dec_g, cp_z_g = bcg_ra[ id_ux ][0], bcg_dec[ id_ux ][0], bcg_z[ id_ux ][0]
+
+		cp_img = fits.open( img_file % (band_str, cp_ra_g, cp_dec_g, cp_z_g),)
+		cp_img_arr = cp_img[0].data
+
+
+		#. cutout images
+		dL = np.int( np.ceil( R_cut ) )
+		cut_img = np.zeros( ( np.int( 2 * dL + 2 ), np.int( 2 * dL + 2 ) ), dtype = np.float32 ) + np.nan
+
+		kk_px, kk_py = shufl_sat_x[ kk ], shufl_sat_y[ kk ]
+		kk_ra, kk_dec = set_sat_ra[ kk ], set_sat_dec[ kk ]
+
+
+		#. satellite region select
+		d_x0 = np.max( [ kk_px - dL, 0 ] )
+		d_x1 = np.min( [ kk_px + dL, cp_img_arr.shape[1] - 1 ] )
+
+		d_y0 = np.max( [ kk_py - dL, 0 ] )
+		d_y1 = np.min( [ kk_py + dL, cp_img_arr.shape[0] - 1 ] )
+
+		d_x0 = np.int( d_x0 )
+		d_x1 = np.int( d_x1 )
+
+		d_y0 = np.int( d_y0 )
+		d_y1 = np.int( d_y1 )
+
+		pre_cut = cp_img_arr[ d_y0 : d_y1, d_x0 : d_x1 ]
+
+		pre_cut_cx = kk_px - d_x0
+		pre_cut_cy = kk_py - d_y0
+
+		pre_cx = np.int( pre_cut_cx )
+		pre_cy = np.int( pre_cut_cy )
+
+
+		#. cutout image
+		xn, yn = dL + 1, dL + 1
+
+		pa0 = np.int( xn - pre_cx )
+		pa1 = np.int( xn - pre_cx + pre_cut.shape[1] )
+
+		pb0 = np.int( yn - pre_cy )
+		pb1 = np.int( yn - pre_cy + pre_cut.shape[0] )
+
+		cut_img[ pb0 : pb1, pa0 : pa1 ] = pre_cut + 0.
+
+		_cx_off = pre_cut_cx - np.int( pre_cut_cx )
+		_cy_off = pre_cut_cy - np.int( pre_cut_cy )
+
+		cc_px, cc_py = xn + _cx_off, yn + _cy_off
+
+		kk_Nx, kk_Ny = cut_img.shape[1], cut_img.shape[0]
+
+
+		#. save fits files
+		keys = [ 'SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2', 'CENTER_X','CENTER_Y', 
+									'CRVAL1','CRVAL2','BCG_RA','BCG_DEC','BCG_Z', 'P_SCALE' ]
+		value = [ 'T', 32, 2, kk_Nx, kk_Ny, cc_px, cc_py, kk_ra, kk_dec, ra_g, dec_g, z_g, pix_size ]
+		ff = dict( zip( keys, value ) )
+		fill = fits.Header(ff)
+		fits.writeto( out_file % (band_str, ra_g, dec_g, z_g, kk_ra, kk_dec), cut_img, header = fill, overwrite = True)
+
+	return
+
+
+##. usimg symmetry points within the same cluster as background
+def self_shufl_img_cut_func( pos_file, img_file, band_str, sub_IDs, R_cut, pix_size, out_file, err_file = None, err_grop = None):
+	"""
+	pos_file : '.csv' file, record satellites location in their cluster image frame.
+	img_file : '.fits' file, images will match the background patch cells
+	band_str : filter information	
+	sub_IDs : the target clusters
+
+	-------------------------------
+	aply the BCG and satellite position in sub_IDs to shufl_IDs, and then cutout images from shufl_IDs 
+
+	out_file : '.fits', the output image
+
+	R_cut : 0.5 width of cut region, in units of Kron radius or radius in sdss_photo_file, or width in units of pixel	
+	pix_size : pixel scale, in units of arcsec
+
+	-------------------------------
+	err_file : record information of satellites outside image frame when shuffle cluster and satellites
+	err_grop : the shuffle list which has the err_catalog~("shufle_1", means the err record of the 1st group)
+	"""
+
+	if err_file is None:
+		dat = pds.read_csv( pos_file % band_str )  ## files record satellites location in image frame
+
+		bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
+		sat_ra, sat_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
+
+		bcg_x, bcg_y = np.array( dat['bcg_x'] ), np.array( dat['bcg_y'] )
+		sat_x, sat_y = np.array( dat['sat_x'] ), np.array( dat['sat_y'] )
+
+		sat_PA = np.array( dat['sat_PA2bcg'] )
+		ref_IDs = np.array( dat['clus_ID'] )
+
+		ref_IDs = ref_IDs.astype( int )
+
+	else:
+		dat = pds.read_csv( pos_file % band_str )  ## files record satellites location in image frame
+
+		bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
+		sat_ra, sat_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
+
+		bcg_x, bcg_y = np.array( dat['bcg_x'] ), np.array( dat['bcg_y'] )
+		sat_x, sat_y = np.array( dat['sat_x'] ), np.array( dat['sat_y'] )
+
+		sat_PA = np.array( dat['sat_PA2bcg'] )
+		ref_IDs = np.array( dat['clus_ID'] )
+
+		ref_IDs = ref_IDs.astype( int )
+
+		##.
+		with h5py.File( err_file, 'r') as f: 
+			group = f["/%s/err_clusters/" % err_grop ][()]
+			group_sat = f["/%s/err_sat/" % err_grop ][()]
+
+		out_sat_ra = ['%.4f' % ll for ll in group_sat[0] ]
+		out_sat_dec = ['%.4f' % ll for ll in group_sat[1] ]
+
+		used_order = simple_match( out_sat_ra, out_sat_dec, sat_ra, sat_dec, id_choose = False)
+
+		bcg_ra, bcg_dec, bcg_z = bcg_ra[ used_order ], bcg_dec[ used_order ], bcg_z[ used_order ]
+		sat_ra, sat_dec = sat_ra[ used_order ], sat_dec[ used_order ]
+
+		bcg_x, bcg_y = bcg_x[ used_order ], bcg_y[ used_order ]
+		sat_x, sat_y = sat_x[ used_order ], sat_y[ used_order ]
+
+		sat_PA = sat_PA[ used_order ]
+		ref_IDs = ref_IDs[ used_order ]
+
 
 	N_ss = len( sub_IDs )
 
@@ -204,59 +345,42 @@ def origin_img_cut_func( pos_file, img_file, band_str, sub_IDs, shufl_IDs, R_cut
 		off_x, off_y = sat_R * np.cos( sat_theta ), sat_R * np.sin( sat_theta )
 
 
-		#. shuffle clusters and matched images
-		id_ux = ref_IDs == shufl_IDs[ kk ]
-		cp_ra_g, cp_dec_g, cp_z_g = bcg_ra[ id_ux ][0], bcg_dec[ id_ux ][0], bcg_z[ id_ux ][0]
-
-		cp_img = fits.open( img_file % (band_str, cp_ra_g, cp_dec_g, cp_z_g),)
-		cp_img_arr = cp_img[0].data
-
-		#. image center
-		# pix_cx, pix_cy = cp_img_arr.shape[1] / 2, cp_img_arr.shape[0] / 2
-
-		cp_cx, cp_cy = bcg_x[ id_ux ][0], bcg_y[ id_ux ][0]
-		cp_sx_1, cp_sy_1 = cp_cx + off_x, cp_cy + off_y
-
-
-		#. identify satellites beyond the image frame of shuffle cluster
-		Lx, Ly = cp_img_arr.shape[1], cp_img_arr.shape[0]
-
-		id_x_lim = ( cp_sx_1 < 0 ) | ( cp_sx_1 >= 2047 )
-		id_y_lim = ( cp_sy_1 < 0 ) | ( cp_sy_1 >= 1488 )
-
-		id_lim = id_x_lim + id_y_lim
-
-		tp_sx, tp_sy = cp_sx_1[ id_lim ], cp_sy_1[ id_lim ]
-		tp_chi = sat_theta[ id_lim ]
-		tp_Rs = sat_R[ id_lim ]
-
-
-		#. loop for satellites position adjust 
-		N_pot = np.sum( id_lim )
+		#. loop for satellites symmetry position adjust 
+		N_pot = len( sat_R )
 
 		tm_sx, tm_sy = np.zeros( N_pot,), np.zeros( N_pot,)
+		id_err = np.zeros( N_pot,)  ##. records points cannot located in image frame
 
-		for tt in range( N_pot ):
+		for pp in range( N_pot ):
 
-			tm_phi = np.array( [ np.pi + tp_chi[ tt ], np.pi - tp_chi[ tt ], np.pi * 2 - tp_chi[tt] ] )
+			tm_phi = np.array( [ np.pi + sat_theta[ pp ], 
+								np.pi - sat_theta[ pp ], np.pi * 2 - sat_theta[ pp ] ] )
 
-			tm_off_x = tp_Rs[ tt ] * np.cos( tm_phi )
-			tm_off_y = tp_Rs[ tt ] * np.sin( tm_phi )
+			tm_off_x = sat_R[ pp ] * np.cos( tm_phi )
+			tm_off_y = sat_R[ pp ] * np.sin( tm_phi )
 
-			tt_sx, tt_sy = cp_cx + tm_off_x, cp_cy + tm_off_y
+			tt_sx, tt_sy = x_cen + tm_off_x, y_cen + tm_off_y
 
 			id_ux = ( tt_sx >= 0 ) & ( tt_sx < 2047 )
 			id_uy = ( tt_sy >= 0 ) & ( tt_sy < 1488 )
 
 			id_up = id_ux & id_uy
 
-			tm_sx[ tt ] = tt_sx[ id_up ][0]
-			tm_sy[ tt ] = tt_sy[ id_up ][0]
+			if np.sum( id_up ) > 0:
 
-		##. replace the symmetry points
-		cp_sx, cp_sy = cp_sx_1 + 0., cp_sy_1 + 0.
-		cp_sx[ id_lim ] = tm_sx
-		cp_sy[ id_lim ] = tm_sy
+				tm_sx[ pp ] = tt_sx[ id_up ][0]
+				tm_sy[ pp ] = tt_sy[ id_up ][0]
+
+			else:
+				id_err[ pp ] = 1.
+
+		#. 
+		cp_sx, cp_sy = tm_sx + 0., tm_sy + 0.
+
+
+		##. cluster image
+		cp_img = fits.open( img_file % (band_str, ra_g, dec_g, z_g),)
+		cp_img_arr = cp_img[0].data
 
 
 		#. cutout images
@@ -321,4 +445,5 @@ def origin_img_cut_func( pos_file, img_file, band_str, sub_IDs, shufl_IDs, R_cut
 			fits.writeto( out_file % (band_str, ra_g, dec_g, z_g, kk_ra, kk_dec), cut_img, header = fill, overwrite = True)
 
 	return
+
 
