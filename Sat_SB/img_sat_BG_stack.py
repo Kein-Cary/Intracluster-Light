@@ -5,7 +5,7 @@ import astropy.io.fits as fits
 
 
 def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, img_x, img_y, id_cen, 
-	rms_file = None, pix_con_file = None, id_mean = 0, weit_img = None, Ng_weit = None):
+	rms_file = None, pix_con_file = None, id_mean = 0, weit_img = None, Ng_weit = None, Pm_weit = None):
 	"""
 	d_file : path where save the masked data (include file-name structure:'/xxx/xxx/xxx.xxx')
 
@@ -32,7 +32,8 @@ def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, 
 	By default, the initial stack image size is 650 * 650 pixels (~ 1Mpc X 1Mpc at z = 0.25)
 
 	weit_img : array use to apply weight to each stacked image (can be the masekd image after resampling)
-	Ng_weit : weight applied on cluster images
+	Ng_weit : weight applied on cluster images, Ng is the satellite number of used for each cluster
+	Pm_weit : weight satellite image stacking with the member probability
 	"""
 	stack_N = len(z_set)
 
@@ -47,6 +48,12 @@ def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, 
 	count_array_A = np.ones((len(Ny), len(Nx)), dtype = np.float32) * np.nan
 	p_count_A = np.zeros((len(Ny), len(Nx)), dtype = np.float32)
 	pix_f2 = np.zeros((len(Ny), len(Nx)), dtype = np.float32)
+
+	#. P_mem weight, the length of P_mem must be the same as z_set
+	if Pm_weit is not None:
+		pm_weit = Pm_weit + 0.
+	else:
+		pm_weit = np.ones( stack_N,)
 
 
 	for jj in range( stack_N ):
@@ -88,14 +95,7 @@ def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, 
 			lb0 = np.int(x0 - rnx)
 			lb1 = np.int(x0 - rnx + img_A.shape[1])
 
-		if id_mean == 0:
-			img_add = img_A - 0.
-		if id_mean == 1:
-			img_add = img_A - np.nanmean(img_A)
-		if id_mean == 2:
-			img_add = img_A - np.nanmedian(img_A)
-
-		#.weight array
+		#.weight array~( array setting for mask )
 		if weit_img is not None:
 
 			w_file = weit_img % ( band, ra_g, dec_g, z_g, s_ra, s_dec )
@@ -105,32 +105,39 @@ def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, 
 			id_ux = np.isnan( w_img )
 			img_A[ id_ux ] = np.nan
 
+		if id_mean == 0:
+			img_add = img_A - 0.
+		if id_mean == 1:
+			img_add = img_A - np.nanmean(img_A)
+		if id_mean == 2:
+			img_add = img_A - np.nanmedian(img_A)
 
+		#. effective pixels location count
 		idx = np.isnan(img_A)
 		idv = np.where(idx == False)
 
 		if Ng_weit is None:
-			sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + img_add[idv]
+			sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + img_add[idv] * pm_weit[ jj ]
 			count_array_A[la0: la1, lb0: lb1][idv] = img_add[idv]
 
 			## tmp array for rms
-			pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + img_add[idv]**2
+			pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + img_add[idv]**2 * pm_weit[ jj ]
 
 			id_nan = np.isnan(count_array_A)
 			id_fals = np.where(id_nan == False)
-			p_count_A[id_fals] = p_count_A[id_fals] + 1.
+			p_count_A[id_fals] = p_count_A[id_fals] + pm_weit[ jj ] * 1.
 			count_array_A[la0: la1, lb0: lb1][idv] = np.nan
 
 		else:
-			sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + Ng_weit[ jj ] * img_add[idv]
+			sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + Ng_weit[ jj ] * img_add[idv] * pm_weit[ jj ]
 			count_array_A[la0: la1, lb0: lb1][idv] = img_add[idv]
 
 			## tmp array for rms
-			pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + Ng_weit[ jj ] * img_add[idv]**2
+			pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + Ng_weit[ jj ] * img_add[idv]**2 * pm_weit[ jj ]
 
 			id_nan = np.isnan( count_array_A )
 			id_fals = np.where( id_nan == False )
-			p_count_A[id_fals] = p_count_A[id_fals] + Ng_weit[ jj ]
+			p_count_A[id_fals] = p_count_A[id_fals] + Ng_weit[ jj ] * pm_weit[ jj ]
 			count_array_A[la0: la1, lb0: lb1][idv] = np.nan
 
 
@@ -141,6 +148,7 @@ def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, 
 	stack_img = sum_array_A / p_count_A
 	where_are_inf = np.isinf(stack_img)
 	stack_img[where_are_inf] = np.nan
+
 
 	with h5py.File(out_file, 'w') as f:
 		f['a'] = np.array(stack_img)
@@ -162,7 +170,7 @@ def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, 
 
 
 def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, img_x, img_y, id_cen, N_edg, 
-					rms_file = None, pix_con_file = None, id_mean = 0, weit_img = None, Ng_weit = None ):
+					rms_file = None, pix_con_file = None, id_mean = 0, weit_img = None, Ng_weit = None, Pm_weit = None):
 	"""
 	d_file : path where save the masked data (include file-name structure:'/xxx/xxx/xxx.xxx')
 
@@ -188,7 +196,8 @@ def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_d
 	By default, the initial stack image size is 640 * 640 pixels (~ 1Mpc X 1Mpc at z = 0.25)
 
 	weit_img : array use to apply weight to each stacked image (can be the masekd image after resampling)
-	Ng_weit : weight applied on cluster images
+	Ng_weit : weight applied on cluster images / background image
+	Pm_weit : weight satellite image stacking with the member probability
 	"""
 
 	stack_N = len( z_set )
@@ -205,6 +214,11 @@ def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_d
 	p_count_A = np.zeros( (len(Ny), len(Nx) ), dtype = np.float32)
 	pix_f2 = np.zeros( (len(Ny), len(Nx) ), dtype = np.float32)
 
+	#. P_mem weight, the length of P_mem must be the same as z_set
+	if Pm_weit is not None:
+		pm_weit = Pm_weit + 0.
+	else:
+		pm_weit = np.ones( stack_N,)
 
 	for jj in range( stack_N ):
 
@@ -252,13 +266,6 @@ def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_d
 			lb0 = np.int(x0 - rnx)
 			lb1 = np.int(x0 - rnx + img_A.shape[1])
 
-		if id_mean == 0:
-			img_add = img_A - 0.
-		if id_mean == 1:
-			img_add = img_A - np.nanmean(img_A)
-		if id_mean == 2:
-			img_add = img_A - np.nanmedian(img_A)
-
 		#.weight array
 		if weit_img is not None:
 
@@ -275,32 +282,39 @@ def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_d
 			id_ux = np.isnan( w_img )
 			img_A[ id_ux ] = np.nan
 
+		if id_mean == 0:
+			img_add = img_A - 0.
+		if id_mean == 1:
+			img_add = img_A - np.nanmean(img_A)
+		if id_mean == 2:
+			img_add = img_A - np.nanmedian(img_A)
+
+		#. effective pixels location count
 		idx = np.isnan(img_A)
 		idv = np.where(idx == False)
 
 		if Ng_weit is None:
-			sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + img_add[idv]
+			sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + img_add[idv] * pm_weit[ jj ]
 			count_array_A[la0: la1, lb0: lb1][idv] = img_add[idv]
 
 			## tmp array for rms
-			pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + img_add[idv]**2
+			pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + img_add[idv]**2 * pm_weit[ jj ]
 
 			id_nan = np.isnan(count_array_A)
 			id_fals = np.where(id_nan == False)
-			p_count_A[id_fals] = p_count_A[id_fals] + 1.
+			p_count_A[id_fals] = p_count_A[id_fals] + pm_weit[ jj ] * 1.
 			count_array_A[la0: la1, lb0: lb1][idv] = np.nan
 
 		else:
-
-			sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + Ng_weit[ jj ] * img_add[idv]
+			sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + Ng_weit[ jj ] * img_add[idv] * pm_weit[ jj ]
 			count_array_A[la0: la1, lb0: lb1][idv] = img_add[idv]
 
 			## tmp array for rms
-			pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + Ng_weit[ jj ] * img_add[idv]**2
+			pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + Ng_weit[ jj ] * img_add[idv]**2 * pm_weit[ jj ]
 
 			id_nan = np.isnan( count_array_A )
 			id_fals = np.where( id_nan == False )
-			p_count_A[id_fals] = p_count_A[id_fals] + Ng_weit[ jj ]
+			p_count_A[id_fals] = p_count_A[id_fals] + Ng_weit[ jj ] * pm_weit[ jj ]
 			count_array_A[la0: la1, lb0: lb1][idv] = np.nan
 
 

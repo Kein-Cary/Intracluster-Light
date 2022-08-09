@@ -185,7 +185,8 @@ def extra_cat_match_func( set_ra, set_dec, set_z, out_sat_file, out_img_file):
 	Ns = len( mp_ra )
 
 	sat_ra, sat_dec, sat_z = np.array([]), np.array([]), np.array([])
-	sat_Rcen, sat_gr, sat_ri, sat_gi = np.array([]), np.array([]), np.array([]), np.array([])
+	sat_gr, sat_ri, sat_gi = np.array([]), np.array([]), np.array([])
+	sat_Rcen, sat_R2Rv = np.array([]), np.array([])
 	sat_host_ID = np.array([])
 
 	cp_bcg_ra, cp_bcg_dec, cp_bcg_z = np.array([]), np.array([]), np.array([])
@@ -210,7 +211,9 @@ def extra_cat_match_func( set_ra, set_dec, set_z, out_sat_file, out_img_file):
 		sat_dec = np.r_[ sat_dec, sub_dec ]
 		sat_z = np.r_[ sat_z, sub_z ]
 
-		sat_Rcen = np.r_[ sat_Rcen, sub_R2Rv ]
+		sat_Rcen = np.r_[ sat_Rcen, sub_Rcen ]
+		sat_R2Rv = np.r_[ sat_R2Rv, sub_R2Rv ]
+
 		sat_gr = np.r_[ sat_gr, sub_gr ]
 		sat_ri = np.r_[ sat_ri, sub_ri ]
 		sat_gi = np.r_[ sat_gi, sub_gi ]
@@ -221,9 +224,10 @@ def extra_cat_match_func( set_ra, set_dec, set_z, out_sat_file, out_img_file):
 		cp_bcg_dec = np.r_[ cp_bcg_dec, np.ones( len(sub_ra),) * mp_dec[pp] ]
 		cp_bcg_z = np.r_[ cp_bcg_z, np.ones( len(sub_ra),) * mp_z[pp] ]
 
+
 	#. save member infor
-	keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'ra', 'dec', 'z_spec', 'Rcen/Rv', 'g-r', 'r-i', 'g-i', 'clus_ID' ]
-	values = [ cp_bcg_ra, cp_bcg_dec, cp_bcg_z, sat_ra, sat_dec, sat_z, sat_Rcen, sat_gr, sat_ri, sat_gi, sat_host_ID ]
+	keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'ra', 'dec', 'z_spec', 'R_cen', 'Rcen/Rv', 'g-r', 'r-i', 'g-i', 'clus_ID' ]
+	values = [ cp_bcg_ra, cp_bcg_dec, cp_bcg_z, sat_ra, sat_dec, sat_z, sat_Rcen, sat_R2Rv, sat_gr, sat_ri, sat_gi, sat_host_ID ]
 	fill = dict(zip( keys, values) )
 	out_data = pds.DataFrame( fill )
 	out_data.to_csv( out_sat_file,)
@@ -350,7 +354,7 @@ def catalog_build():
 	out_sat_file = '/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_member-cat.csv'
 	out_img_file = '/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_cat.csv'
 
-	# extra_cat_match_func( ra, dec, z, out_sat_file, out_img_file)   ## member match
+	extra_cat_match_func( ra, dec, z, out_sat_file, out_img_file)   ## member match
 
 
 	##... image frame limited satellite sample (how many member located in current image catalog)
@@ -376,61 +380,63 @@ def catalog_build():
 # catalog_build()
 
 
-"""
-### === 
+### === ### pick up no-BCG galaxies
 ##.. for entire member sample, need to exclude BCG
 ##.. (since BCG is the highest P_cen member)
 
-# dat_1 = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-limit_Pm-cut_member-cat.csv')
-dat_1 = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-limit_member-cat.csv')
+def exclu_BCG_func():
 
-s_ra, s_dec = np.array( dat_1['ra'] ), np.array( dat_1['dec'] )
+	# dat_1 = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-limit_Pm-cut_member-cat.csv')
+	dat_1 = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-limit_member-cat.csv')
 
-s_coord = SkyCoord( ra = s_ra * U.deg, dec = s_dec * U.deg )
+	s_ra, s_dec = np.array( dat_1['ra'] ), np.array( dat_1['dec'] )
 
-keys = dat_1.columns[1:]
-N_ks = len( keys )
+	s_coord = SkyCoord( ra = s_ra * U.deg, dec = s_dec * U.deg )
 
-tmp_arr = []
+	keys = dat_1.columns[1:]
+	N_ks = len( keys )
 
-for ll in range( N_ks ):
+	tmp_arr = []
 
-	tmp_arr.append( np.array( dat_1['%s' % keys[ll] ] ) )
+	for ll in range( N_ks ):
 
-
-dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_cat.csv')
-ref_ra, ref_dec = np.array( dat['ra'] ), np.array( dat['dec'] )
-
-Ns = len( ref_ra )
-
-tmp_order = []
-
-for kk in range( Ns ):
-
-	kk_coord = SkyCoord( ra = ref_ra[kk] * U.deg, dec = ref_dec[kk] * U.deg )
-
-	idx, d2d, d3d = kk_coord.match_to_catalog_sky( s_coord )
-
-	daa = np.array( [ idx ] )
-
-	tmp_order.append( daa[0] )
+		tmp_arr.append( np.array( dat_1['%s' % keys[ll] ] ) )
 
 
-#.. exclude BCGs
-exlu_arr = []
+	dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_cat.csv')
+	ref_ra, ref_dec = np.array( dat['ra'] ), np.array( dat['dec'] )
 
-for ll in range( N_ks ):
+	Ns = len( ref_ra )
 
-	sub_arr = np.delete( tmp_arr[ll], tmp_order )
+	tmp_order = []
 
-	exlu_arr.append( sub_arr )
+	for kk in range( Ns ):
 
-fill = dict( zip( keys, exlu_arr ) )
-data = pds.DataFrame( fill )
-# data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv')
-data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_exlu-BCG_member-cat.csv')
+		kk_coord = SkyCoord( ra = ref_ra[kk] * U.deg, dec = ref_dec[kk] * U.deg )
 
-"""
+		idx, d2d, d3d = kk_coord.match_to_catalog_sky( s_coord )
+
+		daa = np.array( [ idx ] )
+
+		tmp_order.append( daa[0] )
+
+
+	#.. exclude BCGs
+	exlu_arr = []
+
+	for ll in range( N_ks ):
+
+		sub_arr = np.delete( tmp_arr[ll], tmp_order )
+
+		exlu_arr.append( sub_arr )
+
+	fill = dict( zip( keys, exlu_arr ) )
+	data = pds.DataFrame( fill )
+	# data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv')
+	data.to_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_exlu-BCG_member-cat.csv')
+
+	return
+
 
 
 ### === satellite position record and match

@@ -165,7 +165,8 @@ def aveg_stack_img(N_sample, data_file, out_file):
 def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, sat_ra, sat_dec, img_x, img_y, img_file, band_str, sub_img,
 	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
 	id_cut = False, N_edg = None, id_Z0 = True, z_ref = None, id_S2N = False, S2N = None, id_sub = True, edg_bins = None,
-	sub_rms = None, J_sub_rms = None, jack_rms_arr = None):
+	sub_rms = None, J_sub_rms = None, jack_rms_arr = None, id_Mean = 0, pm_weit = None):
+
 	"""
 	combining jackknife stacking process, and 
 	save : sub-sample (sub-jack-sample) stacking image, pixel conunt array, surface brightness profiles
@@ -206,8 +207,13 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, sat_ra, sat_d
 	
 	sub_rms, J_sub_rms : pixel standard deviation of stacking images (for sub-sample and jackknife sub-sample)
 	jack_rms_file : the final rms_file (total sample imgs stacking result)
-	"""
 
+	-----
+	pm_weit : weight satellite image stacking with the member probability
+
+	id_Mean : 0, 1, 2.  0 - img_add = img; 
+	1 - img_add = img - np.mean(img); 2 - img_add = img - np.median(img); Default is id_mean = 0
+	"""
 
 	zN = len( cat_z )
 	id_arr = np.arange(0, zN, 1)
@@ -217,6 +223,8 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, sat_ra, sat_d
 
 	lis_s_ra, lis_s_dec = [], []
 	lis_x, lis_y = [], []
+
+	lis_weit = []
 
 	for nn in range( N_bin ):
 
@@ -231,6 +239,13 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, sat_ra, sat_d
 		lis_x.append( img_x[ id_xbin ] )
 		lis_y.append( img_y[ id_xbin ] )
 
+		if pm_weit is not None:
+			lis_weit.append( pm_weit[ id_xbin ] )
+
+		else:
+			nn_weit = np.ones( len( cat_ra[ id_xbin ] ), )
+			lis_weit.append( nn_weit )
+
 	## img stacking
 	for nn in range(N_bin):
 
@@ -243,9 +258,12 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, sat_ra, sat_d
 		set_x = lis_x[ nn ]
 		set_y = lis_y[ nn ]
 
+		set_weit = lis_weit[ nn ]
+
 		sub_img_file = sub_img % nn
 		sub_cont_file = sub_pix_cont % nn
 
+		##. rms file record
 		if sub_rms is not None:
 			sub_rms_file = sub_rms % nn
 		else:
@@ -253,10 +271,11 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, sat_ra, sat_d
 
 		if id_cut == False:
 			stack_func( img_file, sub_img_file, set_z, set_ra, set_dec, band_str, set_s_ra, set_s_dec, set_x, set_y, id_cen,
-				rms_file = sub_rms_file, pix_con_file = sub_cont_file,)
+				rms_file = sub_rms_file, pix_con_file = sub_cont_file, id_mean = id_Mean, Pm_weit = set_weit )
+
 		if id_cut == True:
 			cut_stack_func( img_file, sub_img_file, set_z, set_ra, set_dec, band_str, set_s_ra, set_s_dec, set_x, set_y, id_cen, N_edg,
-				rms_file = sub_rms_file, pix_con_file = sub_cont_file,)
+				rms_file = sub_rms_file, pix_con_file = sub_cont_file, id_mean = id_Mean, Pm_weit = set_weit )
 
 
 	for nn in range( N_bin ):

@@ -16,7 +16,6 @@ from astropy.coordinates import SkyCoord
 from astropy.table import Table, QTable
 
 #.
-from img_sat_extract import sate_Extract_func
 from img_sat_extract import sate_surround_mask_func
 from img_sat_resamp import resamp_func
 

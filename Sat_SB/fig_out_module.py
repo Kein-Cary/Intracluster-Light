@@ -121,8 +121,8 @@ def zref_BCG_pos_func( cat_file, z_ref, out_file, pix_size,):
 	ra, dec, z = np.array(dat.ra), np.array(dat.dec), np.array(dat.z)
 	clus_x, clus_y = np.array(dat.bcg_x), np.array(dat.bcg_y)
 
-	Da_z = Test_model.angular_diameter_distance(z).value
-	Da_ref = Test_model.angular_diameter_distance(z_ref).value
+	Da_z = Test_model.angular_diameter_distance( z ).value
+	Da_ref = Test_model.angular_diameter_distance( z_ref ).value
 
 	L_ref = Da_ref * pix_size / rad2arcsec
 	L_z = Da_z * pix_size / rad2arcsec

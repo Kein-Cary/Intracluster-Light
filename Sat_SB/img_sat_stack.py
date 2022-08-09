@@ -4,7 +4,8 @@ import pandas as pds
 import astropy.io.fits as fits
 
 
-def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, img_x, img_y, id_cen, rms_file = None, pix_con_file = None, id_mean = 0):
+def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, img_x, img_y, id_cen, 
+	rms_file = None, pix_con_file = None, id_mean = 0, Pm_weit = None):
 	"""
 	d_file : path where save the masked data (include file-name structure:'/xxx/xxx/xxx.xxx')
 
@@ -17,7 +18,9 @@ def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, 
 	id_cen : 0 - stacking by centering on BCGs, 1 - stacking by centering on img center
 	rms_file : stacking img pixel variance 
 	pix_con_file : the pixel counts in each stacking img pixel
+	Pm_weit : weight satellite image stacking with the member probability
 	
+	-----
 	for sky img case :
 
 	id_cen : 0 - stacking by centering on BCGs, 1 - stacking by centering on img center
@@ -45,6 +48,11 @@ def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, 
 	p_count_A = np.zeros((len(Ny), len(Nx)), dtype = np.float32)
 	pix_f2 = np.zeros((len(Ny), len(Nx)), dtype = np.float32)
 
+	#. P_mem weight, the length of P_mem must be the same as z_set
+	if Pm_weit is not None:
+		pm_weit = Pm_weit + 0.
+	else:
+		pm_weit = np.ones( stack_N,)
 
 	for jj in range( stack_N ):
 
@@ -92,19 +100,21 @@ def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, 
 		if id_mean == 2:
 			img_add = img_A - np.nanmedian(img_A)
 
+		#. effective pixels location count
 		idx = np.isnan(img_A)
 		idv = np.where(idx == False)
 
-		sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + img_add[idv]
+		sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + img_add[idv] * pm_weit[ jj ]
 		count_array_A[la0: la1, lb0: lb1][idv] = img_add[idv]
 
 		## tmp array for rms
-		pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + img_add[idv]**2
+		pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + img_add[idv]**2 * pm_weit[ jj ]
 
 		id_nan = np.isnan(count_array_A)
 		id_fals = np.where(id_nan == False)
-		p_count_A[id_fals] = p_count_A[id_fals] + 1.
+		p_count_A[id_fals] = p_count_A[id_fals] + pm_weit[ jj ] * 1.
 		count_array_A[la0: la1, lb0: lb1][idv] = np.nan
+
 
 	id_zero = p_count_A == 0
 	p_count_A[id_zero] = np.nan
@@ -134,7 +144,7 @@ def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, 
 
 
 def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, img_x, img_y, id_cen, N_edg, 
-					rms_file = None, pix_con_file = None, id_mean = 0):
+					rms_file = None, pix_con_file = None, id_mean = 0, Pm_weit = None):
 	"""
 	d_file : path where save the masked data (include file-name structure:'/xxx/xxx/xxx.xxx')
 
@@ -147,10 +157,11 @@ def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_d
 	id_cen : 0 - stacking by centering on BCGs, 1 - stacking by centering on img center
 	rms_file : stacking img pixel variance 
 	pix_con_file : the pixel counts in each stacking img pixel
-
+	Pm_weit : weight satellite image stacking with the member probability
 	N_edg : the width of the edge region, pixels in this region will be set as 
 			'no flux' contribution pixels (ie. set as np.nan), default is 1.
 
+	-----
 	for sky img case :
 
 	id_cen : 0 - stacking by centering on satellites, 1 - stacking by centering on img center
@@ -174,6 +185,12 @@ def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_d
 	count_array_A = np.ones( (len(Ny), len(Nx) ), dtype = np.float32) * np.nan
 	p_count_A = np.zeros( (len(Ny), len(Nx) ), dtype = np.float32)
 	pix_f2 = np.zeros( (len(Ny), len(Nx) ), dtype = np.float32)
+
+	#. P_mem weight, the length of P_mem must be the same as z_set
+	if Pm_weit is not None:
+		pm_weit = Pm_weit + 0.
+	else:
+		pm_weit = np.ones( stack_N,)
 
 
 	for jj in range( stack_N ):
@@ -229,19 +246,22 @@ def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_d
 		if id_mean == 2:
 			img_add = img_A - np.nanmedian(img_A)
 
+
+		#. effective pixels location count
 		idx = np.isnan(img_A)
 		idv = np.where(idx == False)
 
-		sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + img_add[idv]
+		sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + img_add[idv] * pm_weit[ jj ]
 		count_array_A[la0: la1, lb0: lb1][idv] = img_add[idv]
 
 		## tmp array for rms
-		pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + img_add[idv]**2
+		pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + img_add[idv]**2 * pm_weit[ jj ]
 
 		id_nan = np.isnan(count_array_A)
 		id_fals = np.where(id_nan == False)
-		p_count_A[id_fals] = p_count_A[id_fals] + 1.
+		p_count_A[id_fals] = p_count_A[id_fals] + pm_weit[ jj ] * 1.
 		count_array_A[la0: la1, lb0: lb1][idv] = np.nan
+
 
 	id_zero = p_count_A == 0
 	p_count_A[id_zero] = np.nan

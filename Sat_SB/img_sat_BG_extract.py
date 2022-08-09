@@ -17,6 +17,8 @@ import astropy.constants as C
 from astropy import cosmology as apcy
 import scipy.interpolate as interp
 
+from fig_out_module import WCS_to_pixel_func, pixel_to_WCS_func
+
 
 ###... cosmology
 Test_model = apcy.Planck15.clone( H0 = 67.74, Om0 = 0.311 )
@@ -446,4 +448,146 @@ def self_shufl_img_cut_func( pos_file, img_file, band_str, sub_IDs, R_cut, pix_s
 
 	return
 
+
+### === control galaxy extract ~ (all sources are removed form the random images)
+#. control galaxy cut but with the taget galaxy removed
+def contrl_galx_BGcut_func( d_file, bcg_ra, bcg_dec, bcg_z, ra_set, dec_set, z_set, band, gal_file, out_file, R_cut, 
+							offset_file = None, pixel = 0.396):
+	"""
+	d_file : path where image data saved (include file-name structure:'/xxx/xxx/xxx.xxx')
+	bcg_ra, bcg_dec, bcg_z : the cluster or BCG information (for image load)
+	----------------
+
+	ra_set, dec_set, z_set : the information of gaalxies
+
+	band : filter information
+
+	R_cut : pixel size of half width of cutout image
+
+	pixel : pixel scale, in unit of 'arcsec'
+	
+	offset_file : correction for the location of galaxy on the image frame
+	"""
+
+	##. origin image 
+	img_data = fits.open( d_file % (band, bcg_ra, bcg_dec, bcg_z),)
+	img_arr = img_data[ 0 ].data
+
+	Header = img_data[0].header
+	wcs_lis = awc.WCS( Header )
+
+
+	if offset_file is not None:
+		off_dat = pds.read_csv( offset_file % (band, bcg_ra, bcg_dec, bcg_z), )
+
+		x2pk_off_arr = np.array( off_dat[ 'devi_pk_x' ] )
+		y2pk_off_arr = np.array( off_dat[ 'devi_pk_y' ] )
+
+		medi_x2pk_off = np.median( x2pk_off_arr )
+		medi_y2pk_off = np.median( y2pk_off_arr )
+
+	else:
+		medi_x2pk_off = 0.
+		medi_y2pk_off = 0.
+
+
+	##. satellite galaxy region
+	s_xn, s_yn = WCS_to_pixel_func( ra_set, dec_set, Header )
+	s_xn, s_yn = s_xn + medi_x2pk_off, s_yn + medi_y2pk_off
+
+
+	##. galaxy location in targ_filter
+	source = asc.read( gal_file % (band, bcg_ra, bcg_dec, bcg_z), )
+	Numb = np.array(source['NUMBER'][-1])
+	A = np.array(source['A_IMAGE'])
+	B = np.array(source['B_IMAGE'])
+	theta = np.array(source['THETA_IMAGE'])
+	p_type = np.array(source['CLASS_STAR'])
+
+	cx = np.array(source['X_IMAGE'])
+	cy = np.array(source['Y_IMAGE'])
+
+	peak_x = np.array( source['XPEAK_IMAGE'])
+	peak_y = np.array( source['YPEAK_IMAGE'])
+
+
+	##. find target galaxy in source catalog
+	pp_cx, pp_cy = s_xn, s_yn
+
+	d_cen_R = np.sqrt( (cx - pp_cx)**2 + (cy - pp_cy)**2 )
+	id_xcen = d_cen_R == d_cen_R.min()
+	id_order = np.where( id_xcen )[0][0]
+
+	kk_px, kk_py = cx[ id_order ], cy[ id_order ]
+	kk_major_R = a[ id_order ]
+
+	cen_ar = A[ id_order ] * 3
+	cen_br = B[ id_order ] * 3
+
+	cen_cr = np.sqrt( cen_ar**2 - cen_br**2 )
+	cen_chi = theta[ id_order ] * np.pi / 180
+
+
+	##.. cut image for given cut size
+	dL = np.int( np.ceil( R_cut ) )
+
+	cut_img = np.zeros( ( np.int( 2 * dL + 2 ), np.int( 2 * dL + 2 ) ), dtype = np.float32 ) + np.nan
+
+	d_x0 = np.max( [ kk_px - dL, 0 ] )
+	d_x1 = np.min( [ kk_px + dL, img_arr.shape[1] - 1 ] )
+
+	d_y0 = np.max( [ kk_py - dL, 0 ] )
+	d_y1 = np.min( [ kk_py + dL, img_arr.shape[0] - 1 ] )
+
+	d_x0 = np.int( d_x0 )
+	d_x1 = np.int( d_x1 )
+
+	d_y0 = np.int( d_y0 )
+	d_y1 = np.int( d_y1 )
+
+	#. cutout image
+	pre_cut = img_arr[ d_y0 : d_y1, d_x0 : d_x1 ]
+	pre_cut_cx = kk_px - d_x0
+	pre_cut_cy = kk_py - d_y0
+
+	pre_cx = np.int( pre_cut_cx )
+	pre_cy = np.int( pre_cut_cy )
+
+
+	xn, yn = dL + 1, dL + 1
+
+	pa0 = np.int( xn - pre_cx )
+	pa1 = np.int( xn - pre_cx + pre_cut.shape[1] )
+
+	pb0 = np.int( yn - pre_cy )
+	pb1 = np.int( yn - pre_cy + pre_cut.shape[0] )
+
+	cut_img[ pb0 : pb1, pa0 : pa1 ] = pre_cut + 0.
+
+	_cx_off = pre_cut_cx - np.int( pre_cut_cx )
+	_cy_off = pre_cut_cy - np.int( pre_cut_cy )
+
+	cc_px, cc_py = xn + _cx_off, yn + _cy_off
+
+
+	##.. peak position
+	_pkx, _pky = peak_x[ id_order ], peak_y[ id_order ]
+
+	devi_x = _pkx - kk_px
+	devi_y = _pky - kk_py
+
+	cc_pkx, cc_pky = cc_px + devi_x, cc_py + devi_y
+
+
+	kk_Nx, kk_Ny = cut_img.shape[1], cut_img.shape[0]
+
+	#. save fits files
+	keys = [ 'SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2', 'CENTER_X','CENTER_Y', 'PEAK_X', 'PEAK_Y', 
+			'CRVAL1','CRVAL2','BCG_RA','BCG_DEC','BCG_Z', 'P_SCALE' ]
+	value = [ 'T', 32, 2, kk_Nx, kk_Ny, cc_px, cc_py, cc_pkx, cc_pky, kk_ra, kk_dec, bcg_ra, bcg_dec, bcg_z, pixel ]
+	ff = dict( zip( keys, value ) )
+	fil = fits.Header(ff)
+	fits.writeto( out_file % (band, bcg_ra, bcg_dec, bcg_z, kk_ra, kk_dec ), cut_img, header = fil, overwrite = True)
+
+	return
 

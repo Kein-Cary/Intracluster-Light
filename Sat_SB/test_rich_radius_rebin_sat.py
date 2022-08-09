@@ -70,35 +70,27 @@ def sat_phyR_binned():
 
 	cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/cat/'
 
-	##. rich (30, 50)
 	out_path = '/home/xkchen/figs_cp/cc_rich_rebin/cat/'
-	# R_bins = np.loadtxt( out_path + 'subset_R-limit.txt',)
-
-	##. rich < 30
-	# R_bins = np.array([0, 150, 300, 500, 2000])
-	# R_bins = [ R_bins ] * 3
-
-	##. rich > 50
-	R_bins = np.array([0, 400, 600, 750, 2000])
-	R_bins = [ R_bins ] * 3
-
-
-	#. rich < 30 or rich > 50
-	# out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/cat/'
-
-	# R_bins_0 = np.arange(0, 350, 50)
-	# R_bins_1 = np.arange( R_bins_0[-1], 600, 100)
-	# R_bins_2 = np.arange( R_bins_1[-1], 1600, 400)
-	# R_bins = np.r_[ R_bins_0, R_bins_1[1:], R_bins_2[1:] ]
-
-	# R_bins = [ R_bins ] * 3
-
 
 	bin_rich = [ 20, 30, 50, 210 ]
 
 	##. radius binned satellite
-	# for kk in range( 1,2 ):
-	for kk in range( 2,3 ):
+	for kk in range( 3 ):
+
+		if kk == 1:
+			R_bins = np.array( [ 0, 300, 400, 550, 5000] )
+			R_bins = [ R_bins ] * 3
+
+		##. rich < 30
+		if kk == 0:
+			R_bins = np.array([0, 150, 300, 500, 2000])
+			R_bins = [ R_bins ] * 3
+
+		##. rich > 50
+		if kk == 2:
+			R_bins = np.array([0, 400, 600, 750, 2000])
+			R_bins = [ R_bins ] * 3
+
 
 		##.
 		s_dat = pds.read_csv( cat_path + 
@@ -111,7 +103,10 @@ def sat_phyR_binned():
 		p_R2Rv = np.array( s_dat['Rcen/Rv'] )
 		clus_IDs = np.array( s_dat['clus_ID'] )
 
-		cp_Rsat = p_Rsat * 1e3 * a_ref / h  ##. physical radius
+		a_obs = 1 / ( bcg_z + 1 )
+
+		# cp_Rsat = p_Rsat * 1e3 * a_ref / h  ##. physical radius
+		cp_Rsat = p_Rsat * 1e3 * a_obs / h  ##. physical radius
 
 
 		##. division
@@ -142,8 +137,22 @@ def sat_phyR_binned():
 	##... match with stacked information
 	pos_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/'
 
-	# for pp in range( 1,2 ):
-	for pp in range( 2,3 ):
+	for pp in range( 3 ):
+
+		if pp == 1:
+			R_bins = np.array( [ 0, 300, 400, 550, 5000] )
+			R_bins = [ R_bins ] * 3
+
+		##. rich < 30
+		if pp == 0:
+			R_bins = np.array([0, 150, 300, 500, 2000])
+			R_bins = [ R_bins ] * 3
+
+		##. rich > 50
+		if pp == 2:
+			R_bins = np.array([0, 400, 600, 750, 2000])
+			R_bins = [ R_bins ] * 3
+
 
 		for tt in range( len( R_bins[0] ) - 1 ):
 
@@ -175,36 +184,20 @@ def sat_phyR_binned():
 				values = [ bcg_ra, bcg_dec, bcg_z, p_ra, p_dec, mp_imgx, mp_imgy ]
 				fill = dict( zip( keys, values ) )
 				data = pds.DataFrame( fill )
-				data.to_csv( out_path + 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem_pos-zref.csv' % 
-								( bin_rich[pp], bin_rich[pp + 1], R_bins[pp][tt], R_bins[pp][tt + 1]),)
+				data.to_csv( out_path + 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem-%s-band_pos-zref.csv' % 
+								( bin_rich[pp], bin_rich[pp + 1], R_bins[pp][tt], R_bins[pp][tt + 1], band[kk]),)
 
 	return
 
 # lim_R_list()
-sat_phyR_binned()
+# sat_phyR_binned()
 
-raise
 
 
 ##. figs 
 cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/cat/'
 
-##. rich between (30, 50)
-# out_path = '/home/xkchen/figs_cp/cc_rich_rebin/cat/'
-# R_bins = np.loadtxt( out_path + 'subset_R-limit.txt',)
-
-
-##. rich < 30 or rich > 50
-# R_bins_0 = np.arange(0, 350, 50)
-# R_bins_1 = np.arange( R_bins_0[-1], 600, 100)
-# R_bins_2 = np.arange( R_bins_1[-1], 1600, 400)
-# R_bins = np.r_[ R_bins_0, R_bins_1[1:], R_bins_2[1:] ]
-
-##. rich < 30
-R_bins = np.array([0, 150, 300, 500, 2000])
-
-##. rich > 50
-# R_bins = np.array([0, 400, 600, 750, 2000])
+out_path = '/home/xkchen/figs_cp/cc_rich_rebin/cat/'
 
 
 bin_rich = [ 20, 30, 50, 210 ]
@@ -215,8 +208,20 @@ line_c = ['b', 'g', 'r']
 fig = plt.figure()
 ax = fig.add_axes([0.10, 0.10, 0.85, 0.85])
 
-# for kk in range( 1,2 ):
-for kk in range( 1 ):
+for kk in range( 3 ):
+
+	##. rich < 30
+	if kk == 0:
+		R_bins = np.array([0, 150, 300, 500, 2000])
+
+	##. 30 < rich < 50
+	if kk == 1:
+		R_bins = np.array( [ 0, 300, 400, 550, 5000] )
+
+	##. rich > 50
+	if kk == 2:
+		R_bins = np.array([0, 400, 600, 750, 2000])
+
 
 	s_dat = pds.read_csv( cat_path + 
 		'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
@@ -226,7 +231,10 @@ for kk in range( 1 ):
 
 	p_Rsat = np.array( s_dat['R_cen'] )
 
-	cp_Rsat = p_Rsat * 1e3 * a_ref / h  ##. physical radius
+	a_obs = 1 / (bcg_z + 1)
+
+	# cp_Rsat = p_Rsat * 1e3 * a_ref / h  ##. physical radius
+	cp_Rsat = p_Rsat * 1e3 * a_obs / h    ##. physical radius
 
 	#.
 	for qq in range( len(R_bins) - 1 ):
@@ -242,7 +250,7 @@ for kk in range( 1 ):
 
 	for qq in range( 1, len(R_bins) ):
 
-		ax.axvline( R_bins[ qq ], ls = ':', color = 'k', alpha = 0.55,)
+		ax.axvline( R_bins[ qq ], ls = ':', color = line_c[kk], alpha = 0.55,)
 
 ax.legend( loc = 2,)
 ax.set_xlabel('$R_{sat} \; [kpc]$')
@@ -252,6 +260,6 @@ ax.set_xlim( 5, 2.5e3 )
 ax.set_ylabel('# of galaxies')
 ax.set_yscale('log')
 
-plt.savefig('/home/xkchen/ricj_R_rebin_hist.png', dpi = 300)
+plt.savefig('/home/xkchen/rich_R_rebin_hist.png', dpi = 300)
 plt.close()
 

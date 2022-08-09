@@ -24,7 +24,7 @@ from light_measure import jack_SB_func
 
 ##... take the average value of the BCG+ICL+BG at the location of satellites
 ##... for each satellite, we use the physical separation to the central galaxy
-def aveg_BG_sub_func( sat_sb_file, band_str, bg_sb_file, out_file, R_sat):
+def aveg_BG_sub_func( sat_sb_file, band_str, bg_sb_file, R_sat, out_file = None):
 	"""
 	sat_sb_file : SB(r) of satellites, .h5 files
 	band_str : filter information
@@ -54,14 +54,18 @@ def aveg_BG_sub_func( sat_sb_file, band_str, bg_sb_file, out_file, R_sat):
 	_kk_bgs = np.ones( len( tmp_r ), ) * _kk_BG
 	_kk_bg_err = np.ones( len( tmp_r ), ) * _std_BG
 
-	#.
-	keys = [ 'r', 'sb', 'sb_err', 'bg_sb', 'bg_err' ]
-	values = [ tmp_r, _out_sb, tmp_err, _kk_bgs, _kk_bg_err ]
-	fill = dict( zip( keys, values ) )
-	data = pds.DataFrame( fill )
-	data.to_csv( out_file )
+	##. save
+	if out_file is not None:
+		keys = [ 'r', 'sb', 'sb_err', 'bg_sb', 'bg_err' ]
+		values = [ tmp_r, _out_sb, tmp_err, _kk_bgs, _kk_bg_err ]
+		fill = dict( zip( keys, values ) )
+		data = pds.DataFrame( fill )
+		data.to_csv( out_file )
+		return
 
-	return
+	else:
+
+		return tmp_r, _out_sb, tmp_err
 
 
 ##... cut the mock of stacked 2D image of BCG+ICL+BG of corresponding sample

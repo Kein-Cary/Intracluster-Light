@@ -196,38 +196,34 @@ def shufl_list_match( cat_file, clust_file, N_shufl, shufl_list_file, out_shufl_
 
 
 
-##. rebinned radii subset~( based on R_cut = [200, 400] )
+##. rebinned radii subset~( based on R_cut = [0, 200, 400 ] )
+##. [ 'inner', 'middle', 'outer' ]
 # cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/cat/'
 # shufl_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/shufl_list/tables/'
 # out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/shufl_list/'
-
-# #. rich < 30 or rich > 50
-# R_bins_0 = np.arange(0, 350, 50)
-# R_bins_1 = np.arange( R_bins_0[-1], 600, 100)
-# R_bins_2 = np.arange( R_bins_1[-1], 1600, 400)
-# R_bins = np.r_[ R_bins_0, R_bins_1[1:], R_bins_2[1:] ]
-
 
 ##. rebinned radii subset
 cat_path = '/home/xkchen/figs_cp/cc_rich_rebin/cat/'
 out_path = '/home/xkchen/figs_cp/cc_rich_rebin/shufl_list/'
 shufl_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/shufl_list/tables/'
 
-#. rich (30, 50)
-# R_bins = np.array( [ 0, 300, 400, 550, 5000] )
-
-##. rich < 30
-R_bins = np.array([0, 150, 300, 500, 2000])
-
-##. rich > 50
-# R_bins = np.array([0, 400, 600, 750, 2000])
-
 
 bin_rich = [ 20, 30, 50, 210 ]
 
 
-# for pp in range( 1,2 ):
-for pp in range( 1 ):
+for pp in range( 3 ):
+
+	##. rich < 30
+	if pp == 0:
+		R_bins = np.array([0, 150, 300, 500, 2000])
+
+	#. rich (30, 50)
+	if pp == 1:
+		R_bins = np.array( [ 0, 300, 400, 550, 5000] )
+
+	##. rich > 50
+	if pp == 2:
+		R_bins = np.array( [0, 400, 600, 750, 2000] )
 
 	for tt in range( len(R_bins) - 1 ):
 

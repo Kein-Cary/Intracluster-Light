@@ -55,7 +55,7 @@ def sat_img_fast_stack_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, img_x, img
 					sub_img, sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
 					rank, 
 					id_cut = False, N_edg = None, id_Z0 = True, z_ref = None, id_S2N = False, S2N = None, edg_bins = None, 
-					id_sub = True, sub_rms = None, J_sub_rms = None, jack_rms_arr = None):
+					id_sub = True, sub_rms = None, J_sub_rms = None, jack_rms_arr = None, Pm_weit = None, id_Mean = 0):
 	"""
 	combining jackknife stacking process, and 
 	save : sub-sample (sub-jack-sample) stacking image, pixel conunt array, surface brightness profiles
@@ -98,6 +98,11 @@ def sat_img_fast_stack_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, img_x, img
 	jack_rms_file : the final rms_file (total sample imgs stacking result)
 
 	----------
+	Pm_weit : weight satellite image stacking with the member probability
+	id_Mean : 0, 1, 2.  0 - img_add = img; 
+	1 - img_add = img - np.mean(img); 2 - img_add = img - np.median(img); Default is id_mean = 0
+
+	----------
 	rank ( or cpus) : order for identify subsample in multiprocess
 	"""
 
@@ -111,6 +116,12 @@ def sat_img_fast_stack_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, img_x, img
 	id_arr = np.arange( 0, zN, 1)
 	id_group = id_arr % N_bin
 
+	##. P_mem weight on images
+	if Pm_weit is None:
+		wit_Pm_arr = np.ones( zN, )
+	else:
+		wit_Pm_arr = Pm_weit + 0.
+
 	for nn in range( rank, rank + 1 ):
 
 		id_xbin = np.where( id_group == nn )[0]
@@ -121,6 +132,8 @@ def sat_img_fast_stack_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, img_x, img
 
 		set_s_ra = sat_ra[ id_xbin ]
 		set_s_dec = sat_dec[ id_xbin ]
+
+		set_Pm = wit_Pm_arr[ id_xbin ]
 
 		set_x = img_x[ id_xbin ]
 		set_y = img_y[ id_xbin ]
@@ -135,10 +148,11 @@ def sat_img_fast_stack_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, img_x, img
 
 		if id_cut == False:
 			stack_func( img_file, sub_img_file, set_z, set_ra, set_dec, band_str, set_s_ra, set_s_dec, set_x, set_y, id_cen,
-				rms_file = sub_rms_file, pix_con_file = sub_cont_file,)
+				rms_file = sub_rms_file, pix_con_file = sub_cont_file, id_mean = id_Mean, Pm_weit = set_Pm)
+
 		if id_cut == True:
 			cut_stack_func( img_file, sub_img_file, set_z, set_ra, set_dec, band_str, set_s_ra, set_s_dec, set_x, set_y, id_cen, N_edg,
-				rms_file = sub_rms_file, pix_con_file = sub_cont_file,)
+				rms_file = sub_rms_file, pix_con_file = sub_cont_file, id_mean = id_Mean, Pm_weit = set_Pm)
 
 	commd.Barrier()
 
@@ -224,7 +238,8 @@ def sat_BG_fast_stack_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, img_x, img_
 					sub_img, sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
 					rank, 
 					id_cut = False, N_edg = None, id_Z0 = True, z_ref = None, id_S2N = False, S2N = None, edg_bins = None, 
-					id_sub = True, sub_rms = None, J_sub_rms = None, jack_rms_arr = None, weit_img = None, Ng_weit = None ):
+					id_sub = True, sub_rms = None, J_sub_rms = None, jack_rms_arr = None, weit_img = None, 
+					Ng_weit = None, Pm_weit = None, id_Mean = 0):
 	"""
 	combining jackknife stacking process, and 
 	save : sub-sample (sub-jack-sample) stacking image, pixel count array, surface brightness profiles
@@ -270,6 +285,10 @@ def sat_BG_fast_stack_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, img_x, img_
 	weit_img : array use to apply weight to each stacked image (can be the masekd image after resampling), default is array
 				has value of 1 only.
 	Ng_weit : weit array applied on cluster images
+	pm_weit : weight satellite image stacking with the member probability
+
+	id_Mean : 0, 1, 2.  0 - img_add = img; 
+	1 - img_add = img - np.mean(img); 2 - img_add = img - np.median(img); Default is id_mean = 0
 	"""
 
 	from img_sat_BG_jack_stack import weit_aveg_img
@@ -287,7 +306,13 @@ def sat_BG_fast_stack_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, img_x, img_
 	else:
 		wit_n_arr = Ng_weit + 0.
 
+	##. P_mem weight on images
+	if Pm_weit is None:
+		wit_Pm_arr = np.ones( zN, )
+	else:
+		wit_Pm_arr = Pm_weit + 0.
 
+	##. stacking
 	for nn in range( rank, rank + 1 ):
 
 		id_xbin = np.where( id_group == nn )[0]
@@ -300,6 +325,7 @@ def sat_BG_fast_stack_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, img_x, img_
 		set_s_dec = sat_dec[ id_xbin ]
 
 		set_wn = wit_n_arr[ id_xbin ]
+		set_Pm = wit_Pm_arr[ id_xbin ]
 
 		set_x = img_x[ id_xbin ]
 		set_y = img_y[ id_xbin ]
@@ -314,10 +340,13 @@ def sat_BG_fast_stack_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, img_x, img_
 
 		if id_cut == False:
 			stack_func( img_file, sub_img_file, set_z, set_ra, set_dec, band_str, set_s_ra, set_s_dec, set_x, set_y, id_cen,
-				rms_file = sub_rms_file, pix_con_file = sub_cont_file, weit_img = weit_img, Ng_weit = set_wn)
+				rms_file = sub_rms_file, pix_con_file = sub_cont_file, weit_img = weit_img, Ng_weit = set_wn,
+				id_mean = id_Mean, Pm_weit = set_Pm)
+
 		if id_cut == True:
 			cut_stack_func( img_file, sub_img_file, set_z, set_ra, set_dec, band_str, set_s_ra, set_s_dec, set_x, set_y, id_cen, N_edg,
-				rms_file = sub_rms_file, pix_con_file = sub_cont_file, weit_img = weit_img, Ng_weit = set_wn)
+				rms_file = sub_rms_file, pix_con_file = sub_cont_file, weit_img = weit_img, Ng_weit = set_wn,
+				id_mean = id_Mean, Pm_weit = set_Pm)
 
 	commd.Barrier()
 

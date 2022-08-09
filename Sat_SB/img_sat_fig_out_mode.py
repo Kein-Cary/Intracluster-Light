@@ -122,6 +122,26 @@ def zref_sat_pos_func( cat_file, z_ref, out_file, pix_size ):
 
 	return
 
+##.
+def arr_zref_pos_func( sat_x, sat_y, sat_z, z_ref, pix_size ):
+	"""
+	this part use for calculate BCG position after pixel resampling. 
+	"""
+
+	z_g = sat_z + 0.
+
+	Da_z = Test_model.angular_diameter_distance( z_g ).value
+	Da_ref = Test_model.angular_diameter_distance( z_ref ).value
+
+	L_ref = Da_ref * pix_size / rad2arcsec
+	L_z = Da_z * pix_size / rad2arcsec
+	eta = L_ref / L_z
+
+	ref_satx = sat_x / eta
+	ref_saty = sat_y / eta
+
+	return ref_satx, ref_saty
+
 
 ### ===
 def arr_jack_func(SB_array, R_array, N_sample):

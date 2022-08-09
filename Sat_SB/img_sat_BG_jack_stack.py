@@ -165,7 +165,7 @@ def aveg_stack_img(N_sample, data_file, out_file):
 def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, sat_ra, sat_dec, img_x, img_y, img_file, band_str, sub_img,
 	sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
 	id_cut = False, N_edg = None, id_Z0 = True, z_ref = None, id_S2N = False, S2N = None, id_sub = True, edg_bins = None,
-	sub_rms = None, J_sub_rms = None, jack_rms_arr = None, weit_img = None):
+	sub_rms = None, J_sub_rms = None, jack_rms_arr = None, weit_img = None, id_Mean = 0, ng_weit = None, pm_weit = None):
 
 	"""
 	combining jackknife stacking process, and 
@@ -209,6 +209,13 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, sat_ra, sat_d
 	jack_rms_file : the final rms_file (total sample imgs stacking result)
 
 	weit_img : array use to apply weight to each stacked image (can be the masekd image after resampling)
+
+	-----
+	pm_weit : weight satellite image stacking with the member probability
+
+	id_Mean : 0, 1, 2.  0 - img_add = img; 
+	1 - img_add = img - np.mean(img); 2 - img_add = img - np.median(img); Default is id_mean = 0
+	Ng_weit : weight applied on cluster images or background image
 	"""
 
 	zN = len( cat_z )
@@ -219,6 +226,8 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, sat_ra, sat_d
 
 	lis_s_ra, lis_s_dec = [], []
 	lis_x, lis_y = [], []
+
+	lis_ng, lis_weit = [], []
 
 	for nn in range( N_bin ):
 
@@ -233,6 +242,23 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, sat_ra, sat_d
 		lis_x.append( img_x[ id_xbin ] )
 		lis_y.append( img_y[ id_xbin ] )
 
+		#.
+		if pm_weit is not None:
+			lis_weit.append( pm_weit[ id_xbin ] )
+
+		else:
+			np_weit = np.ones( len( cat_ra[ id_xbin ] ), )
+			lis_weit.append( np_weit )
+
+		#.
+		if ng_weit is not None:
+			lis_ng.append( ng_weit[ id_xbin ] )
+
+		else:
+			ng_weit = np.ones( len( cat_ra[ id_xbin ] ), )
+			lis_ng.append( ng_weit )
+
+
 	## img stacking
 	for nn in range(N_bin):
 
@@ -245,6 +271,9 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, sat_ra, sat_d
 		set_x = lis_x[ nn ]
 		set_y = lis_y[ nn ]
 
+		set_wn = lis_ng[ nn ]
+		set_pm = lis_weit[ nn ]
+
 		sub_img_file = sub_img % nn
 		sub_cont_file = sub_pix_cont % nn
 
@@ -255,11 +284,13 @@ def jack_main_func(id_cen, N_bin, n_rbins, cat_ra, cat_dec, cat_z, sat_ra, sat_d
 
 		if id_cut == False:
 			stack_func( img_file, sub_img_file, set_z, set_ra, set_dec, band_str, set_s_ra, set_s_dec, set_x, set_y, id_cen,
-				rms_file = sub_rms_file, pix_con_file = sub_cont_file, weit_img = weit_img)
+				rms_file = sub_rms_file, pix_con_file = sub_cont_file, weit_img = weit_img,
+				id_mean = id_Mean, Ng_weit = set_wn, Pm_weit = set_pm)
+
 		if id_cut == True:
 			cut_stack_func( img_file, sub_img_file, set_z, set_ra, set_dec, band_str, set_s_ra, set_s_dec, set_x, set_y, id_cen, N_edg,
-				rms_file = sub_rms_file, pix_con_file = sub_cont_file, weit_img = weit_img)
-
+				rms_file = sub_rms_file, pix_con_file = sub_cont_file, weit_img = weit_img, 
+				id_mean = id_Mean, Ng_weit = set_wn, Pm_weit = set_pm)
 
 	for nn in range( N_bin ):
 

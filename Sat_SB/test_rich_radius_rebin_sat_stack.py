@@ -52,7 +52,7 @@ n_rbins = 35
 
 
 ### === ### subsample sample stacking
-
+"""
 img_path = '/home/xkchen/data/SDSS/member_files/rich_binned_sat_wBCG/resamp_img/'
 d_file = img_path + 'Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
 
@@ -63,8 +63,7 @@ bin_rich = [ 20, 30, 50, 210 ]
 sub_name = ['low-rich', 'medi-rich', 'high-rich']
 
 
-# for ll in range( 1,2 ):
-for ll in ( 0, 2 ):
+for ll in range( 3 ):
 
 	##. radius cut
 
@@ -88,14 +87,9 @@ for ll in ( 0, 2 ):
 
 			band_str = band[ kk ]
 
-			# dat = pds.read_csv(cat_path + 
-			# 	'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR-%s-mem_%s-band_pos-zref.csv' 
-			# 		% ( bin_rich[ ll ], bin_rich[ll + 1], cat_lis[tt], band_str),)
-
 			dat = pds.read_csv(cat_path + 
-				'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem_pos-zref.csv' 
-					% ( bin_rich[ ll ], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]),)
-
+				'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem-%s-band_pos-zref.csv'
+					% ( bin_rich[ ll ], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1], band_str),)
 
 			bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
 			sat_ra, sat_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
@@ -132,7 +126,7 @@ for ll in ( 0, 2 ):
 
 print('%d-rank, Done' % rank )
 raise
-
+"""
 
 
 ##. background stacking
@@ -149,11 +143,9 @@ N_bin = 100   ## number of jackknife subsample
 bin_rich = [ 20, 30, 50, 210 ]
 
 sub_name = ['low-rich', 'medi-rich', 'high-rich']
-cat_lis = ['inner', 'middle', 'outer']
 
 
-# for ll in range( 1,2 ):
-for ll in ( 0, 2 ):
+for ll in range( 3 ):
 
 	##. radius cut
 
@@ -176,13 +168,9 @@ for ll in ( 0, 2 ):
 
 			band_str = band[ kk ]
 
-			# dat = pds.read_csv(cat_path + 
-			# 	'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR-%s-mem_%s-band_pos-zref.csv' 
-			# 		% ( bin_rich[ ll ], bin_rich[ll + 1], cat_lis[tt], band_str),)
-
 			dat = pds.read_csv(cat_path + 
-				'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem_pos-zref.csv' 
-					% ( bin_rich[ ll ], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]),)
+				'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem-%s-band_pos-zref.csv'
+					% ( bin_rich[ ll ], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1], band_str),)
 
 			bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
 			sat_ra, sat_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
@@ -193,10 +181,6 @@ for ll in ( 0, 2 ):
 
 
 			##. N_g for weight
-			# pat = pds.read_csv( cat_path + 
-			# 		'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR-%s-mem_%s-band_sat-shufl-%d_shufl-Ng.csv' % 
-			# 		(bin_rich[ ll ], bin_rich[ll + 1], cat_lis[tt], band_str, list_order),)
-
 			pat = pds.read_csv( cat_path + 
 					'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem_%s-band_sat-shufl-%d_shufl-Ng.csv' % 
 					(bin_rich[ ll ], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1], band_str, list_order),)

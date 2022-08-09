@@ -57,7 +57,6 @@ sub_name = ['low-rich', 'medi-rich', 'high-rich']
 # out_path = '/home/xkchen/data/SDSS/member_files/rich_binned_shufl_img/shufl_cat/'
 
 # for kk in range( 20 ):
-
 # 	for dd in range( 3 ):
 # 		band_str = band[ dd ]   ## i-band as test
 
@@ -412,3 +411,4 @@ def count_shufl_N_sat():
 # count_shufl_N_sat()
 
 raise
+

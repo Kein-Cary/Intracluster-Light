@@ -62,17 +62,17 @@ out_path = '/home/xkchen/data/SDSS/member_files/rich_binned_shufl_img/shufl_cat/
 R_cut = 320   ##. pixels
 
 N_shufl = 20     ###. shuffle times
-list_order = 0   ###. in range [0, 20)
+list_order = 13  ###. in range [0, 20)
 print( 'list_order = ', list_order )
 
-"""
+
 img_path = '/home/xkchen/data/SDSS/photo_files/pos_offset_correct_imgs/nobcg_mask_img/'
 img_file = img_path + 'photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
 
 out_file = '/home/xkchen/project/tmp/mask_img/clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_img.fits'
 
-# for tt in range( len(bin_rich) - 1 ):
-for tt in range( 1,2 ):
+# for tt in range( 1,2 ):
+for tt in ( 0, 2 ):
 
 	for kk in range( 3 ):
 
@@ -118,13 +118,13 @@ for tt in range( 1,2 ):
 
 	print('%s, %d-rank, cut Done!' %(sub_name[tt], rank), )
 
-"""
+commd.Barrier()
 
 
 
 ##. resampling... 
-# for tt in range( len(bin_rich) - 1 ):
-for tt in range( 1,2 ):
+# for tt in range( 1,2 ):
+for tt in ( 0, 2 ):
 
 	for kk in range( 3 ):
 

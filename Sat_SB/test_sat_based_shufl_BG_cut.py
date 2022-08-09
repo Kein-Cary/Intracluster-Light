@@ -19,12 +19,9 @@ from scipy import optimize
 from astropy import cosmology as apcy
 from astropy.coordinates import SkyCoord
 
-from img_sat_resamp import resamp_func
 from img_sat_resamp import BG_resamp_func
 from img_sat_BG_extract_tmp import origin_img_cut_func
 
-from img_sat_fast_stack import sat_img_fast_stack_func
-from img_sat_fast_stack import sat_BG_fast_stack_func
 
 #.
 import time
@@ -55,8 +52,6 @@ sub_name = ['low-rich', 'medi-rich', 'high-rich']
 
 #. masking
 home = '/home/xkchen/data/SDSS/'
-cat_path = '/home/xkchen/fig_tmp/Extend_Mbcg_richbin_sat_cat/'
-out_path = '/home/xkchen/data/SDSS/member_files/rich_binned_shufl_img/shufl_cat/'
 
 R_cut = 320   ##. pixels
 
@@ -64,6 +59,9 @@ N_shufl = 20      ###. shuffle times
 list_order = 13   ###. pre-cord (14, )
 print( 'list_order = ', list_order )
 
+##.satellite information 
+cat_path = '/home/xkchen/fig_tmp/Extend_Mbcg_richbin_sat_cat/'
+out_path = '/home/xkchen/data/SDSS/member_files/rich_binned_shufl_img/shufl_cat/'
 
 
 img_file = home + 'photo_files/pos_offset_correct_imgs/mask_img/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
