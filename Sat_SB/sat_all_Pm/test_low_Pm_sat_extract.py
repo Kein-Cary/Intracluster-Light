@@ -87,7 +87,7 @@ for tt in range( 3 ):
 		out_mask_file = home + 'member_files/sat_woBCG/mask_imgs/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_mask-img.fits'
 
 		# id_bcg = False  ### if mask out BCG or not~( False )
-		# out_mask_file = home + 'member_files/rich_binned_sat_wBCG/mask_img/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_mask-img.fits'
+		# out_mask_file = home + 'member_files/sat_wBCG/mask_img/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_mask-img.fits'
 
 		stack_cat = '/home/xkchen/project/tmp_obj_cat/clus_%s-band_ra%.3f_dec%.3f_z%.3f_Sat-cat.csv'
 
@@ -139,8 +139,8 @@ for tt in range( 3 ):
 	out_file = home + 'member_files/sat_woBCG/resamp_imgs/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
 
 	##. satellite image cut with BCG
-	# d_file = home + 'member_files/rich_binned_sat_wBCG/mask_img/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_mask-img.fits'
-	# out_file = home + 'member_files/rich_binned_sat_wBCG/resamp_img/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
+	# d_file = home + 'member_files/sat_wBCG/mask_img/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_mask-img.fits'
+	# out_file = home + 'member_files/sat_wBCG/resamp_img/Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
 
 
 	id_dimm = True

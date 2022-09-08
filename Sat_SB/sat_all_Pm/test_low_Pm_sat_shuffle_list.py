@@ -41,7 +41,7 @@ rad2arcsec = U.rad.to( U.arcsec )
 
 ### === data load
 cat_path = '/home/xkchen/fig_tmp/Extend_Mbcg_rich_rebin_sat_cat/'
-out_path = '/home/xkchen/data/SDSS/member_files/rich_binned_shufl_img/shufl_cat/'
+out_path = '/home/xkchen/data/SDSS/member_files/shufl_img_wBCG/shufl_cat/'
 
 bin_rich = [ 20, 30, 50, 210 ]
 

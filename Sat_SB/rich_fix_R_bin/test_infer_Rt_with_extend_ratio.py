@@ -85,7 +85,7 @@ if R_str == 'phy':
         else:
             fig_name.append( '$%d \\leq R \\leq %d \, kpc$' % (R_bins[dd], R_bins[dd + 1]),)
 
-#.
+##.
 if R_str == 'scale':
 
     fig_name = []
@@ -100,22 +100,24 @@ if R_str == 'scale':
         else:
             fig_name.append( '$%.2f \\leq R \\leq %.2f \, R_{200m}$' % (R_bins[dd], R_bins[dd + 1]),)
 
-
+##.
+"""
 for kk in range( 1 ):
 
     band_str = band[ kk ]
 
     #. data load
-    for qq in range( 2,3 ):
+    for qq in range( 3 ):
 
         crit_eta_0 = 0.15
+        crit_R_0 = []
 
         crit_eta = [0.05, 0.15, 0.25, 0.50, 0.75, 0.90]
         crit_R = []
 
-        out_R_lim = 30
+        out_R_lim = 40
 
-        for tt in range( 3, len(R_bins) - 2 ):
+        for tt in range( len(R_bins) - 1 ):
 
             if R_str == 'phy':
 
@@ -145,24 +147,15 @@ for kk in range( 1 ):
                 cc_tt_r, cc_tt_sb = np.array( cc_dat['r'] ), np.array( cc_dat['sb'] )
 
 
-            id_rx = cc_tt_r < 80   ##.kpc
+            id_rx = cc_tt_r < 80 ##.kpc
             _tt_tmp_F = interp.interp1d( cc_tt_r[ id_rx ], cc_tt_sb[ id_rx ], kind = 'cubic', fill_value = 'extrapolate',)
 
 
             if tt == len(R_bins) - 2:
 
-                #. critical radius
-                id_rx = tt_r <= 50
-                sm_r = tt_r[ id_rx ]
-
-                tt_eta = tt_sb[ id_rx ] / tt_sb[ 0 ]
-
-                sm_eta = signal.savgol_filter( tt_eta, 5, 2)
-                relat_eta = (sm_eta[0] - sm_eta) / sm_eta[0]
-
-                _tmp_interp_F = interp.interp1d( relat_eta, np.log10( sm_r ), kind = 'cubic', fill_value = 'extrapolate',)
-
-                cen_R_lim_0 = 10**_tmp_interp_F( np.array( crit_eta ) )
+                ##.
+                cen_R_lim_0 = np.ones( len( crit_eta ), ) * np.nan
+                pre_R_lim = np.nan
 
             else:
 
@@ -212,23 +205,35 @@ for kk in range( 1 ):
                     cen_R_lim_0[ oo ] = x_new[ id_tag ][0]
 
             crit_R.append( cen_R_lim_0 )
+            crit_R_0.append( pre_R_lim )
 
-        plt.figure()
-        plt.plot( new_R, new_eta, 'r-',)
-        plt.plot( x_new, y_new, 'b--', )
-        plt.xlim( 2e0, 5e1 )
-        plt.xscale('log')
-        plt.ylim( -0.05, 1.05 )
-        plt.savefig('/home/xkchen/interp_test.png', dpi = 300)
-        plt.close()
+        # plt.figure()
+        # plt.plot( new_R, new_eta, 'r-',)
+        # plt.plot( x_new, y_new, 'b--', )
+        # plt.xlim( 2e0, 5e1 )
+        # plt.xscale('log')
+        # plt.ylim( -0.05, 1.05 )
+        # plt.savefig('/home/xkchen/interp_test.png', dpi = 300)
+        # plt.close()
 
-        raise
+        # raise
 
         ##. save the crit_R
-        tab_file = Table( crit_R, names = fig_name )
+        L0 = len( crit_R[0] )
+        L1 = len( crit_R_0 )
+
+        dcp_R = np.zeros( np.max([ L0, L1]), )
+        dcp_R[:L1] = crit_R_0
+        dcp_R[L1:L0] = np.nan
+
+        values = [ dcp_R ] + crit_R
+
+        tab_file = Table( values, names = ['pre_R_lim'] + fig_name )
         tab_file.write( out_path + 
                         'Extend_BCGM_gri-common_%s_%s_%s-band_smooth-exten_Rt_test.fits' % 
                         (sub_name[qq], R_str, band_str), overwrite = True)
+
+"""
 
 
 ##... figs
@@ -286,19 +291,18 @@ for kk in range( 1 ):
             p_table = pat[1].data
 
             crit_R = []
-            crit_R0 = []
+            crit_R0 = p_table['pre_R_lim']
 
             for tt in range( len(R_bins) - 1 ):
 
                 Rt_arr = np.array( p_table[ fig_name[tt] ] )
 
                 crit_R.append( Rt_arr[ id_set ] )
-                crit_R0.append( Rt_arr[ 1 ] )
 
             #.
             gax = axes[qq]
 
-            _kk_tmp_F = interp.interp1d( nbg_R[-1], nbg_SB[-1], kind = 'linear', fill_value = 'extrapolate',)
+            _kk_tmp_F = interp.interp1d( nbg_R[-1], nbg_SB[-1], kind = 'cubic', fill_value = 'extrapolate',)
 
             for mm in range( len(R_bins) -2 ):
 
@@ -334,10 +338,12 @@ for kk in range( 1 ):
 
                 gax.plot( x_new, y_new, ls = ':', color = color_s[mm],)
 
-            gax.annotate( s = line_name[qq] + ', %s-band' % band_str, xy = (0.02, 0.90), xycoords = 'axes fraction', fontsize = 14,)
+            gax.annotate( s = line_name[qq] + ', %s-band' % band_str, xy = (0.62, 0.03), xycoords = 'axes fraction', fontsize = 14, backgroundcolor = 'w',)
             gax.legend( loc = 3, frameon = True, fontsize = 13,)
 
-            gax.set_xlim( 2e0, 5e1 )
+            gax.set_xlim( 2e0, 2e2 )
+            # gax.set_xlim( 2e0, 5e1 )
+
             gax.set_xscale('log')
             gax.set_xlabel('$R \; [kpc]$', fontsize = 14)
 
@@ -351,4 +357,3 @@ for kk in range( 1 ):
         plt.savefig('/home/xkchen/%s_%s-band_sat-BG-sub_SB-ratio_%.2feta.png' % 
                     ( R_str, band_str, crit_eta[ id_set ] ), dpi = 300)
         plt.close()
-

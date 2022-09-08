@@ -24,6 +24,7 @@ Ms = C.M_sun.value # solar mass
 
 band = ['r', 'g', 'i', 'u', 'z']
 
+
 def rich2R_Melchior(z, lamda):
 	"""
 	Based on Melchior et al. 2017, the result r200 is the r200m (virial radius)
@@ -44,6 +45,7 @@ def rich2R_Melchior(z, lamda):
 	M200 = M
 
 	return M200, r200
+
 
 def rich2R_Simet(z, lamda, N_dist = 501):
 	"""
@@ -74,19 +76,25 @@ def rich2R_Simet(z, lamda, N_dist = 501):
 		B = (-1. / 2) * ( np.log(M_bar) - (np.log(M0) + alpha * np.log(lamda[tt] / lamda0)) )**2 / err_lnM**2
 		P_lnM_lamd = A * np.exp(B)
 		P_M_lamd = P_lnM_lamd / M_bar
+
 		est_M = np.sum(P_M_lamd * M_bar * dM) ## in unit of M_sun / h
+
 		M200[tt] = (est_M / h) * 0.98 ## in unit of M_sun
 
+		##.
 		Qc = kpc2m / Msun2kg # correction fractor of rho_c
 		Ez = np.sqrt(Omega_m * (1 + z[tt])**3 + Omega_k * (1 + z[tt])**2 + Omega_lambda)
 		Hz = H0 * Ez
 		rho_c = Qc * (3 * Hz**2) / (8 * np.pi * G) # in unit Msun/kpc^3
 		omega_z = Test_model.Om( z[tt] ) # density parameter
 		rho_m = V_num * rho_c * omega_z
+
 		r200 = ( 3 * M200[tt] / (4 * np.pi * rho_m) )**(1/3) # in unit kpc
+
 		R200[tt] = r200 * 1.
 
 	return M200, R200
+
 
 def rich2R_critical(z, lamda, N_dist = 501):
 	"""
@@ -129,6 +137,7 @@ def rich2R_critical(z, lamda, N_dist = 501):
 		R200[tt] = r200 * 1.
 
 	return M200, R200
+
 
 if __name__ == "__main__":
 	main()

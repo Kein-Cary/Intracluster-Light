@@ -43,7 +43,9 @@ def sat_scaleR_binned():
 
 	##. fixed R for all richness subsample
 	# R_bins = np.array( [0, 5e-2, 1e-1, 2e-1, 4e-1, 1] )   ### times R200m
-	R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+	# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+	R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+
 
 	bin_rich = [ 20, 30, 50, 210 ]
 
@@ -76,6 +78,8 @@ def sat_scaleR_binned():
 			out_Rsat = p_Rsat[ sub_N ]
 			out_R2Rv = p_R2Rv[ sub_N ]
 			out_clus_ID = clus_IDs[ sub_N ]
+
+			# print( len( out_c_ra ) )
 
 			keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'R_sat', 'R2Rv', 'clus_ID'] 
 			values = [ out_c_ra, out_c_dec, out_c_z, out_s_ra, out_s_dec, out_Rsat, out_R2Rv, out_clus_ID]
@@ -123,7 +127,6 @@ def sat_scaleR_binned():
 						'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_Pm_cat.csv' 
 						% ( bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1]), )
 
-	raise
 
 	##... match with stacked information
 	pos_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/'

@@ -55,7 +55,7 @@ n_rbins = 35
 ### === ### subsample sample stacking
 
 ##. sat_img with BCG
-# img_path = '/home/xkchen/data/SDSS/member_files/rich_binned_sat_wBCG/resamp_img/'
+# img_path = '/home/xkchen/data/SDSS/member_files/sat_wBCG/resamp_img/'
 # d_file = img_path + 'Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
 
 ##. sat_img without BCG
@@ -72,7 +72,6 @@ bin_rich = [ 20, 30, 50, 210 ]
 R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
 
 sub_name = ['low-rich', 'medi-rich', 'high-rich']
-
 
 for ll in range( 3 ):
 
@@ -126,11 +125,11 @@ raise
 
 ### === ### background stacking
 ##. sat_img with BCG
-# img_path = home + 'member_files/rich_binned_shufl_img/resamp_img/'
+# img_path = home + 'member_files/shufl_img_wBCG/resamp_img/'
 # d_file = img_path + 'clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp.fits'
 
 ##. sat_img without BCG
-img_path = '/home/xkchen/project/tmp/resamp_img/'
+img_path = '/home/xkchen/data/SDSS/member_files/shufl_img_woBCG/resamp_img/'
 d_file = img_path + 'clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp.fits'
 
 

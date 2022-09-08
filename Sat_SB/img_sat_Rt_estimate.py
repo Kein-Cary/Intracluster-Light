@@ -13,15 +13,31 @@ from scipy import integrate as integ
 
 
 ### === ### cosmology
-rad2asec = U.rad.to(U.arcsec)
-Test_model = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
-H0 = Test_model.H0.value
-h = H0 / 100
+def input_cosm_model( get_model = None ):
 
-Omega_m = Test_model.Om0
-Omega_lambda = 1.-Omega_m
-Omega_k = 1.- (Omega_lambda + Omega_m)
-Omega_b = Test_model.Ob0
+	global cosmo
+
+	if get_model is not None:
+		cosmo = get_model
+
+	else:
+		### cosmology
+		cosmo = apcy.Planck15.clone(H0 = 67.74, Om0 = 0.311)
+
+	return cosmo
+
+def cosmos_param():
+
+	global H0, h, Omega_m, Omega_lambda, Omega_k
+
+	## cosmology params
+	H0 = cosmo.H0.value
+	h = H0 / 100
+	Omega_m = cosmo.Om0
+	Omega_lambda = 1.-Omega_m
+	Omega_k = 1.- (Omega_lambda + Omega_m)
+
+	return
 
 
 ### === ### func.s
@@ -43,6 +59,7 @@ def Ms_to_Mh_func( z0, Mg_star ):
 	gama0 = 0.608
 	gama1 = 0.329
 
+	##.
 	lg_Mz = M10 + M11 * ( z0 / (1 + z0) )
 	Nz = N10 + N11 * ( z0 / (1 + z0) )
 	belt_z = belt0 + belt1 * ( z0 / (1 + z0) )

@@ -54,7 +54,7 @@ bin_rich = [ 20, 30, 50, 210 ]
 sub_name = ['low-rich', 'medi-rich', 'high-rich']
 
 # cat_path = '/home/xkchen/fig_tmp/Extend_Mbcg_richbin_sat_cat/'
-# out_path = '/home/xkchen/data/SDSS/member_files/rich_binned_shufl_img/shufl_cat/'
+# out_path = '/home/xkchen/data/SDSS/member_files/shufl_img_wBCG/shufl_cat/'
 
 # for kk in range( 20 ):
 # 	for dd in range( 3 ):
@@ -239,8 +239,8 @@ for kk in range( 100 ):
 
 			##. save table	
 			keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'orin_cID', 'orin_Rsat_phy', 
-					 'shufl_cID', 'cp_sx', 'cp_sy', 'cp_PA', 'cp_Rpix', 'cp_Rsat_phy', 'is_symP',
-					 'cp_bcg_ra', 'cp_bcg_dec', 'cp_bcg_z' ]
+					'shufl_cID', 'cp_sx', 'cp_sy', 'cp_PA', 'cp_Rpix', 'cp_Rsat_phy', 'is_symP',
+					'cp_bcg_ra', 'cp_bcg_dec', 'cp_bcg_z' ]
 
 			values = [ bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, clus_IDs, pre_R_sat, 
 					shufl_IDs, shufl_sx, shufl_sy, shufl_PA, shufl_Rpix, shufl_R_phy, id_symP,
@@ -251,6 +251,8 @@ for kk in range( 100 ):
 			out_data.to_csv( out_path + 'clust_rich_%d-%d_%s-band_sat-shuffle-%d_position.csv' % 
 							(bin_rich[tt], bin_rich[tt + 1], band_str, kk),)
 
+
+raise
 
 
 ### ===
@@ -409,6 +411,4 @@ def count_shufl_N_sat():
 	return
 
 # count_shufl_N_sat()
-
-raise
 

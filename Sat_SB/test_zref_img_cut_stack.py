@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import h5py
 import numpy as np
 import pandas as pds
-import astropy.io.fits as fits
 
 import astropy.units as U
 import astropy.constants as C

@@ -54,7 +54,7 @@ n_rbins = 35
 ### ================== ### subsamples~( binned with R_sat only)
 ##. sat_img stacking
 
-img_path = '/home/xkchen/data/SDSS/member_files/rich_binned_sat_wBCG/resamp_img/'
+img_path = '/home/xkchen/data/SDSS/member_files/sat_wBCG/resamp_img/'
 d_file = img_path + 'Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
 
 N_bin = 100   ## number of jackknife subsample
@@ -199,7 +199,7 @@ raise
 ### ================== ### subsamples~( binned with cluster richness )
 ##. sat_img stacking
 """
-img_path = '/home/xkchen/data/SDSS/member_files/rich_binned_sat_wBCG/resamp_img/'
+img_path = '/home/xkchen/data/SDSS/member_files/sat_wBCG/resamp_img/'
 d_file = img_path + 'Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
 
 N_bin = 100   ## number of jackknife subsample
@@ -340,7 +340,7 @@ raise
 
 
 ### ================== ### subsample sample stacking~( binned with richness and R_sat)
-img_path = '/home/xkchen/data/SDSS/member_files/rich_binned_sat_wBCG/resamp_img/'
+img_path = '/home/xkchen/data/SDSS/member_files/sat_wBCG/resamp_img/'
 d_file = img_path + 'Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
 
 N_bin = 100   ## number of jackknife subsample

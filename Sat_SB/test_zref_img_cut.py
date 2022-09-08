@@ -51,7 +51,6 @@ a_ref = 1 / (z_ref + 1)
 out_path = '/home/xkchen/figs_cp/SB_pros_check/cat/'
 shufl_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/shufl_list/tables/'
 
-
 ###... catalog for BG_img cut
 
 ##. cluster (30 < rich < 50)
@@ -76,7 +75,6 @@ for dd in range( 1 ):
 
 			clus_ID = np.array( cat['orin_cID'] )
 			clus_ID = clus_ID.astype( int )
-			set_IDs = list( set( clus_ID ) )
 
 			bcg_ra, bcg_dec, bcg_z = np.array( cat['bcg_ra'] ), np.array( cat['bcg_dec'] ), np.array( cat['bcg_z'] )
 
@@ -129,16 +127,16 @@ raise
 """
 
 
+
 ### ========= ### zref_img (image after pixel resampling) cut
 cat_path = '/home/xkchen/fig_tmp/Extend_Mbcg_richbin_sat_cat/'
 
 out_path = '/home/xkchen/img_zref_cut_test/cat/'
 
-img_file = '/home/xkchen/data/SDSS/photo_files/pos_offset_correct_imgs/resamp_img/photo-z_resamp_%s_ra%.3f_dec%.3f_z%.3f.fits'
+img_file = '/home/xkchen/data/SDSS/photo_files/pos_offset_correct_imgs/nobcg_resamp_img/photo-z_resamp_%s_ra%.3f_dec%.3f_z%.3f.fits'
 
 out_file = ( '/home/xkchen/img_zref_cut_test/imgs/' + 
 				'clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_img.fits',)[0]
-
 
 ##. cluster (30 < rich < 50)
 R_bins = np.array( [ 0, 300, 400, 550, 5000] )
@@ -159,7 +157,8 @@ for dd in range( 1 ):
 
 			##. shuffle table
 			rand_cat = pds.read_csv( out_path + 
-						'clust_rich_%d-%d_%s-band_sat-shuffle-%d_zref-img_cut-cat.csv' % (bin_rich[kk], bin_rich[kk + 1], band_str, tt),)
+						'clust_rich_%d-%d_%s-band_sat-shuffle-%d_zref-img_cut-cat.csv' % 
+						(bin_rich[kk], bin_rich[kk + 1], band_str, tt),)
 
 			bcg_ra, bcg_dec, bcg_z = np.array( rand_cat['bcg_ra'] ), np.array( rand_cat['bcg_dec'] ), np.array( rand_cat['bcg_z'] )
 			sat_ra, sat_dec = np.array( rand_cat['sat_ra'] ), np.array( rand_cat['sat_dec'] )
@@ -169,7 +168,7 @@ for dd in range( 1 ):
 			set_IDs = np.array( rand_cat['orin_cID'] )
 			rand_IDs = np.array( rand_cat['shufl_cID'] )
 
-			set_IDs = set_IDs.astype( int )		
+			set_IDs = set_IDs.astype( int )
 			rand_mp_IDs = rand_IDs.astype( int )
 
 			R_cut_pix = np.array( rand_cat['cut_size'] ) 

@@ -149,6 +149,7 @@ for tt in range( len(R_bins) - 1 ):
     tmp_err.append( sub_err )
 
 
+##... BG profiles
 tmp_bg_R, tmp_bg_SB, tmp_bg_err = [], [], []
 
 for tt in range( len(R_bins) - 1 ):
@@ -200,23 +201,11 @@ for tt in range( len(R_bins) - 1 ):
     nbg_err.append( sub_err )
 
 
-##. entire sample for comparison
-# tot_nbg_R, tot_nbg_SB, tot_nbg_err = [], [], []
-
-# for kk in range( 3 ):
-
-#     dat = pds.read_csv( '/home/xkchen/figs_cp/cc_rich_rebin/noBG_SBs/'
-#             'Extend_BCGM_gri-common_%s' % sub_name[ll] + '_%s-band_aveg-jack_BG-sub_SB.csv' % band[kk],)
-#     tt_r, tt_sb, tt_sb_err = np.array( dat['r'] ), np.array( dat['sb'] ), np.array( dat['sb_err'] )
-
-#     tot_nbg_R.append( tt_r )
-#     tot_nbg_SB.append( tt_sb )
-#     tot_nbg_err.append( tt_sb_err )
-
-
 ### === ### figs
+
 y_lim_0 = [ [1e-3, 4e0], [1e-3, 1e0], [1e-3, 7e0] ]
 y_lim_1 = [ [2e-3, 4e0], [1e-3, 1e0], [5e-3, 6e0] ]
+
 
 for kk in range( 3 ):
 
@@ -258,13 +247,6 @@ for kk in range( 3 ):
     fig = plt.figure( )
     ax1 = fig.add_axes( [0.13, 0.32, 0.85, 0.63] )
     sub_ax1 = fig.add_axes( [0.13, 0.11, 0.85, 0.21] )
-
-
-    # ax1.errorbar( tot_nbg_R[kk], tot_nbg_SB[kk], yerr = tot_nbg_err[kk], marker = '.', ls = ':', color = 'k',
-    #     ecolor = 'k', mfc = 'none', mec = 'k', capsize = 1.5, label = 'All galaxies',)
-
-    # _kk_tmp_F = interp.interp1d( tot_nbg_R[kk], tot_nbg_SB[kk], kind = 'cubic', fill_value = 'extrapolate',)
-
 
     ax1.errorbar( nbg_R[-1][kk], nbg_SB[-1][kk], yerr = nbg_err[-1][kk], marker = '', ls = '-', color = color_s[-1],
         ecolor = color_s[-1], mfc = 'none', mec = color_s[-1], capsize = 1.5, alpha = 0.75, label = fig_name[-1],)

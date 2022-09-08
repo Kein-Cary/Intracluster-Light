@@ -262,7 +262,6 @@ for kk in range( 1 ):
 
 
 
-
 for kk in range( 1 ):
 
     band_str = band[ kk ]

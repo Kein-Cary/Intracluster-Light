@@ -201,7 +201,7 @@ def origin_img_cut_func( clus_cat_file, img_file, band_str, sub_IDs, shufl_IDs, 
 	pos_file : '.csv' file, record satellites location in their cluster image frame.
 	img_file : '.fits' file, images will match the background patch cells
 	band_str : filter information
-	
+
 	sub_IDs : the target clusters
 	shufl_IDs : the cluster images
 	-------------------------------
@@ -224,7 +224,10 @@ def origin_img_cut_func( clus_cat_file, img_file, band_str, sub_IDs, shufl_IDs, 
 
 	for kk in range( N_ss ):
 
-		sub_ra, sub_dec = set_sat_ra[ kk ], set_sat_dec[ kk ]
+		kk_px, kk_py = shufl_sat_x[ kk ], shufl_sat_y[ kk ]
+
+		kk_ra, kk_dec = set_sat_ra[ kk ], set_sat_dec[ kk ]
+
 		ra_g, dec_g, z_g = set_bcg_ra[ kk ], set_bcg_dec[ kk ], set_bcg_z[ kk ]
 
 
@@ -239,9 +242,6 @@ def origin_img_cut_func( clus_cat_file, img_file, band_str, sub_IDs, shufl_IDs, 
 		#. cutout images
 		dL = np.int( np.ceil( R_cut ) )
 		cut_img = np.zeros( ( np.int( 2 * dL + 2 ), np.int( 2 * dL + 2 ) ), dtype = np.float32 ) + np.nan
-
-		kk_px, kk_py = shufl_sat_x[ kk ], shufl_sat_y[ kk ]
-		kk_ra, kk_dec = set_sat_ra[ kk ], set_sat_dec[ kk ]
 
 
 		#. satellite region select
@@ -519,7 +519,10 @@ def zref_img_cut_func( clus_cat_file, img_file, band_str, sub_IDs, shufl_IDs, se
 
 	for kk in range( N_ss ):
 
-		sub_ra, sub_dec = set_sat_ra[ kk ], set_sat_dec[ kk ]
+		kk_px, kk_py = shufl_sat_x[ kk ], shufl_sat_y[ kk ]
+
+		kk_ra, kk_dec = set_sat_ra[ kk ], set_sat_dec[ kk ]
+
 		ra_g, dec_g, z_g = set_bcg_ra[ kk ], set_bcg_dec[ kk ], set_bcg_z[ kk ]
 
 
@@ -534,9 +537,6 @@ def zref_img_cut_func( clus_cat_file, img_file, band_str, sub_IDs, shufl_IDs, se
 		#. cutout images
 		dL = np.int( np.ceil( R_cut[ kk ] ) )
 		cut_img = np.zeros( ( np.int( 2 * dL + 2 ), np.int( 2 * dL + 2 ) ), dtype = np.float32 ) + np.nan
-
-		kk_px, kk_py = shufl_sat_x[ kk ], shufl_sat_y[ kk ]
-		kk_ra, kk_dec = set_sat_ra[ kk ], set_sat_dec[ kk ]
 
 
 		#. satellite region select

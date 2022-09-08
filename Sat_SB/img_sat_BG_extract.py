@@ -451,12 +451,15 @@ def self_shufl_img_cut_func( pos_file, img_file, band_str, sub_IDs, R_cut, pix_s
 
 ### === control galaxy extract ~ (all sources are removed form the random images)
 #. control galaxy cut but with the taget galaxy removed
-def contrl_galx_BGcut_func( d_file, bcg_ra, bcg_dec, bcg_z, ra_set, dec_set, z_set, band, gal_file, out_file, R_cut, 
-							offset_file = None, pixel = 0.396):
+def contrl_galx_BGcut_func( d_file, bcg_ra, bcg_dec, bcg_z, ra_set, dec_set, z_set, band, 
+							shfl_ra, shfl_dec, shfl_z, sat_x, sat_y, out_file, R_cut, pixel = 0.396):
 	"""
 	d_file : path where image data saved (include file-name structure:'/xxx/xxx/xxx.xxx')
+
 	bcg_ra, bcg_dec, bcg_z : the cluster or BCG information (for image load)
-	----------------
+
+	shfl_ra, shfl_dec, shfl_z : information of shuffled image 
+	---------------------------
 
 	ra_set, dec_set, z_set : the information of gaalxies
 
@@ -465,67 +468,16 @@ def contrl_galx_BGcut_func( d_file, bcg_ra, bcg_dec, bcg_z, ra_set, dec_set, z_s
 	R_cut : pixel size of half width of cutout image
 
 	pixel : pixel scale, in unit of 'arcsec'
-	
-	offset_file : correction for the location of galaxy on the image frame
 	"""
 
-	##. origin image 
-	img_data = fits.open( d_file % (band, bcg_ra, bcg_dec, bcg_z),)
+	##. mapped image
+	img_data = fits.open( d_file % (band, shfl_ra, shfl_dec, shfl_z),)
 	img_arr = img_data[ 0 ].data
 
-	Header = img_data[0].header
-	wcs_lis = awc.WCS( Header )
+	##. galaxy location
+	kk_ra, kk_dec = ra_set, dec_set
 
-
-	if offset_file is not None:
-		off_dat = pds.read_csv( offset_file % (band, bcg_ra, bcg_dec, bcg_z), )
-
-		x2pk_off_arr = np.array( off_dat[ 'devi_pk_x' ] )
-		y2pk_off_arr = np.array( off_dat[ 'devi_pk_y' ] )
-
-		medi_x2pk_off = np.median( x2pk_off_arr )
-		medi_y2pk_off = np.median( y2pk_off_arr )
-
-	else:
-		medi_x2pk_off = 0.
-		medi_y2pk_off = 0.
-
-
-	##. satellite galaxy region
-	s_xn, s_yn = WCS_to_pixel_func( ra_set, dec_set, Header )
-	s_xn, s_yn = s_xn + medi_x2pk_off, s_yn + medi_y2pk_off
-
-
-	##. galaxy location in targ_filter
-	source = asc.read( gal_file % (band, bcg_ra, bcg_dec, bcg_z), )
-	Numb = np.array(source['NUMBER'][-1])
-	A = np.array(source['A_IMAGE'])
-	B = np.array(source['B_IMAGE'])
-	theta = np.array(source['THETA_IMAGE'])
-	p_type = np.array(source['CLASS_STAR'])
-
-	cx = np.array(source['X_IMAGE'])
-	cy = np.array(source['Y_IMAGE'])
-
-	peak_x = np.array( source['XPEAK_IMAGE'])
-	peak_y = np.array( source['YPEAK_IMAGE'])
-
-
-	##. find target galaxy in source catalog
-	pp_cx, pp_cy = s_xn, s_yn
-
-	d_cen_R = np.sqrt( (cx - pp_cx)**2 + (cy - pp_cy)**2 )
-	id_xcen = d_cen_R == d_cen_R.min()
-	id_order = np.where( id_xcen )[0][0]
-
-	kk_px, kk_py = cx[ id_order ], cy[ id_order ]
-	kk_major_R = a[ id_order ]
-
-	cen_ar = A[ id_order ] * 3
-	cen_br = B[ id_order ] * 3
-
-	cen_cr = np.sqrt( cen_ar**2 - cen_br**2 )
-	cen_chi = theta[ id_order ] * np.pi / 180
+	kk_px, kk_py = sat_x, sat_y
 
 
 	##.. cut image for given cut size
@@ -569,22 +521,13 @@ def contrl_galx_BGcut_func( d_file, bcg_ra, bcg_dec, bcg_z, ra_set, dec_set, z_s
 
 	cc_px, cc_py = xn + _cx_off, yn + _cy_off
 
-
-	##.. peak position
-	_pkx, _pky = peak_x[ id_order ], peak_y[ id_order ]
-
-	devi_x = _pkx - kk_px
-	devi_y = _pky - kk_py
-
-	cc_pkx, cc_pky = cc_px + devi_x, cc_py + devi_y
-
-
 	kk_Nx, kk_Ny = cut_img.shape[1], cut_img.shape[0]
 
-	#. save fits files
-	keys = [ 'SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2', 'CENTER_X','CENTER_Y', 'PEAK_X', 'PEAK_Y', 
-			'CRVAL1','CRVAL2','BCG_RA','BCG_DEC','BCG_Z', 'P_SCALE' ]
-	value = [ 'T', 32, 2, kk_Nx, kk_Ny, cc_px, cc_py, cc_pkx, cc_pky, kk_ra, kk_dec, bcg_ra, bcg_dec, bcg_z, pixel ]
+	##. save fits files
+	keys = [ 'SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2', 'CENTER_X','CENTER_Y', 
+								'CRVAL1','CRVAL2','BCG_RA','BCG_DEC','BCG_Z', 'P_SCALE' ]
+	value = [ 'T', 32, 2, kk_Nx, kk_Ny, cc_px, cc_py, kk_ra, kk_dec, bcg_ra, bcg_dec, bcg_z, pixel ]
+
 	ff = dict( zip( keys, value ) )
 	fil = fits.Header(ff)
 	fits.writeto( out_file % (band, bcg_ra, bcg_dec, bcg_z, kk_ra, kk_dec ), cut_img, header = fil, overwrite = True)

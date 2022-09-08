@@ -160,7 +160,7 @@ raise
 ### === ### background stacking
 
 ##. sat_img without BCG
-img_path = '/home/xkchen/project/tmp/resamp_img/'
+img_path = '/home/xkchen/data/SDSS/member_files/shufl_img_woBCG/resamp_img/'
 d_file = img_path + 'clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp.fits'
 
 #. shuffle list

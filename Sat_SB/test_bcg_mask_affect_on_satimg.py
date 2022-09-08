@@ -42,25 +42,23 @@ band = ['r', 'g', 'i']
 
 ### === data load
 ##. img_tract with BCG
-cc_BG_path = '/home/xkchen/figs_cp/cc_rich_rebin/BGs/'
-cc_out_path = '/home/xkchen/figs_cp/cc_rich_rebin/noBG_SBs/'
-cc_path = '/home/xkchen/figs_cp/cc_rich_rebin/SBs/'
+cc_BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_rebin_bcg_affect_test/BGs/'
+cc_out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_rebin_bcg_affect_test/noBG_SBs/'
+cc_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_rebin_bcg_affect_test/SBs/'
 
 ##. img_tract without BCG
-path = '/home/xkchen/figs_cp/cc_rich_rebin/nobcg_SBs/'
-BG_path = '/home/xkchen/figs_cp/cc_rich_rebin/nobcg_BGs/'
-out_path = '/home/xkchen/figs_cp/cc_rich_rebin/nobcg_BGsub_SBs/'
+path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_rebin_bcg_affect_test/nobcg_SBs/'
+BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_rebin_bcg_affect_test/nobcg_BGs/'
+out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_rebin_bcg_affect_test/nobcg_BGsub_SBs/'
 
-cat_path = '/home/xkchen/figs_cp/cc_rich_rebin/cat/'
+cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_rebin_bcg_affect_test/cat/'
 
 
 ### === results comparison
 ##. shuffle list
 list_order = 13
 
-
 ll = 0    ##. ll = 0, 1, 2
-
 
 ##. rich (30, 50)
 if ll == 1:

@@ -57,20 +57,21 @@ R_cut = 320   ##. pixels
 
 N_shufl = 20      ###. shuffle times
 list_order = 13   ###. pre-cord (14, )
+
 print( 'list_order = ', list_order )
 
 ##.satellite information 
 cat_path = '/home/xkchen/fig_tmp/Extend_Mbcg_richbin_sat_cat/'
-out_path = '/home/xkchen/data/SDSS/member_files/rich_binned_shufl_img/shufl_cat/'
+out_path = '/home/xkchen/data/SDSS/member_files/shufl_img_wBCG/shufl_cat/'
 
-
+"""
 img_file = home + 'photo_files/pos_offset_correct_imgs/mask_img/photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
-out_file = ( home + 'member_files/rich_binned_shufl_img/mask_img/' + 
+out_file = ( home + 'member_files/shufl_img_wBCG/mask_img/' + 
 				'clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_img.fits',)[0]
 
-for tt in range( 1 ):
+for tt in range( 1, 2 ):
 
-	for kk in range( 3 ):
+	for kk in range( 1 ):
 
 		band_str = band[ kk ]
 
@@ -107,21 +108,23 @@ for tt in range( 1 ):
 		sub_cp_sx, sub_cp_sy = shufl_sx[N_sub0 : N_sub1], shufl_sy[N_sub0 : N_sub1]
 
 		#. clust cat_file
-		clust_cat_file = cat_path + 'clust_rich_%d-%d_cat.csv' % (bin_rich[tt], bin_rich[tt + 1])
+		clust_cat_file = cat_path + 'clust_rich_%d-%d_cat.csv' % (bin_rich[tt], bin_rich[tt+1])
 
 		origin_img_cut_func( clust_cat_file, img_file, band_str, sub_clusID, sub_rand_mp_ID, sub_bcg_ra, sub_bcg_dec, sub_bcg_z, 
 							sub_sat_ra, sub_sat_dec, sub_cp_sx, sub_cp_sy, R_cut, pixel, out_file )
 
 	print('%s, %d-rank, cut Done!' %(sub_name[tt], rank), )
 
-commd.Barrier()
+# commd.Barrier()
 
+raise
+"""
 
 
 #. resampling... 
-for tt in range( 1 ):
+for tt in range( 1, 2 ):
 
-	for kk in range( 3 ):
+	for kk in range( 1 ):
 
 		band_str = band[ kk ]
 
@@ -171,11 +174,10 @@ for tt in range( 1 ):
 
 
 		id_dimm = True
-		d_file = home + 'member_files/rich_binned_shufl_img/mask_img/clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_img.fits'
-		out_file = home + 'member_files/rich_binned_shufl_img/resamp_img/clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp.fits'
+		d_file = home + 'member_files/shufl_img_wBCG/mask_img/clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_img.fits'
+		out_file = home + 'member_files/shufl_img_wBCG/resamp_img/clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp.fits'
 
-		BG_resamp_func( d_file, sub_z, sub_ra, sub_dec, ra_set, dec_set, img_x, img_y, band_str, out_file, 
-					sub_z_bg, z_ref, id_dimm = id_dimm )
+		BG_resamp_func( d_file, sub_z, sub_ra, sub_dec, ra_set, dec_set, img_x, img_y, band_str, out_file, sub_z_bg, z_ref, id_dimm = id_dimm )
 
 	print( '%d rank, done!' % rank )
 

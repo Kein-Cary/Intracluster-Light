@@ -187,7 +187,8 @@ bin_rich = [ 20, 30, 50, 210 ]
 
 ##. fixed R for all richness subsample
 # R_bins = np.array( [0, 5e-2, 1e-1, 2e-1, 4e-1, 1] )   ### times R200m
-R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 
 for pp in range( 3 ):

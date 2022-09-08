@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import h5py
 import numpy as np
 import pandas as pds
-import astropy.io.fits as fits
 
 import astropy.units as U
 import astropy.constants as C
@@ -31,12 +30,12 @@ band = ['r', 'g', 'i']
 
 
 ### === SB profiles compare
-BG_path = '/home/xkchen/figs_cp/cc_rich_rebin/BGs/'
+BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_rebin_bcg_affect_test/BGs/'
+path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_rebin_bcg_affect_test/SBs/'
 cp_path = '/home/xkchen/figs_cp/SB_pros_check/BGs/'
-path = '/home/xkchen/figs_cp/cc_rich_rebin/SBs/'
 
 
-#.
+##.
 bin_rich = [ 20, 30, 50, 210 ]
 R_bins = np.array( [ 0, 300, 400, 550, 5000] )
 
@@ -44,7 +43,7 @@ list_order = 13
 
 sub_name = ['low-rich', 'medi-rich', 'high-rich']
 
-#. medi-rich sample
+##. medi-rich sample
 ll = 1
 
 band_str = 'r'
@@ -65,7 +64,7 @@ for tt in range( len(R_bins) - 1 ):
     tmp_bg_SB.append( tt_sb )
     tmp_bg_err.append( tt_err )
 
-
+##.
 cp_bg_R, cp_bg_SB, cp_bg_err = [], [], []
 
 for tt in range( len(R_bins) - 1 ):

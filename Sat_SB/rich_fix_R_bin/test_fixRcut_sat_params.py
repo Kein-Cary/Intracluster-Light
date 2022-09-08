@@ -31,7 +31,8 @@ z_ref = 0.25
 pixel = 0.396
 
 
-### === ### data load
+### === ### query table
+
 ##. member galaxy information catalog~( absolute magnitude)
 pat = fits.open('/home/xkchen/figs/extend_Zphoto_cat/zphot_01_033_cat/' + 
 				'redMaPPer_z-phot_0.1-0.33_member_params.fit')
@@ -71,17 +72,84 @@ sat_mag_z = sat_table['MODEL_MAG_Z']
 sat_coord = SkyCoord( ra = sat_ra * U.deg, dec = sat_dec * U.deg )
 
 
+
+### === ### over all Pm-cut galaxy params
+cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/cat/'
+
+dat = pds.read_csv( cat_path + 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv')
+
+sub_ra, sub_dec = np.array( dat['ra'] ), np.array( dat['dec'] )
+sub_coord = SkyCoord( ra = sub_ra * U.deg, dec = sub_dec * U.deg )
+
+#.
+id_x0, d2d, d3d = sub_coord.match_to_catalog_sky( cp_coord )
+id_lim = d2d.value < 2.7e-4
+
+lim_cmag_u = cp_cmag_u[ id_x0[id_lim] ]
+lim_cmag_g = cp_cmag_g[ id_x0[id_lim] ]
+lim_cmag_r = cp_cmag_r[ id_x0[id_lim] ]
+lim_cmag_i = cp_cmag_i[ id_x0[id_lim] ]
+lim_cmag_z = cp_cmag_z[ id_x0[id_lim] ]
+
+lim_z = cp_z[ id_x0[id_lim] ]
+lim_zErr = cp_zErr[ id_x0[id_lim] ]
+
+#.
+id_x1, d2d, d3d = sub_coord.match_to_catalog_sky( sat_coord )
+id_lim = d2d.value < 2.7e-4
+
+lim_mag_u = sat_mag_u[ id_x1[id_lim] ]
+lim_mag_g = sat_mag_g[ id_x1[id_lim] ]
+lim_mag_r = sat_mag_r[ id_x1[id_lim] ]
+lim_mag_i = sat_mag_i[ id_x1[id_lim] ]
+lim_mag_z = sat_mag_z[ id_x1[id_lim] ]
+
+lim_IDs = sat_objID[ id_x1[id_lim] ]
+
+#.
+keys = list( dat.columns[1:] )
+N_ks = len( keys )
+
+tmp_arr = []
+
+for dd in range( N_ks ):
+	tmp_arr.append( np.array( dat[ keys[ dd ] ] ) )
+
+##.
+keys = keys + [	'objID', 'z', 'zErr', 
+				'cModelMag_u', 'cModelMag_g', 'cModelMag_r', 'cModelMag_i', 'cModelMag_z', 
+				'modelMag_u', 'modelMag_g', 'modelMag_r', 'modelMag_i', 'modelMag_z']
+
+lim_arr = [ lim_IDs, lim_z, lim_zErr, 
+			lim_cmag_u, lim_cmag_g, lim_cmag_r, lim_cmag_i, lim_cmag_z, 
+			lim_mag_u, lim_mag_g, lim_mag_r, lim_mag_i, lim_mag_z ]
+
+for dd in range( len( lim_arr ) ):
+	tmp_arr.append( lim_arr[ dd ] )
+
+tab_file = Table( tmp_arr, names = keys )
+tab_file.write( cat_path + 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_mem_params.fits', overwrite = True )
+
+print('Done!')
+
+
+raise
+
+
+### === ### subsamples
+
 ##. subsamples catalog 
 cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/cat/'
 
 bin_rich = [ 20, 30, 50, 210 ]
 
 ##. R_limmits
-R_str = 'phy'
-R_bins = np.array( [ 0, 300, 400, 550, 5000] )     ### kpc
+# R_str = 'phy'
+# R_bins = np.array( [ 0, 300, 400, 550, 5000] )     ### kpc
 
-# R_str = 'scale'
+R_str = 'scale'
 # R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 
 for kk in range( 3 ):
@@ -168,3 +236,4 @@ for kk in range( 3 ):
 					(bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1]), overwrite = True )
 
 print('Done!')
+

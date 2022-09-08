@@ -12,7 +12,6 @@ import scipy.interpolate as interp
 
 from io import StringIO
 from astropy import cosmology as apcy
-from astropy import cosmology as apcy
 from astropy.coordinates import SkyCoord
 
 ##.
@@ -122,9 +121,6 @@ for jj in range( 4 ):
 
 				extra_img = [ home + 'photo_data/frame-r-ra%.3f-dec%.3f-redshift%.3f.fits.bz2',
 								home + 'photo_data/frame-g-ra%.3f-dec%.3f-redshift%.3f.fits.bz2']
-
-			# adjust_mask_func( d_file, cat_file, set_z, set_ra, set_dec, band_str, gal_file, out_file, bcg_mask,
-			# 	offset_file = offset_file, bcg_photo_file = bcg_photo_file, extra_cat = extra_cat, extra_img = extra_img,)
 
 			adjust_mask_func( d_file, cat_file, set_z, set_ra, set_dec, band_str, gal_file, out_file, bcg_mask,
 				offset_file = offset_file, extra_cat = extra_cat, extra_img = extra_img,)

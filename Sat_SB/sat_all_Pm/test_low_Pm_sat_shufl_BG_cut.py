@@ -56,14 +56,14 @@ print( 'list_order = ', list_order )
 home = '/home/xkchen/data/SDSS/'
 
 cat_path = '/home/xkchen/fig_tmp/Extend_Mbcg_rich_rebin_sat_cat/'
-out_path = '/home/xkchen/data/SDSS/member_files/rich_binned_shufl_img/shufl_cat/'
+out_path = '/home/xkchen/data/SDSS/member_files/shufl_img_wBCG/shufl_cat/'
 
 
 ##.. satellite image cut without BCG
 img_path = '/home/xkchen/data/SDSS/photo_files/pos_offset_correct_imgs/nobcg_mask_img/'
 img_file = img_path + 'photo-z_mask_%s_ra%.3f_dec%.3f_z%.3f.fits'
 
-out_file = '/home/xkchen/project/tmp/mask_img/clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_img.fits'
+out_file = '/home/xkchen/data/SDSS/member_files/shufl_img_woBCG/mask_img/clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_img.fits'
 
 for tt in range( 3 ):
 
@@ -170,8 +170,8 @@ for tt in range( 3 ):
 
 
         id_dimm = True
-        d_file = '/home/xkchen/project/tmp/mask_img/clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_img.fits'
-        out_file = '/home/xkchen/project/tmp/resamp_img/clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp.fits'
+        d_file = '/home/xkchen/data/SDSS/member_files/shufl_img_woBCG/mask_img/clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_img.fits'
+        out_file = '/home/xkchen/data/SDSS/member_files/shufl_img_woBCG/resamp_img/clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp.fits'
 
         BG_resamp_func( d_file, sub_z, sub_ra, sub_dec, ra_set, dec_set, img_x, img_y, band_str, out_file, 
                         sub_z_bg, z_ref, id_dimm = id_dimm )
