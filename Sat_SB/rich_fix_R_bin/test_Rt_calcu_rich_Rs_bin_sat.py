@@ -79,7 +79,7 @@ def err_fit_func( p, x, y, yerr ):
 
 ### === ### match for subsample
 cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/cat/'
-out_path = '/home/xkchen/figs_cp/SB_pros_check/theory_Rt/'
+out_path = '/home/xkchen/figs_cp/theory_Rt/'
 
 ##. halo mass of satellites~( Li et al. 2016)
 ref_sub_Mh = [ 11.37, 11.92, 12.64 ]
@@ -90,9 +90,9 @@ ref_sat_Ms = [ 10.68, 10.72, 10.78 ]
 ref_R_edg = [ 0.1, 0.3, 0.6, 0.9 ]
 
 
-Li_dat = pds.read_csv('/home/xkchen/figs_cp/SB_pros_check/theory_Rt/Li_data/Li_Mh2Mstar_data_point.csv')
-Li_xerr = pds.read_csv('/home/xkchen/figs_cp/SB_pros_check/theory_Rt/Li_data/Li_Mh2Mstar_data_Xerr.csv')
-Li_yerr = pds.read_csv('/home/xkchen/figs_cp/SB_pros_check/theory_Rt/Li_data/Li_Mh2Mstar_data_Yerr.csv')
+Li_dat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/Li_Mh2Mstar_data_point.csv')
+Li_xerr = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/Li_Mh2Mstar_data_Xerr.csv')
+Li_yerr = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/Li_Mh2Mstar_data_Yerr.csv')
 
 Li_R = np.array( Li_dat['R'] )
 
@@ -115,7 +115,7 @@ def Li_data_fit():
     values = [ a_fit, b_fit, c_fit ]
     fill = dict( zip( keys, values) )
     out_data = pds.DataFrame( fill, index = ['k', 'v'])
-    out_data.to_csv( '/home/xkchen/figs_cp/SB_pros_check/theory_Rt/Li_data/R_Mh_fit_params.csv',)
+    out_data.to_csv( '/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mh_fit_params.csv',)
 
 
     fig = plt.figure()
@@ -157,7 +157,7 @@ def Li_data_fit():
     values = [ sa_fit, sb_fit, sc_fit ]
     fill = dict( zip( keys, values) )
     out_data = pds.DataFrame( fill, index = ['k', 'v'])
-    out_data.to_csv( '/home/xkchen/figs_cp/SB_pros_check/theory_Rt/Li_data/R_Mstar_fit_params.csv',)
+    out_data.to_csv( '/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mstar_fit_params.csv',)
 
 
     fig = plt.figure()
@@ -218,10 +218,10 @@ def fig_mass_infer():
 
 
     ##. Li's data fit params
-    cat = pds.read_csv('/home/xkchen/figs_cp/SB_pros_check/theory_Rt/Li_data/R_Mh_fit_params.csv')
+    cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mh_fit_params.csv')
     a_fit, b_fit, c_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
 
-    cat = pds.read_csv('/home/xkchen/figs_cp/SB_pros_check/theory_Rt/Li_data/R_Mstar_fit_params.csv')
+    cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mstar_fit_params.csv')
     sa_fit, sb_fit, sc_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
 
     new_R = np.logspace( -2, 1, 50 )
@@ -347,10 +347,10 @@ for kk in range( 3 ):
 
 
 ##. Li's data fit params
-cat = pds.read_csv('/home/xkchen/figs_cp/SB_pros_check/theory_Rt/Li_data/R_Mh_fit_params.csv')
+cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mh_fit_params.csv')
 a_fit, b_fit, c_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
 
-cat = pds.read_csv('/home/xkchen/figs_cp/SB_pros_check/theory_Rt/Li_data/R_Mstar_fit_params.csv')
+cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mstar_fit_params.csv')
 sa_fit, sb_fit, sc_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
 
 
@@ -534,14 +534,15 @@ for ll in range( 3 ):
     print( ll )
 
 
+
+
 ### === Rt compare
 marks = ['s', '>', 'o']
 mark_size = [10, 25, 35]
 color_s = ['b', 'g', 'r', 'm']
 
-
 ##.
-crit_eta = [0.05, 0.15, 0.25, 0.50, 0.75, 0.90]
+crit_eta = [ 0.05, 0.15, 0.25, 0.50, 0.75, 0.90, 0.95 ]
 
 for oo in range( len( crit_eta ) ):
 
@@ -578,7 +579,6 @@ for oo in range( len( crit_eta ) ):
         print( R_aveg )
         print( [ len(ll) for ll in R_sat_arr ] )
 
-
         ##. R_t and R_t_err 
         Rc = []
 
@@ -593,8 +593,12 @@ for oo in range( len( crit_eta ) ):
 
 
         ##. estimate with ratio decrease
+        # pat = fits.open( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/' + 
+        #                 'Extend_BCGM_gri-common_%s_%s_r-band_smooth-exten_Rt_test.fits' % (sub_name[qq], R_str),)
+
         pat = fits.open( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/' + 
-                        'Extend_BCGM_gri-common_%s_%s_r-band_smooth-exten_Rt_test.fits' % (sub_name[qq], R_str),)
+                        'Extend_BCGM_gri-common_%s_%s_r-band_polyfit_Rt_test.fits' % (sub_name[qq], R_str),)
+
         p_table = pat[1].data
 
         cp_Rc = []

@@ -65,7 +65,7 @@ def R_func( R, a, b, c):
 
 ### === ### data load
 cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/cat/'
-out_path = '/home/xkchen/figs_cp/SB_pros_check/theory_Rt/'
+out_path = '/home/xkchen/figs_cp/theory_Rt/'
 
 ##. halo mass of satellites~( Li et al. 2016)
 ref_sub_Mh = [ 11.37, 11.92, 12.64 ]
@@ -76,9 +76,9 @@ ref_sat_Ms = [ 10.68, 10.72, 10.78 ]
 ref_R_edg = [ 0.1, 0.3, 0.6, 0.9 ]
 
 
-Li_dat = pds.read_csv('/home/xkchen/figs_cp/SB_pros_check/theory_Rt/Li_data/Li_Mh2Mstar_data_point.csv')
-Li_xerr = pds.read_csv('/home/xkchen/figs_cp/SB_pros_check/theory_Rt/Li_data/Li_Mh2Mstar_data_Xerr.csv')
-Li_yerr = pds.read_csv('/home/xkchen/figs_cp/SB_pros_check/theory_Rt/Li_data/Li_Mh2Mstar_data_Yerr.csv')
+Li_dat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/Li_Mh2Mstar_data_point.csv')
+Li_xerr = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/Li_Mh2Mstar_data_Xerr.csv')
+Li_yerr = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/Li_Mh2Mstar_data_Yerr.csv')
 
 Li_R = np.array( Li_dat['R'] )
 
@@ -114,10 +114,10 @@ def fig_mass_infer():
 
 
 	##. Li's data fit params
-	cat = pds.read_csv('/home/xkchen/figs_cp/SB_pros_check/theory_Rt/Li_data/R_Mh_fit_params.csv')
+	cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mh_fit_params.csv')
 	a_fit, b_fit, c_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
 
-	cat = pds.read_csv('/home/xkchen/figs_cp/SB_pros_check/theory_Rt/Li_data/R_Mstar_fit_params.csv')
+	cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mstar_fit_params.csv')
 	sa_fit, sb_fit, sc_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
 
 	new_R = np.logspace( -2, 1, 50 )
@@ -195,7 +195,7 @@ def fig_mass_infer():
 	return
 
 # fig_mass_infer()
-
+# raise
 
 
 ##. halo mass infer
@@ -259,10 +259,10 @@ for tt in range( len( R_bins ) - 1 ):
 
 
 ##. Li's data fit params
-cat = pds.read_csv('/home/xkchen/figs_cp/SB_pros_check/theory_Rt/Li_data/R_Mh_fit_params.csv')
+cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mh_fit_params.csv')
 a_fit, b_fit, c_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
 
-cat = pds.read_csv('/home/xkchen/figs_cp/SB_pros_check/theory_Rt/Li_data/R_Mstar_fit_params.csv')
+cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mstar_fit_params.csv')
 sa_fit, sb_fit, sc_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
 
 R_str = 'scale'
@@ -288,7 +288,7 @@ for dd in range( len(R_bins) - 1 ):
 
 
 ##. Rt calculation
-"""
+
 pp_Rt = []
 pp_alpha_k = []
 
@@ -304,7 +304,7 @@ for tt in range( len( R_bins ) - 1 ):
 
 	tt_ra = np.array([])
 	tt_dec = np.array([])
-	
+
 	tt_Rsat = np.array([])
 	tt_R2Rv = np.array([])
 
@@ -351,8 +351,7 @@ for tt in range( len( R_bins ) - 1 ):
 	r_mm = np.sqrt( dR0**2 + x_mm**2 )
 
 	pm_F_halo = halo_nfw.density( r_mm )
-	pm_F_weit = halo_nfw.density( r_mm ) * r_mm 
-
+	pm_F_weit = halo_nfw.density( r_mm ) * r_mm
 
 	##.
 	rho_m_z = my_cosmo.rho_m( aveg_z )
@@ -443,7 +442,7 @@ ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12
 plt.savefig( '/home/xkchen/halo_sat_ebclose_3D_aveg_rho.png', dpi = 300)
 plt.close()
 
-"""
+raise
 
 
 ##.
@@ -497,8 +496,11 @@ for oo in range( len( crit_eta ) ):
 		Rc.append( tt_Rc )
 
 	##. estimate with ratio decrease
+	# pat = fits.open( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/' + 
+	# 				'Extend_BCGM_gri-common_Rs-bin_over-rich_r-band_smooth-exten_Rt_test.fits',)
+
 	pat = fits.open( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/' + 
-					'Extend_BCGM_gri-common_Rs-bin_over-rich_r-band_smooth-exten_Rt_test.fits',)
+					'Extend_BCGM_gri-common_Rs-bin_over-rich_r-band_polyfit_Rt_test.fits',)
 
 	p_table = pat[1].data
 

@@ -50,7 +50,7 @@ for kk in range( 1,2 ):
 	# cat = pds.read_csv( shufl_path + 
 	# 	'clust_rich_%d-%d_r-band_sat-shuffle-13_position.csv' % (bin_rich[kk], bin_rich[kk + 1]),)
 
-	cat = pds.read_csv( '/home/xkchen/figs_cp/SB_pros_check/cat/' + 
+	cat = pds.read_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/zref_imgcut_check/cat/' + 
 		'clust_rich_30-50_r-band_sat-shuffle-13_zref-img_cut-cat.csv')
 
 	clus_ID = np.array( cat['orin_cID'] )

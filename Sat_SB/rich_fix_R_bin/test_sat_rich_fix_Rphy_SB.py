@@ -101,7 +101,8 @@ sub_name = ['low-rich', 'medi-rich', 'high-rich']
 
 #     color_s.append( mpl.cm.rainbow( dd / ( len(R_bins) - 1 ) ) )
 
-color_s = ['b', 'c', 'g', 'r', 'm']
+# color_s = ['b', 'c', 'g', 'r', 'm']
+color_s = ['b', 'g', 'r', 'm', 'k']
 
 
 fig_name = []
@@ -204,7 +205,7 @@ for tt in range( len(R_bins) - 1 ):
 ### === ### figs
 
 y_lim_0 = [ [1e-3, 4e0], [1e-3, 1e0], [1e-3, 7e0] ]
-y_lim_1 = [ [2e-3, 4e0], [1e-3, 1e0], [5e-3, 6e0] ]
+y_lim_1 = [ [2e-3, 4e0], [7e-4, 1e0], [5e-3, 6e0] ]
 
 
 for kk in range( 3 ):
@@ -227,6 +228,7 @@ for kk in range( 3 ):
     ax1.legend( loc = 1, frameon = False, fontsize = 12,)
     ax1.add_artist( legend_2 )
 
+    ax1.set_xlim( 1e0, 1e3 )
     ax1.set_xscale('log')
     ax1.set_xlabel('R [kpc]', fontsize = 12,)
 
@@ -284,7 +286,7 @@ for kk in range( 3 ):
     sub_ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
 
     sub_ax1.set_ylabel('$\\mu \; / \; \\mu \,$ (%s)' % fig_name[-1], labelpad = 8, fontsize = 12,)
-    sub_ax1.set_ylim( 0.5, 1.15 )
+    sub_ax1.set_ylim( 0.5, 1.0 )
 
     sub_ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
     sub_ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)

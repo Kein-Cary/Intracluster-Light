@@ -95,7 +95,7 @@ raise
 
 
 ### === background stacking
-
+"""
 home = '/home/xkchen/data/SDSS/'
 cat_path = '/home/xkchen/fig_tmp/Extend_Mbcg_ctrlGalx_cat/'
 out_path = '/home/xkchen/fig_tmp/Extend_Mbcg_ctrlGalx_stack/'
@@ -143,7 +143,7 @@ for kk in range( 1 ):
 print('%d-rank, Done' % rank )
 
 raise
-
+"""
 
 
 ### %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ###

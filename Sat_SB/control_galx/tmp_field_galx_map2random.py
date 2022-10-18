@@ -211,6 +211,10 @@ all_Exint_r = np.array( galx_table['extinction_r'] )
 all_Exint_i = np.array( galx_table['extinction_i'] )
 all_Exint_z = np.array( galx_table['extinction_z'] )
 
+all_clus_ra = np.array( galx_table['map_clus_ra'] )
+all_clus_dec = np.array( galx_table['map_clus_dec'] )
+all_clus_z = np.array( galx_table['map_clus_z'] )
+
 
 ##.
 for pp in range( 3 ):
@@ -253,15 +257,21 @@ for pp in range( 3 ):
     cp_Exint_i = all_Exint_i[ id_gx[ id_lim ] ]
     cp_Exint_z = all_Exint_z[ id_gx[ id_lim ] ]
 
+    cp_clus_ra = all_clus_ra[ id_gx[ id_lim ] ]
+    cp_clus_dec = all_clus_dec[ id_gx[ id_lim ] ]
+    cp_clus_z = all_clus_z[ id_gx[ id_lim ] ]
+
 
     ##.
     keys = ['ra', 'dec', 'z', 'objid', 
+            'map_clus_ra', 'map_clus_dec', 'map_clus_z', 
             'cModelMag_u', 'cModelMag_g', 'cModelMag_r', 'cModelMag_i', 'cModelMag_z', 
             'modelMag_u', 'modelMag_g', 'modelMag_r', 'modelMag_i', 'modelMag_z', 
             'dered_u', 'dered_g', 'dered_r', 'dered_i', 'dered_z', 
             'extinction_u', 'extinction_g', 'extinction_r', 'extinction_i', 'extinction_z']
 
     values = [ mp_ra, mp_dec, mp_z, mp_IDs, 
+            cp_clus_ra, cp_clus_dec, cp_clus_z, 
             cp_cmag_u, cp_cmag_g, cp_cmag_r, cp_cmag_i, cp_cmag_z, 
             cp_mag_u, cp_mag_g, cp_mag_r, cp_mag_i, cp_mag_z, 
             cp_dered_u, cp_dered_g, cp_dered_r, cp_dered_i, cp_dered_z, 

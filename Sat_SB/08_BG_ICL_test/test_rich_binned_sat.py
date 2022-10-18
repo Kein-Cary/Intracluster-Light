@@ -31,6 +31,7 @@ Omega_k = 1.- (Omega_lambda + Omega_m)
 rad2arcsec = U.rad.to(U.arcsec)
 
 band = ['r', 'g', 'i']
+
 z_ref = 0.25
 pixel = 0.396
 a_ref = 1 / (z_ref + 1)
@@ -110,33 +111,16 @@ def mem_match_func( img_cat_file, mem_cat_file, out_sat_file ):
 	return
 
 
-### === ### binned satellite based on scaled radius
-##. cluster catalog
-def rich_binned_clust_cat():
-
+### === cluster catalog
+def cluster_binned():
 	cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/cat/'
-	out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/cat/'
 
 	dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/' + 
 						'Extend-BCGM_rgi-common_cat.csv')
 
 	ra, dec, z = np.array( dat['ra'] ), np.array( dat['dec'] ), np.array( dat['z'] )
-	rich = np.array( dat['rich'] )
-	clust_ID = np.array( dat['clust_ID'] )
-
-
-	##. re-compute R200m, and M200m
-	M_vir, R_vir = rich2R_Simet( z, rich )  ## M_sun, kpc
-	M_vir, R_vir = M_vir * h, R_vir * h / 1e3       ## M_sun / h, Mpc / h
-	lg_Mvir = np.log10( M_vir )
-
-
-	##. re-save the table
-	keys = ['ra', 'dec', 'z', 'rich', 'lg_Mh', 'R_vir', 'clust_ID']
-	values = [ ra, dec, z, rich, lg_Mvir, R_vir, clust_ID ]
-	fill = dict(zip( keys, values ) )
-	out_data = pds.DataFrame( fill )
-	out_data.to_csv( out_path + 'Extend-BCGM_rgi-common_cat.csv',)
+	rich, lg_Mh = np.array( dat['rich'] ), np.array( dat['lg_Mh'] )
+	R_vir, clust_ID = np.array( dat['R_vir'] ), np.array( dat['clust_ID'] )
 
 
 	##. rich binned
@@ -144,29 +128,23 @@ def rich_binned_clust_cat():
 
 	tmp_rich, tmp_lgMh = [], []
 
-	for kk in range( 3 ):
+	for kk in range( len(bin_rich) - 1 ):
 
-		dat = pds.read_csv( cat_path + 'clust_rich_%d-%d_cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]), )
-		sub_ra, sub_dec, sub_z = np.array( dat['ra'] ), np.array( dat['dec'] ), np.array( dat['z'] )
-		sub_rich = np.array( dat['rich'] )
-		sub_IDs = np.array( dat['clust_ID'] )
+		id_vx = ( rich >= bin_rich[ kk ] ) & ( rich <= bin_rich[ kk + 1 ] )
+		
+		sub_ra, sub_dec, sub_z = ra[ id_vx ], dec[ id_vx ], z[ id_vx ]
+		sub_rich, sub_lg_Mh, sub_Rv = rich[ id_vx ], lg_Mh[ id_vx ], R_vir[ id_vx ]
+		sub_clus_ID = clust_ID[ id_vx ]
 
-
-		##. re-compute R200m, and M200m
-		sub_M_vir, sub_R_vir = rich2R_Simet( sub_z, sub_rich )  ## M_sun, kpc
-		sub_M_vir, sub_R_vir = sub_M_vir * h, sub_R_vir * h / 1e3       ## M_sun / h, Mpc / h
-		sub_lg_Mvir = np.log10( sub_M_vir )
-
-		##. re-save the table
+		##.
 		keys = [ 'ra', 'dec', 'z', 'clust_ID', 'rich', 'lg_Mh', 'R_vir' ]
-		values = [ sub_ra, sub_dec, sub_z, sub_IDs, sub_rich, sub_lg_Mvir, sub_R_vir ]
+		values = [ sub_ra, sub_dec, sub_z, sub_clus_ID, sub_rich, sub_lg_Mh, sub_Rv ]
 		fill = dict(zip( keys, values) )
 		out_data = pds.DataFrame( fill )
-		out_data.to_csv( out_path + 'clust_rich_%d-%d_cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]), )
+		out_data.to_csv( cat_path + 'clust_rich_%d-%d_cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]), )
 
 		tmp_rich.append( sub_rich )
-		tmp_lgMh.append( sub_lg_Mvir )
-
+		tmp_lgMh.append( sub_lg_Mh )
 
 	medi_Mh_0 = np.log10( np.median( 10**( tmp_lgMh[0] ) ) )
 	medi_Mh_1 = np.log10( np.median( 10**( tmp_lgMh[1] ) ) )
@@ -198,83 +176,26 @@ def rich_binned_clust_cat():
 
 	return
 
-##. rematch member 
-def member_cat_refill_Rv():
-
-	cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/'
-	out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/cat/'
-
-	##. entire satellite sample
-	dat = pds.read_csv( out_path + 'Extend-BCGM_rgi-common_cat.csv' )
-	ra, dec, z = np.array( dat['ra'] ), np.array( dat['dec'] ), np.array( dat['z'] )
-	rich, R_vir, lg_Mh = np.array( dat['rich'] ), np.array( dat['R_vir'] ), np.array( dat['lg_Mh'] )
-
-	clust_IDs = np.array( dat['clust_ID'] )
-	clust_IDs = clust_IDs.astype( int )
-
-	N_s = len( ra )
-
-	files = [	'Extend-BCGM_rgi-common_member-cat.csv',
-				'Extend-BCGM_rgi-common_frame-limit_member-cat.csv',
-				'Extend-BCGM_rgi-common_frame-lim_exlu-BCG_member-cat.csv',
-				'Extend-BCGM_rgi-common_frame-limit_Pm-cut_member-cat.csv',
-				'Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv' ]
-
-	N_files = len( files )
-
-	for pp in range( N_files ):
-
-		cat = pds.read_csv( cat_path + files[ pp ] )
-
-		sub_bcg_ra, sub_bcg_dec, sub_bcg_z = np.array( cat['bcg_ra'] ), np.array( cat['bcg_dec'] ), np.array( cat['bcg_z'] )
-		sub_ra, sub_dec, sub_z = np.array( cat['ra'] ), np.array( cat['dec'] ), np.array( cat['z_spec'] )
-
-		sub_IDs = np.array( cat['clus_ID'] )
-
-		sub_gr, sub_ri, sub_gi = np.array( cat['g-r'] ), np.array( cat['r-i'] ), np.array( cat['g-i'] )
-		sub_Rcen = np.array( cat['R_cen'] )
-
-
-		sub_R2Rv = np.zeros( len(sub_ra), )
-
-		for nn in range( N_s ):
-
-			nn_ID = clust_IDs[ nn ]
-
-			id_gx = sub_IDs == nn_ID
-
-			sub_R2Rv[ id_gx ] = sub_Rcen[ id_gx ] / R_vir[ nn ]
-
-		##. save
-		keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'ra', 'dec', 'z_spec', 'Rcen/Rv', 'R_cen', 'g-r', 'r-i', 'g-i', 'clus_ID' ]
-		values = [ sub_bcg_ra, sub_bcg_dec, sub_bcg_z, sub_ra, sub_dec, sub_z, sub_R2Rv, sub_Rcen, sub_gr, sub_ri, sub_gi, sub_IDs ]
-		fill = dict( zip( keys, values) )
-		out_data = pds.DataFrame( fill )
-		out_data.to_csv( out_path + files[ pp ] )
-
-	return
-
-
 def clust_member_match():
 
-	cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/cat/'
+	cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/cat/'
 
 	bin_rich = [ 20, 30, 50, 210 ]
 
-	##. cluster match to satellites
-	for kk in range( len(bin_rich) - 1 ):
+	# ##. cluster match to satellites
+	# for kk in range( len(bin_rich) - 1 ):
 
-		img_cat_file = cat_path + 'clust_rich_%d-%d_cat.csv' % ( bin_rich[kk], bin_rich[kk + 1])
-		mem_cat_file = cat_path + 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv'
-		out_sat_file = cat_path + 'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv' % ( bin_rich[kk], bin_rich[kk + 1])
-		mem_match_func( img_cat_file, mem_cat_file, out_sat_file )
-
+	# 	img_cat_file = cat_path + 'clust_rich_%d-%d_cat.csv' % ( bin_rich[kk], bin_rich[kk + 1])
+	# 	mem_cat_file = '/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv'
+	# 	out_sat_file = cat_path + 'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv' % ( bin_rich[kk], bin_rich[kk + 1])
+	# 	mem_match_func( img_cat_file, mem_cat_file, out_sat_file )
+	
 
 	### === tables for Background stacking
 	##. cluster member match with satellites position
 	for kk in range( len(bin_rich) - 1 ):
 
-		dat = pds.read_csv( cat_path + 
+		dat = pds.read_csv(cat_path + 
 				'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
 
 		bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
@@ -336,7 +257,7 @@ def clust_member_match():
 
 			##. satellite location and cutout at z_obs
 			dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/' + 
-								'Extend-BCGM_rgi-common_frame-limit_member_%s-band_pos.csv' % band_str,)
+					'Extend-BCGM_rgi-common_frame-limit_member_%s-band_pos.csv' % band_str,)
 			kk_ra, kk_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
 			kk_imgx, kk_imgy = np.array( dat['cut_cx'] ), np.array( dat['cut_cy'] )
 
@@ -382,67 +303,128 @@ def clust_member_match():
 	return
 
 
-# rich_binned_clust_cat()
-# member_cat_refill_Rv()
+##.
+def count_N_sat():
+
+	cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/cat/'
+
+	bin_rich = [ 20, 30, 50, 210 ]
+
+	##. radius binned satellite
+	sub_name = ['inner', 'middle', 'outer']
+	##... 
+	R_bins = [ 0, 200, 400 ]   ## kpc
+
+
+	#... number count for the entire sample
+	for kk in range( 3 ):
+		
+		##. entire all sample
+		dat = pds.read_csv( cat_path + 'clust_rich_%d-%d_cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
+		clus_IDs = np.array( dat['clust_ID'] )
+		clus_IDs = clus_IDs.astype( int )
+
+		N_w = len( clus_IDs )
+
+
+		##. member table
+		dat = pds.read_csv(cat_path + 
+				'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
+
+		bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
+		cp_clus_IDs = np.array( dat['clus_ID'] )
+		cp_clus_IDs = cp_clus_IDs.astype( int )
+
+		N_g = np.zeros( len(bcg_ra),)
+
+		for tt in range( N_w ):
+			sub_IDs = clus_IDs[ tt ]
+
+			id_vx = cp_clus_IDs == sub_IDs
+			N_g[ id_vx ] = np.sum( id_vx )
+
+		#. save N_g for BG_img stacking weight
+		keys = ['ra', 'dec', 'z', 'N_g']
+		values = [ bcg_ra, bcg_dec, bcg_z, N_g ]
+		fill = dict( zip( keys, values ) )
+		data = pds.DataFrame( fill )
+		data.to_csv( cat_path + 
+				'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_sat-Ng.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
+
+	return
+
+
+# cluster_binned()
 # clust_member_match()
+# count_N_sat()
 
 
 
 ### === figs
-cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/cat/'
+cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/cat/'
 
 bin_rich = [ 20, 30, 50, 210 ]
+fig_name = ['low-$\\lambda$', 'medi-$\\lambda$', 'high-$\\lambda$']
+sub_name = ['inner', 'middle', 'outer']
 
-# Rs_lim = np.array( [0, 5e-2, 1e-1, 2e-1, 4e-1, 1] ) ### times R200m
-Rs_lim = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
-# Rs_lim = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
-
-tmp_Rcen, tmp_R2Rv = [], []
-
-for kk in range( 3 ):
-
-	dat = pds.read_csv(cat_path + 
-			'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
-
-	sub_ra, sub_dec, sub_z = np.array( dat['ra'] ), np.array( dat['dec'] ), np.array( dat['bcg_z'] )
-	sub_Rcen = np.array( dat['R_cen'] )
-	sub_R2Rv = np.array( dat['Rcen/Rv'] )
-
-	#.
-	for nn in range( len(Rs_lim) - 1 ):
-		
-		sub_N0 = ( Rs_lim[ nn ] <= sub_R2Rv ) & ( Rs_lim[ nn + 1 ] > sub_R2Rv )
-		print( np.sum( sub_N0 ) )
-
-	print('*' * 20 )
-
-	tmp_Rcen.append( sub_Rcen )
-	tmp_R2Rv.append( sub_R2Rv )
+line_c = ['b', 'g', 'r']
 
 #.
-color_s = ['b', 'g', 'r']
-line_name = ['$\\lambda \\leq 30$', '$30 \\leq \\lambda \\leq 50$', '$\\lambda \\geq 50$']
+R_bins = [ 0, 0.2, 0.4 ]       ## scaled radius
+R_phy = [ 0, 200, 400 ]       ## physical radius
 
-R_edgs = np.logspace( -3, 0, 55 )
 
-fig = plt.figure()
-ax = fig.add_axes( [0.10, 0.10, 0.80, 0.85] )
+fig = plt.figure( figsize = (12, 6),)
+ax0 = plt.subplot( 121 )
+ax1 = plt.subplot( 122 )
 
-for kk in range( 3 ):
+for kk in range( len(bin_rich) - 1 ):
+	
+	##.
+	s_dat = pds.read_csv( cat_path + 
+		'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
 
-	ax.hist( tmp_R2Rv[ kk ], bins = R_edgs, density = True, histtype = 'step', 
-			color = color_s[ kk ], label = line_name[ kk ],)
+	bcg_ra, bcg_dec, bcg_z = np.array( s_dat['bcg_ra'] ), np.array( s_dat['bcg_dec'] ), np.array( s_dat['bcg_z'] )
+	p_ra, p_dec = np.array( s_dat['ra'] ), np.array( s_dat['dec'] )
+	clus_IDs = np.array( s_dat['clus_ID'] )
 
-for kk in range( len(Rs_lim) - 1 ):
+	p_Rsat = np.array( s_dat['R_cen'] )
+	p_R2Rv = np.array( s_dat['Rcen/Rv'] )
 
-	ax.axvline( Rs_lim[ kk ], ls = ':', color = 'k',)
+	a_obs = 1 / (1 + bcg_z)
 
-ax.set_xscale('log')
-ax.set_xlim( 1e-3, 1e0 )
-ax.set_xlabel('$R_{sat} / R_{200m}$')
+	# p_Rsat = p_Rsat * 1e3 * a_ref / h  ##. physical radius
+	p_Rsat = p_Rsat * 1e3 * a_obs / h    ##. physical radius
 
-ax.legend( loc = 2,)
 
-plt.savefig('/home/xkchen/R_scale_hist.png', dpi = 300)
+	##.
+	sub_N0 = p_R2Rv <= R_bins[1]
+	sub_N1 = ( p_R2Rv > R_bins[1] ) & ( p_R2Rv <= R_bins[2] )
+	sub_N2 = p_R2Rv >= R_bins[2]
+
+	##.
+	phy_sub0 = p_Rsat <= R_phy[1]
+	phy_sub1 = ( p_Rsat > R_phy[1] ) & ( p_Rsat <= R_phy[2] )
+	phy_sub2 = p_Rsat >= R_phy[2]
+
+	print( '*' * 10 )
+	print( np.sum(sub_N0), np.sum(sub_N1), np.sum(sub_N2) )
+	print( np.sum(phy_sub0), np.sum(phy_sub1), np.sum(phy_sub2) )
+
+	##.
+	ax0.hist( p_Rsat, bins = 55, density = True, color = line_c[kk], histtype = 'step', label = fig_name[kk],)
+	ax1.hist( p_R2Rv, bins = 55, density = True, color = line_c[kk], histtype = 'step', label = fig_name[kk],)
+
+ax0.set_xlabel('$R_{sat} \;[kpc]$')
+ax0.legend( loc = 1, frameon = False,)
+ax0.axvline( x = 200, ls = ':', color = 'k',)
+ax0.axvline( x = 400, ls = ':', color = 'k',)
+
+ax1.set_xlabel('$R_{sat} / R_{200m}$')
+ax1.axvline( x = 0.2, ls = ':', color = 'k',)
+ax1.axvline( x = 0.4, ls = ':', color = 'k',)
+ax1.legend( loc = 1, frameon = False,)
+
+plt.savefig('/home/xkchen/sat_Rs_hist.png', dpi = 300)
 plt.close()
 

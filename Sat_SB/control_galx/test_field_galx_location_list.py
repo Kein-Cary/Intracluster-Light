@@ -86,14 +86,15 @@ for pp in range( 1 ):
 	tmp_pk_x, tmp_pk_y = np.array( tmp_pk_x ), np.array( tmp_pk_y )
 
 	#. save location list
-	keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'mx', 'my', 'peak_x', 'peak_y']
-	values = [ bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, tmp_m_x, tmp_m_y, tmp_pk_x, tmp_pk_y ]
+	keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'sat_z', 'mx', 'my', 'peak_x', 'peak_y']
+	values = [ bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, sat_z, tmp_m_x, tmp_m_y, tmp_pk_x, tmp_pk_y ]
 
 	fill = dict( zip( keys, values) )
 	out_data = pds.DataFrame( fill )
 	out_data.to_csv( '/home/xkchen/fig_tmp/Extend_Mbcg_ctrlGalx_cat/' + 
 					'random_field-galx_map_%s-band_frame-limit_pos-compare.csv' % band_str,)
 
+raise
 """
 
 
@@ -111,20 +112,33 @@ for kk in range( 1 ):
 	bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
 	sat_ra, sat_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
 
-	pre_coord = SkyCoord( ra = sat_ra * U.deg, dec = sat_dec * U.deg )
+	sat_z = np.array( dat['sat_z'] )
 
 	mx, my = np.array( dat['mx'] ), np.array( dat['my'] )
 	pk_x, pk_y = np.array( dat['peak_x'] ), np.array( dat['peak_y'] )
 
 	_off_cx, _off_cy = mx - 1, my - 1    #. position adjust.( based on SDSS_check )
-
 	# off_R = np.sqrt( (mx - pk_x)**2 + (my - pk_y)**2 )
 
-	##.
-	cat = pds.read_csv('/home/xkchen/fig_tmp/Extend_Mbcg_ctrlGalx_cat/' + 
-						'redMap_map_control_galx_%s-band_cut_pos.csv' % band_str,)
+	coord_sat = SkyCoord( ra = sat_ra * U.deg, dec = sat_dec * U.deg )
 
-	sat_z = np.array( cat['sat_z'] )
+
+	##. redshift mapping for stacking
+	ref_cat = pds.read_csv( '/home/xkchen/data/SDSS/member_files/redMap_contral_galx/control_cat/' + 
+						'random_field-galx_map_%s-band_cat_params.csv' % band_str,)
+
+	cp_s_ra, cp_s_dec, cp_s_z = np.array( ref_cat['ra'] ), np.array( ref_cat['dec'] ), np.array( ref_cat['z'] )
+	cp_clus_z = np.array( ref_cat['map_clus_z'] )
+
+	cp_coord_sat = SkyCoord( ra = cp_s_ra * U.deg, dec = cp_s_dec * U.deg )
+
+	idx, d2d, d3d = coord_sat.match_to_catalog_sky( cp_coord_sat )
+	id_lim = d2d.value < 2.7e-4
+
+	##. use for resampling
+	ref_clus_z = cp_clus_z[ idx[id_lim] ]
+
+
 
 	##.
 	keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'sat_z', 'cut_cx', 'cut_cy']
@@ -135,9 +149,9 @@ for kk in range( 1 ):
 					'random_field-galx_map_frame-limit_%s-band_pos.csv' % band_str,)
 
 
-	ref_satx, ref_saty = arr_zref_pos_func( _off_cx, _off_cy, sat_z, z_ref, pixel )
-
 	##.
+	ref_satx, ref_saty = arr_zref_pos_func( _off_cx, _off_cy, ref_clus_z, z_ref, pixel )
+
 	keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'sat_z', 'sat_x', 'sat_y' ]
 	values = [ bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, sat_z, ref_satx, ref_saty ]
 	fill = dict(zip(keys, values))

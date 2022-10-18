@@ -55,16 +55,14 @@ path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_SBs/'
 
 
 ##.
-# R_str = 'phy'
-# R_bins = np.array( [ 0, 300, 400, 550, 5000] )
-# N_sample = 100
+R_str = 'phy'
+R_bins = np.array( [ 0, 300, 400, 550, 5000] )
+N_sample = 100
 
-R_str = 'scale'
-R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
-N_sample = 50
-
-
-sub_name = ['low-rich', 'medi-rich', 'high-rich']
+# R_str = 'scale'
+# # R_bins = np.array( [0, 5e-2, 1e-1, 2e-1, 4e-1, 1] )   ### times R200m
+# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+# N_sample = 50
 
 
 ##.. shuffle order list
@@ -188,28 +186,32 @@ for kk in range( 3 ):
                 ax1.errorbar( cc_tt_r, cc_tt_sb, yerr = cc_tt_err, marker = '', ls = '-.', color = 'k',
                         ecolor = 'k', mfc = 'none', mec = 'k', capsize = 1.5, alpha = 0.25,)
 
-        ax1.annotate( s = fig_name[tt] + ', %s-band' % band_str, xy = (0.55, 0.85), xycoords = 'axes fraction',)
+        ax1.annotate( s = fig_name[tt] + ', %s-band' % band_str, xy = (0.55, 0.85), xycoords = 'axes fraction', fontsize = 12,)
         ax1.legend( loc = 3, frameon = False,)
 
         ax1.set_xlim( 2e0, 4e1 )
         ax1.set_xscale('log')
-        ax1.set_xlabel('R [kpc]')
+        ax1.set_xlabel('R [kpc]', fontsize = 12,)
 
         ax1.set_ylim( y_lim_1[kk][0], y_lim_1[kk][1] )
-        ax1.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$')
+        ax1.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
         ax1.set_yscale('log')
 
         sub_ax1.set_xlim( ax1.get_xlim() )
         sub_ax1.set_xscale('log')
-        sub_ax1.set_xlabel('$R \; [kpc]$')
+        sub_ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
 
-        sub_ax1.set_ylabel('$\\mu \; / \; \\mu \,(\\lambda \\geq 50)$', labelpad = 8)
-        sub_ax1.set_ylim( 0.75, 1.45 )
+        if R_str == 'phy':
+            sub_ax1.set_ylabel('$\\mu \; / \; \\mu \,(\\lambda \\geq 50)$', labelpad = 8, fontsize = 12,)
+            sub_ax1.set_ylim( 0.75, 1.45 )
 
-        # sub_ax1.set_ylabel('$\\mu \; / \; \\mu \,(\\lambda \\geq 50)$', labelpad = 8)
-        # sub_ax1.set_ylim( 0.75, 1.21 )
+        if R_str == 'scale':
+            sub_ax1.set_ylabel('$\\mu \; / \; \\mu \,(\\lambda \\geq 50)$', labelpad = 8, fontsize = 12,)
+            sub_ax1.set_ylim( 0.75, 1.21 )
 
         sub_ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
+        sub_ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
+        ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
         ax1.set_xticklabels( labels = [] )
 
         if R_str == 'phy':

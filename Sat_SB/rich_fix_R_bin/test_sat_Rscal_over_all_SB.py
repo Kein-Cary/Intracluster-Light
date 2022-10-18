@@ -40,6 +40,12 @@ band = ['r', 'g', 'i']
 
 
 ### === ### data load
+
+##. sat_img with BCG
+# BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/BGs/'
+# out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/noBG_SBs/'
+# path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/SBs/'
+
 ##. sat_img without BCG
 BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGs/'
 out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/'
@@ -53,7 +59,7 @@ N_sample = 100
 ##. background shuffle list order
 list_order = 13
 
-"""
+
 ##. background subtraction
 for tt in range( len(R_bins) - 1 ):
 
@@ -76,11 +82,13 @@ for tt in range( len(R_bins) - 1 ):
 
 		stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, sub_out_file = sub_out_file )
 
-"""
+raise
+
 
 
 ### === figs
-color_s = ['b', 'c', 'g', 'r', 'm']
+# color_s = ['b', 'c', 'g', 'r', 'm']
+color_s = ['b', 'g', 'r', 'm', 'k']
 
 fig_name = []
 
@@ -202,7 +210,7 @@ for kk in range( 3 ):
 	ax1.set_xscale('log')
 	ax1.set_xlabel('R [kpc]', fontsize = 12,)
 
-	ax1.annotate( text = '%s-band' % band[kk], xy = (0.65, 0.05), xycoords = 'axes fraction', fontsize = 12,)
+	ax1.annotate( s = '%s-band' % band[kk], xy = (0.65, 0.05), xycoords = 'axes fraction', fontsize = 12,)
 
 	ax1.set_ylim( y_lim_0[kk][0], y_lim_0[kk][1] )
 	ax1.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
@@ -241,7 +249,7 @@ for kk in range( 3 ):
 	daa = nbg_SB[-2][kk] / _kk_tmp_F( nbg_R[-2][kk] )
 
 
-	ax1.annotate( text = '%s-band' % band[kk], xy = (0.65, 0.85), xycoords = 'axes fraction', fontsize = 12,)
+	ax1.annotate( s = '%s-band' % band[kk], xy = (0.65, 0.85), xycoords = 'axes fraction', fontsize = 12,)
 	ax1.legend( loc = 3, frameon = False, fontsize = 12,)
 
 	ax1.set_xlim( 2e0, 5e1 )
@@ -266,4 +274,3 @@ for kk in range( 3 ):
 
 	plt.savefig('/home/xkchen/sat_%s-band_BG-sub_compare.png' % band[kk], dpi = 300)
 	plt.close()
-

@@ -88,6 +88,7 @@ out_file = out_path + 'ctrl-galx_Extend_BCGM_gri-common_cat-mapped_%s-band_aveg-
 
 stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, sub_out_file = sub_out_file )
 
+raise
 """
 
 
@@ -269,56 +270,67 @@ plt.close()
 
 ##.
 fig = plt.figure( )
-ax1 = fig.add_axes([0.12, 0.31, 0.80, 0.63])
-ax2 = fig.add_axes([0.12, 0.10, 0.80, 0.21])
+ax1 = fig.add_axes([0.12, 0.11, 0.80, 0.85])
 
 # ax1.errorbar( all_nbg_R, all_nbg_SB, yerr = all_nbg_err, marker = '.', lw = 2.5, ls = '-', color = 'k', 
 # 		ecolor = 'k', mfc = 'none', mec = 'k', capsize = 1.5, label = 'All galaxies')
 ax1.plot( all_nbg_R, all_nbg_SB, lw = 3.5, ls = '--', color = 'gray', label = 'All galaxies',)
 
-delta_0 = np.diff( all_nbg_R ) / ( np.log(10) * all_nbg_R[1:] )
-sm_k0 = signal.savgol_filter( np.log10( all_nbg_R * all_nbg_SB ), 7, 2, deriv = 1, delta = np.mean( delta_0 ),)
-
-ax2.plot( all_nbg_R, sm_k0, lw = 3.5, ls = '--', color = 'gray',)
 
 for mm in range( len(R_bins) - 1 ):
 
 	ax1.errorbar( nbg_R[mm], nbg_SB[mm], yerr = nbg_err[mm], marker = '.', ls = '-', color = color_s[mm],
 		ecolor = color_s[mm], mfc = 'none', mec = color_s[mm], capsize = 1.5, label = fig_name[mm], alpha = 0.75,)
 
-	delta_1 = np.diff( nbg_R[mm] ) / ( np.log(10) * nbg_R[mm][1:] )
-	sm_k1 = signal.savgol_filter( np.log10( nbg_R[mm] * nbg_SB[mm] ), 7, 2, deriv = 1, delta = np.mean( delta_1 ),)
+ax1.legend( loc = 3, frameon = False, fontsize = 12,)
 
-	ax2.plot( nbg_R[mm], sm_k1, ls = '-', color = color_s[mm],)
+ax1.set_xscale('log')
+ax1.set_xlim( 1e0, 5e1 )
+ax1.set_xlabel('R [kpc]', fontsize = 12,)
+
+ax1.set_ylim( 2e-3, 5e0 )
+ax1.set_ylabel('$ \\mu \; [ nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
+ax1.set_yscale('log')
+
+ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
+
+plt.savefig('/home/xkchen/ctrl-galx_%s-band_BG-sub_SB.png' % band_str, dpi = 300)
+plt.close()
+
+
+fig = plt.figure( )
+ax1 = fig.add_axes([0.12, 0.11, 0.80, 0.85])
+
+# ax1.errorbar( all_nbg_R, all_nbg_R * all_nbg_SB, yerr = all_nbg_R * all_nbg_err, marker = '.', lw = 2.5, ls = '-', color = 'k', 
+# 		ecolor = 'k', mfc = 'none', mec = 'k', capsize = 1.5, label = 'All galaxies')
+ax1.plot( all_nbg_R, all_nbg_R * all_nbg_SB, lw = 3.5, ls = '--', color = 'gray', label = 'All galaxies',)
+
+
+for mm in range( len(R_bins) - 1 ):
+
+	ax1.errorbar( nbg_R[mm], nbg_R[mm] * nbg_SB[mm], yerr = nbg_R[mm] * nbg_err[mm], marker = '.', ls = '-', color = color_s[mm],
+		ecolor = color_s[mm], mfc = 'none', mec = color_s[mm], capsize = 1.5, label = fig_name[mm], alpha = 0.75,)
 
 ax1.legend( loc = 3, frameon = False, fontsize = 12,)
 
 ax1.set_xscale('log')
 ax1.set_xlim( 1e0, 5e1 )
-# ax1.set_xlabel('R [kpc]', fontsize = 12,)
+ax1.set_xlabel('R [kpc]', fontsize = 12,)
 
-ax1.set_ylim( 2e-3, 5e0 )
+ax1.set_ylim( 1e-1, 8e0 )
 ax1.set_ylabel('$ F = R \\times \\mu \; [kpc \\times nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
 ax1.set_yscale('log')
 
 ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
 
-ax2.set_xlim( ax1.get_xlim() )
-ax2.set_xscale('log')
-ax2.set_xlabel('R [kpc]', fontsize = 12,)
-
-ax2.set_ylim( -2.5, 1.0 )
-ax2.set_ylabel('dlgF / dlgR', fontsize = 12, labelpad = 10,)
-ax2.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
-ax2.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
-ax1.set_xticklabels( labels = [] )
-
-plt.savefig('/home/xkchen/ctrl-galx_%s-band_BG-sub_SB.png' % band_str, dpi = 300)
+plt.savefig('/home/xkchen/ctrl-galx_%s-band_Rweit_BG-sub_SB.png' % band_str, dpi = 300)
 plt.close()
+
 
 raise
 
 ##.
+"""
 for mm in range( len(R_bins) - 1 ):
 
 	plt.figure()
@@ -343,7 +355,7 @@ for mm in range( len(R_bins) - 1 ):
 	ax1.set_xscale('log')
 	ax1.set_xlabel('R [kpc]', fontsize = 12,)
 
-	ax1.annotate( text = fig_name[mm] + ', %s-band' % band_str, 
+	ax1.annotate( s = fig_name[mm] + ', %s-band' % band_str, 
 				xy = (0.05, 0.05), xycoords = 'axes fraction', fontsize = 12,)
 
 	ax1.set_ylim( 2e-3, 4e0 )
@@ -355,13 +367,14 @@ for mm in range( len(R_bins) - 1 ):
 	plt.savefig('/home/xkchen/contrl-galx_%.2f-%.2fR200m_%s-band_SB_compare.png' % (R_bins[mm], R_bins[mm + 1], band_str), dpi = 300)
 	plt.close()
 
+"""
 
 ##.
 for mm in range( len(R_bins) - 1 ):
 
 	fig = plt.figure( )
-	ax1 = fig.add_axes([0.12, 0.31, 0.80, 0.63])
-	ax2 = fig.add_axes([0.12, 0.10, 0.80, 0.21])
+	ax1 = fig.add_axes([0.12, 0.11, 0.80, 0.85])
+	# ax2 = fig.add_axes([0.12, 0.10, 0.80, 0.21])
 
 	# ax1.errorbar( all_nbg_R, all_nbg_SB, yerr = all_nbg_err, marker = '.', lw = 2.5, ls = '-', color = 'k', 
 	# 		ecolor = 'k', mfc = 'none', mec = 'k', capsize = 1.5, label = 'Control, All galaxies',)
@@ -373,28 +386,13 @@ for mm in range( len(R_bins) - 1 ):
 	ax1.errorbar( cp_nbg_R[mm], cp_nbg_R[mm] * cp_nbg_SB[mm], yerr = cp_nbg_err[mm], marker = '.', ls = '--', color = 'r',
 		ecolor = 'r', mfc = 'none', mec = 'r', capsize = 1.5, label = 'Member',)
 
-
-	delta_0 = np.diff( all_nbg_R ) / ( np.log(10) * all_nbg_R[1:] )
-	sm_k0 = signal.savgol_filter( np.log10( all_nbg_R * all_nbg_SB ), 7, 2, deriv = 1, delta = np.mean( delta_0 ),)
-
-	delta_1 = np.diff( nbg_R[mm] ) / ( np.log(10) * nbg_R[mm][1:] )
-	sm_k1 = signal.savgol_filter( np.log10( nbg_R[mm] * nbg_SB[mm] ), 7, 2, deriv = 1, delta = np.mean( delta_1 ),)
-
-	delta_2 = np.diff( cp_nbg_R[mm] ) / ( np.log(10) * cp_nbg_R[mm][1:] )
-	sm_k2 = signal.savgol_filter( np.log10( cp_nbg_R[mm] * cp_nbg_SB[mm] ), 7, 2, deriv = 1, delta = np.mean( delta_2 ),)
-
-
-	ax2.plot( all_nbg_R, sm_k0, lw = 3, ls = '-', color = 'gray', alpha = 0.75,)
-	ax2.plot( nbg_R[mm], sm_k1, ls = '-', color = 'b',)
-	ax2.plot( cp_nbg_R[mm], sm_k2, ls = '--', color = 'r',)
-
 	ax1.legend( loc = 3, frameon = False, fontsize = 12,)
 
 	ax1.set_xscale('log')
 	ax1.set_xlim( 1e0, 1e2 )
-	# ax1.set_xlabel('R [kpc]', fontsize = 12,)
+	ax1.set_xlabel('R [kpc]', fontsize = 12,)
 
-	ax1.annotate( text = fig_name[mm] + ', %s-band' % band_str, 
+	ax1.annotate( s = fig_name[mm] + ', %s-band' % band_str, 
 				xy = (0.03, 0.35), xycoords = 'axes fraction', fontsize = 12,)
 
 	ax1.set_ylim( 6e-2, 9e0 )
@@ -402,16 +400,6 @@ for mm in range( len(R_bins) - 1 ):
 	ax1.set_yscale('log')
 
 	ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
-
-	ax2.set_xlim( ax1.get_xlim() )
-	ax2.set_xscale('log')
-	ax2.set_xlabel('R [kpc]', fontsize = 12,)
-
-	ax2.set_ylim( -2.5, 1.0 )
-	ax2.set_ylabel('dlgF / dlgR', fontsize = 12, labelpad = 10,)
-	ax2.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
-	ax2.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
-	ax1.set_xticklabels( labels = [] )
 
 	plt.savefig('/home/xkchen/contrl-galx_%.2f-%.2fR200m_%s-band_BG-sub_SB_compare.png' % (R_bins[mm], R_bins[mm + 1], band_str), dpi = 300)
 	plt.close()

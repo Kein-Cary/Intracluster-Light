@@ -86,26 +86,23 @@ for ll in range( 1,2 ):
 			print('N_sample = ', len( bcg_ra ) )
 
 
-			##. read the cut information at z_ref
-			cat = pds.read_csv( '/home/xkchen/img_zref_cut_test/cat/' + 
-					'clust_rich_%d-%d_%s-band_sat-shuffle-%d_zref-img_cut-cat.csv' % (bin_rich[ll], bin_rich[ll + 1], band_str, list_order),)
+			# ##. read the cut information at z_ref and adjust centeral points
+			# cat = pds.read_csv( '/home/xkchen/img_zref_cut_test/cat/' + 
+			# 		'clust_rich_%d-%d_%s-band_sat-shuffle-%d_zref-img_cut-cat.csv' % (bin_rich[ll], bin_rich[ll + 1], band_str, list_order),)
 
-			cc_ra, cc_dec = np.array( cat['sat_ra'] ), np.array( cat['sat_dec'] )
-			cc_Rcut = np.array( cat['cut_size'] )
+			# cc_ra, cc_dec = np.array( cat['sat_ra'] ), np.array( cat['sat_dec'] )
+			# cc_Rcut = np.array( cat['cut_size'] )
 
-			cc_coord = SkyCoord( ra = cc_ra * U.deg, dec = cc_dec * U.deg )
+			# cc_coord = SkyCoord( ra = cc_ra * U.deg, dec = cc_dec * U.deg )
 
-			idx, sep, d3d = pre_coord.match_to_catalog_sky( cc_coord )
-			id_lim = sep.value < 2.7e-4
+			# idx, sep, d3d = pre_coord.match_to_catalog_sky( cc_coord )
+			# id_lim = sep.value < 2.7e-4
 
-			mp_eta = 320 / cc_Rcut[ idx[ id_lim ] ]
+			# mp_eta = 320 / cc_Rcut[ idx[ id_lim ] ]
 
-			##. stacking center test
+			# ##. stacking center points
 			# mp_cx, mp_cy = cc_Rcut[ idx[ id_lim ] ], cc_Rcut[ idx[ id_lim ] ]
 			# img_x, img_y = mp_cx - 1 / mp_eta, mp_cy - 1 / mp_eta
-			# # img_x, img_y = mp_cx - 3 / mp_eta, mp_cy - 3 / mp_eta
-
-			img_x, img_y = img_x + 1, img_y + 1
 
 
 			##. N_g for weight

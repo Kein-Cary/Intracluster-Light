@@ -246,14 +246,18 @@ pre_table = pre_dat[1].data
 clus_ID = pre_table['ID']
 clus_ID = clus_ID.astype( int )
 
+clus_ra, clus_dec = pre_table['RA'], pre_table['DEC']
 zc, zc_err = pre_table['Z_LAMBDA'], pre_table['Z_LAMBDA_ERR']
 
 ##, 0.2~0.3 is cluster z_photo limitation
 id_zx = ( zc >= 0.2 ) & ( zc <= 0.3 )
 
 lim_ID = clus_ID[ id_zx ]
+
 lim_zc = zc[ id_zx ]
 lim_zc_err = zc_err[ id_zx ]
+
+lim_clus_ra, lim_clus_dec = clus_ra[ id_zx ], clus_dec[ id_zx ]
 N_clus = len( lim_ID )
 
 
@@ -277,7 +281,11 @@ sat_mag_u = sat_table['MODEL_MAG_U']
 sat_mag_z = sat_table['MODEL_MAG_Z']
 
 
-lim_sat_dex = np.array([ ])
+lim_sat_dex = np.array( [ ] )
+
+lim_sat_bcg_z = np.array( [ ] )
+lim_sat_bcg_ra = np.array( [ ] )
+lim_sat_bcg_dec = np.array( [ ] )
 
 ##. focus on satellites in range of (0.2 ~ zc ~ 0.3)
 for dd in range( N_clus ):
@@ -288,6 +296,12 @@ for dd in range( N_clus ):
 
     lim_sat_dex = np.r_[ lim_sat_dex, dd_arr ]
 
+    #.
+    lim_sat_bcg_z = np.r_[ lim_sat_bcg_z, np.ones( np.sum( id_vx ) ) * lim_zc[ dd ] ]
+    lim_sat_bcg_ra = np.r_[ lim_sat_bcg_ra, np.ones( np.sum( id_vx ) ) * lim_clus_ra[ dd ] ]
+    lim_sat_bcg_dec = np.r_[ lim_sat_bcg_dec, np.ones( np.sum( id_vx ) ) * lim_clus_dec[ dd ] ]
+
+#.
 lim_sat_dex = lim_sat_dex.astype( int )
 
 lim_sat_ra, lim_sat_dec = sat_ra[ lim_sat_dex ], sat_dec[ lim_sat_dex ]
@@ -334,10 +348,12 @@ lim_zErr = cp_zErr[ idx[id_lim] ]
 
 ##. save the member properties
 keys = ['ra', 'dec', 'z', 'zErr', 'objid', 
-      'cModelMag_u', 'cModelMag_g', 'cModelMag_r', 'cModelMag_i', 'cModelMag_z', 
-      'modelMag_u', 'modelMag_g', 'modelMag_r', 'modelMag_i', 'modelMag_z']
+        'bcg_ra', 'bcg_dec', 'bcg_z', 
+        'cModelMag_u', 'cModelMag_g', 'cModelMag_r', 'cModelMag_i', 'cModelMag_z', 
+        'modelMag_u', 'modelMag_g', 'modelMag_r', 'modelMag_i', 'modelMag_z']
 
 values = [ lim_sat_ra, lim_sat_dec, lim_z, lim_zErr, lim_objID, 
+        lim_sat_bcg_ra, lim_sat_bcg_dec, lim_sat_bcg_z, 
         lim_cmag_u, lim_cmag_g, lim_cmag_r, lim_cmag_i, lim_cmag_z, 
         lim_mag_u, lim_mag_g, lim_mag_r, lim_mag_i, lim_mag_z ]
 
@@ -345,6 +361,7 @@ tab_file = Table( values, names = keys )
 tab_file.write( '/home/xkchen/data/SDSS/field_galx_redMap/redMap_compare/' + 
                 'sdss_redMap_member-mag_of_clus_z0.2to0.3.fits', overwrite = True )
 
+raise
 """
 
 ##.
@@ -355,6 +372,9 @@ lim_table = lim_data[1].data
 
 lim_ra, lim_dec = lim_table['ra'], lim_table['dec']
 lim_z = lim_table['z']
+
+lim_sat_bcg_ra, lim_sat_bcg_dec = lim_table['bcg_ra'], lim_table['bcg_dec']
+lim_sat_bcg_z = lim_table['bcg_z']
 
 lim_cmag_u = lim_table['cModelMag_u']
 lim_cmag_g = lim_table['cModelMag_g']
@@ -477,15 +497,22 @@ map_objID = all_objID[ map_idex ].flatten()
 tt2 = time.time()
 print( tt2 - tt1 )
 
+##. also mapping the cluster redshift
+map_clus_z = np.repeat( lim_sat_bcg_z, 26 )
+map_clus_ra = np.repeat( lim_sat_bcg_ra, 26 )
+map_clus_dec = np.repeat( lim_sat_bcg_dec, 26 )
+
 
 ##. save selected catalog
 keys = ['ra', 'dec', 'z', 'zErr', 'objid', 
-      'cModelMag_u', 'cModelMag_g', 'cModelMag_r', 'cModelMag_i', 'cModelMag_z', 
-      'modelMag_u', 'modelMag_g', 'modelMag_r', 'modelMag_i', 'modelMag_z', 
-      'dered_u', 'dered_g', 'dered_r', 'dered_i', 'dered_z', 
-      'extinction_u', 'extinction_g', 'extinction_r', 'extinction_i', 'extinction_z']
+        'map_clus_ra', 'map_clus_dec', 'map_clus_z', 
+        'cModelMag_u', 'cModelMag_g', 'cModelMag_r', 'cModelMag_i', 'cModelMag_z', 
+        'modelMag_u', 'modelMag_g', 'modelMag_r', 'modelMag_i', 'modelMag_z', 
+        'dered_u', 'dered_g', 'dered_r', 'dered_i', 'dered_z', 
+        'extinction_u', 'extinction_g', 'extinction_r', 'extinction_i', 'extinction_z']
 
 values = [ map_ra, map_dec, map_z, map_zErr, map_objID, 
+        map_clus_ra, map_clus_dec, map_clus_z, 
         map_cmag_u, map_cmag_g, map_cmag_r, map_cmag_i, map_cmag_z, 
         map_mag_u, map_mag_g, map_mag_r, map_mag_i, map_mag_z, 
         map_dered_u, map_dered_g, map_dered_r, map_dered_i, map_dered_z, 

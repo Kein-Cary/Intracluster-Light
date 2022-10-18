@@ -48,7 +48,7 @@ a_ref = 1 / (z_ref + 1)
 
 ### ========= ### satellite location at z_ref (images after pixel resampling)
 """
-out_path = '/home/xkchen/figs_cp/SB_pros_check/cat/'
+out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/zref_imgcut_check/cat/'
 shufl_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/shufl_list/tables/'
 
 ###... catalog for BG_img cut

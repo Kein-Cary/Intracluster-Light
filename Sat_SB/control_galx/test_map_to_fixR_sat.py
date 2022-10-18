@@ -128,11 +128,11 @@ def mag_color_map():
 
 
 	##. R_limmits
-	# R_str = 'phy'
-	# R_bins = np.array( [ 0, 300, 400, 550, 5000] )     ### kpc
+	R_str = 'phy'
+	R_bins = np.array( [ 0, 300, 400, 550, 5000] )     ### kpc
 
-	R_str = 'scale'
-	R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+	# R_str = 'scale'
+	# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
 
 
 	if R_str == 'phy':
@@ -431,11 +431,11 @@ def fig_properties():
 
 
 	##. R_limmits
-	# R_str = 'phy'
-	# R_bins = np.array( [ 0, 300, 400, 550, 5000] )     ### kpc
+	R_str = 'phy'
+	R_bins = np.array( [ 0, 300, 400, 550, 5000] )     ### kpc
 
-	R_str = 'scale'
-	R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+	# R_str = 'scale'
+	# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
 
 	color_s = ['b', 'g', 'c', 'r', 'm']
 
@@ -618,7 +618,6 @@ def fig_properties():
 # fig_properties()
 # raise
 
-
 ### ... mapping stacking information
 def radiu_rich_bin_match():
 
@@ -626,11 +625,11 @@ def radiu_rich_bin_match():
 	bin_rich = [ 20, 30, 50, 210 ]
 
 	##. R_limmits
-	# R_str = 'phy'
-	# R_bins = np.array( [ 0, 300, 400, 550, 5000] )     ### kpc
+	R_str = 'phy'
+	R_bins = np.array( [ 0, 300, 400, 550, 5000] )     ### kpc
 
-	R_str = 'scale'
-	R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+	# R_str = 'scale'
+	# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
 
 
 	for kk in range( 3 ):
@@ -721,7 +720,7 @@ def radiu_rich_bin_match():
 	return
 
 # radiu_rich_bin_match()
-
+# raise
 
 
 ### === ### Radius bin over_all richness
@@ -897,11 +896,25 @@ def radius_bin_over_rich():
 		ax = fig.add_axes( [0.11, 0.11, 0.80, 0.85] )
 		ax.hist( lim_z, bins = bins_z, density = True, color = 'r', alpha = 0.75, label = 'RedMapper Satellites (%d)' % len( lim_gr ),)
 		ax.hist( map_z, bins = bins_z, density = True, color = 'k', histtype = 'step', ls = '--', alpha = 0.75, label = 'Control')
+		ax.annotate( s = fig_name[ nn ] + '\n' + '%s-band' % band_str, xy = (0.03, 0.85), xycoords = 'axes fraction',)
 
-		ax.annotate( s = fig_name[ nn ] + ', %s-band' % band_str, xy = (0.60, 0.85), xycoords = 'axes fraction',)
-
-		ax.legend( loc = 2, frameon = False)
+		ax.legend( loc = 1, frameon = False)
 		ax.set_xlabel('$z_{photo}$')
+
+		ax.axvline( x = 0.2, ls = '--', color = 'b',)
+		ax.axvline( x = 0.3, ls = '--', color = 'b',)
+
+		npt_0 = map_z < 0.2
+		eta_0 = np.sum( npt_0 ) / len( map_z )
+
+		npt_1 = map_z > 0.3
+		eta_1 = np.sum( npt_1 ) / len( map_z )
+
+		ax.annotate( s = '%d, %.3f' % ( np.sum(npt_0), eta_0 ), xy = (0.03, 0.45), xycoords = 'axes fraction',)
+		ax.annotate( s = '%d, %.3f' % ( np.sum(npt_1), eta_1 ), xy = (0.65, 0.45), xycoords = 'axes fraction',)
+
+		ax.set_xlim( 0.05, 0.55 )
+
 		plt.savefig('/home/xkchen/contrl_sat_z_compare_%d+%d.png' % ( kk, nn), dpi = 300)
 		plt.close()
 
@@ -1023,7 +1036,7 @@ def radius_bin_over_rich():
 	return
 
 # radius_bin_over_rich()
-# raise
+
 
 ###... stacking information
 def radiu_bin_over_rich__match():
@@ -1242,7 +1255,6 @@ data = pds.DataFrame( fill )
 data.to_csv( out_path + 'contrl-galx_Extend-BCGM_rgi-common_frame-lim_Pm-cut_%s-band_cat_zref-pos.csv' % band_str,)
 
 
-raise
 
 ##. figs
 bins_mag_u = np.linspace( np.median( lim_cmag_u ) - 5 * np.std( lim_cmag_u ), np.median( lim_cmag_u ) + 5 * np.std( lim_cmag_u ), 65)

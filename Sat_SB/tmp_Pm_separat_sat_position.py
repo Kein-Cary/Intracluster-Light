@@ -33,6 +33,9 @@ band = ['r', 'g', 'i']
 
 
 ### use the P_mem cut sample only
+'''
+Pm_cut = 0.8 ~ (measure for satellite with Pm >= 0.8 only)
+'''
 dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/' + 
 					'Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv')
 

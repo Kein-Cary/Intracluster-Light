@@ -139,7 +139,7 @@ for kk in range( 100 ):
 				copy_IDs = np.delete( set_IDs, ID_dex )
 				cp_Ns = len( copy_IDs )
 
-				#. random order of index in the cluster array
+				##. random order of index in the cluster array
 				rand_arr = np.random.choice( cp_Ns, cp_Ns, replace = False )
 
 

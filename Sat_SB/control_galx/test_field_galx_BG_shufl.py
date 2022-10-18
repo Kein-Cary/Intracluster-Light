@@ -63,6 +63,25 @@ for kk in range( 3 ):
 
 	sat_x, sat_y = np.array( dat['sat_x'] ), np.array( dat['sat_y'] )
 
+	coord_sat = SkyCoord( ra = sat_ra * U.deg, dec = sat_dec * U.deg )
+
+
+	##.
+	ref_cat = pds.read_csv( '/home/xkchen/data/SDSS/member_files/redMap_contral_galx/control_cat/' + 
+						'random_field-galx_map_%s-band_cat_params.csv' % band_str,)
+
+	cp_s_ra, cp_s_dec, cp_s_z = np.array( ref_cat['ra'] ), np.array( ref_cat['dec'] ), np.array( ref_cat['z'] )
+	cp_clus_z = np.array( ref_cat['map_clus_z'] )
+
+	cp_coord_sat = SkyCoord( ra = cp_s_ra * U.deg, dec = cp_s_dec * U.deg )
+
+	idx, d2d, d3d = coord_sat.match_to_catalog_sky( cp_coord_sat )
+	id_lim = d2d.value < 2.7e-4
+
+	##. use for resampling ~ (save as 'z_bg' in shuffle catalog )
+	ref_clus_z = cp_clus_z[ idx[id_lim] ]
+
+
 	N_s = len( sat_ra )
 
 	for dd in range( N_shufl ):
@@ -70,17 +89,19 @@ for kk in range( 3 ):
 		##. 
 		rand_dex = np.random.choice( N_s, N_s, replace = False )
 
-		cp_ra, cp_dec, cp_z = bcg_ra[ rand_dex ], bcg_dec[ rand_dex ], bcg_z[ rand_dex ]
+		mp_ra, mp_dec, mp_z = bcg_ra[ rand_dex ], bcg_dec[ rand_dex ], bcg_z[ rand_dex ]
+		mp_bg_z = ref_clus_z[ rand_dex ]
 
-		cp_gx = 2048 - sat_x
-		cp_gy = 1489 - sat_y
+		##.
+		mp_gx = 2048 - sat_x
+		mp_gy = 1489 - sat_y
 
 
 		##.
 		keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'sat_z', 'orin_x', 'orin_y',
-				'shfl_bcg_ra', 'shfl_bcg_dec', 'shfl_bcg_z', 'shfl_x', 'shfl_y' ]
+				'shfl_bcg_ra', 'shfl_bcg_dec', 'shfl_bcg_z', 'shfl_x', 'shfl_y', 'z_bg']
 		values = [ bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, sat_z, sat_x, sat_y, 
-				cp_ra, cp_dec, cp_z, cp_gx, cp_gy ]
+				mp_ra, mp_dec, mp_z, mp_gx, mp_gy, mp_bg_z ]
 
 		fill = dict( zip( keys, values ) )
 		out_data = pds.DataFrame( fill )

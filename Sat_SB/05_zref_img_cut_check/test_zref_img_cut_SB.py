@@ -30,9 +30,11 @@ band = ['r', 'g', 'i']
 
 
 ### === SB profiles compare
-BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_rebin_bcg_affect_test/BGs/'
-path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_rebin_bcg_affect_test/SBs/'
-cp_path = '/home/xkchen/figs_cp/SB_pros_check/BGs/'
+out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/'
+BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGs/'
+path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_SBs/'
+
+cp_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/zref_imgcut_check/BGs/'
 
 
 ##.

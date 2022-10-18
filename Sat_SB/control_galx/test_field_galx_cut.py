@@ -193,6 +193,7 @@ raise
 
 for tt in range( 1 ):
 
+	##.
 	band_str = band[ tt ]
 
 	dat = pds.read_csv( '/home/xkchen/fig_tmp/Extend_Mbcg_ctrlGalx_cat/' + 
@@ -203,6 +204,23 @@ for tt in range( 1 ):
 	sat_cx, sat_cy = np.array( dat['cut_cx'] ), np.array( dat['cut_cy'] )
 
 	sat_z = np.array( dat['sat_z'] )
+
+	coord_sat = SkyCoord( ra = sat_ra * U.deg, dec = sat_dec * U.deg )
+
+	##.
+	ref_cat = pds.read_csv( '/home/xkchen/data/SDSS/member_files/redMap_contral_galx/control_cat/' + 
+						'random_field-galx_map_%s-band_cat_params.csv' % band_str,)
+
+	cp_s_ra, cp_s_dec, cp_s_z = np.array( ref_cat['ra'] ), np.array( ref_cat['dec'] ), np.array( ref_cat['z'] )
+	cp_clus_z = np.array( ref_cat['map_clus_z'] )
+
+	cp_coord_sat = SkyCoord( ra = cp_s_ra * U.deg, dec = cp_s_dec * U.deg )
+
+	idx, d2d, d3d = coord_sat.match_to_catalog_sky( cp_coord_sat )
+	id_lim = d2d.value < 2.7e-4
+
+	##. use for resampling
+	ref_clus_z = cp_clus_z[ idx[id_lim] ]
 
 
 	##. control galaxy images
@@ -225,8 +243,9 @@ for tt in range( 1 ):
 	img_x, img_y = sat_cx[N_sub0 : N_sub1], sat_cy[N_sub0 : N_sub1]
 
 	sub_z = bcg_z[N_sub0 : N_sub1]
-	
-	z_set = sat_z[N_sub0 : N_sub1]
+
+	# z_set = sat_z[N_sub0 : N_sub1]
+	z_set = ref_clus_z[N_sub0 : N_sub1]
 
 	contrl_galx_resamp_func( d_file, sub_z, sub_ra, sub_dec, ra_set, dec_set, z_set, img_x, img_y, band_str, out_file, z_ref, id_dimm = id_dimm )
 

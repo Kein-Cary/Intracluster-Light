@@ -104,7 +104,8 @@ sub_name = ['low-rich', 'medi-rich', 'high-rich']
 
 #     color_s.append( mpl.cm.rainbow( dd / ( len(R_bins) - 1 ) ) )
 
-color_s = ['b', 'c', 'g', 'r', 'm']
+# color_s = ['b', 'c', 'g', 'r', 'm']
+color_s = ['b', 'g', 'r', 'm', 'k']
 
 
 fig_name = []
@@ -123,7 +124,7 @@ line_name = ['$\\lambda \\leq 30$', '$30 \\leq \\lambda \\leq 50$', '$\\lambda \
 
 
 ### === results comparison
-ll = 2     ###. 0, 1, 2
+ll = 0     ###. 0, 1, 2
 
 tmp_R, tmp_sb, tmp_err = [], [], []
 
@@ -284,7 +285,7 @@ for kk in range( 3 ):
 	sub_ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
 
 	sub_ax1.set_ylabel('$\\mu \; / \; \\mu \,$ (%s)' % fig_name[-1], labelpad = 8, fontsize = 12,)
-	sub_ax1.set_ylim( 0.45, 1.05 )
+	sub_ax1.set_ylim( 0.45, 0.95 )
 
 	sub_ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
 	sub_ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
