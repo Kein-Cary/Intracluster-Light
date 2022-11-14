@@ -44,9 +44,18 @@ def sat_scaleR_binned():
 	##. fixed R for all richness subsample
 	# R_bins = np.array( [0, 5e-2, 1e-1, 2e-1, 4e-1, 1] )   ### times R200m
 	# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
-	R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+
+	# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+
+	# ##. test for inner bins SB compare
+	# R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+
+	##. average shuffle test
+	# R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m, for rich + sR bin
 
 
+	##.
 	bin_rich = [ 20, 30, 50, 210 ]
 
 	##... radius binned satellite
@@ -66,6 +75,7 @@ def sat_scaleR_binned():
 
 		##. division
 		for nn in range( len( R_bins ) - 1 ):
+		# for nn in range( 3 ):
 
 			if nn == len( R_bins ) - 2:
 				sub_N = p_R2Rv >= R_bins[ nn ]
@@ -89,6 +99,8 @@ def sat_scaleR_binned():
 						'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_cat.csv' 
 						% ( bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1]),)
 
+	# 	print( '*' * 10 )
+	# raise
 
 	##... match the P_mem information
 	pre_cat = fits.open('/home/xkchen/mywork/ICL/data/redmapper/redmapper_dr8_public_v6.3_members.fits')
@@ -101,6 +113,7 @@ def sat_scaleR_binned():
 	for kk in range( 3 ):
 
 		for nn in range( len( R_bins ) - 1 ):
+		# for nn in range( 3 ):
 
 			dat = pds.read_csv( out_path + 
 						'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_cat.csv' 
@@ -134,6 +147,7 @@ def sat_scaleR_binned():
 	for pp in range( 3 ):
 
 		for tt in range( len( R_bins ) - 1 ):
+		# for tt in range( 3 ):
 
 			s_dat = pds.read_csv( out_path + 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_cat.csv' % 
 								( bin_rich[pp], bin_rich[pp + 1], R_bins[tt], R_bins[tt + 1]), )

@@ -55,6 +55,10 @@ def sersic_func( R, n, Ie, Re ):
 	return Ir
 
 ##. core-like funcs
+def Moffat_func(R, A0, Rd, n):
+	mf = A0 / ( 1 + (R / Rd)**2 )**n
+	return mf
+
 def Modi_Ferrer_func( R, A0, R_bk, belta, alpha):
 
 	mf0 = 1 - ( R / R_bk )**( 2 - belta)
@@ -90,47 +94,43 @@ def Nuker_func( R, A0, R_bk, alpha, belta, gamma):
 
 	return mf * A0
 
-##.
-def power1_func( R, A0, R0, alpha_0 ):
-	mf = A0 * ( R / R0 + 1)**alpha_0 * 2**(-alpha_0)
-	return mf
-
-
-# def err_fit_func(p, x, y, params, yerr):
-
-# 	_SB0_arr = params[0]
-
-# 	#.
-# 	A0, Rc0, alpha = p[:]
-
-# 	mf0 = power1_func( x, A0, Rc0, alpha )
-# 	mf = ( 1 - mf0 ) * _SB0_arr
-
-# 	delta = mf - y
-
-# 	# cov_inv = np.linalg.pinv( cov_mx )
-# 	# chi2 = delta.T.dot( cov_inv ).dot(delta)
-# 	chi2 = np.sum( delta**2 / yerr**2 )
-
-# 	if np.isfinite( chi2 ):
-# 		return chi2
-# 	return np.inf
-
-
+### === 
 def err_fit_func(p, x, y, params, yerr):
 
 	_SB0_arr = params[0]
 
 	#.
-	A0, R_bk, alpha, belta, gamma = p[:]
+	A0, Rc0, alpha = p[:]
 
-	mf0 = Nuker_func( x, A0, R_bk, alpha, belta, gamma)
+	mf0 = Moffat_func( x, A0, Rc0, alpha )
 	mf = mf0 * _SB0_arr
 
 	delta = mf - y
+	chi2 = np.sum( delta**2 / yerr**2 )
 
-	# cov_inv = np.linalg.pinv( cov_mx )
-	# chi2 = delta.T.dot( cov_inv ).dot(delta)
+	if np.isfinite( chi2 ):
+		return chi2
+	return np.inf
+
+
+### === 
+def power1_func( R, R0, alpha ):
+	A0 = 1.
+	mf = A0 * ( (R / R0)**2.5 + 1)**alpha * 2**(-alpha)
+	return mf / mf[0] - 1
+
+def cc_err_fit_func(p, x, y, params, yerr):
+
+	_SB0_arr = params[0]
+
+	#.
+	A0, Rc0, alpha, R1, belta = p[:]
+	mf0 = Moffat_func( x, A0, Rc0, alpha )
+	mf1 = power1_func( x, R1, belta )
+
+	mf = mf0 * _SB0_arr + mf1 * _SB0_arr
+
+	delta = mf - y
 	chi2 = np.sum( delta**2 / yerr**2 )
 
 	if np.isfinite( chi2 ):
@@ -145,6 +145,7 @@ BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGs/'
 out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/'
 path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_SBs/'
 
+bin_rich = [ 20, 30, 50, 210 ]
 
 R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
@@ -172,7 +173,6 @@ N_sample = 100
 
 band_str = 'r'
 
-
 ##... BG-subtracted SBs
 nbg_R, nbg_SB, nbg_err = [], [], []
 
@@ -192,6 +192,206 @@ for tt in range( len(R_bins) - 1 ):
 
 
 ##... modelling for the sat SB profile inner radii bins
+def inner_fit():
+
+	#.
+	for tt in range( len(R_bins) - 2 ):
+
+		kk_r = nbg_R[ tt ]
+		kk_sb = nbg_SB[ tt ]
+		kk_err = nbg_err[ tt ]
+
+		cp_k_r = nbg_R[ -1 ]
+		cp_k_sb = nbg_SB[ -1 ]
+		cp_k_err = nbg_err[ -1 ]
+
+		##.
+		# dd_mx = cp_k_r <= 90  ## kpc
+		# tmp_F = interp.interp1d( cp_k_r[ dd_mx ], cp_k_sb[ dd_mx ], kind = 'linear', fill_value = 'extrapolate')
+		# tmp_F = interp.splrep( cp_k_r[ dd_mx ], cp_k_sb[ dd_mx ], s = 0)
+		tmp_F = interp.splrep( cp_k_r, cp_k_sb, s = 0)
+
+		##.
+		tmp_eta = kk_sb / interp.splev( kk_r, tmp_F, der = 0)
+		tmp_eta_err = kk_err / interp.splev( kk_r, tmp_F, der = 0)
+
+
+		##.
+		R_lim = 20    ##. kpc
+		id_R_lim = kk_r <= R_lim
+
+		fit_R = kk_r[ id_R_lim ]
+		fit_sb = kk_sb[ id_R_lim ]
+		fit_sb_err = kk_err[ id_R_lim ]
+
+		fit_SB0 = interp.splev( fit_R, tmp_F, der = 0)
+
+
+		##.
+		R_bk = 10
+		A0 = 1.5
+		ap_0 = 0.5
+		bp_0 = 0.5
+
+		inti_params = [ fit_SB0 ]
+
+
+		### === 
+		po = [ A0, R_bk, ap_0 ]
+		bounds = [ [1e-4, 1e2], [5, 200], [-2.5, 2.5] ]
+
+		# E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_sb, inti_params, fit_sb_err), 
+		# 								method = 'L-BFGS-B', bounds = bounds,)
+
+		E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_sb, inti_params, fit_sb_err), 
+										method = 'Powell',)
+
+		print( E_return )
+		popt = E_return.x
+
+		print( '*' * 10 )
+		print( popt )
+
+		A0_fit, Rc0_fit, alpha_fit = popt[:]
+
+
+		##.
+		new_r = np.logspace( -1, 2, 200 )
+
+		_SB0_arr = interp.splev( new_r, tmp_F, der = 0)
+
+		mf0 = Moffat_func( new_r, A0_fit, Rc0_fit, alpha_fit )
+		mod_f = mf0 * _SB0_arr
+		mod_eta = mod_f / _SB0_arr
+
+		##.
+		dd_SB0 = interp.splev( fit_R, tmp_F, der = 0)
+		dd_mf0 = Moffat_func( fit_R, A0_fit, Rc0_fit, alpha_fit )
+		dd_sb = dd_mf0 * dd_SB0
+
+		diff = dd_sb - fit_sb
+		chi2 = np.sum( diff**2 / fit_sb_err**2 )
+		chi2nv = chi2 / ( len( fit_sb ) - len( popt ) )
+
+
+		# ##.
+		# kt_F = interp.interp1d( kk_r, kk_sb, kind = 'linear', fill_value = 'extrapolate')
+		# kt_sb = kt_F( new_r )
+
+		# devi_sb = kt_sb - mod_f
+
+		# #.
+		# fig = plt.figure( figsize = (10.4, 4.8) )
+		# ax0 = fig.add_axes([0.08, 0.11, 0.41, 0.85])
+		# ax1 = fig.add_axes([0.57, 0.11, 0.41, 0.85])
+
+		# ax0.plot( kk_r, kk_sb, 'b-', alpha = 0.5, label = '$\\mu_{x}$' + ' (%s)' % fig_name[tt],)
+		# ax0.plot( cp_k_r, cp_k_sb, 'r-', alpha = 0.5, label = '$\\mu_{0}$' + ' (%s)' % fig_name[ -1 ],)
+		# ax0.plot( new_r, mod_f, 'k--', alpha = 0.5, label = '$F_{trunc} \\times \\mu_{0}$', lw = 2.5,)
+		# ax0.plot( new_r, devi_sb, 'k:', alpha = 0.5, 
+		# 		label = '$\\mu_{res}$ = ' + '$\\mu_{x}$' + ' - $F_{trunc} \\times \\mu_{0}$', lw = 2.5,)
+
+		# ax0.legend( loc = 1, frameon = True, fontsize = 12, markerfirst = False,)
+
+		# ax0.set_xscale('log')
+		# ax0.set_xlim( 1e0, 1e2 )
+		# ax0.set_xlabel('$R \; [kpc]$', fontsize = 13)
+
+		# ax0.set_ylim( 1e-4, 5e0 )
+		# ax0.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 13,)
+		# ax0.set_yscale('log')
+		# ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 13,)
+
+		# ax1.plot( new_r, devi_sb / interp.splev( new_r, tmp_F, der = 0), 'k:', alpha = 0.5, 
+		# 		label = '$\\mu_{res} \, / \, \\mu_{0}$',)
+
+		# ax1.legend( loc = 2, frameon = False, fontsize = 14,)
+
+		# ax1.set_xscale('log')
+		# ax1.set_xlim( 1e0, 1e2 )
+		# ax1.set_xlabel('$R \; [kpc]$', fontsize = 13)
+
+		# ax1.set_ylim( 1e-3, 3e0 )
+		# ax1.set_yscale('log')
+		# ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 13,)
+
+		# plt.savefig('/home/xkchen/residual_pros_ratio_%d.png' % tt, dpi = 300)
+		# plt.close()
+
+
+		##.
+		fig = plt.figure( figsize = (18.2, 4.8) )
+		gax = fig.add_axes([0.03, 0.11, 0.29, 0.85])
+		hax = fig.add_axes([0.37, 0.11, 0.29, 0.85])
+		ax = fig.add_axes([0.70, 0.11, 0.29, 0.85])
+
+		gax.plot( new_r, mf0, 'r-', label = '$F_{trunc}$')
+
+		gax.set_xscale('log')
+		gax.set_xlabel('$R \; [kpc]$', fontsize = 13)
+		gax.legend( loc = 3, frameon = False, fontsize = 13,)
+		gax.axvline( x = Rc0_fit, ls = ':', color = 'k', alpha = 0.25,)
+
+
+		hax.errorbar( kk_r, kk_sb, yerr = kk_err, marker = '.', ls = '--', color = 'b',
+			ecolor = 'b', mfc = 'none', mec = 'b', capsize = 1.5, alpha = 0.75, label = fig_name[ tt ],)
+
+		hax.errorbar( cp_k_r, cp_k_sb, yerr = cp_k_err, marker = '.', ls = '-', color = 'r',
+			ecolor = 'r', mfc = 'none', mec = 'r', capsize = 1.5, alpha = 0.75, label = fig_name[ -1 ] + ' ($\\mu_{0}$)',)
+
+		hax.plot( new_r, mod_f, 'k:', alpha = 0.5, label = '$F_{trunc} \\times \\mu_{0}$', lw = 2.5,)
+
+
+		hax.annotate( s = '$\\chi^{2} / \\nu = %.5f$' % chi2nv, color = 'k', xy = (0.55, 0.85),
+					xycoords = 'axes fraction', fontsize = 13,)
+		hax.axvline( x = Rc0_fit, ls = ':', color = 'k', alpha = 0.25,)
+		hax.axvline( x = R_lim, ls = '-.', color = 'k', alpha = 0.25,)
+
+		hax.legend( loc = 3, frameon = False, fontsize = 13,)
+
+		hax.set_xscale('log')
+		hax.set_xlim( 1e0, 1e2 )
+		hax.set_xlabel('$R \; [kpc]$', fontsize = 13)
+
+		hax.set_ylim( 1e-3, 5e0 )
+		hax.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 13,)
+		hax.set_yscale('log')
+		hax.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 13,)
+
+
+		ax.plot( kk_r, tmp_eta, ls = '-', color = 'b', alpha = 0.75,)
+		ax.fill_between( kk_r, y1 = tmp_eta - tmp_eta_err, y2 = tmp_eta + tmp_eta_err, color = 'b', alpha = 0.12,)
+
+		ax.plot( new_r, mod_eta, 'k:', alpha = 0.75,)
+
+		ax.axvline( x = Rc0_fit, ls = ':', color = 'k', alpha = 0.25,)
+		ax.axvline( x = R_lim, ls = '-.', color = 'k', alpha = 0.25,)
+
+		ax.set_xlim( 1e0, 1e2 )
+
+		ax.set_xscale('log')
+		ax.set_xlabel('$R \; [kpc]$', fontsize = 13)
+
+		ax.set_ylabel('$\\mu \; / \; \\mu \, (R \\geq %.2f \, R_{200m})$' % R_bins[-2], 
+							fontsize = 13, labelpad = 8)
+		ax.set_ylim( 0, 1.0 )
+
+		ax.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 13,)
+		ax.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
+
+		plt.savefig('/home/xkchen/SB_ratio_fitting_%d.png' % tt, dpi = 300)
+		plt.close()
+
+	raise
+
+	return
+
+# inner_fit()
+
+
+
+###... modelling for the sat SB profile with large radii bins
+
 for tt in range( len(R_bins) - 2 ):
 
 	kk_r = nbg_R[ tt ]
@@ -214,7 +414,7 @@ for tt in range( len(R_bins) - 2 ):
 
 
 	##.
-	R_lim = 20    ##. kpc
+	R_lim = 80    ##. 80, 90, 100 kpc
 	id_R_lim = kk_r <= R_lim
 
 	fit_R = kk_r[ id_R_lim ]
@@ -223,59 +423,23 @@ for tt in range( len(R_bins) - 2 ):
 
 	fit_SB0 = interp.splev( fit_R, tmp_F, der = 0)
 
+
 	##.
 	R_bk = 10
 	A0 = 1.5
 	ap_0 = 0.5
+	bp_0 = 0.5
 
 	inti_params = [ fit_SB0 ]
 
-	##.
-	# po = [ A0, R_bk, ap_0 ]
+	### === 
+	po = [ A0, R_bk, ap_0, R_bk, bp_0 ]
+	bounds = [ [1e-4, 1e2], [5, 300], [-2.5, 2.5], [5, 200], [-2.5, 2.5] ]
 
-	# bounds = [ [1e-4, 1e2], [5, 200], [-2.5, 2.5] ]
-
-	# E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_sb, inti_params, fit_sb_err), 
-	# 								method = 'L-BFGS-B', bounds = bounds,)
-
-	# # E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_sb, inti_params, fit_sb_err), 
-	# # 								method = 'Powell',)
-
-	# print( E_return )
-	# popt = E_return.x
-
-	# print( '*' * 10 )
-	# print( popt )
-
-	# A0_fit, Rc0_fit, alpha_fit = popt[:]
-
-	# #.
-	# new_r = np.logspace( -1, 2, 200 )
-
-	# _SB0_arr = interp.splev( new_r, tmp_F, der = 0)
-
-	# mf0 = power1_func( new_r, A0_fit, Rc0_fit, alpha_fit )
-	# mod_f = ( 1 - mf0 ) * _SB0_arr
-	# mod_eta = mod_f / _SB0_arr
-
-	# dd_SB0 = interp.splev( fit_R, tmp_F, der = 0)
-	# dd_mf = power1_func( fit_R, A0_fit, Rc0_fit, alpha_fit )
-	# dd_sb = dd_mf * dd_SB0
-
-
-	##.
-	alpha = 2
-	belta = 2
-	gamma = 0
-
-	po = [ A0, R_bk, alpha, belta, gamma ]
-
-	bounds = [ [1e-4, 1e1], [1, 200], [-10, 10], [-2.5, 2.5], [-2.5, 2.5] ]
-
-	E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_sb, inti_params, fit_sb_err), 
+	E_return = optimize.minimize( cc_err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_sb, inti_params, fit_sb_err), 
 									method = 'L-BFGS-B', bounds = bounds,)
 
-	# E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_sb, inti_params, fit_sb_err), 
+	# E_return = optimize.minimize( cc_err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_sb, inti_params, fit_sb_err), 
 	# 								method = 'Powell',)
 
 	print( E_return )
@@ -284,105 +448,113 @@ for tt in range( len(R_bins) - 2 ):
 	print( '*' * 10 )
 	print( popt )
 
-	A0_fit, Rc0_fit, alpha_fit, belta_fit, gamma_fit = popt[:]
+	A0_fit, Rc0_fit, alpha_fit, Rc1_fit, beta_fit = popt[:]
 
-	#.
+	##.
+	keys = ['A_Moffat', 'Rd_Moffat', 'n_Moffat', 'Rc', 'beta']
+	values = [ A0_fit, Rc0_fit, alpha_fit, Rc1_fit, beta_fit ]
+	fill = dict( zip( keys, values) )
+	out_data = pds.DataFrame( fill, index = ['k', 'v'])
+	out_data.to_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/trunF_mod/' + 
+				'sat_%.2f-%.2fR200m_%s-band_SB_trunF-model_fit.csv' % (R_bins[tt], R_bins[tt + 1], band_str),)
+
+	##.
 	new_r = np.logspace( -1, 2, 200 )
 
 	_SB0_arr = interp.splev( new_r, tmp_F, der = 0)
 
-	mf0 = Nuker_func( new_r, A0_fit, Rc0_fit, alpha_fit, belta_fit, gamma_fit )
+	mf0 = Moffat_func( new_r, A0_fit, Rc0_fit, alpha_fit )
+	mf1 = power1_func( new_r, Rc1_fit, beta_fit )
 
-	mod_f = mf0 * _SB0_arr
+	mod_f = mf0 * _SB0_arr + mf1 * _SB0_arr
 	mod_eta = mod_f / _SB0_arr
 
-	dd_SB0 = interp.splev( fit_R, tmp_F, der = 0)
-	dd_mf = Nuker_func( fit_R, A0_fit, Rc0_fit, alpha_fit, belta_fit, gamma_fit )
-	dd_sb = dd_mf * dd_SB0
-
-
 	##.
+	dd_SB0 = interp.splev( fit_R, tmp_F, der = 0)
+
+	dd_mf0 = Moffat_func( fit_R, A0_fit, Rc0_fit, alpha_fit )
+	dd_mf1 = power1_func( fit_R, Rc1_fit, beta_fit )
+
+	dd_sb = dd_mf0 * dd_SB0 + dd_mf1 * dd_SB0
+
 	diff = dd_sb - fit_sb
 	chi2 = np.sum( diff**2 / fit_sb_err**2 )
 	chi2nv = chi2 / ( len( fit_sb ) - len( popt ) )
 
 
-	#.
-	fig = plt.figure( figsize = (10.8, 4.8) )
-	gax = fig.add_axes([0.08, 0.11, 0.40, 0.85])
-	hax = fig.add_axes([0.55, 0.11, 0.40, 0.85])
+	##.
+	fig = plt.figure( figsize = (18.2, 4.8) )
+	gax = fig.add_axes([0.025, 0.11, 0.29, 0.85])
+	hax = fig.add_axes([0.365, 0.11, 0.29, 0.85])
+	ax = fig.add_axes([0.70, 0.11, 0.29, 0.85])
 
-	# gax.plot( new_r, 1 - mf0, 'r-', label = '$F_{trunc}$')
 	gax.plot( new_r, mf0, 'r-', label = '$F_{trunc}$')
+	gax.plot( new_r, mf1, 'b-', label = '$F_{cumu}$')
 
 	gax.set_xscale('log')
-	gax.set_xlabel('R [kpc]')
-	gax.legend( loc = 3, frameon = False)
+	gax.set_xlabel('$R \; [kpc]$', fontsize = 13)
+	gax.set_ylim( 0, 1 )
 
+	gax.legend( loc = 2, frameon = False, fontsize = 14,)
 
-	hax.plot( kk_r, kk_sb, 'b--', label = fig_name[ tt ], alpha = 0.65,)
-	hax.plot( cp_k_r, cp_k_sb, 'r-', label = '$\\mu_{0}$' + '(' + fig_name[ -1 ] + ')', alpha = 0.65,)
+	gax.axvline( x = Rc0_fit, ls = ':', color = 'r', alpha = 0.45,)
+	gax.axvline( x = Rc1_fit, ls = ':', color = 'b', alpha = 0.45,)
+	gax.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 13,)
+	gax.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
 
-	hax.plot( new_r, mod_f, 'g:', alpha = 0.65, label = '$F_{trunc} \\times \\mu_{0}$')
-	hax.legend( loc = 3, frameon = False, fontsize = 12,)
-
-	hax.annotate( s = '$\\chi^{2} / \\nu = %.5f$' % chi2nv, color = 'k', xy = (0.55, 0.85), xycoords = 'axes fraction', fontsize = 12,)
-	hax.axvline( x = R_lim, color = 'k', ls = ':', alpha = 0.15,)
-
-	hax.set_xscale('log')
-	hax.set_yscale('log')
-	hax.set_xlim( 1e0, 1e2 )
-	hax.set_ylim( 1e-3, 5e0 )
-	hax.set_xlabel('R [kpc]', fontsize = 12,)
-	hax.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$',fontsize = 12,)
-
-	plt.savefig('/home/xkchen/shape_compare_%d.png' % tt, dpi = 300)
-	plt.close()
-
-
-	##.
-	fig = plt.figure( figsize = (10.8, 4.8) )
-	gax = fig.add_axes([0.08, 0.11, 0.40, 0.85])
-	hax = fig.add_axes([0.55, 0.11, 0.40, 0.85])
 
 	hax.errorbar( kk_r, kk_sb, yerr = kk_err, marker = '.', ls = '--', color = 'b',
-		ecolor = 'b', mfc = 'none', mec = 'b', capsize = 1.5, alpha = 0.75, label = fig_name[ tt ],)
+		ecolor = 'b', mfc = 'none', mec = 'b', capsize = 1.5, alpha = 0.65, label = fig_name[ tt ],)
 
 	hax.errorbar( cp_k_r, cp_k_sb, yerr = cp_k_err, marker = '.', ls = '-', color = 'r',
-		ecolor = 'r', mfc = 'none', mec = 'r', capsize = 1.5, alpha = 0.75, label = fig_name[ -1 ],)
+		ecolor = 'r', mfc = 'none', mec = 'r', capsize = 1.5, alpha = 0.65, label = fig_name[ -1 ] + ' ($\\mu_{0}$)',)
 
-	hax.plot( new_r, mod_f, 'k:', alpha = 0.5, label = 'Model',)
-	hax.annotate( s = '$\\chi^{2} / \\nu = %.5f$' % chi2nv, color = 'k', xy = (0.55, 0.85), 
+	hax.plot( new_r, mod_f, 'k--', alpha = 0.5, label = '$F_{trunc} \\times \\mu_{0}$' + '+$F_{cumu} \\times \\mu_{0}$', lw = 3,)
+
+	hax.plot( new_r, mf0 * _SB0_arr, 'r--', alpha = 0.5, label = '$F_{trunc} \\times \\mu_{0}$',)
+	hax.plot( new_r, mf1 * _SB0_arr, 'b--', alpha = 0.5, label = '$F_{cumu} \\times \\mu_{0}$',)
+
+
+	hax.annotate( s = '$\\chi^{2} / \\nu = %.5f$' % chi2nv, color = 'k', xy = (0.05, 0.45),
 				xycoords = 'axes fraction', fontsize = 13,)
 
-	hax.legend( loc = 3, frameon = False, fontsize = 13,)
+	hax.axvline( x = Rc0_fit, ls = ':', color = 'r', alpha = 0.45,)
+	hax.axvline( x = Rc1_fit, ls = ':', color = 'b', alpha = 0.45,)
+	hax.axvline( x = R_lim, ls = '-.', color = 'k', alpha = 0.25,)
+
+	hax.legend( loc = 3, frameon = True, fontsize = 13,)
 
 	hax.set_xscale('log')
 	hax.set_xlim( 1e0, 1e2 )
 	hax.set_xlabel('$R \; [kpc]$', fontsize = 13)
 
-	hax.set_ylim( 1e-3, 5e0 )
+	hax.set_ylim( 5e-4, 5e0 )
 	hax.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 13,)
 	hax.set_yscale('log')
+	hax.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 13,)
 
-	gax.plot( kk_r, tmp_eta, ls = '-', color = 'b', alpha = 0.75,)
-	gax.fill_between( kk_r, y1 = tmp_eta - tmp_eta_err, y2 = tmp_eta + tmp_eta_err, color = 'b', alpha = 0.12,)
 
-	gax.plot( new_r, mod_eta, 'k:', alpha = 0.75,)
+	ax.plot( kk_r, tmp_eta, ls = '-', color = 'b', alpha = 0.5,)
+	ax.fill_between( kk_r, y1 = tmp_eta - tmp_eta_err, y2 = tmp_eta + tmp_eta_err, color = 'b', alpha = 0.12,)
 
-	gax.set_xlim( 1e0, 1e2 )
+	ax.plot( new_r, mod_eta, 'k--', alpha = 0.75, lw = 3,)
 
-	gax.set_xscale('log')
-	gax.set_xlabel('$R \; [kpc]$', fontsize = 13)
+	ax.axvline( x = Rc0_fit, ls = ':', color = 'r', alpha = 0.45,)
+	ax.axvline( x = Rc1_fit, ls = ':', color = 'b', alpha = 0.45,)
+	ax.axvline( x = R_lim, ls = '-.', color = 'k', alpha = 0.25,)
 
-	gax.set_ylabel('$\\mu \; / \; \\mu \, (R \\geq %.2f \, R_{200m})$' % R_bins[-2], 
+	ax.set_xlim( 1e0, 1e2 )
+
+	ax.set_xscale('log')
+	ax.set_xlabel('$R \; [kpc]$', fontsize = 13)
+
+	ax.set_ylabel('$\\mu \; / \; \\mu \, (R \\geq %.2f \, R_{200m})$' % R_bins[-2], 
 						fontsize = 13, labelpad = 8)
-	gax.set_ylim( 0, 1.0 )
+	ax.set_ylim( 0.38, 0.9 )
 
-	gax.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 13,)
-	gax.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
+	ax.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 13,)
+	ax.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
 
 	plt.savefig('/home/xkchen/SB_ratio_fitting_%d.png' % tt, dpi = 300)
 	plt.close()
-
 

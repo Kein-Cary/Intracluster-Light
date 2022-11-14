@@ -203,7 +203,10 @@ bin_rich = [ 20, 30, 50, 210 ]
 sub_name = ['low-rich', 'medi-rich', 'high-rich']
 
 R_str = 'scale'
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+
+# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+
 
 C_arr = []
 Mvir_arr = []

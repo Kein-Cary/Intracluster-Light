@@ -42,28 +42,29 @@ band = ['r', 'g', 'i']
 ### === ### data load
 
 ##. sat_img with BCG
-# BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/BGs/'
-# out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/noBG_SBs/'
-# path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/SBs/'
+BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/BGs/'
+out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/noBG_SBs/'
+path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/SBs/'
 
 ##. sat_img without BCG
-BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGs/'
-out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/'
-path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_SBs/'
+# BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGs/'
+# out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/'
+# path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_SBs/'
 
 
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 N_sample = 100
 
 ##. background shuffle list order
 list_order = 13
 
-
+"""
 ##. background subtraction
 for tt in range( len(R_bins) - 1 ):
 
-	for kk in range( 3 ):
+	for kk in range( 1 ):
 
 		band_str = band[ kk ]
 
@@ -83,11 +84,10 @@ for tt in range( len(R_bins) - 1 ):
 		stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, sub_out_file = sub_out_file )
 
 raise
-
+"""
 
 
 ### === figs
-# color_s = ['b', 'c', 'g', 'r', 'm']
 color_s = ['b', 'g', 'r', 'm', 'k']
 
 fig_name = []
@@ -111,7 +111,7 @@ for tt in range( len(R_bins) - 1 ):
 
 	sub_R, sub_sb, sub_err = [], [], []
 
-	for kk in range( 3 ):
+	for kk in range( 1 ):
 
 		band_str = band[ kk ]
 
@@ -138,7 +138,7 @@ for tt in range( len(R_bins) - 1 ):
 
 	_sub_bg_R, _sub_bg_sb, _sub_bg_err = [], [], []
 
-	for kk in range( 3 ):
+	for kk in range( 1 ):
 
 		band_str = band[ kk ]
 
@@ -165,7 +165,7 @@ for tt in range( len(R_bins) - 1 ):
 
 	sub_R, sub_sb, sub_err = [], [], []
 
-	for kk in range( 3 ):
+	for kk in range( 1 ):
 
 		band_str = band[ kk ]
 
@@ -187,7 +187,7 @@ for tt in range( len(R_bins) - 1 ):
 y_lim_0 = [ [1e-3, 4e0], [1e-3, 1e0], [1e-3, 7e0] ]
 y_lim_1 = [ [2e-3, 4e0], [1e-3, 1e0], [5e-3, 6e0] ]
 
-for kk in range( 3 ):
+for kk in range( 1 ):
 
 	plt.figure()
 	ax1 = plt.subplot(111)
@@ -222,7 +222,7 @@ for kk in range( 3 ):
 	plt.close()
 
 
-for kk in range( 3 ):
+for kk in range( 1 ):
 
 	fig = plt.figure( )
 	ax1 = fig.add_axes( [0.13, 0.32, 0.85, 0.63] )
@@ -256,7 +256,6 @@ for kk in range( 3 ):
 	ax1.set_xscale('log')
 
 	ax1.set_ylim( y_lim_1[kk][0], y_lim_1[kk][1] )
-	# ax1.set_ylim( 2e-3, 5e0 )
 	ax1.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
 	ax1.set_yscale('log')
 
@@ -265,7 +264,7 @@ for kk in range( 3 ):
 	sub_ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
 
 	sub_ax1.set_ylabel('$\\mu \; / \; \\mu \,$ (%s)' % fig_name[-1], labelpad = 8, fontsize = 12,)
-	sub_ax1.set_ylim( 0.40, 1.0 )
+	sub_ax1.set_ylim( 0.35, 1.0 )
 
 	sub_ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
 	sub_ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
@@ -274,3 +273,4 @@ for kk in range( 3 ):
 
 	plt.savefig('/home/xkchen/sat_%s-band_BG-sub_compare.png' % band[kk], dpi = 300)
 	plt.close()
+

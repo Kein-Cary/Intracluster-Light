@@ -165,8 +165,10 @@ d_file = img_path + 'ctrl-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec
 N_bin = 100   ## number of jackknife subsample
 
 R_str = 'scale'
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
+#.
 for kk in range( 1 ):
 
 	band_str = band[ kk ]
@@ -222,8 +224,10 @@ d_file = img_path + 'ctrl-tract_BG_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.
 N_bin = 100   ## number of jackknife subsample
 
 R_str = 'scale'
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
+#.
 for kk in range( 1 ):
 
 	band_str = band[ kk ]

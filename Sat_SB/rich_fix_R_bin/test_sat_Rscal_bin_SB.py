@@ -124,7 +124,7 @@ line_name = ['$\\lambda \\leq 30$', '$30 \\leq \\lambda \\leq 50$', '$\\lambda \
 
 
 ### === results comparison
-ll = 0     ###. 0, 1, 2
+ll = 2     ###. 0, 1, 2
 
 tmp_R, tmp_sb, tmp_err = [], [], []
 
@@ -208,7 +208,7 @@ for tt in range( len(R_bins) - 1 ):
 y_lim_0 = [ [1e-3, 4e0], [1e-3, 1e0], [1e-3, 7e0] ]
 y_lim_1 = [ [2e-3, 4e0], [1e-3, 1e0], [5e-3, 6e0] ]
 
-for kk in range( 3 ):
+for kk in range( 1 ):
 
 	plt.figure()
 	ax1 = plt.subplot(111)
@@ -243,7 +243,7 @@ for kk in range( 3 ):
 	plt.close()
 
 
-for kk in range( 3 ):
+for kk in range( 1 ):
 
 	fig = plt.figure( )
 	ax1 = fig.add_axes( [0.13, 0.32, 0.85, 0.63] )

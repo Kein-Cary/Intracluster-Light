@@ -66,7 +66,8 @@ cp_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_SBs/'
 bin_rich = [ 20, 30, 50, 210 ]
 
 R_str = 'scale'
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 band_str = 'r'
 
@@ -199,7 +200,7 @@ off_frac = []
 cp_off_L = []
 cp_off_frac = []
 
-R_fix = 50   ##.kpc
+R_fix = 30   ## 20, 30, 50 .kpc
 
 for tt in range( len(R_bins) - 1 ):
 

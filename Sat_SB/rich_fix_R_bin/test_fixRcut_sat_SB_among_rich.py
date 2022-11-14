@@ -55,14 +55,16 @@ path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_SBs/'
 
 
 ##.
-R_str = 'phy'
-R_bins = np.array( [ 0, 300, 400, 550, 5000] )
-N_sample = 100
+# R_str = 'phy'
+# # R_bins = np.array( [ 0, 300, 400, 550, 5000] )
+# R_bins = np.array( [ 0, 150, 300, 400, 550, 5000] )
+# N_sample = 100
 
-# R_str = 'scale'
-# # R_bins = np.array( [0, 5e-2, 1e-1, 2e-1, 4e-1, 1] )   ### times R200m
-# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
-# N_sample = 50
+
+R_str = 'scale'
+# R_bins = np.array( [0, 5e-2, 1e-1, 2e-1, 4e-1, 1] )   ### times R200m
+R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+N_sample = 50
 
 
 ##.. shuffle order list
@@ -112,7 +114,7 @@ y_lim_0 = [ [1e-3, 4e0], [1e-3, 1e0], [1e-3, 7e0] ]
 y_lim_1 = [ [2e-3, 4e0], [1e-3, 1e0], [5e-3, 6e0] ]
 
 
-for kk in range( 3 ):
+for kk in range( 1 ):
 
     band_str = band[ kk ]
 
@@ -168,10 +170,30 @@ for kk in range( 3 ):
         sub_ax1.fill_between( nbg_R[tt][1], y1 = (nbg_SB[tt][1] - nbg_err[tt][1]) / _kk_tmp_F( nbg_R[tt][1] ), 
                     y2 = (nbg_SB[tt][1] + nbg_err[tt][1]) / _kk_tmp_F( nbg_R[tt][1] ), color = color_s[1], alpha = 0.12,)
 
-        if (R_str == 'scale') & (tt != len(R_bins) - 2):
+        # #.
+        # if (R_str == 'scale') & (tt != len(R_bins) - 2):
+
+        #     cc_dat = pds.read_csv( out_path 
+        #             + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[-1], R_bins[-2], R_bins[-1])
+        #             + '_%s-band_aveg-jack_BG-sub_SB.csv' % band_str,)
+
+        #     cc_tt_r, cc_tt_sb = np.array( cc_dat['r'] ), np.array( cc_dat['sb'] )
+        #     cc_tt_err = np.array( cc_dat['sb_err'] )
+
+        #     _cp_tmp_F = interp.interp1d( cc_tt_r, cc_tt_sb, kind = 'cubic', fill_value = 'extrapolate',)
+
+        #     if ll == 2:
+        #         ax1.errorbar( cc_tt_r, cc_tt_sb, yerr = cc_tt_err, marker = '', ls = '-.', color = 'k',
+        #                 ecolor = 'k', mfc = 'none', mec = 'k', capsize = 1.5, alpha = 0.25, label = line_name[-1] + ', ' + fig_name[-1],)
+        #     else:
+        #         ax1.errorbar( cc_tt_r, cc_tt_sb, yerr = cc_tt_err, marker = '', ls = '-.', color = 'k',
+        #                 ecolor = 'k', mfc = 'none', mec = 'k', capsize = 1.5, alpha = 0.25,)
+
+        #.
+        if (R_str == 'phy') & (tt != len(R_bins) - 2):
 
             cc_dat = pds.read_csv( out_path 
-                    + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[-2], R_bins[-2], R_bins[-1])
+                    + 'Extend_BCGM_gri-common_%s_phyR_%d-%dkpc' % (sub_name[-1], R_bins[-2], R_bins[-1])
                     + '_%s-band_aveg-jack_BG-sub_SB.csv' % band_str,)
 
             cc_tt_r, cc_tt_sb = np.array( cc_dat['r'] ), np.array( cc_dat['sb'] )
@@ -207,7 +229,7 @@ for kk in range( 3 ):
 
         if R_str == 'scale':
             sub_ax1.set_ylabel('$\\mu \; / \; \\mu \,(\\lambda \\geq 50)$', labelpad = 8, fontsize = 12,)
-            sub_ax1.set_ylim( 0.75, 1.21 )
+            sub_ax1.set_ylim( 0.70, 1.21 )
 
         sub_ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
         sub_ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)

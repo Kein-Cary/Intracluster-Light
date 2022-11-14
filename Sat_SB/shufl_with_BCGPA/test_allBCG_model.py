@@ -78,8 +78,9 @@ z_ref = 0.25
 ### === ### use obj_detection to map BCG position angle
 home = '/home/xkchen/data/SDSS/'
 cat_path = '/home/xkchen/data/SDSS/extend_Zphoto_cat/region_sql_cat/'
-out_path = '/home/xkchen/project/tmp/'
+out_path = '/home/xkchen/data/SDSS/member_files/BCG_part_cut_cat/'
 
+#.
 band = ['r', 'g', 'i']
 
 ##.
@@ -192,7 +193,7 @@ for kk in range( rank, rank + 1 ):
 	values = [ bcg_ra, bcg_dec, bcg_z, sub_IDs, kk_cx, kk_cy, kk_a_fit, kk_b_fit, kk_PA_fit ]
 	fill = dict( zip( keys, values ) )
 	data = pds.DataFrame( fill )
-	data.to_csv( out_path + 'BCG_located-params_sub-%d_rank.csv' % rank,)
+	data.to_csv( out_path + 'BCG_located-params_%s-band.csv' % band_str,)
 
 	print('%d-rank, done!' % rank)
 
@@ -201,7 +202,7 @@ raise
 
 ### === ### cluster catalog
 cat_path = '/home/xkchen/data/SDSS/extend_Zphoto_cat/region_sql_cat/'
-out_path = '/home/xkchen/project/tmp/'
+out_path = '/home/xkchen/data/SDSS/member_files/BCG_part_cut_cat/'
 
 band = ['r', 'g', 'i']
 
@@ -251,11 +252,11 @@ for kk in range( rank, rank + 1 ):
 
 		##. source detection and mask_array
 		d_file = ref_file % (band_str, ra_g, dec_g, z_g)
-		out_file = out_path + 'ref_frame_cat_%d.cat' % rank
+		out_file = '/home/xkchen/project/tmp/ref_frame_cat_%d.cat' % rank
 
 		config_file = '/home/xkchen/project/sat_SB/SEX_param/default_adjust.sex'
 		params_file = '/home/xkchen/project/sat_SB/SEX_param/default_mask_A.param'
-		tmp_file = out_path + 'pre_detect_%d.fits' % rank
+		tmp_file = '/home/xkchen/project/tmp/pre_detect_%d.fits' % rank
 
 		simp_finder_func( d_file, out_file, config_file, params_file, tmp_file = tmp_file )
 
@@ -265,7 +266,7 @@ for kk in range( rank, rank + 1 ):
 
 
 		##. mask_array
-		obj_cat = out_path + 'ref_frame_cat_%d.cat' % rank
+		obj_cat = '/home/xkchen/project/tmp/ref_frame_cat_%d.cat' % rank
 
 		source = asc.read( obj_cat,)
 		Numb = np.array(source['NUMBER'][-1])
@@ -351,11 +352,11 @@ for kk in range( rank, rank + 1 ):
 
 		ff = dict( zip(keys,value) )
 		fil = fits.Header(ff)
-		fits.writeto( out_path + 'BCG_filled_cut_img_%d.fits' % rank, cp_cut_arr / k_nMGY, header = fil, overwrite = True)		
-
+		fits.writeto('/home/xkchen/project/tmp/BCG_filled_cut_img_%d.fits'
+				 % rank, cp_cut_arr / k_nMGY, header = fil, overwrite = True)
 
 		##... BCG centered image fitting with astropy modeling fitting
-		fit_file = out_path + 'BCG_filled_cut_img_%d.fits' % rank
+		fit_file = '/home/xkchen/project/tmp/BCG_filled_cut_img_%d.fits' % rank
 
 		fit_data = fits.open( fit_file )
 		fit_img = fit_data[0].data
@@ -448,7 +449,7 @@ for kk in range( rank, rank + 1 ):
 	values = [ bcg_ra, bcg_dec, bcg_z, sub_IDs, kk_Re_fit, kk_ne_fit, kk_b2a_fit, kk_PA_fit ]
 	fill = dict( zip( keys, values ) )
 	data = pds.DataFrame( fill )
-	data.to_csv( out_path + 'BCG_fit_params_sub-%d_rank.csv' % rank,)
+	data.to_csv( out_path + 'BCG_fit_params_%s-band.csv' % band_str,)
 
 	print('%d-rank, done!' % rank)
 

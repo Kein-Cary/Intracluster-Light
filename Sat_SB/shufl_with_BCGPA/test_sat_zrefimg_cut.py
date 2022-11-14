@@ -130,7 +130,7 @@ raise
 
 ### ========= ### zref_img (image after pixel resampling) cut
 cat_path = '/home/xkchen/fig_tmp/Extend_Mbcg_richbin_sat_cat/'
-out_path = '/home/xkchen/project/tmp_obj_cat/'
+out_path = '/home/xkchen/data/SDSS/member_files/shufl_woBCG_wPA/zref_cut_cat/'
 
 ##. cluster image without BCG
 # img_file = '/home/xkchen/data/SDSS/photo_files/pos_offset_correct_imgs/nobcg_resamp_img/photo-z_resamp_%s_ra%.3f_dec%.3f_z%.3f.fits'

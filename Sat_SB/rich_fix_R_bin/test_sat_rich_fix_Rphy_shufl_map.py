@@ -44,8 +44,8 @@ def shufl_list_match( cat_file, clust_file, N_shufl, shufl_list_file, out_shufl_
 
 
 	#. shuffle list match
-	# for dd in range( N_shufl ):
-	for dd in range( 13,14 ):
+	for dd in range( N_shufl ):
+	# for dd in range( 13,14 ):
 
 		#.
 		pat = pds.read_csv( shufl_list_file % dd,)
@@ -78,8 +78,8 @@ def shufl_list_match( cat_file, clust_file, N_shufl, shufl_list_file, out_shufl_
 
 
 	#. image cut information match
-	# for dd in range( N_shufl ):
-	for dd in range( 13,14 ):
+	for dd in range( N_shufl ):
+	# for dd in range( 13,14 ):
 
 		##. T200 catalog
 		dat = pds.read_csv( out_shufl_file % dd,)
@@ -128,8 +128,8 @@ def shufl_list_match( cat_file, clust_file, N_shufl, shufl_list_file, out_shufl_
 
 
 	#. count the number of satellite before and after shuffling
-	# for dd in range( N_shufl ):
-	for dd in range( 13,14 ):
+	for dd in range( N_shufl ):
+	# for dd in range( 13,14 ):
 
 		##. T200 catalog
 		dat = pds.read_csv( out_shufl_file % dd,)
@@ -183,10 +183,13 @@ cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/cat/'
 out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/shufl_list/'
 shufl_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/shufl_list/tables/'
 
-
+#.
 bin_rich = [ 20, 30, 50, 210 ]
 
-R_bins = np.array( [ 0, 300, 400, 550, 5000] )
+##. fixed R for all richness subsample
+# R_bins = np.array( [ 0, 300, 400, 550, 5000] )
+R_bins = np.array( [ 0, 150, 300, 400, 550, 5000] )
+
 
 for pp in range( 3 ):
 
@@ -225,3 +228,4 @@ for pp in range( 3 ):
 			shufl_list_match( sub_cat_file, clust_file, N_shufl, shufl_list_file, out_shufl_file, 
 								oirn_img_pos_file, out_pos_file, out_Ng_file )
 
+print('Done!')

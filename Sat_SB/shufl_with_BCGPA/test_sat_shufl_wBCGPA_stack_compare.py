@@ -65,14 +65,19 @@ N_bin = 100   ## number of jackknife subsample
 bin_rich = [ 20, 30, 50, 210 ]
 
 ##. fixed R for all richness subsample
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+
+##. test for inner bins SB compare
+R_bins = np.array( [0, 0.126, 0.24, 0.50, 1] )   ### times R200m
+
 
 ##.
 for kk in range( 1 ):
 
 	band_str = band[ kk ]
 
-	for tt in range( len(R_bins) - 1 ):
+	# for tt in range( len(R_bins) - 1 ):
+	for tt in range( 3 ):
 
 		bcg_ra, bcg_dec, bcg_z = np.array([]), np.array([]), np.array([])
 		sat_ra, sat_dec = np.array([]), np.array([])

@@ -92,7 +92,7 @@ for kk in range( rank, rank + 1):
 	IDs_1 = np.array( cat_1['clus_ID'] )
 	IDs_1 = IDs_1.astype( int )
 
-	#. -90 ~ 90
+	#. -90 ~ 90, in unit of deg
 	PA_1 = np.array( cat_1['PA'] )
 
 	##. pre-location record
@@ -168,7 +168,7 @@ raise
 
 
 ### === shuffle table build ~ (with relative position angle of satellite to the BCG major axies)
-"""
+
 cat_path = '/home/xkchen/data/SDSS/member_files/shufl_woBCG_wPA/PA_cat/'
 out_path = '/home/xkchen/data/SDSS/member_files/shufl_woBCG_wPA/PA_cat/'
 
@@ -286,8 +286,8 @@ for kk in range( rank, rank + 1):
 					cp_sat_Rpix = ( ( qq_R_sat / 1e3 / cp_Da ) * rad2arcsec ) / pixel
 
 					#.
-					off_x = cp_sat_Rpix * np.cos( delt_chi )
-					off_y = cp_sat_Rpix * np.sin( delt_chi )
+					off_x = cp_sat_Rpix * np.cos( delt_chi + cp_bcg_PA )
+					off_y = cp_sat_Rpix * np.sin( delt_chi + cp_bcg_PA )
 
 					cp_cx, cp_cy = bcg_x[ id_ux ][0], bcg_y[ id_ux ][0]
 
@@ -326,8 +326,8 @@ for kk in range( rank, rank + 1):
 												np.pi - delt_chi, 
 												np.pi * 2 - delt_chi ] )
 
-						tmp_off_x = cp_sat_Rpix * np.cos( tmp_phi )
-						tmp_off_y = cp_sat_Rpix * np.sin( tmp_phi )
+						tmp_off_x = cp_sat_Rpix * np.cos( tmp_phi + cp_bcg_PA )
+						tmp_off_y = cp_sat_Rpix * np.sin( tmp_phi + cp_bcg_PA )
 
 						tmp_sx, tmp_sy = cp_cx + tmp_off_x, cp_cy + tmp_off_y
 
@@ -386,7 +386,7 @@ for kk in range( rank, rank + 1):
 							(bin_rich[tt], bin_rich[tt + 1], band_str, kk),)
 
 raise
-"""
+
 
 
 ### === satellite number counts for shuffle mapping catalog

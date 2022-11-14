@@ -127,14 +127,21 @@ def mag_color_map():
 	line_name = ['$\\lambda \\leq 30$', '$30 \\leq \\lambda \\leq 50$', '$\\lambda \\geq 50$']
 
 
-	##. R_limmits
-	R_str = 'phy'
-	R_bins = np.array( [ 0, 300, 400, 550, 5000] )     ### kpc
+	# ##. fixed R for all richness subsample
+	# R_str = 'phy'
 
-	# R_str = 'scale'
-	# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+	# # R_bins = np.array( [ 0, 300, 400, 550, 5000] )      ###. kpc
+	# R_bins = np.array( [ 0, 150, 300, 400, 550, 5000] )
 
 
+	##. average shuffle test
+	R_str = 'scale'
+
+	R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m, for rich + sR bin
+
+
+	#.
 	if R_str == 'phy':
 
 		fig_name = []
@@ -430,13 +437,20 @@ def fig_properties():
 	line_name = ['$\\lambda \\leq 30$', '$30 \\leq \\lambda \\leq 50$', '$\\lambda \\geq 50$']
 
 
-	##. R_limmits
+	##. fixed R for all richness subsample
 	R_str = 'phy'
-	R_bins = np.array( [ 0, 300, 400, 550, 5000] )     ### kpc
 
+	# R_bins = np.array( [ 0, 300, 400, 550, 5000] )      ###. kpc
+	R_bins = np.array( [ 0, 150, 300, 400, 550, 5000] )
+
+
+	# ##. average shuffle test
 	# R_str = 'scale'
-	# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
 
+	# # R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m, for rich + sR bin
+
+	#.
 	color_s = ['b', 'g', 'c', 'r', 'm']
 
 	#.
@@ -618,20 +632,29 @@ def fig_properties():
 # fig_properties()
 # raise
 
+
 ### ... mapping stacking information
 def radiu_rich_bin_match():
 
 	##. subsample
 	bin_rich = [ 20, 30, 50, 210 ]
 
-	##. R_limmits
-	R_str = 'phy'
-	R_bins = np.array( [ 0, 300, 400, 550, 5000] )     ### kpc
 
-	# R_str = 'scale'
-	# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+	# ##. fixed R for all richness subsample
+	# R_str = 'phy'
+
+	# # R_bins = np.array( [ 0, 300, 400, 550, 5000] )
+	# R_bins = np.array( [ 0, 150, 300, 400, 550, 5000] )
 
 
+	##. average shuffle test
+	R_str = 'scale'
+
+	R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m, for rich + sR bin
+
+
+	#.
 	for kk in range( 3 ):
 
 		for nn in range( len( R_bins ) - 1 ):
@@ -723,6 +746,7 @@ def radiu_rich_bin_match():
 # raise
 
 
+
 ### === ### Radius bin over_all richness
 def radius_bin_over_rich():
 
@@ -731,8 +755,13 @@ def radius_bin_over_rich():
 
 	##. R_limmits
 	R_str = 'scale'
-	R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
+	##. average shuffle test
+	R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+
+
+	#.
 	fig_name = []
 	for dd in range( len(R_bins) - 1 ):
 
@@ -1039,12 +1068,17 @@ def radius_bin_over_rich():
 
 
 ###... stacking information
-def radiu_bin_over_rich__match():
+def radiu_bin_over_rich_match():
 
 	##. mapped field galaxy
+	##. R_limmits
 	R_str = 'scale'
-	R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
+	##. average shuffle test
+	R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+
+	#.
 	for nn in range( len( R_bins ) - 1 ):
 
 		dat = fits.open( out_path + 
@@ -1107,7 +1141,7 @@ def radiu_bin_over_rich__match():
 	print('To here!')
 	return
 
-# radiu_bin_over_rich__match()
+# radiu_bin_over_rich_match()
 # raise
 
 

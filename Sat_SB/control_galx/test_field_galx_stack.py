@@ -60,14 +60,17 @@ bin_rich = [ 20, 30, 50, 210 ]
 sub_name = ['low-rich', 'medi-rich', 'high-rich']
 
 
-##. R_limmits
+# ##. fixed R for all richness subsample
 # R_str = 'phy'
-# R_bins = np.array( [ 0, 300, 400, 550, 5000] )     ### kpc
+# # R_bins = np.array( [ 0, 300, 400, 550, 5000] )
+# R_bins = np.array( [ 0, 150, 300, 400, 550, 5000] )
 
+
+##. average shuffle test
 R_str = 'scale'
-R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m, for rich + sR bin
 
-
+#.
 for ll in range( 3 ):
 
 	for tt in range( len(R_bins) - 1 ):
@@ -183,14 +186,18 @@ bin_rich = [ 20, 30, 50, 210 ]
 sub_name = ['low-rich', 'medi-rich', 'high-rich']
 
 
-##. R_limmits
+# ##. fixed R for all richness subsample
 # R_str = 'phy'
-# R_bins = np.array( [ 0, 300, 400, 550, 5000] )     ### kpc
+# # R_bins = np.array( [ 0, 300, 400, 550, 5000] )
+# R_bins = np.array( [ 0, 150, 300, 400, 550, 5000] )
 
+
+##. average shuffle test
 R_str = 'scale'
-R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m, for rich + sR bin
 
 
+#.
 for ll in range( 3 ):
 
 	for tt in range( len(R_bins) - 1 ):

@@ -19,12 +19,10 @@ from scipy import optimize
 from astropy import cosmology as apcy
 from astropy.coordinates import SkyCoord
 
+#.
 from img_sat_resamp import resamp_func
 from img_sat_resamp import BG_resamp_func
 from img_sat_BG_extract_tmp import origin_img_cut_func
-
-from img_sat_fast_stack import sat_img_fast_stack_func
-from img_sat_fast_stack import sat_BG_fast_stack_func
 
 #.
 import time
@@ -49,7 +47,7 @@ rad2arcsec = U.rad.to( U.arcsec )
 
 
 ### === shuffle table build
-
+"""
 bin_rich = [ 20, 30, 50, 210 ]
 sub_name = ['low-rich', 'medi-rich', 'high-rich']
 
@@ -59,10 +57,9 @@ sub_name = ['low-rich', 'medi-rich', 'high-rich']
 # for kk in range( 20 ):
 # 	for dd in range( 3 ):
 # 		band_str = band[ dd ]   ## i-band as test
-
 # 		for tt in range( 3 ):  ## medi-rich subsample
 
-
+#.
 cat_path = '/home/xkchen/fig_tmp/Extend_Mbcg_richbin_sat_cat/'
 out_path = '/home/xkchen/figs/'
 
@@ -253,162 +250,75 @@ for kk in range( 100 ):
 
 
 raise
+"""
 
 
-### ===
-def count_shufl_N_sat():
+### === z-ref cluster image extract catalog
+shufl_path = '/home/xkchen/data/SDSS/member_files/shufl_img_wBCG/shufl_cat/'
+out_path = '/home/xkchen/data/SDSS/member_files/shufl_img_wBCG/zref_cut_cat/'
 
-	cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/cat/'
+#.
+N_shufl = 20
+bin_rich = [ 20, 30, 50, 210 ]
 
-	bin_rich = [ 20, 30, 50, 210 ]
+#.
+for dd in range( 3 ):
 
-	##. radius binned satellite
-	sub_name = ['low-rich', 'medi-rich', 'high-rich']
+	band_str = band[ dd ]
 
-	##... 
-	R_bins = [ 0, 200, 400 ]   ## kpc
-	cat_lis = ['inner', 'middle', 'outer']
-
-	N_shufl = 20
-
-
-	#... number count for the entire sample
 	for kk in range( 3 ):
 
-		for tt in range( 3 ):
+		for tt in range( N_shufl ):
 
-			band_str = band[ tt ]
+			##.
+			cat = pds.read_csv( shufl_path + 
+				'clust_rich_%d-%d_%s-band_sat-shuffle-%d_position.csv' % (bin_rich[kk], bin_rich[kk + 1], band_str, tt),)
 
-			for dd in range( N_shufl ):
+			clus_ID = np.array( cat['orin_cID'] )
+			clus_ID = clus_ID.astype( int )
 
-				##.
-				dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/shufl_list/tables/' + 
-						'clust_rich_%d-%d_%s-band_sat-shuffle-%d_position.csv' % (bin_rich[kk], bin_rich[kk + 1], band_str, dd),)
+			bcg_ra, bcg_dec, bcg_z = np.array( cat['bcg_ra'] ), np.array( cat['bcg_dec'] ), np.array( cat['bcg_z'] )
+			sat_ra, sat_dec = np.array( cat['sat_ra'] ), np.array( cat['sat_dec'] )
 
-				bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
-				sat_ra, sat_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
-
-				orin_IDs = np.array( dat['orin_cID'] )
-				rand_IDs = np.array( dat['shufl_cID'] )
-
-				orin_IDs = orin_IDs.astype( int )
-				rand_IDs = rand_IDs.astype( int )
+			Rsat_phy = np.array( cat['orin_Rsat_phy'] )
 
 
-				##. entire all sample
-				dat = pds.read_csv( cat_path + 'clust_rich_%d-%d_cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
-				clus_IDs = np.array( dat['clust_ID'] )
-				clus_IDs = clus_IDs.astype( int )
+			##. satellite shuffle information
+			cp_sx, cp_sy, cp_PA = np.array( cat['cp_sx'] ), np.array( cat['cp_sy'] ), np.array( cat['cp_PA'] )
+			cp_Rpix, cp_Rsat_phy = np.array( cat['cp_Rpix'] ), np.array( cat['cp_Rsat_phy'] )
 
-				N_w = len( clus_IDs )
-				N_ss = len( bcg_ra )
+			cp_bcg_ra, cp_bcg_dec, cp_bcg_z = np.array( cat['cp_bcg_ra'] ), np.array( cat['cp_bcg_dec'] ), np.array( cat['cp_bcg_z'] )
+			cp_clus_ID = np.array( cat['shufl_cID'] )
 
-				##.
-				pre_Ng = np.zeros( N_ss, )
-				shufl_Ng = np.zeros( N_ss, )
+			is_symP = np.array( cat['is_symP'] )
 
-				for mm in range( N_w ):
+			##. refer to information at z_ref
+			R_cut = 320
 
-					sub_IDs = clus_IDs[ mm ]
+			Da_z = Test_model.angular_diameter_distance( cp_bcg_z ).value
+			Da_ref = Test_model.angular_diameter_distance( z_ref ).value
 
-					id_vx = orin_IDs == sub_IDs
-					pre_Ng[ id_vx ] = np.sum( id_vx )
+			L_ref = Da_ref * pixel / rad2arcsec
+			L_z = Da_z * pixel / rad2arcsec
+			eta = L_ref / L_z
 
-					id_ux = rand_IDs == sub_IDs
-					shufl_Ng[ id_ux ] = np.sum( id_ux )
+			ref_sx = cp_sx / eta
+			ref_sy = cp_sy / eta
 
-					print( np.sum( id_vx ) )
+			ref_R_cut = R_cut / eta
+			ref_R_pix = cp_Rpix / eta
 
-				##. save
-				keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'orin_Ng', 'shufl_Ng']
-				values = [ bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, pre_Ng, shufl_Ng ]
-				fill = dict( zip( keys, values ) )
-				out_data = pds.DataFrame( fill )
-				out_data.to_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/shufl_list/tables/' + 
-						'clust_rich_%d-%d_%s-band_sat-shuffle-%d_shufl-sat-Ng.csv' % 
-								(bin_rich[kk], bin_rich[kk + 1], band_str, dd),)
+			##. 
+			keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'orin_cID', 'orin_Rsat_phy', 
+					'shufl_cID', 'cp_sx', 'cp_sy', 'cp_PA', 'cp_Rpix', 'cp_Rsat_phy', 'is_symP', 
+					'cp_bcg_ra', 'cp_bcg_dec', 'cp_bcg_z', 'cut_size' ]
 
+			values = [ bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, clus_ID, Rsat_phy, 
+					cp_clus_ID, ref_sx, ref_sy, cp_PA, ref_R_pix, cp_Rsat_phy, is_symP, 
+					cp_bcg_ra, cp_bcg_dec, cp_bcg_z, ref_R_cut ]
 
-
-	#... number count for the subsamples sample
-	for kk in range( 3 ):
-
-		##. entire all sample
-		dat = pds.read_csv( cat_path + 'clust_rich_%d-%d_cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
-		clus_IDs = np.array( dat['clust_ID'] )
-		clus_IDs = clus_IDs.astype( int )
-
-		N_w = len( clus_IDs )
-
-		for tt in range( 3 ):
-
-			band_str = band[ tt ]
-
-			for dd in range( N_shufl ):
-
-				##. shuffle list
-				dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/shufl_list/tables/' + 
-						'clust_rich_%d-%d_%s-band_sat-shuffle-%d_position.csv' % (bin_rich[kk], bin_rich[kk + 1], band_str, dd),)
-
-				bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
-				sat_ra, sat_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
-
-				pre_coord = SkyCoord( ra = sat_ra * U.deg, dec = sat_dec * U.deg )
-
-				orin_IDs = np.array( dat['orin_cID'] )
-				rand_IDs = np.array( dat['shufl_cID'] )
-
-				orin_IDs = orin_IDs.astype( int )
-				rand_IDs = rand_IDs.astype( int )
-
-				##. subsample catalog
-				for nn in range( 3 ):
-
-					pat = pds.read_csv( cat_path + 
-							'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR-%s-mem_cat.csv' % 
-								( bin_rich[kk], bin_rich[kk + 1], cat_lis[ nn ] ),)
-
-					p_ra, p_dec, p_z = np.array( pat['bcg_ra'] ), np.array( pat['bcg_dec'] ), np.array( pat['bcg_z'] )
-					p_sat_ra, p_sat_dec = np.array( pat['sat_ra'] ), np.array( pat['sat_dec'] )
-
-					nn_coord = SkyCoord( ra = p_sat_ra * U.deg, dec = p_sat_dec * U.deg )
-
-					p_clus_IDs = np.array( pat['clus_ID'] )
-					p_clus_IDs = p_clus_IDs.astype( int )
-
-					N_ss = len( p_ra )
-
-
-					idx, sep, d3d = nn_coord.match_to_catalog_sky( pre_coord )
-					id_lim = sep.value < 2.7e-4
-
-					mp_shufl_IDs = rand_IDs[ idx[ id_lim ] ]
-
-
-					##.
-					pre_Ng = np.zeros( N_ss, )
-					shufl_Ng = np.zeros( N_ss, )
-
-					for mm in range( N_w ):
-
-						sub_IDs = clus_IDs[ mm ]
-
-						id_vx = p_clus_IDs == sub_IDs
-						pre_Ng[ id_vx ] = np.sum( id_vx )
-
-						id_ux = mp_shufl_IDs == sub_IDs
-						shufl_Ng[ id_ux ] = np.sum( id_ux )
-
-					##.
-					keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'orin_Ng', 'shufl_Ng' ]
-					values = [ p_ra, p_dec, p_z, p_sat_ra, p_sat_dec, pre_Ng, shufl_Ng ]
-					fill = dict( zip( keys, values ) )
-					out_data = pds.DataFrame( fill )
-					out_data.to_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/shufl_list/tables/' + 
-							'clust_rich_%d-%d_%s_%s-band_sat-shuffle-%d_shufl-sat-Ng.csv' % 
-									(bin_rich[kk], bin_rich[kk + 1], cat_lis[ nn ], band_str, dd),)
-
-	return
-
-# count_shufl_N_sat()
+			fill = dict( zip( keys, values ) )
+			out_data = pds.DataFrame( fill )
+			out_data.to_csv( out_path + 
+				'clust_rich_%d-%d_%s-band_sat-shuffle-%d_zref-img_cut-cat.csv' % (bin_rich[kk], bin_rich[kk + 1], band_str, tt),)
 

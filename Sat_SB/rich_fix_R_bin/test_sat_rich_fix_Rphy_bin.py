@@ -43,7 +43,9 @@ def sat_phyR_binned():
     out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/cat/'
 
     ##. fixed R for all richness subsample
-    R_bins = np.array( [ 0, 300, 400, 550, 5000] )
+    # R_bins = np.array( [ 0, 300, 400, 550, 5000] )
+    R_bins = np.array( [ 0, 150, 300, 400, 550, 5000] )
+
     R_bins = [ R_bins ] * 3
 
 
@@ -82,6 +84,8 @@ def sat_phyR_binned():
             out_R2Rv = p_R2Rv[ sub_N ]
             out_clus_ID = clus_IDs[ sub_N ]
 
+            # print( len( out_c_ra ) )
+
             keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'R_sat', 'R2Rv', 'clus_ID'] 
             values = [ out_c_ra, out_c_dec, out_c_z, out_s_ra, out_s_dec, out_Rsat, out_R2Rv, out_clus_ID]
             fill = dict( zip( keys, values ) )
@@ -90,6 +94,8 @@ def sat_phyR_binned():
                 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem_cat.csv' % 
                 ( bin_rich[kk], bin_rich[kk + 1], R_bins[kk][nn], R_bins[kk][nn + 1]),)
 
+    #     print( '*' * 10 )
+    # raise
 
     ##... match the P_mem information
     pre_cat = fits.open('/home/xkchen/mywork/ICL/data/redmapper/redmapper_dr8_public_v6.3_members.fits')
@@ -129,7 +135,7 @@ def sat_phyR_binned():
                 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem_cat.csv' % 
                 ( bin_rich[kk], bin_rich[kk + 1], R_bins[kk][nn], R_bins[kk][nn + 1]), )
 
-    raise
+    # raise
 
     ##... match with stacked information
     pos_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/'

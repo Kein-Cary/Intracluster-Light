@@ -38,11 +38,14 @@ band = ['r', 'g', 'i']
 
 
 ### === ### over all compare
+#.
+list_order = 13
 
 band_str = 'r'
 
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
-list_order = 13
+# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+
 
 color_s = ['b', 'g', 'r', 'm', 'k']
 
@@ -158,7 +161,7 @@ for tt in range( len(R_bins) - 1 ):
 
 
 
-###=== sat_img with BCG
+###=== sat_img with BCG ~ (named '_cc')
 path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/SBs/'
 
 ##. random located satellite align the major axis of BCG
@@ -256,7 +259,264 @@ for tt in range( len(R_bins) - 1 ):
 
 
 ### === ### figs
-"""
+
+# for mm in range( 2 ):
+for mm in range( len(R_bins) - 1 ):
+
+	##: fixed -- align with BCG
+	##: BCG mask ON vs BCG mask OFF
+
+	fig = plt.figure( figsize = (10.4, 4.8) )
+	ax1 = fig.add_axes([0.07, 0.11, 0.40, 0.84])
+	ax2 = fig.add_axes([0.57, 0.11, 0.40, 0.84])
+
+
+	ax1.errorbar( nbg_R[mm], nbg_SB[mm], yerr = nbg_err[mm], marker = '.', ls = '-', color = 'r',
+		ecolor = 'r', mfc = 'none', mec = 'r', capsize = 1.5, alpha = 0.75, 
+		label = 'BCG mask ON')
+
+	ax1.errorbar( nbg_R_cc[mm], nbg_SB_cc[mm], yerr = nbg_err_cc[mm], marker = '.', ls = '--', color = 'b',
+		ecolor = 'b', mfc = 'none', mec = 'b', capsize = 1.5, alpha = 0.75,
+		label = 'BCG mask OFF')
+
+	ax1.legend( loc = 1, frameon = False, fontsize = 12,)
+	ax1.annotate( s = '%s-band, ' % band_str + fig_name[mm] + '\n Align with BCG', xy = (0.05, 0.05), xycoords = 'axes fraction', fontsize = 12,)
+
+	ax1.set_xlim( 1e0, 1e2 )
+	ax1.set_xscale('log')
+	ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
+
+	ax1.set_ylim( 1e-3, 5e0 )
+	ax1.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
+	ax1.set_yscale('log')
+
+	ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
+
+
+	_kk_tmp_F = interp.interp1d( nbg_R[mm], nbg_SB[mm], kind = 'cubic', fill_value = 'extrapolate',)
+	_tt_SBs = _kk_tmp_F( nbg_R_cc[mm] )
+
+	ax2.plot( nbg_R_cc[mm], (nbg_SB_cc[mm] - _tt_SBs ) / _tt_SBs, ls = '--', color = 'b',)
+	ax2.fill_between( nbg_R_cc[mm], y1 = (nbg_SB_cc[mm] - _tt_SBs - nbg_err_cc[mm]) / _tt_SBs, 
+					y2 = (nbg_SB_cc[mm] - _tt_SBs + nbg_err_cc[mm]) / _tt_SBs, color = 'b', alpha = 0.12,)
+
+	ax2.set_xlim( ax1.get_xlim() )
+	ax2.set_xscale('log')
+	ax2.set_xlabel('$R \; [kpc]$', fontsize = 12,)
+
+	ax2.set_ylabel('$( \, \\mu - \\mu_{BCG \; mask \; ON} \, ) \; / \; \\mu_{BCG \; mask \; ON}$', 
+					labelpad = 10, fontsize = 12,)
+
+	if mm == 0:
+		ax2.set_ylim( -0.05, 0.95 )
+	else:
+		ax2.set_ylim( -0.1, 0.1 )
+
+	ax2.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
+	ax2.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
+
+	plt.savefig('/home/xkchen/' + 
+		'Sat_%.2f-%.2fR200m_%s-band_align-with-BCG_SB.png' % (R_bins[mm], R_bins[mm + 1], band_str), dpi = 300)
+	plt.close()
+
+
+	##: fixed -- BCG mask ON
+	##: Align with Frame vs Align with BCG
+
+	fig = plt.figure( figsize = (10.4, 4.8) )
+	ax1 = fig.add_axes([0.07, 0.11, 0.40, 0.84])
+	ax2 = fig.add_axes([0.57, 0.11, 0.40, 0.84])
+
+	ax1.errorbar( nbg_R[mm], nbg_SB[mm], yerr = nbg_err[mm], marker = '.', ls = '-', color = 'r',
+		ecolor = 'r', mfc = 'none', mec = 'r', capsize = 1.5, alpha = 0.75, 
+		label = 'Align with BCG')
+
+	ax1.errorbar( cp_nbg_R[mm], cp_nbg_SB[mm], yerr = cp_nbg_err[mm], marker = '.', ls = '--', 
+		color = 'b', ecolor = 'b', mfc = 'none', mec = 'b', capsize = 1.5, alpha = 0.75,
+		label = 'Align with Frame')
+
+	ax1.legend( loc = 1, frameon = False, fontsize = 12,)
+	ax1.annotate( s = '%s-band, ' % band_str + fig_name[mm] + '\n BCG mask ON', xy = (0.05, 0.05), xycoords = 'axes fraction', fontsize = 12,)
+
+	ax1.set_xlim( 1e0, 1e2 )
+	ax1.set_xscale('log')
+	ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
+
+	ax1.set_ylim( 1e-3, 5e0 )
+	ax1.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
+	ax1.set_yscale('log')
+
+	ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
+
+
+	_kk_tmp_F = interp.interp1d( nbg_R[mm], nbg_SB[mm], kind = 'cubic', fill_value = 'extrapolate',)
+	_tt_SBs = _kk_tmp_F( cp_nbg_R[mm] )
+
+	ax2.plot( cp_nbg_R[mm], ( cp_nbg_SB[mm] - _tt_SBs ) / _tt_SBs, ls = '--', color = 'b',)
+	ax2.fill_between( cp_nbg_R[mm], y1 = (cp_nbg_SB[mm] - _tt_SBs - cp_nbg_err[mm]) / _tt_SBs, 
+					y2 = (cp_nbg_SB[mm] - _tt_SBs + cp_nbg_err[mm]) / _tt_SBs, color = 'b', alpha = 0.12,)
+
+	ax2.set_xlim( ax1.get_xlim() )
+	ax2.set_xscale('log')
+	ax2.set_xlabel('$R \; [kpc]$', fontsize = 12,)
+
+	ax2.set_ylabel('$( \, \\mu - \\mu_{Align \; with \; BCG} \, ) \; / \; \\mu_{Align \; with \; BCG}$', 
+					labelpad = 10, fontsize = 12,)
+	ax2.set_ylim( -0.15, 0.15 )
+
+	ax2.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
+	ax2.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
+
+	plt.savefig('/home/xkchen/' + 
+		'Sat_%.2f-%.2fR200m_%s-band_BCG-mask-ON_SB.png' % (R_bins[mm], R_bins[mm + 1], band_str), dpi = 300)
+	plt.close()
+
+
+	##: fixed -- Align with Frame
+	##: BCG mask ON vs BCG mask OFF
+
+	fig = plt.figure( figsize = (10.4, 4.8) )
+	ax1 = fig.add_axes([0.07, 0.11, 0.40, 0.84])
+	ax2 = fig.add_axes([0.57, 0.11, 0.40, 0.84])
+
+	ax1.errorbar( cp_nbg_R[mm], cp_nbg_SB[mm], yerr = cp_nbg_err[mm], marker = '.', ls = '-', 
+		color = 'r', ecolor = 'r', mfc = 'none', mec = 'r', capsize = 1.5, alpha = 0.75,
+		label = 'BCG mask ON')
+
+	ax1.errorbar( cp_nbg_R_cc[mm], cp_nbg_SB_cc[mm], yerr = cp_nbg_err_cc[mm], marker = '.', ls = '--', 
+		color = 'b', ecolor = 'b', mfc = 'none', mec = 'b', capsize = 1.5, alpha = 0.75, 
+		label = 'BCG mask OFF')
+
+	ax1.legend( loc = 1, frameon = False, fontsize = 12,)
+	ax1.annotate( s = '%s-band, ' % band_str + fig_name[mm] + '\n Align with Frame', xy = (0.05, 0.05), xycoords = 'axes fraction', fontsize = 12,)
+
+	ax1.set_xlim( 1e0, 1e2 )
+	ax1.set_xscale('log')
+	ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
+
+	ax1.set_ylim( 1e-3, 5e0 )
+	ax1.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
+	ax1.set_yscale('log')
+
+	ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
+
+
+	_kk_tmp_F = interp.interp1d( cp_nbg_R[mm], cp_nbg_SB[mm], kind = 'cubic', fill_value = 'extrapolate',)
+	_tt_SBs = _kk_tmp_F( cp_nbg_R_cc[mm] )
+
+	ax2.plot( cp_nbg_R_cc[mm], ( cp_nbg_SB_cc[mm] - _tt_SBs ) / _tt_SBs, ls = '--', color = 'b',)
+	ax2.fill_between( cp_nbg_R_cc[mm], y1 = (cp_nbg_SB_cc[mm] - _tt_SBs - cp_nbg_err_cc[mm]) / _tt_SBs, 
+					y2 = (cp_nbg_SB_cc[mm] - _tt_SBs + cp_nbg_err_cc[mm]) / _tt_SBs, color = 'b', alpha = 0.12,)
+
+	ax2.set_xlim( ax1.get_xlim() )
+	ax2.set_xscale('log')
+	ax2.set_xlabel('$R \; [kpc]$', fontsize = 12,)
+
+	ax2.set_ylabel('$( \, \\mu - \\mu_{BCG \; mask \; ON} \, ) \; / \; \\mu_{BCG \; mask \; ON}$', 
+					labelpad = 10, fontsize = 12,)
+
+	if mm == 0:
+		ax2.set_ylim( -0.05, 0.95 )
+	else:
+		ax2.set_ylim( -0.1, 0.1 )
+
+	ax2.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
+	ax2.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
+
+	plt.savefig('/home/xkchen/' + 
+		'Sat_%.2f-%.2fR200m_%s-band_Align-with-Frame_SB.png' % (R_bins[mm], R_bins[mm + 1], band_str), dpi = 300)
+	plt.close()
+
+
+	##: fixed -- BCG mask OFF
+	##: Align with BCG vs Align with Frame
+
+	fig = plt.figure( figsize = (10.4, 4.8) )
+	ax1 = fig.add_axes([0.07, 0.11, 0.40, 0.84])
+	ax2 = fig.add_axes([0.57, 0.11, 0.40, 0.84])
+
+	ax1.errorbar( nbg_R_cc[mm], nbg_SB_cc[mm], yerr = nbg_err_cc[mm], marker = '.', ls = '-', 
+		color = 'r', ecolor = 'r', mfc = 'none', mec = 'r', capsize = 1.5, alpha = 0.75,
+		label = 'Align with BCG')
+
+	ax1.errorbar( cp_nbg_R_cc[mm], cp_nbg_SB_cc[mm], yerr = cp_nbg_err_cc[mm], marker = '.', ls = '--', 
+		color = 'b', ecolor = 'b', mfc = 'none', mec = 'b', capsize = 1.5, alpha = 0.75, 
+		label = 'Align with Frame')
+
+	ax1.legend( loc = 1, frameon = False, fontsize = 12,)
+	ax1.annotate( s = '%s-band, ' % band_str + fig_name[mm] + '\n BCG mask OFF', xy = (0.05, 0.05), xycoords = 'axes fraction', fontsize = 12,)
+
+	ax1.set_xlim( 1e0, 1e2 )
+	ax1.set_xscale('log')
+	ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
+
+	ax1.set_ylim( 1e-3, 5e0 )
+	ax1.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
+	ax1.set_yscale('log')
+
+	ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
+
+
+	_kk_tmp_F = interp.interp1d( nbg_R_cc[mm], nbg_SB_cc[mm], kind = 'cubic', fill_value = 'extrapolate',)
+	_tt_SBs = _kk_tmp_F( cp_nbg_R_cc[mm] )
+
+	ax2.plot( cp_nbg_R_cc[mm], ( cp_nbg_SB_cc[mm] - _tt_SBs ) / _tt_SBs, ls = '--', color = 'b',)
+	ax2.fill_between( cp_nbg_R_cc[mm], y1 = (cp_nbg_SB_cc[mm] - _tt_SBs - cp_nbg_err_cc[mm]) / _tt_SBs, 
+					y2 = (cp_nbg_SB_cc[mm] - _tt_SBs + cp_nbg_err_cc[mm]) / _tt_SBs, color = 'b', alpha = 0.12,)
+
+	ax2.set_xlim( ax1.get_xlim() )
+	ax2.set_xscale('log')
+	ax2.set_xlabel('$R \; [kpc]$', fontsize = 12,)
+
+	ax2.set_ylabel('$( \, \\mu - \\mu_{Align \; with \; BCG} \, ) \; / \; \\mu_{Align \; with \; BCG}$', 
+					labelpad = 10, fontsize = 12,)
+
+	ax2.set_ylim( -0.15, 0.15 )
+
+	ax2.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
+	ax2.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
+
+	plt.savefig('/home/xkchen/' + 
+		'Sat_%.2f-%.2fR200m_%s-band_BCG-mask-OFF_SB.png' % (R_bins[mm], R_bins[mm + 1], band_str), dpi = 300)
+	plt.close()
+
+
+##: fixed -- BCG mask ON
+##: Align with Frame vs Align with BCG
+
+fig = plt.figure()
+ax2 = fig.add_axes([0.15, 0.12, 0.80, 0.85])
+
+for mm in range( len(R_bins) - 1 ):
+
+	_kk_tmp_F = interp.interp1d( nbg_R[mm], nbg_SB[mm], kind = 'cubic', fill_value = 'extrapolate',)
+	_tt_SBs = _kk_tmp_F( cp_nbg_R[mm] )
+
+	ax2.plot( cp_nbg_R[mm], ( cp_nbg_SB[mm] - _tt_SBs ) / _tt_SBs, ls = '-', color = color_s[mm], label = fig_name[mm],)
+	ax2.fill_between( cp_nbg_R[mm], y1 = (cp_nbg_SB[mm] - _tt_SBs - cp_nbg_err[mm]) / _tt_SBs, 
+					y2 = (cp_nbg_SB[mm] - _tt_SBs + cp_nbg_err[mm]) / _tt_SBs, color = color_s[mm], alpha = 0.12,)
+
+ax2.legend( loc = 2, frameon = False, fontsize = 12,)
+ax2.annotate( s = 'BCG mask ON', xy = (0.05, 0.05), xycoords = 'axes fraction', fontsize = 12,)
+
+ax2.set_xlim( 1e0, 1e2 )
+ax2.set_xscale('log')
+ax2.set_xlabel('$R \; [kpc]$', fontsize = 12,)
+
+ax2.set_ylabel('$( \, \\mu - \\mu_{Align \; with \; BCG} \, ) \; / \; \\mu_{Align \; with \; BCG}$', fontsize = 14,)
+ax2.set_ylim( -0.15, 0.15 )
+
+ax2.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
+ax2.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
+
+plt.savefig('/home/xkchen/' + 'Sat_%s-band_BCG-mask-ON_align_compare.png' % band_str, dpi = 300)
+plt.close()
+
+
+raise
+
+
+### === ### all profiles compare
 for mm in range( len(R_bins) - 1 ):
 
 	fig = plt.figure( figsize = (19.84, 4.8) )
@@ -357,238 +617,6 @@ for mm in range( len(R_bins) - 1 ):
 	ax2.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
 
 	plt.savefig('/home/xkchen/sat_%.2f-%.2fR200m_%s-band_SB_compare.png'
-		% (R_bins[mm], R_bins[mm + 1], band_str), dpi = 300)
-	plt.close()
-
-"""
-
-
-"""
-for mm in range( len(R_bins) - 1 ):
-
-	##.
-	fig = plt.figure( figsize = (12.8, 5.4) )
-	ax1 = fig.add_axes([0.08, 0.32, 0.42, 0.63])
-	sub_ax1 = fig.add_axes([0.08, 0.11, 0.42, 0.21])
-	ax2 = fig.add_axes([0.57, 0.11, 0.42, 0.84])
-
-	#.
-	l1 = ax1.errorbar( tmp_bg_R[mm], tmp_bg_SB[mm], yerr = tmp_bg_err[mm], marker = '.', ls = '-', 
-		color = 'r', ecolor = 'r', mfc = 'none', mec = 'r', capsize = 1.5, label = 'Align with BCG',)
-
-	ax1.errorbar( cp_bg_R[mm], cp_bg_SB[mm], yerr = cp_bg_err[mm], marker = '.', ls = '--', 
-		color = 'r', ecolor = 'r', mfc = 'none', mec = 'r', capsize = 1.5, label = 'Align with frame',)
-
-	_kk_tmp_F = interp.interp1d( tmp_bg_R[mm], tmp_bg_SB[mm], kind = 'cubic', fill_value = 'extrapolate',)
-	_tt_SBs = _kk_tmp_F( cp_bg_R[mm] )
-
-	sub_ax1.plot( cp_bg_R[mm], ( cp_bg_SB[mm] - _tt_SBs ) / _tt_SBs, ls = '--', color = 'r',)
-	sub_ax1.fill_between( cp_bg_R[mm], y1 = (cp_bg_SB[mm] - _tt_SBs - cp_bg_err[mm]) / _tt_SBs, 
-					y2 = (cp_bg_SB[mm] - _tt_SBs + cp_bg_err[mm]) / _tt_SBs, color = 'r', alpha = 0.12,)
-
-	#.
-	l2 = ax1.errorbar( tmp_bg_R_cc[mm], tmp_bg_SB_cc[mm], yerr = tmp_bg_err_cc[mm], marker = '.', ls = '-', 
-		color = 'b', ecolor = 'b', mfc = 'none', mec = 'b', capsize = 1.5,)
-
-	ax1.errorbar( cp_bg_R_cc[mm], cp_bg_SB_cc[mm], yerr = cp_bg_err_cc[mm], marker = '.', ls = '--', 
-		color = 'b', ecolor = 'b', mfc = 'none', mec = 'b', capsize = 1.5,)
-
-	_kk_tmp_F = interp.interp1d( tmp_bg_R_cc[mm], tmp_bg_SB_cc[mm], kind = 'cubic', fill_value = 'extrapolate',)
-	_tt_SBs = _kk_tmp_F( cp_bg_R_cc[mm] )
-
-	sub_ax1.plot( cp_bg_R_cc[mm], ( cp_bg_SB_cc[mm] - _tt_SBs ) / _tt_SBs, ls = '--', color = 'b',)
-	sub_ax1.fill_between( cp_bg_R_cc[mm], y1 = (cp_bg_SB_cc[mm] - _tt_SBs - cp_bg_err_cc[mm]) / _tt_SBs, 
-					y2 = (cp_bg_SB_cc[mm] - _tt_SBs + cp_bg_err_cc[mm]) / _tt_SBs, color = 'b', alpha = 0.12,)
-
-	if mm == 0:
-		legend_2 = ax1.legend( handles = [l1, l2], 
-					labels = ['Applied BCG mask', 'No BCG mask' ], loc = 1, frameon = False, fontsize = 12,)
-
-		ax1.legend( loc = 2, frameon = False, fontsize = 12,)
-		ax1.add_artist( legend_2 )
-
-	else:
-		legend_2 = ax1.legend( handles = [l1, l2], 
-					labels = ['Applied BCG mask', 'No BCG mask' ], loc = 1, frameon = False, fontsize = 12,)
-
-		ax1.legend( loc = 4, frameon = False, fontsize = 12,)
-		ax1.add_artist( legend_2 )
-
-	ax1.set_xscale('log')
-	ax1.set_xlabel('R [kpc]', fontsize = 12,)
-
-	if mm == 0:
-		ax1.set_ylim( 4e-3, 3e-2 )
-	else:
-		ax1.set_ylim( 1e-3, 1e-2 )
-
-	ax1.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
-	ax1.set_yscale('log')
-
-	ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
-
-	sub_ax1.set_xlim( ax1.get_xlim() )
-	sub_ax1.set_xscale('log')
-	sub_ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
-
-	sub_ax1.annotate( s = '$(\\mu - \\mu_{Align \, with \, BCG}) \; / \; \\mu_{Align \, with \, BCG}$', 
-					xy = (0.50, 0.75), xycoords = 'axes fraction', fontsize = 12,)
-
-	sub_ax1.set_ylim( -0.7, 0.7)
-	ax1.set_xticklabels( labels = [] )
-
-	#.
-	_kk_tmp_F = interp.interp1d( tmp_bg_R[mm], tmp_bg_SB[mm], kind = 'cubic', fill_value = 'extrapolate',)
-	_tt_SBs = _kk_tmp_F( tmp_bg_R_cc[mm] )
-
-	ax2.plot( tmp_bg_R_cc[mm], (tmp_bg_SB_cc[mm] - _tt_SBs ) / _tt_SBs, ls = '--', color = 'r',)
-	ax2.fill_between( tmp_bg_R_cc[mm], y1 = (tmp_bg_SB_cc[mm] - _tt_SBs - tmp_bg_err_cc[mm]) / _tt_SBs, 
-					y2 = (tmp_bg_SB_cc[mm] - _tt_SBs + tmp_bg_err_cc[mm]) / _tt_SBs, color = 'r', alpha = 0.12,)
-
-	#.
-	_kk_tmp_F = interp.interp1d( cp_bg_R[mm], cp_bg_SB[mm], kind = 'cubic', fill_value = 'extrapolate',)
-	_tt_SBs = _kk_tmp_F( cp_bg_R_cc[mm] )
-
-	ax2.plot( cp_bg_R_cc[mm], ( cp_bg_SB_cc[mm] - _tt_SBs ) / _tt_SBs, ls = '-', color = 'b',)
-	ax2.fill_between( cp_bg_R_cc[mm], y1 = (cp_bg_SB_cc[mm] - _tt_SBs - cp_bg_err_cc[mm]) / _tt_SBs, 
-					y2 = (cp_bg_SB_cc[mm] - _tt_SBs + cp_bg_err_cc[mm]) / _tt_SBs, color = 'b', alpha = 0.12,)
-
-	ax2.set_xlim( ax1.get_xlim() )
-	ax2.set_xscale('log')
-	ax2.set_xlabel('$R \; [kpc]$', fontsize = 12,)
-
-	# ax2.set_ylabel('$(\\mu - \\mu_{Applied \, BCG \, mask}) \; / \; \\mu_{Applied \, BCG \, mask}$', 
-	# 				labelpad = 10, fontsize = 12,)
-
-	ax2.annotate( s = '$(\\mu - \\mu_{Applied \, BCG \, mask}) \; / \; \\mu_{Applied \, BCG \, mask}$', 
-					xy = (0.25, 0.10), xycoords = 'axes fraction', fontsize = 14,)
-
-	ax2.annotate( s = '%s-band, ' % band_str + fig_name[mm], xy = (0.45, 0.9), xycoords = 'axes fraction', fontsize = 12,)
-
-	if mm == 0:
-		ax2.set_ylim( -0.1, 1.2 )
-
-	else:
-		ax2.set_ylim( -0.5, 0.5 )
-
-	ax2.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
-	sub_ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
-
-	ax2.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
-	ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
-	sub_ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
-
-	plt.savefig('/home/xkchen/sat_%.2f-%.2fR200m_%s-band_BG-pros_compare.png'
-		% (R_bins[mm], R_bins[mm + 1], band_str), dpi = 300)
-	plt.close()
-
-"""
-
-
-
-for mm in range( len(R_bins) - 1 ):
-
-	##.
-	fig = plt.figure( figsize = (12.8, 5.4) )
-	ax1 = fig.add_axes([0.08, 0.32, 0.42, 0.63])
-	sub_ax1 = fig.add_axes([0.08, 0.11, 0.42, 0.21])
-	ax2 = fig.add_axes([0.57, 0.11, 0.42, 0.84])
-
-	#.
-	l1 = ax1.errorbar( nbg_R[mm], nbg_SB[mm], yerr = nbg_err[mm], marker = '.', ls = '-', 
-		color = 'r', ecolor = 'r', mfc = 'none', mec = 'r', capsize = 1.5, label = 'Align with BCG',)
-
-	ax1.errorbar( cp_nbg_R[mm], cp_nbg_SB[mm], yerr = cp_nbg_err[mm], marker = '.', ls = '--', 
-		color = 'r', ecolor = 'r', mfc = 'none', mec = 'r', capsize = 1.5, label = 'Align with frame',)
-
-	_kk_tmp_F = interp.interp1d( nbg_R[mm], nbg_SB[mm], kind = 'cubic', fill_value = 'extrapolate',)
-	_tt_SBs = _kk_tmp_F( cp_nbg_R[mm] )
-
-	sub_ax1.plot( cp_nbg_R[mm], ( cp_nbg_SB[mm] - _tt_SBs ) / _tt_SBs, ls = '--', color = 'r',)
-	sub_ax1.fill_between( cp_nbg_R[mm], y1 = (cp_nbg_SB[mm] - _tt_SBs - cp_nbg_err[mm]) / _tt_SBs, 
-					y2 = (cp_nbg_SB[mm] - _tt_SBs + cp_nbg_err[mm]) / _tt_SBs, color = 'r', alpha = 0.12,)
-
-	#.
-	l2 = ax1.errorbar( nbg_R_cc[mm], nbg_SB_cc[mm], yerr = nbg_err_cc[mm], marker = '.', ls = '-', 
-		color = 'b', ecolor = 'b', mfc = 'none', mec = 'b', capsize = 1.5,)
-
-	ax1.errorbar( cp_nbg_R_cc[mm], cp_nbg_SB_cc[mm], yerr = cp_nbg_err_cc[mm], marker = '.', ls = '--', 
-		color = 'b', ecolor = 'b', mfc = 'none', mec = 'b', capsize = 1.5,)
-
-	_kk_tmp_F = interp.interp1d( nbg_R_cc[mm], nbg_SB_cc[mm], kind = 'cubic', fill_value = 'extrapolate',)
-	_tt_SBs = _kk_tmp_F( cp_nbg_R_cc[mm] )
-
-	sub_ax1.plot( cp_nbg_R_cc[mm], ( cp_nbg_SB_cc[mm] - _tt_SBs ) / _tt_SBs, ls = '--', color = 'b',)
-	sub_ax1.fill_between( cp_nbg_R_cc[mm], y1 = (cp_nbg_SB_cc[mm] - _tt_SBs - cp_nbg_err_cc[mm]) / _tt_SBs, 
-					y2 = (cp_nbg_SB_cc[mm] - _tt_SBs + cp_nbg_err_cc[mm]) / _tt_SBs, color = 'b', alpha = 0.12,)
-
-	legend_2 = ax1.legend( handles = [l1, l2], 
-				labels = ['Applied BCG mask', 'No BCG mask' ], loc = 1, frameon = False, fontsize = 12,)
-
-	ax1.legend( loc = 3, frameon = False, fontsize = 12,)
-	ax1.add_artist( legend_2 )
-
-	ax1.set_xlim( 1e0, 1e2 )
-	ax1.set_xscale('log')
-	ax1.set_xlabel('R [kpc]', fontsize = 12,)
-
-	ax1.set_ylim( 1e-3, 4e0 )
-	ax1.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
-	ax1.set_yscale('log')
-
-	ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
-
-	sub_ax1.set_xlim( ax1.get_xlim() )
-	sub_ax1.set_xscale('log')
-	sub_ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
-
-	sub_ax1.annotate( s = '$(\\mu - \\mu_{Align \, with \, BCG}) \; / \; \\mu_{Align \, with \, BCG}$', 
-					xy = (0.03, 0.07), xycoords = 'axes fraction', fontsize = 12,)
-
-	sub_ax1.set_ylim( -0.15, 0.15 )
-	ax1.set_xticklabels( labels = [] )
-
-	#.
-	_kk_tmp_F = interp.interp1d( nbg_R[mm], nbg_SB[mm], kind = 'cubic', fill_value = 'extrapolate',)
-	_tt_SBs = _kk_tmp_F( nbg_R_cc[mm] )
-
-	ax2.plot( nbg_R_cc[mm], (nbg_SB_cc[mm] - _tt_SBs ) / _tt_SBs, ls = '--', color = 'r',)
-	ax2.fill_between( nbg_R_cc[mm], y1 = (nbg_SB_cc[mm] - _tt_SBs - nbg_err_cc[mm]) / _tt_SBs, 
-					y2 = (nbg_SB_cc[mm] - _tt_SBs + nbg_err_cc[mm]) / _tt_SBs, color = 'r', alpha = 0.12,)
-
-	#.
-	_kk_tmp_F = interp.interp1d( cp_nbg_R[mm], cp_nbg_SB[mm], kind = 'cubic', fill_value = 'extrapolate',)
-	_tt_SBs = _kk_tmp_F( cp_nbg_R_cc[mm] )
-
-	ax2.plot( cp_nbg_R_cc[mm], ( cp_nbg_SB_cc[mm] - _tt_SBs ) / _tt_SBs, ls = '-', color = 'b',)
-	ax2.fill_between( cp_nbg_R_cc[mm], y1 = (cp_nbg_SB_cc[mm] - _tt_SBs - cp_nbg_err_cc[mm]) / _tt_SBs, 
-					y2 = (cp_nbg_SB_cc[mm] - _tt_SBs + cp_nbg_err_cc[mm]) / _tt_SBs, color = 'b', alpha = 0.12,)
-
-	ax2.set_xlim( ax1.get_xlim() )
-	ax2.set_xscale('log')
-	ax2.set_xlabel('$R \; [kpc]$', fontsize = 12,)
-
-	# ax2.set_ylabel('$(\\mu - \\mu_{Applied \, BCG \, mask}) \; / \; \\mu_{Applied \, BCG \, mask}$', 
-	# 				labelpad = 10, fontsize = 12,)
-
-	ax2.annotate( s = '$(\\mu - \\mu_{Applied \, BCG \, mask}) \; / \; \\mu_{Applied \, BCG \, mask}$', 
-					xy = (0.03, 0.25), xycoords = 'axes fraction', fontsize = 14,)
-
-	ax2.annotate( s = '%s-band, ' % band_str + fig_name[mm], xy = (0.05, 0.9), xycoords = 'axes fraction', fontsize = 12,)
-
-	if mm == 0:
-		ax2.set_ylim( -0.05, 0.95 )
-	else:
-		ax2.set_ylim( -0.1, 0.1 )
-
-	ax2.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
-	sub_ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
-
-	ax2.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
-	ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
-	sub_ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
-
-	plt.savefig('/home/xkchen/sat_%.2f-%.2fR200m_%s-band_BG-sub-SB_compare.png'
 		% (R_bins[mm], R_bins[mm + 1], band_str), dpi = 300)
 	plt.close()
 

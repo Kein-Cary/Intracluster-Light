@@ -49,7 +49,8 @@ def cut_woBCG():
 	out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/shufl_with_BCG_PA/noBG_SBs/'
 
 	#.
-	R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 	N_sample = 100
 
@@ -60,7 +61,7 @@ def cut_woBCG():
 	##. background subtraction
 	for tt in range( len(R_bins) - 1 ):
 
-		for kk in range( 3 ):
+		for kk in range( 1 ):
 
 			band_str = band[ kk ]
 
@@ -96,13 +97,13 @@ def cut_woBCG():
 	for dd in range( len(R_bins) - 1 ):
 
 		if dd == 0:
-			fig_name.append( '$R \\leq %.2f \, R_{200m}$' % R_bins[dd + 1] )
+			fig_name.append( '$R \\leq %.3f \, R_{200m}$' % R_bins[dd + 1] )
 
 		elif dd == len(R_bins) - 2:
-			fig_name.append( '$R \\geq %.2f \, R_{200m}$' % R_bins[dd] )
+			fig_name.append( '$R \\geq %.3f \, R_{200m}$' % R_bins[dd] )
 
 		else:
-			fig_name.append( '$%.2f \\leq R \\leq %.2f \, R_{200m}$' % (R_bins[dd], R_bins[dd + 1]),)
+			fig_name.append( '$%.3f \\leq R \\leq %.3f \, R_{200m}$' % (R_bins[dd], R_bins[dd + 1]),)
 
 
 	##... sat SBs
@@ -112,7 +113,7 @@ def cut_woBCG():
 
 		sub_R, sub_sb, sub_err = [], [], []
 
-		for kk in range( 3 ):
+		for kk in range( 1 ):
 
 			band_str = band[ kk ]
 
@@ -139,7 +140,7 @@ def cut_woBCG():
 
 		_sub_bg_R, _sub_bg_sb, _sub_bg_err = [], [], []
 
-		for kk in range( 3 ):
+		for kk in range( 1 ):
 
 			band_str = band[ kk ]
 
@@ -167,7 +168,7 @@ def cut_woBCG():
 
 		sub_R, sub_sb, sub_err = [], [], []
 
-		for kk in range( 3 ):
+		for kk in range( 1 ):
 
 			band_str = band[ kk ]
 
@@ -192,7 +193,7 @@ def cut_woBCG():
 
 		sub_R, sub_sb, sub_err = [], [], []
 
-		for kk in range( 3 ):
+		for kk in range( 1 ):
 
 			band_str = band[ kk ]
 
@@ -215,7 +216,7 @@ def cut_woBCG():
 	y_lim_1 = [ [2e-3, 4e0], [1e-3, 1e0], [5e-3, 6e0] ]
 
 	#.
-	for kk in range( 3 ):
+	for kk in range( 1 ):
 
 		plt.figure()
 		ax1 = plt.subplot(111)
@@ -250,7 +251,7 @@ def cut_woBCG():
 		plt.close()
 
 	#.
-	for kk in range( 3 ):
+	for kk in range( 1 ):
 
 		fig = plt.figure( )
 		ax1 = fig.add_axes( [0.13, 0.32, 0.85, 0.63] )
@@ -293,18 +294,18 @@ def cut_woBCG():
 		sub_ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
 
 		sub_ax1.set_ylabel('$\\mu \; / \; \\mu \,$ (%s)' % fig_name[-1], labelpad = 8, fontsize = 12,)
-		sub_ax1.set_ylim( 0.40, 1.0 )
+		sub_ax1.set_ylim( 0.38, 1.0 )
 
 		sub_ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
 		sub_ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
 		ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
 		ax1.set_xticklabels( labels = [] )
 
-		plt.savefig('/home/xkchen/sat_%s-band_BG-sub_compare.png' % band[kk], dpi = 300)
+		plt.savefig('/home/xkchen/sat_%s-band_align-with-BCG_BG-sub_compare.png' % band[kk], dpi = 300)
 		plt.close()
 
 	#.
-	for kk in range( 3 ):
+	for kk in range( 1 ):
 
 		band_str = band[ kk ]
 
@@ -377,7 +378,8 @@ def cut_wBCG():
 	out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/shufl_with_BCG_PA/noBG_SBs_wBCG/'
 
 	#.
-	R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 	N_sample = 100
 
@@ -423,13 +425,13 @@ def cut_wBCG():
 	for dd in range( len(R_bins) - 1 ):
 
 		if dd == 0:
-			fig_name.append( '$R \\leq %.2f \, R_{200m}$' % R_bins[dd + 1] )
+			fig_name.append( '$R \\leq %.3f \, R_{200m}$' % R_bins[dd + 1] )
 
 		elif dd == len(R_bins) - 2:
-			fig_name.append( '$R \\geq %.2f \, R_{200m}$' % R_bins[dd] )
+			fig_name.append( '$R \\geq %.3f \, R_{200m}$' % R_bins[dd] )
 
 		else:
-			fig_name.append( '$%.2f \\leq R \\leq %.2f \, R_{200m}$' % (R_bins[dd], R_bins[dd + 1]),)
+			fig_name.append( '$%.3f \\leq R \\leq %.3f \, R_{200m}$' % (R_bins[dd], R_bins[dd + 1]),)
 
 
 	##... sat SBs
@@ -619,14 +621,14 @@ def cut_wBCG():
 		sub_ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
 
 		sub_ax1.set_ylabel('$\\mu \; / \; \\mu \,$ (%s)' % fig_name[-1], labelpad = 8, fontsize = 12,)
-		sub_ax1.set_ylim( 0.40, 1.0 )
+		sub_ax1.set_ylim( 0.38, 1.0 )
 
 		sub_ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
 		sub_ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
 		ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
 		ax1.set_xticklabels( labels = [] )
 
-		plt.savefig('/home/xkchen/sat_%s-band_BG-sub_compare.png' % band[kk], dpi = 300)
+		plt.savefig('/home/xkchen/sat_%s-band_align-with-BCG_BG-sub_compare.png' % band[kk], dpi = 300)
 		plt.close()
 
 	#.
@@ -688,6 +690,6 @@ def cut_wBCG():
 
 	return
 
-# cut_wBCG()
-# raise
+cut_wBCG()
+raise
 

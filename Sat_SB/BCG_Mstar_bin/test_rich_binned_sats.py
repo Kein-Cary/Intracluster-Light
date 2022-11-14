@@ -551,14 +551,11 @@ def entire_clust_mem_match():
 			data.to_csv( cat_path + 
 						'%s_clust_rgi-common_frame-lim_Pm-cut_exlu-BCG_sat_%s-band_member_pos-zref.csv' % (cat_lis[pp], band_str),)
 
-
-	##. shuffle list mapping ???
-
-
 	return
 
-# cluster_binned()
-# clust_member_match()
+##.
+cluster_binned()
+clust_member_match()
 entire_clust_mem_match()
 
 raise

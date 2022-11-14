@@ -38,11 +38,10 @@ pixel = 0.396
 z_ref = 0.25
 band = ['r', 'g', 'i']
 
-home = '/home/xkchen/data/SDSS/'
-load = '/home/xkchen/fig_tmp/'
-
 
 ### === satellite peak_xy and centric_xy compare (relative position in the origin SDSS image frame)
+home = '/home/xkchen/data/SDSS/'
+load = '/home/xkchen/fig_tmp/'
 
 band_str = band[ rank ]
 

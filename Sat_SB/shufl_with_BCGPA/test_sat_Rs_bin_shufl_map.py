@@ -44,8 +44,8 @@ def shufl_list_match( cat_file, clust_file, N_shufl, shufl_list_file, out_shufl_
 
 
 	##. shuffle list match
-	# for dd in range( N_shufl ):
-	for dd in range( 13,14 ):
+	for dd in range( N_shufl ):
+	# for dd in range( 13,14 ):
 
 		#.
 		pat = pds.read_csv( shufl_list_file % dd,)
@@ -78,8 +78,8 @@ def shufl_list_match( cat_file, clust_file, N_shufl, shufl_list_file, out_shufl_
 
 
 	##. image cut information match
-	# for dd in range( N_shufl ):
-	for dd in range( 13,14 ):
+	for dd in range( N_shufl ):
+	# for dd in range( 13,14 ):
 
 		##. T200 catalog
 		dat = pds.read_csv( out_shufl_file % dd,)
@@ -128,8 +128,8 @@ def shufl_list_match( cat_file, clust_file, N_shufl, shufl_list_file, out_shufl_
 
 
 	##. count the number of satellite before and after shuffling
-	# for dd in range( N_shufl ):
-	for dd in range( 13,14 ):
+	for dd in range( N_shufl ):
+	# for dd in range( 13,14 ):
 
 		##.
 		dat = pds.read_csv( out_shufl_file % dd,)
@@ -187,13 +187,21 @@ out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/shufl_with_BCG_PA/map_cat/'
 bin_rich = [ 20, 30, 50, 210 ]
 
 ##. fixed R for all richness subsample
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
 # R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+
+##. test for inner bins SB compare
+# R_bins = np.array( [0, 0.126, 0.24, 0.50, 1] )   ### times R200m
+
+##. average shuffle test
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+
 
 #.
 for pp in range( 3 ):
 
 	for tt in range( len(R_bins) - 1 ):
+	# for tt in range( 3 ):
 
 		sub_cat_file = ( cat_path + 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_cat.csv' 
 						% ( bin_rich[ pp ], bin_rich[ pp + 1], R_bins[tt], R_bins[tt + 1]),)[0]
@@ -201,7 +209,7 @@ for pp in range( 3 ):
 		#.cluster catalog
 		clust_file = cat_path + 'clust_rich_%d-%d_cat.csv' % (bin_rich[pp], bin_rich[pp + 1])
 
-		for kk in range( 3 ):
+		for kk in range( 1 ):
 
 			band_str = band[ kk ]
 
@@ -229,4 +237,3 @@ for pp in range( 3 ):
 								oirn_img_pos_file, out_pos_file, out_Ng_file )
 
 print('Done!')
-

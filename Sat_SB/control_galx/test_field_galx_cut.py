@@ -252,4 +252,3 @@ for tt in range( 1 ):
 	print( '%s band finished!' % band_str )
 
 raise
-

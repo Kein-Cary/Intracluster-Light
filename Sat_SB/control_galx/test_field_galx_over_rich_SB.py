@@ -47,8 +47,8 @@ line_name = ['$\\lambda \\leq 30$', '$30 \\leq \\lambda \\leq 50$', '$\\lambda \
 
 ##. R_limmits
 R_str = 'scale'
-# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 
 ### === Background subtraction
@@ -258,7 +258,7 @@ ax1.set_xlim( 1e0, 5e2 )
 ax1.set_xscale('log')
 ax1.set_xlabel('R [kpc]', fontsize = 12,)
 
-ax1.set_ylim( 2e-3, 4e0 )
+ax1.set_ylim( 2e-3, 7e0 )
 ax1.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
 ax1.set_yscale('log')
 
@@ -288,7 +288,7 @@ ax1.set_xscale('log')
 ax1.set_xlim( 1e0, 5e1 )
 ax1.set_xlabel('R [kpc]', fontsize = 12,)
 
-ax1.set_ylim( 2e-3, 5e0 )
+ax1.set_ylim( 2e-3, 7e0 )
 ax1.set_ylabel('$ \\mu \; [ nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
 ax1.set_yscale('log')
 
@@ -317,7 +317,7 @@ ax1.set_xscale('log')
 ax1.set_xlim( 1e0, 5e1 )
 ax1.set_xlabel('R [kpc]', fontsize = 12,)
 
-ax1.set_ylim( 1e-1, 8e0 )
+ax1.set_ylim( 1e-1, 1e1 )
 ax1.set_ylabel('$ F = R \\times \\mu \; [kpc \\times nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
 ax1.set_yscale('log')
 

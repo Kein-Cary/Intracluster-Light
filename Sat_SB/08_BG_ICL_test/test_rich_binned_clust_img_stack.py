@@ -101,7 +101,7 @@ for ll in range( 3 ):
         samp_coord = SkyCoord( ra = ra * U.deg, dec = dec * U.deg )
 
         #. image information for stacking
-        dat = pds.read_csv( load + 'Extend_Mbcg_cat/photo-z_match_BCGM_%s-band_All_rgi-common_pk-offset_BCG-pos_z-ref.csv' % ( sub_name[kk], band_str) )
+        dat = pds.read_csv( load + 'Extend_Mbcg_cat/photo-z_match_BCGM_%s-band_All_rgi-common_pk-offset_BCG-pos_z-ref.csv' % band_str,)
         ref_ra, ref_dec, ref_z = np.array( dat['ra'] ), np.array( dat['dec'] ), np.array( dat['z'] )
         clus_x, clus_y = np.array( dat['bcg_x'] ), np.array( dat['bcg_y'] )
 

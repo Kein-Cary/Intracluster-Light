@@ -218,9 +218,9 @@ home = '/home/xkchen/data/SDSS/'
 load = '/home/xkchen/fig_tmp/'
 
 cat_path = load + 'Extend_Mbcg_richbin_sat_cat/'
-out_path = '/home/xkchen/project/tmp_obj_cat/'
+out_path = '/home/xkchen/figs/'
 
-
+#.
 id_cen = 0
 N_edg = 1   ##. rule out edge pixels
 n_rbins = 35

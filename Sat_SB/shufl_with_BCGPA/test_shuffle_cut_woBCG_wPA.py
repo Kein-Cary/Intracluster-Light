@@ -61,7 +61,7 @@ R_cut = 320
 
 N_shufl = 20
 
-##. use r-band, 30-50 richness, R_sat~(30, 400, 550) as test
+##.
 for dd in range( 3 ):
 
 	band_str = band[ dd ]
@@ -143,7 +143,7 @@ R_cut = 320
 
 N_shufl = 20
 
-##. use r-band, 30-50 richness, R_sat~(30, 400, 550) as test
+##. 
 for dd in range( 3 ):
 
 	band_str = band[ dd ]

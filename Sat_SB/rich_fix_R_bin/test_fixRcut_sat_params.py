@@ -132,8 +132,7 @@ tab_file.write( cat_path + 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_mem
 
 print('Done!')
 
-
-raise
+# raise
 
 
 ### === ### subsamples
@@ -141,17 +140,24 @@ raise
 ##. subsamples catalog 
 cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/cat/'
 
+#.
 bin_rich = [ 20, 30, 50, 210 ]
 
-##. R_limmits
+# ##. fixed R for all richness subsample
 # R_str = 'phy'
-# R_bins = np.array( [ 0, 300, 400, 550, 5000] )     ### kpc
 
+# # R_bins = np.array( [ 0, 300, 400, 550, 5000] )     ##. kpc
+# R_bins = np.array( [ 0, 150, 300, 400, 550, 5000] )
+
+
+##. average shuffle test
 R_str = 'scale'
-# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+
+# R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m, for rich + sR bin
 
 
+#.
 for kk in range( 3 ):
 
 	for nn in range( len( R_bins ) - 1 ):

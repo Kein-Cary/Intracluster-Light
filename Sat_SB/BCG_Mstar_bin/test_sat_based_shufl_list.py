@@ -54,7 +54,7 @@ sub_name = ['low-rich', 'medi-rich', 'high-rich']
 
 cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
 
-
+#.
 for pp in range( rank, rank + 1 ):
 
 	for dd in range( 3 ):

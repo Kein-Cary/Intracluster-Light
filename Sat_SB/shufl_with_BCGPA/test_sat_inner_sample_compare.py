@@ -45,7 +45,8 @@ out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/shufl_with_BCG_PA/noBG_SBs/'
 cp_out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/'
 
 #.
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 
 ##... BG-subtracted SB profiles
@@ -55,7 +56,7 @@ for tt in range( len(R_bins) - 1 ):
 
 	sub_R, sub_sb, sub_err = [], [], []
 
-	for kk in range( 3 ):
+	for kk in range( 1 ):
 
 		band_str = band[ kk ]
 
@@ -80,7 +81,7 @@ for tt in range( len(R_bins) - 1 ):
 
 	sub_R, sub_sb, sub_err = [], [], []
 
-	for kk in range( 3 ):
+	for kk in range( 1 ):
 
 		band_str = band[ kk ]
 
@@ -98,7 +99,17 @@ for tt in range( len(R_bins) - 1 ):
 	cp_nbg_err.append( sub_err )
 
 
-##... figs
+##... aveg Sat_SB for subsample in ( 0~0.24 * R200m )
+band_str = band[0]
+
+dat = pds.read_csv( out_path + 
+	'Extend_BCGM_gri-common_all_0.00-0.24R200m_%s-band_aveg-jack_BG-sub_SB.csv' % band_str,)
+
+cen_R, cen_SB, cen_SBerr = np.array( dat['r'] ), np.array( dat['sb'] ), np.array( dat['sb_err'] )
+
+
+
+### === figs
 color_s = ['b', 'g', 'r', 'm', 'k']
 
 fig_name = []
@@ -117,6 +128,95 @@ for dd in range( len(R_bins) - 1 ):
 ##.
 y_lim_0 = [ [1e-3, 4e0], [1e-3, 1e0], [1e-3, 7e0] ]
 y_lim_1 = [ [2e-3, 4e0], [1e-3, 1e0], [5e-3, 6e0] ]
+
+
+##.
+fig = plt.figure( figsize = (10.8, 4.8) )
+ax0 = fig.add_axes([0.08, 0.32, 0.42, 0.63])
+sub_ax0 = fig.add_axes([0.08, 0.11, 0.42, 0.21])
+ax1 = fig.add_axes([0.57, 0.32, 0.42, 0.63])
+sub_ax1 = fig.add_axes([0.57, 0.11, 0.42, 0.21])
+
+ax0.errorbar( cen_R, cen_SB, yerr = cen_SBerr, marker = '', ls = '-', color = 'k', ecolor = 'k', 
+			mfc = 'none', mec = 'k', capsize = 1.5, alpha = 0.5, 
+			label = '$%.2f \\leq R \\leq %.2f \, R_{200m}$' % (R_bins[0], R_bins[2]),)
+
+ax1.plot( cen_R, cen_SBerr, ls = '-', color = 'k', alpha = 0.5,)
+
+_kk_F0 = interp.interp1d( cen_R, cen_SB, kind = 'linear', fill_value = 'extrapolate',)
+_kk_F1 = interp.interp1d( cen_R, cen_SBerr, kind = 'linear', fill_value = 'extrapolate',)
+
+for mm in range( 2 ):
+
+	ax0.errorbar( nbg_R[mm][0], nbg_SB[mm][0], yerr = nbg_err[mm][0], marker = '', ls = '--', color = color_s[mm], 
+		ecolor = color_s[mm], mfc = 'none', mec = color_s[mm], capsize = 1.5, alpha = 0.5, label = fig_name[mm],)
+
+	# sub_ax0.plot( nbg_R[mm][0], nbg_SB[mm][0] - _kk_F0( nbg_R[mm][0] ), ls = '--', color = color_s[mm], alpha = 0.5,)
+	# sub_ax0.fill_between( nbg_R[mm][0], y1 = nbg_SB[mm][0] - _kk_F0( nbg_R[mm][0] ) - nbg_err[mm][0], 
+	# 				y2 = nbg_SB[mm][0] - _kk_F0( nbg_R[mm][0] ) + nbg_err[mm][0], ls = '--', color = color_s[mm], alpha = 0.15,)
+
+	# ax1.plot( nbg_R[mm][0], nbg_err[mm][0], ls = '--', color = color_s[mm], alpha = 0.5,)
+	# sub_ax1.plot( nbg_R[mm][0], nbg_err[mm][0] - _kk_F1( nbg_R[mm][0] ), ls = '--', color = color_s[mm], alpha = 0.5,)
+
+	sub_ax0.plot( nbg_R[mm][0], nbg_SB[mm][0] / _kk_F0( nbg_R[mm][0] ), ls = '--', color = color_s[mm], alpha = 0.5,)
+	sub_ax0.fill_between( nbg_R[mm][0], y1 = ( nbg_SB[mm][0]  - nbg_err[mm][0] ) / _kk_F0( nbg_R[mm][0] ), 
+					y2 = ( nbg_SB[mm][0] + nbg_err[mm][0] ) / _kk_F0( nbg_R[mm][0] ), ls = '--', color = color_s[mm], alpha = 0.15,)
+
+	ax1.plot( nbg_R[mm][0], nbg_err[mm][0], ls = '--', color = color_s[mm], alpha = 0.5,)
+	sub_ax1.plot( nbg_R[mm][0], nbg_err[mm][0] / _kk_F1( nbg_R[mm][0] ), ls = '--', color = color_s[mm], alpha = 0.5,)
+
+#.
+ax0.legend( loc = 3, frameon = False, fontsize = 12,)
+ax0.annotate( s = 'r-band', xy = (0.03, 0.35), xycoords = 'axes fraction', fontsize = 12,)
+
+ax0.set_xlim( 1e0, 5e1 )
+ax0.set_xscale('log')
+ax0.set_xlabel('$R \; [kpc]$', fontsize = 12,)
+
+ax0.set_ylim( 2e-3, 5e0 )
+ax0.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
+ax0.set_yscale('log')
+
+
+sub_ax0.set_xlim( ax0.get_xlim() )
+sub_ax0.set_xscale('log')
+sub_ax0.set_xlabel('$R \; [kpc]$', fontsize = 12,)
+# sub_ax0.set_ylabel('$\\mu - \\mu\,(%.2f \\leq R \\leq %.2f \, R_{200m})$' % (R_bins[0], R_bins[2]),)
+sub_ax0.annotate( s = '$\\mu / \\mu\,(%.2f \\leq R \\leq %.2f \, R_{200m})$' % (R_bins[0], R_bins[2]),
+				xy = (0.03, 0.65), xycoords = 'axes fraction', fontsize = 12,)
+sub_ax0.set_ylim( 0.7, 1.4 )
+
+ax1.set_xlim( ax0.get_xlim() )
+ax1.set_xscale('log')
+ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
+
+ax1.set_ylim( 7e-5, 2e-2 )
+ax1.set_ylabel('$\\sigma_{\\mu} \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
+ax1.set_yscale('log')
+
+sub_ax1.set_xlim( ax1.get_xlim() )
+sub_ax1.set_xscale('log')
+sub_ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
+# sub_ax1.set_ylabel('$\\sigma_{\\mu} - \\sigma_{\\mu}\,(%.2f \\leq R \\leq %.2f \, R_{200m})$' % (R_bins[0], R_bins[2]),)
+sub_ax1.annotate(s = '$\\sigma_{\\mu} / \\sigma_{\\mu}\,(%.2f \\leq R \\leq %.2f \, R_{200m})$' % (R_bins[0], R_bins[2]),
+				xy = (0.03, 0.55), xycoords = 'axes fraction', fontsize = 12,)
+sub_ax1.set_ylim( 1.1, 1.55 )
+
+ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
+sub_ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
+sub_ax0.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
+ax0.set_xticklabels( [] )
+
+ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
+sub_ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
+sub_ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
+ax1.set_xticklabels( [] )
+
+plt.savefig('/home/xkchen/cen_sR_bin_SB_compare.png', dpi = 300)
+plt.close()
+
+
+raise
 
 ##.
 for kk in range( 1 ):
@@ -150,7 +250,7 @@ for kk in range( 1 ):
 					y2 = (cp_nbg_SB[mm][kk] + cp_nbg_err[mm][kk]) / cc_inerp, color = color_s[mm], alpha = 0.12,)
 
 	#.
-	for mm in range( 2 ):
+	for mm in range( 3 ):
 
 		l2 = ax1.errorbar( nbg_R[mm][kk], nbg_SB[mm][kk], yerr = nbg_err[mm][kk], marker = '', ls = '--', color = color_s[mm], 
 			ecolor = color_s[mm], mfc = 'none', mec = color_s[mm], capsize = 1.5, alpha = 0.5, lw = 2.5,)
@@ -162,7 +262,7 @@ for kk in range( 1 ):
 		# 			y2 = (nbg_SB[mm][kk] + nbg_err[mm][kk]) / cc_inerp, color = color_s[mm], alpha = 0.12,)
 
 	#.
-	for mm in range( 2 ):
+	for mm in range( 3 ):
 
 		_cc_tmp_F = interp.interp1d( nbg_R[mm][kk], nbg_SB[mm][kk], kind = 'cubic', fill_value = 'extrapolate',)
 
@@ -172,7 +272,7 @@ for kk in range( 1 ):
 					y2 = (cp_nbg_SB[mm][kk] + cp_nbg_err[mm][kk]) / cc_inerp, color = color_s[mm], alpha = 0.12,)
 
 	#.
-	legend_2 = ax1.legend( handles = [ l1, l2], labels = [ 'Shuffle-woBCG-PA', 'Shuffle-wBCG-PA' ], 
+	legend_2 = ax1.legend( handles = [ l1, l2], labels = [ 'Align with Frame', 'Align with BCG' ], 
 				loc = 1, frameon = False, fontsize = 12,)
 	ax1.legend( loc = 3, frameon = False, fontsize = 12,)
 	ax1.add_artist( legend_2 )
@@ -191,7 +291,10 @@ for kk in range( 1 ):
 	sub_ax1.set_xscale('log')
 	sub_ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
 
-	sub_ax1.set_ylabel('$\\mu_{woBCG,PA} \; / \; \\mu_{wBCG,PA}$', labelpad = 10, fontsize = 12,)
+	# sub_ax1.set_ylabel('$\\mu_{Align \, with \, frame} \; / \; \\mu_{Align \, with \, BCG}$', labelpad = 10, fontsize = 12,)
+	sub_ax1.annotate( s = '$\\mu_{Align \, with \, frame} \; / \; \\mu_{Align \, with \, BCG}$', 
+					xy = (0.03, 0.75), xycoords = 'axes fraction', fontsize = 15,)
+
 	sub_ax1.set_ylim( 0.95, 1.05 )
 	sub_ax1.axhline( y = 1, ls = ':', color = 'gray', alpha = 0.25,)
 	ax1.set_xticklabels( labels = [] )
@@ -212,3 +315,6 @@ for kk in range( 1 ):
 
 	plt.savefig('/home/xkchen/sat_%s-band_BG-sub_compare.png' % band[kk], dpi = 300)
 	plt.close()
+
+
+### === 

@@ -57,14 +57,16 @@ def cumu_L_fig():
 	cp_out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/'
 
 	R_str = 'scale'
-	R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 	band_str = 'r'
 
 	N_sample = 100
 
 	#.
-	id_ctrl = True
+	id_ctrl = False
+	# id_ctrl = True
 
 	for tt in range( len(R_bins) - 1 ):
 
@@ -106,7 +108,7 @@ def cumu_L_fig():
 
 			tmp_F = interp.interp1d( dt_r, dt_sb, kind = 'linear', fill_value = 'extrapolate')
 
-			cumu_lx = integ.cumtrapz( ang_r * tmp_F( pt_r ), x = ang_r, initial = np.min( pt_r ) / 10 )
+			cumu_lx = integ.cumtrapz( ang_r * tmp_F( pt_r ), x = ang_r, initial = np.min( ang_r ) / 10 )
 			cumu_lx = cumu_lx * np.pi * 2
 
 			##.
@@ -140,15 +142,16 @@ def cumu_L_with_BG():
 	cp_out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_SBs/'
 
 	R_str = 'scale'
-	R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 	band_str = 'r'
 
 	N_sample = 100
 
 	#.
-	id_ctrl = True
-	# id_ctrl = False
+	# id_ctrl = True
+	id_ctrl = False
 
 	for tt in range( len(R_bins) - 1 ):
 
@@ -210,7 +213,7 @@ def cumu_L_with_BG():
 
 			tmp_F = interp.interp1d( dt_r, dt_sb, kind = 'linear', fill_value = 'extrapolate')
 
-			cumu_lx = integ.cumtrapz( ang_r * tmp_F( pt_r ), x = ang_r, initial = np.min( pt_r ) / 10 )
+			cumu_lx = integ.cumtrapz( ang_r * tmp_F( pt_r ), x = ang_r, initial = np.min( ang_r ) / 10 )
 			cumu_lx = cumu_lx * np.pi * 2
 
 			##.
@@ -237,6 +240,7 @@ def cumu_L_with_BG():
 
 	return
 
+# ##.
 # cumu_L_fig()
 # cumu_L_with_BG()
 # raise
@@ -258,7 +262,8 @@ cp_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_SBs/'
 bin_rich = [ 20, 30, 50, 210 ]
 
 R_str = 'scale'
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 band_str = 'r'
 

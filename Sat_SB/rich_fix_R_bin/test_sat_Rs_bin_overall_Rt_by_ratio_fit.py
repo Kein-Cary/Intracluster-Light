@@ -57,7 +57,10 @@ out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/'
 path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_SBs/'
 
 
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+##.
+# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+
 
 #.
 fig_name = []
@@ -78,7 +81,9 @@ for kk in range( 1 ):
 	band_str = band[ kk ]
 
 	#. data load
-	crit_eta = [ 0.05, 0.15, 0.25, 0.50, 0.75, 0.90, 0.95 ]
+	# crit_eta = [ 0.05, 0.15, 0.25, 0.50, 0.75, 0.90, 0.95 ]
+	crit_eta = [ 0.15, 0.30, 0.45, 0.60, 0.75, 0.90 ]
+
 	crit_R = []
 
 	#.
@@ -196,7 +201,8 @@ for kk in range( 1 ):
 	band_str = band[ kk ]
 
 	##. ratio thresh for Rt estimation
-	crit_eta = [0.05, 0.15, 0.25, 0.50, 0.75, 0.90, 0.95]
+	# crit_eta = [0.05, 0.15, 0.25, 0.50, 0.75, 0.90, 0.95]
+	crit_eta = [ 0.15, 0.30, 0.45, 0.60, 0.75, 0.90 ]
 
 	for oo in range( len(crit_eta) ):
 

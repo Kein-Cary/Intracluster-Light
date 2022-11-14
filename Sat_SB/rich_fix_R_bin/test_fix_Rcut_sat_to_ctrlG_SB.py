@@ -41,7 +41,8 @@ band = ['r', 'g', 'i']
 def Rs_bin_over_rich():
 
 	R_str = 'scale'
-	R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 
 	BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin_contrl_galx/BGs/'
@@ -360,7 +361,7 @@ def rich_bin_Rs_bin():
 
 
 ### ===
-# Rs_bin_over_rich()
+Rs_bin_over_rich()
 
-rich_bin_Rs_bin()
+# rich_bin_Rs_bin()
 

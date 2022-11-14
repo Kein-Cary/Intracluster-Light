@@ -58,7 +58,10 @@ sub_name = ['low-rich', 'medi-rich', 'high-rich']
 ##... BG-sub SB(r) of sat. ( background stacking )
 N_sample = 100
 
-R_bins = np.array( [ 0, 300, 400, 550, 5000] )
+#.
+# R_bins = np.array( [ 0, 300, 400, 550, 5000] )
+R_bins = np.array( [ 0, 150, 300, 400, 550, 5000] )
+
 
 ##.. shuffle order list
 list_order = 13
@@ -69,7 +72,7 @@ for ll in range( 3 ):
     ##. subsamples BG_sub profiles
     for tt in range( len(R_bins) - 1 ):
 
-        for kk in range( 3 ):
+        for kk in range( 1 ):
 
             band_str = band[ kk ]
 
@@ -130,7 +133,7 @@ for tt in range( len(R_bins) - 1 ):
 
     sub_R, sub_sb, sub_err = [], [], []
 
-    for kk in range( 3 ):
+    for kk in range( 1 ):
 
         band_str = band[ kk ]
 
@@ -157,7 +160,7 @@ for tt in range( len(R_bins) - 1 ):
 
     _sub_bg_R, _sub_bg_sb, _sub_bg_err = [], [], []
 
-    for kk in range( 3 ):
+    for kk in range( 1 ):
 
         band_str = band[ kk ]
 
@@ -184,7 +187,7 @@ for tt in range( len(R_bins) - 1 ):
 
     sub_R, sub_sb, sub_err = [], [], []
 
-    for kk in range( 3 ):
+    for kk in range( 1 ):
 
         band_str = band[ kk ]
 
@@ -208,7 +211,7 @@ y_lim_0 = [ [1e-3, 4e0], [1e-3, 1e0], [1e-3, 7e0] ]
 y_lim_1 = [ [2e-3, 4e0], [7e-4, 1e0], [5e-3, 6e0] ]
 
 
-for kk in range( 3 ):
+for kk in range( 1 ):
 
     plt.figure()
     ax1 = plt.subplot(111)
@@ -244,7 +247,7 @@ for kk in range( 3 ):
     plt.close()
 
 
-for kk in range( 3 ):
+for kk in range( 1 ):
 
     fig = plt.figure( )
     ax1 = fig.add_axes( [0.13, 0.32, 0.85, 0.63] )
@@ -286,7 +289,7 @@ for kk in range( 3 ):
     sub_ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
 
     sub_ax1.set_ylabel('$\\mu \; / \; \\mu \,$ (%s)' % fig_name[-1], labelpad = 8, fontsize = 12,)
-    sub_ax1.set_ylim( 0.5, 1.0 )
+    sub_ax1.set_ylim( 0.45, 1.0 )
 
     sub_ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
     sub_ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
