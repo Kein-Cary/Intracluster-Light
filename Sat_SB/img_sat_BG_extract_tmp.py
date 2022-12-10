@@ -68,7 +68,7 @@ def simple_match(ra_lis, dec_lis, tt_ra, tt_dec, id_choose = False):
 
 
 ### === use mock BCG+ICL (without background subtraction) at zref
-def BG_build_func( BG_R, BG_SB, zx, pix_size, R_max, out_file):
+def BG_build_func(BG_R, BG_SB, zx, pix_size, R_max, out_file):
 	"""
 	BG_R, BG_SB : the surface brightness profile of background, 'nanomaggy / arcsec^2'
 	z : redshfit
@@ -123,7 +123,7 @@ def BG_build_func( BG_R, BG_SB, zx, pix_size, R_max, out_file):
 	return
 
 
-def sat_BG_extract_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, R_sat, sat_PA, band_str, zx, 
+def sat_BG_extract_func(bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, R_sat, sat_PA, band_str, zx, 
 						lim_dx0, lim_dx1, lim_dy0, lim_dy1, pix_size, BG_file, out_file = None):
 	"""
 	cut out background from the mock 2D image~( given by the 1D BCG+ICL profile)
@@ -191,6 +191,109 @@ def sat_BG_extract_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, R_sat, sat_PA,
 
 	else:
 		return tag_xn, tag_yn
+
+
+def mock_BG_zref_cut_func(img_file, band_str, set_bcg_ra, set_bcg_dec, set_bcg_z, 
+						set_sat_ra, set_sat_dec, zref_Rpix, sat_PA2BCG, zref_R_cut, pix_size, out_file):
+	"""
+	img_file : '.fits' file, the mocked BCG+ICL image
+	band_str : filter information
+	
+	set_bcg_ra, set_bcg_dec, set_bcg_z : the cluster~(BCG) information of target galaxy
+	set_sat_ra, set_sat_dec : target galaxy position~(ra, dec)
+	
+	-------------------------------
+	zref_Rpix, sat_PA2BCG : the distance of target galaxy to their host BCG~(zref_Rpix, in unit of pixels)
+			and the position angle of target galaxy to their BCG~(relative to the image frame, in unit of rad)
+
+	-------------------------------
+	out_file : '.fits', the output image
+	zref_R_cut : 0.5 width of cut region, in units of Kron radius or radius in sdss_photo_file, or width in units of pixel
+			(R_cut can be different among clusters and satellites)
+
+	pix_size : pixel scale, in units of arcsec
+	"""
+
+	##. mocking BG image
+	img_data = fits.open( img_file,)
+	img_arr = img_data[0].data
+
+	Head = img_data[0].header
+	x_cen = Head['CENTER_X']
+	y_cen = Head['CENTER_Y']
+
+	#.
+	N_gax = len( set_sat_ra )
+
+	for kk in range( N_gax ):
+
+		kk_PA, kk_Rpix = sat_PA2BCG[ kk ], zref_Rpix[ kk ]
+
+		kk_ra, kk_dec = set_sat_ra[ kk ], set_sat_dec[ kk ]
+
+		ra_g, dec_g, z_g = set_bcg_ra[ kk ], set_bcg_dec[ kk ], set_bcg_z[ kk ]
+
+		#.
+		off_x = kk_Rpix * np.cos( kk_PA )
+		off_y = kk_Rpix * np.sin( kk_PA )
+
+		kk_px, kk_py = x_cen + off_x, y_cen + off_y
+
+		#. cutout images
+		dL = np.int( np.ceil( zref_R_cut[ kk ] ) )
+		cut_img = np.zeros( ( np.int( 2 * dL + 2 ), np.int( 2 * dL + 2 ) ), dtype = np.float32 ) + np.nan	
+
+
+		#. satellite region select
+		d_x0 = np.max( [ kk_px - dL, 0 ] )
+		d_x1 = np.min( [ kk_px + dL, img_arr.shape[1] - 1 ] )
+
+		d_y0 = np.max( [ kk_py - dL, 0 ] )
+		d_y1 = np.min( [ kk_py + dL, img_arr.shape[0] - 1 ] )
+
+		d_x0 = np.int( d_x0 )
+		d_x1 = np.int( d_x1 )
+
+		d_y0 = np.int( d_y0 )
+		d_y1 = np.int( d_y1 )
+
+		pre_cut = img_arr[ d_y0 : d_y1, d_x0 : d_x1 ]
+
+		pre_cut_cx = kk_px - d_x0
+		pre_cut_cy = kk_py - d_y0
+
+		pre_cx = np.int( pre_cut_cx )
+		pre_cy = np.int( pre_cut_cy )
+
+
+		#. cutout image
+		xn, yn = dL + 1, dL + 1
+
+		pa0 = np.int( xn - pre_cx )
+		pa1 = np.int( xn - pre_cx + pre_cut.shape[1] )
+
+		pb0 = np.int( yn - pre_cy )
+		pb1 = np.int( yn - pre_cy + pre_cut.shape[0] )
+
+		cut_img[ pb0 : pb1, pa0 : pa1 ] = pre_cut + 0.
+
+		_cx_off = pre_cut_cx - np.int( pre_cut_cx )
+		_cy_off = pre_cut_cy - np.int( pre_cut_cy )
+
+		cc_px, cc_py = xn + _cx_off, yn + _cy_off
+
+		kk_Nx, kk_Ny = cut_img.shape[1], cut_img.shape[0]
+
+
+		#. save fits files
+		keys = [ 'SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2', 'CENTER_X','CENTER_Y', 
+									'CRVAL1','CRVAL2','BCG_RA','BCG_DEC','BCG_Z', 'P_SCALE' ]
+		value = [ 'T', 32, 2, kk_Nx, kk_Ny, cc_px, cc_py, kk_ra, kk_dec, ra_g, dec_g, z_g, pix_size ]
+		ff = dict( zip( keys, value ) )
+		fill = fits.Header(ff)
+		fits.writeto( out_file % (band_str, ra_g, dec_g, z_g, kk_ra, kk_dec), cut_img, header = fill, overwrite = True)
+
+	return
 
 
 ### === extract Background cutout from the origin SDSS image frame

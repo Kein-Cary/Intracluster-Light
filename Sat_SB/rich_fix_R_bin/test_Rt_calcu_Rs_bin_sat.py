@@ -65,7 +65,7 @@ def R_func( R, a, b, c):
 
 ### === ### data load
 cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/cat/'
-out_path = '/home/xkchen/figs_cp/theory_Rt/'
+out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/'
 
 ##. halo mass of satellites~( Li et al. 2016)
 ref_sub_Mh = [ 11.37, 11.92, 12.64 ]
@@ -76,9 +76,9 @@ ref_sat_Ms = [ 10.68, 10.72, 10.78 ]
 ref_R_edg = [ 0.1, 0.3, 0.6, 0.9 ]
 
 
-Li_dat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/Li_Mh2Mstar_data_point.csv')
-Li_xerr = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/Li_Mh2Mstar_data_Xerr.csv')
-Li_yerr = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/Li_Mh2Mstar_data_Yerr.csv')
+Li_dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/Li_Mh2Mstar_data_point.csv')
+Li_xerr = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/Li_Mh2Mstar_data_Xerr.csv')
+Li_yerr = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/Li_Mh2Mstar_data_Yerr.csv')
 
 Li_R = np.array( Li_dat['R'] )
 
@@ -88,7 +88,8 @@ def fig_mass_infer():
 
 	##.
 	R_str = 'scale'
-	R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 	bin_rich = [ 20, 30, 50, 210 ]
 
@@ -114,10 +115,10 @@ def fig_mass_infer():
 
 
 	##. Li's data fit params
-	cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mh_fit_params.csv')
+	cat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/R_Mh_fit_params.csv')
 	a_fit, b_fit, c_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
 
-	cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mstar_fit_params.csv')
+	cat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/R_Mstar_fit_params.csv')
 	sa_fit, sb_fit, sc_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
 
 	new_R = np.logspace( -2, 1, 50 )
@@ -203,11 +204,10 @@ bin_rich = [ 20, 30, 50, 210 ]
 sub_name = ['low-rich', 'medi-rich', 'high-rich']
 
 R_str = 'scale'
-
 # R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
 R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
-
+#.
 C_arr = []
 Mvir_arr = []
 Rvir_arr = []
@@ -262,14 +262,11 @@ for tt in range( len( R_bins ) - 1 ):
 
 
 ##. Li's data fit params
-cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mh_fit_params.csv')
+cat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/R_Mh_fit_params.csv')
 a_fit, b_fit, c_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
 
-cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mstar_fit_params.csv')
+cat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/R_Mstar_fit_params.csv')
 sa_fit, sb_fit, sc_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
-
-R_str = 'scale'
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 
 ##.
@@ -291,7 +288,6 @@ for dd in range( len(R_bins) - 1 ):
 
 
 ##. Rt calculation
-
 pp_Rt = []
 pp_alpha_k = []
 
@@ -413,7 +409,7 @@ for tt in range( len( R_bins ) - 1 ):
 	ax1.scatter( 0.5 * ( R_bins[tt] + R_bins[tt+1]), alpha_k, marker = 's', s = 75, color = color_s[tt], label = fig_name[tt],)
 
 
-##. save the tidal radius
+##. save the tidal radius~(kpc/h)
 keys = [ '%s' % ll for ll in fig_name ]
 values = pp_Rt
 fill = dict( zip( keys, values ), index = ('k', 'v') )
@@ -426,7 +422,7 @@ data.to_csv( out_path +
 ax1.plot( 0.5 * ( R_bins[1:] + R_bins[:-1]), pp_alpha_k, 'k-', alpha = 0.65)
 ax1.legend( loc = 1, frameon = False, fontsize = 12,)
 ax1.set_xlabel('$R_{sat} / R_{200m}$', fontsize = 12,)
-ax1.set_ylim( -2.2, -1.76 )
+ax1.set_ylim( -2.2, -1.6 )
 ax1.set_ylabel('$\\alpha \, = \, d \, \\ln \, \\bar{\\rho} \, / \, d \, \\ln \, r $', fontsize = 12,)
 ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
 ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
@@ -446,88 +442,3 @@ plt.savefig( '/home/xkchen/halo_sat_ebclose_3D_aveg_rho.png', dpi = 300)
 plt.close()
 
 raise
-
-
-##.
-### === Rt compare
-marks = ['s', '>', 'o']
-mark_size = [10, 25, 35]
-color_s = ['b', 'g', 'r', 'm']
-
-
-##.
-crit_eta = [0.05, 0.15, 0.25, 0.50, 0.75, 0.90, 0.95]
-
-for oo in range( len( crit_eta ) ):
-
-	id_set = oo
-
-	##.
-	fig = plt.figure()
-	ax1 = fig.add_axes( [0.16, 0.11, 0.80, 0.85] )
-
-	##. read sample catalog and get the average centric distance
-	R_aveg = []
-	R_sat_arr = []
-
-	for dd in range( len( R_bins ) - 1 ):
-
-		dd_Rs = np.array([])
-
-		for qq in range( 3 ):
-
-			cat = pds.read_csv( cat_path + 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_cat.csv' 
-							% ( bin_rich[qq], bin_rich[qq + 1], R_bins[dd], R_bins[dd + 1]),)
-
-			x_Rc = np.array( cat['R2Rv'] )   ## R / R200m
-			cp_x_Rc = x_Rc + 0
-
-			dd_Rs = np.r_[ dd_Rs, cp_x_Rc ]
-
-		##.
-		R_aveg.append( np.mean( dd_Rs ) )
-		R_sat_arr.append( dd_Rs )
-
-	##. R_t and R_t_err 
-	Rc = []
-
-	pat = pds.read_csv( out_path + 'Extend_BCGM_gri-common_Rs-bin_over-rich_sat_Rt.csv',)
-
-	for dd in range( len( R_bins ) - 1 ):
-
-		tt_Rc = np.array( pat[ fig_name[dd] ] )[0]
-		Rc.append( tt_Rc )
-
-	##. estimate with ratio decrease
-	# pat = fits.open( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/' + 
-	# 				'Extend_BCGM_gri-common_Rs-bin_over-rich_r-band_smooth-exten_Rt_test.fits',)
-
-	pat = fits.open( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/' + 
-					'Extend_BCGM_gri-common_Rs-bin_over-rich_r-band_polyfit_Rt_test.fits',)
-
-	p_table = pat[1].data
-
-	cp_Rc = []
-
-	for tt in range( len(R_bins) - 1 ):
-
-		Rt_arr = np.array( p_table[ fig_name[tt] ] )
-		cp_Rc.append( Rt_arr[ id_set ] )
-
-	##.
-	ax1.plot( R_aveg, Rc, marker = marks[0], ls = '-', color = 'b', alpha = 0.75, label = 'Fang+2016 Model',)
-	ax1.plot( R_aveg, cp_Rc, marker = marks[2], ls = '--', color = 'r', alpha = 0.75, label = 'Drops by %d%%' % (crit_eta[ id_set ] * 100),)
-
-	ax1.legend( loc = 2, frameon = False, fontsize = 12)
-
-	ax1.set_ylabel('$ R_{t} \; [kpc \, / \, h]$', fontsize = 12,)
-	# ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
-	ax1.set_yscale('log')
-
-	ax1.set_xlabel('$\\bar{R}_{sat} \, / \, R_{200m}$', fontsize = 12,)
-	ax1.xaxis.set_minor_locator( ticker.AutoMinorLocator() )
-	ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
-
-	plt.savefig('/home/xkchen/Rs-bin_over-rich_Rt_%.2f-ratio-decay_compare.png' % crit_eta[id_set], dpi = 300)
-	plt.close()
-

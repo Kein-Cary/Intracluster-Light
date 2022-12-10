@@ -182,7 +182,7 @@ for kk in range( len(bin_rich) - 1 ):
     jack_cont_arr = out_path + 'photo-z_match_clust_%s_%s-band' % ( sub_name[kk], band_str) + '_Mean_jack_pix-cont_z-ref.h5'
 
 
-    #.. with Ng weight
+    #.. without Ng weight
     jack_main_func( id_cen, N_bin, n_rbins, ra, dec, z, clus_x, clus_y, d_file, band_str, sub_img, sub_pix_cont, 
                     sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr, 
                     id_cut = True, N_edg = 1, id_Z0 = False, z_ref = z_ref, id_sub = True )

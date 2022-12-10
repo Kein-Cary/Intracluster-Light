@@ -52,7 +52,7 @@ n_rbins = 35
 
 
 ### ================== ### subsamples~( binned with R_sat only)
-"""
+
 ##. sat_img stacking
 img_path = '/home/xkchen/data/SDSS/member_files/sat_woBCG/resamp_imgs/'
 d_file = img_path + 'Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
@@ -102,7 +102,7 @@ for dd in range( 2 ):
 					rank, id_cut = True, N_edg = N_edg, id_Z0 = False, z_ref = z_ref, id_sub = False )
 
 raise
-"""
+
 
 
 ##. BG_img stacking

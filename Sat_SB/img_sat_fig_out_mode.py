@@ -166,7 +166,7 @@ def arr_jack_func(SB_array, R_array, N_sample):
 	Stack_SB = np.nanmean(dy_sb, axis = 0)
 	std_Stack_SB = np.nanstd(dy_sb, axis = 0)
 
-	### only calculate r bins in which sub-sample number larger than one
+	###. only calculate r bins in which sub-sample number larger than one
 	id_one = Len > 1
 	Stack_R = Stack_R[ id_one ]
 	Stack_SB = Stack_SB[ id_one ]
@@ -174,9 +174,11 @@ def arr_jack_func(SB_array, R_array, N_sample):
 	N_img = Len[ id_one ]
 	jk_Stack_err = np.sqrt(N_img - 1) * std_Stack_SB
 
-	### limit the radius bin contribution at least 1/10 * N_sample
+	###. limit the radius bin contribution at least 1/10 * N_sample
+
 	id_min = N_img >= np.int(N_sample / 10)
 	lim_r = Stack_R[id_min]
 	lim_R = np.nanmax(lim_r)
 
 	return Stack_R, Stack_SB, jk_Stack_err, lim_R
+

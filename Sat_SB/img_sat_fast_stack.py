@@ -221,7 +221,7 @@ def sat_img_fast_stack_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, img_x, img
 			else:
 				zref_lim_SB_adjust_func(J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, n_rbins, N_bin, S2N, z_ref, band_str, edg_bins,)
 
-		# calculate the directly stacking result( 2D_img, pixel_count array, and rms file [if sub_rms is not None] )
+		#. calculate the directly stacking result( 2D_img, pixel_count array, and rms file [if sub_rms is not None] )
 		order_id = np.arange( 0, N_bin, 1 )
 		order_id = order_id.astype( np.int32 )
 		weit_aveg_img( order_id, sub_img, sub_pix_cont, jack_img, sum_weit_file = jack_cont_arr,)

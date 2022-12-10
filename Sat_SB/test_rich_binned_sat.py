@@ -115,6 +115,7 @@ def mem_match_func( img_cat_file, mem_cat_file, out_sat_file ):
 def cluster_binned():
 	cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_binned/cat/'
 
+	##. the halo mass and radius haven been update in '.../rich_rebin/'
 	dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/sat_cat_z02_03/' + 
 						'Extend-BCGM_rgi-common_cat.csv')
 
@@ -391,10 +392,7 @@ for kk in range( len(bin_rich) - 1 ):
 	p_Rsat = np.array( s_dat['R_cen'] )
 	p_R2Rv = np.array( s_dat['Rcen/Rv'] )
 
-	a_obs = 1 / (1 + bcg_z)
-
-	# p_Rsat = p_Rsat * 1e3 * a_ref / h  ##. physical radius
-	p_Rsat = p_Rsat * 1e3 * a_obs / h    ##. physical radius
+	p_Rsat = p_Rsat * 1e3 / h    ##. physical radius
 
 
 	##.

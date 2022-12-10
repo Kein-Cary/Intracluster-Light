@@ -52,7 +52,7 @@ n_rbins = 35
 
 
 ### === ### subsample sample stacking
-"""
+
 ##. sat_img with BCG
 # img_path = '/home/xkchen/data/SDSS/member_files/sat_wBCG/resamp_img/'
 # d_file = img_path + 'Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
@@ -120,7 +120,7 @@ for ll in range( 3 ):
 
 print('%d-rank, Done' % rank )
 raise
-"""
+
 
 
 ### === ### background stacking

@@ -70,11 +70,11 @@ def R_func( R, a, b, c):
 
 ### === ### data load
 cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/cat/'
-out_path = '/home/xkchen/figs_cp/theory_Rt/'
+out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/'
 
 
 ##. Li's data fit params
-cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mh_fit_params.csv')
+cat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/R_Mh_fit_params.csv')
 a_fit, b_fit, c_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
 
 
@@ -306,4 +306,5 @@ ax1.legend( loc = 1, frameon = False,)
 
 plt.savefig('/home/xkchen/sat_3D-pos.png', dpi = 300)
 plt.close()
+
 

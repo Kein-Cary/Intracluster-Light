@@ -190,9 +190,7 @@ def sat_phyR_binned():
         p_R2Rv = np.array( s_dat['Rcen/Rv'] )
         clus_IDs = np.array( s_dat['clus_ID'] )
 
-        a_obs = 1 / ( bcg_z + 1 )
-
-        cp_Rsat = p_Rsat * 1e3 * a_obs / h  ##. physical radius
+        cp_Rsat = p_Rsat * 1e3 / h  ##. physical radius
 
 
         ##. division

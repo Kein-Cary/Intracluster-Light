@@ -20,10 +20,13 @@ from img_sat_fig_out_mode import arr_jack_func
 from light_measure import jack_SB_func
 
 
-### ==== ###
+### === constants
+#.  for SDSS ['u', 'g', 'r', 'i', 'z']
+band = [ 'u', 'g', 'r', 'i', 'z' ]
+Mag_sun = [ 6.39, 5.11, 4.65, 4.53, 4.50 ]
 
-##... take the average value of the BCG+ICL+BG at the location of satellites
-##... for each satellite, we use the physical separation to the central galaxy
+
+### ==== 
 def aveg_BG_sub_func( sat_sb_file, band_str, bg_sb_file, R_sat, out_file = None):
 	"""
 	sat_sb_file : SB(r) of satellites, .h5 files
@@ -31,15 +34,17 @@ def aveg_BG_sub_func( sat_sb_file, band_str, bg_sb_file, R_sat, out_file = None)
 	bg_sb_file : background SB(r), .h5 file
 	out_file : .csv file
 	R_sat : centric distance of satellites, ('kpc')
+	-----------------------------------------------
+	use to calculate average BG-sub SB profiles of more than one subsamples or cases
 	"""
 
-	#. no-scale applied on BCG+ICL profile
+	#.
 	with h5py.File( sat_sb_file, 'r') as f:
 		tmp_r = np.array(f['r'])
 		tmp_sb = np.array(f['sb'])
 		tmp_err = np.array(f['sb_err'])
 
-
+	#.
 	with h5py.File( bg_sb_file, 'r') as f:
 		t_bg_r = np.array(f['r'])
 		t_bg_sb = np.array(f['sb'])
@@ -70,7 +75,7 @@ def aveg_BG_sub_func( sat_sb_file, band_str, bg_sb_file, R_sat, out_file = None)
 
 ##... cut the mock of stacked 2D image of BCG+ICL+BG of corresponding sample
 ##... with the same size of pixels-array as satellites and stack those images as the background
-def stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, sub_out_file = None):
+def stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file = None, sub_out_file = None, is_subBG = False):
 	"""
 	sat_sb_file : SB(r) of satellites, .h5 files
 	band_str : filter information
@@ -78,22 +83,17 @@ def stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, su
 	out_file : .csv file
 	N_sample : number of subsample
 	sub_out_file : output the BG-sub profile of subsamples or not
+
+	--------------------
+	is_subBG : the input Background profiles are averaged~(False) or subsample~(True)
 	"""
 
 	tmp_SB, tmp_R = [], []
 
-	with h5py.File( bg_sb_file, 'r') as f:
-		t_bg_r = np.array(f['r'])
-		t_bg_sb = np.array(f['sb'])
-		t_bg_err = np.array(f['sb_err'])
-
-	interp_mu_F = interp.interp1d( t_bg_r, t_bg_sb, kind = 'linear', fill_value = 'extrapolate')
-
-	interp_mu_err = interp.interp1d( t_bg_r, t_bg_err, kind = 'linear', fill_value = 'extrapolate')
-
-
+	#.
 	for kk in range( N_sample ):
 
+		#. SBs
 		with h5py.File( sat_sb_file % kk, 'r') as f:
 
 			tt_r = np.array(f['r'])
@@ -101,6 +101,24 @@ def stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, su
 			tt_err = np.array(f['sb_err'])
 			tt_npix = np.array(f['npix'])
 
+		#. BGs
+		if is_subBG:
+			with h5py.File( bg_sb_file % kk, 'r') as f:
+				t_bg_r = np.array(f['r'])
+				t_bg_sb = np.array(f['sb'])
+				t_bg_err = np.array(f['sb_err'])
+
+		else:
+			with h5py.File( bg_sb_file, 'r') as f:
+				t_bg_r = np.array(f['r'])
+				t_bg_sb = np.array(f['sb'])
+				t_bg_err = np.array(f['sb_err'])
+
+		#.
+		interp_mu_F = interp.interp1d( t_bg_r, t_bg_sb, kind = 'linear', fill_value = 'extrapolate')
+		interp_mu_err = interp.interp1d( t_bg_r, t_bg_err, kind = 'linear', fill_value = 'extrapolate')
+
+		#.
 		id_Nul = tt_npix < 1
 		tt_r[ id_Nul ] = np.nan
 		tt_sb[ id_Nul ] = np.nan
@@ -123,11 +141,25 @@ def stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, su
 
 	tt_jk_R, tt_jk_SB, tt_jk_err, lim_R = jack_SB_func( tmp_SB, tmp_R, band_str, N_sample)[4:]
 
-	keys = [ 'r', 'sb', 'sb_err' ]
-	values = [ tt_jk_R, tt_jk_SB, tt_jk_err ]
-	fill = dict( zip( keys, values ) )
-	out_data = pds.DataFrame( fill )
-	out_data.to_csv( out_file )
+	if out_file is not None:
+
+		keys = [ 'r', 'sb', 'sb_err' ]
+		values = [ tt_jk_R, tt_jk_SB, tt_jk_err ]
+		fill = dict( zip( keys, values ) )
+		out_data = pds.DataFrame( fill )
+		out_data.to_csv( out_file )
+
+		return
+
+	else:
+
+		return tt_jk_R, tt_jk_SB, tt_jk_err
+
+
+### === color profiles
+def sub_color_func():
 
 	return
+
+### === mass profile infer
 

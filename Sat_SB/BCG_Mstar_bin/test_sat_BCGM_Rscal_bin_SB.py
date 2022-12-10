@@ -20,9 +20,11 @@ from astropy.coordinates import SkyCoord
 from scipy.stats import binned_statistic as binned
 import scipy.interpolate as interp
 
+#.
 from light_measure import light_measure_weit
+from img_sat_BG_sub_SB import stack_BG_sub_func
+from light_measure import cov_MX_func
 from img_sat_fig_out_mode import arr_jack_func
-from img_sat_BG_sub_SB import aveg_BG_sub_func, stack_BG_sub_func
 
 
 ##### cosmology model
@@ -63,12 +65,11 @@ R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 ### === BG-sub SB profiles
 """
-#.
 for dd in range( 2 ):
 
 	for ll in range( len(R_bins) - 1 ):
 
-		for kk in range( 1 ):
+		for kk in range( 3 ):
 
 			band_str = band[ kk ]
 
@@ -76,16 +77,138 @@ for dd in range( 2 ):
 			sat_sb_file = ( path + '%s_clust_%.2f-%.2fR200m_%s-band' % (cat_lis[dd], R_bins[ll], R_bins[ll+1], band_str) 
 						+ '_jack-sub-%d_SB-pro_z-ref.h5',)[0]
 
-			bg_sb_file = ( BG_path + '%s_clust_%.2f-%.2fR200m_%s-band_shufl-%d_BG_Mean_jack_SB-pro_z-ref.h5' 
-						% (cat_lis[dd], R_bins[ll], R_bins[ll+1], band_str, list_order),)[0]
-
 			sub_out_file = ( out_path + '%s_clust_%.2f-%.2fR200m_%s-band' % (cat_lis[dd], R_bins[ll], R_bins[ll+1], band_str)  
 						+ '_jack-sub-%d_BG-sub-SB-pro_z-ref.h5',)[0]
 
 			out_file = ( out_path + '%s_clust_%.2f-%.2fR200m_%s-band_aveg-jack_BG-sub_SB.csv' 
 						% (cat_lis[dd], R_bins[ll], R_bins[ll+1], band_str),)[0]
 
-			stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, sub_out_file = sub_out_file )
+			#.
+			# bg_sb_file = ( BG_path + '%s_clust_%.2f-%.2fR200m_%s-band_shufl-%d_BG_Mean_jack_SB-pro_z-ref.h5' 
+			# 			% (cat_lis[dd], R_bins[ll], R_bins[ll+1], band_str, list_order),)[0]
+
+			# stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, sub_out_file = sub_out_file )
+
+			#.
+			bg_sb_file = ( BG_path + 
+				'%s_clust_%.2f-%.2fR200m_%s-band_shufl-%d_BG' % (cat_lis[dd], R_bins[ll], R_bins[ll+1], band_str, list_order) 
+				+ '_jack-sub-%d_SB-pro_z-ref.h5',)[0]
+
+			stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, 
+							sub_out_file = sub_out_file, is_subBG = True)
+
+raise
+"""
+
+### === covMatrix and corMatrix
+"""
+##. cov-Matrix of BG-sub SBs
+for ll in range( 2 ):
+
+	for kk in range( 3 ):
+
+		band_str = band[ kk ]
+
+		for tt in range( len(R_bins) - 1 ):
+
+			tmp_R, tmp_SB = [], []
+
+			for dd in range( N_sample ):
+
+				dat = pds.read_csv(out_path + 
+							'%s_clust_%.2f-%.2fR200m_%s-band_jack-sub-%d_BG-sub-SB-pro_z-ref.h5' 
+							% (cat_lis[ll], R_bins[tt], R_bins[tt+1], band_str, dd),)
+
+				tt_r, tt_sb = np.array( dat['r'] ), np.array( dat['sb'] )
+
+				tmp_R.append( tt_r )
+				tmp_SB.append( tt_sb )
+
+			##.
+			R_mean, cov_MX, cor_MX = cov_MX_func( tmp_R, tmp_SB, id_jack = True )
+
+			#.
+			with h5py.File( out_path + '%s_clust_%.2f-%.2fR200m_%s-band_BG-sub-SB_cov-arr.h5'
+				% (cat_lis[ll], R_bins[ll], R_bins[ll+1], band_str), 'w') as f:
+
+				f['R_kpc'] = np.array( R_mean )
+				f['cov_MX'] = np.array( cov_MX )
+				f['cor_MX'] = np.array( cor_MX )
+
+			#.
+			fig = plt.figure()
+			ax = fig.add_axes([0.12, 0.11, 0.85, 0.80])
+
+			ax.imshow( cor_MX, origin = 'lower', cmap = 'bwr', vmin = -1, vmax = 1,)
+
+			plt.savefig('/home/xkchen/%s_clust_Sat_all_%.2f-%.2fR200m_%s-band_cormax.png'
+						% (cat_lis[ll], R_bins[tt], R_bins[tt + 1], band_str), dpi = 300)
+			plt.close()
+
+
+##. aveg ratio profile
+for ll in range( 2 ):
+
+	for kk in range( 3 ):
+
+		band_str = band[ kk ]
+
+		for tt in range( len(R_bins) - 2 ):
+
+			#.
+			tmp_R, tmp_ratio = [], []
+
+			for dd in range( N_sample ):
+
+				#.
+				cc_dat = pds.read_csv( out_path + 
+						'%s_clust_%.2f-%.2fR200m_%s-band_jack-sub-%d_BG-sub-SB-pro_z-ref.h5'
+						% (cat_lis[ll], R_bins[-2], R_bins[-1], band_str, dd),)
+
+				cc_tt_r, cc_tt_sb = np.array( cc_dat['r'] ), np.array( cc_dat['sb'] )
+
+				id_nan = np.isnan( cc_tt_sb )
+				id_px = id_nan == False
+
+				_tt_tmp_F = interp.interp1d( cc_tt_r[ id_px ], cc_tt_sb[ id_px ], kind = 'cubic', fill_value = 'extrapolate',)
+
+
+				#.
+				dat = pds.read_csv( out_path + 
+						'%s_clust_%.2f-%.2fR200m_%s-band_jack-sub-%d_BG-sub-SB-pro_z-ref.h5'
+						% (cat_lis[ll], R_bins[tt], R_bins[tt + 1], band_str, dd),)
+
+				tt_r, tt_sb = np.array( dat['r'] ), np.array( dat['sb'] )
+				tt_eta = tt_sb / _tt_tmp_F( tt_r )
+
+				tmp_R.append( tt_r )
+				tmp_ratio.append( tt_eta )
+
+			#.
+			aveg_R_0, aveg_ratio, aveg_eta_err = arr_jack_func( tmp_ratio, tmp_R, N_sample )[:3]
+
+			keys = [ 'R', 'ratio', 'ratio_err' ]
+			values = [ aveg_R_0, aveg_ratio, aveg_eta_err ]
+			fill = dict( zip( keys, values ) )
+			data = pds.DataFrame( fill )
+			data.to_csv( out_path + '%s_clust_%.2f-%.2fR200m_%s-band_aveg-jack_BG-sub_SB_ratio.csv'
+						% (cat_lis[ll], R_bins[tt], R_bins[tt + 1], band_str),)
+
+			#.
+			R_mean, cov_MX, cor_MX = cov_MX_func( tmp_R, tmp_ratio, id_jack = True )
+
+			#.
+			with h5py.File( out_path + '%s_clust_%.2f-%.2fR200m_%s-band_BG-sub-SB_ratio_cov-arr.h5'
+				 % (cat_lis[ll], R_bins[tt], R_bins[tt + 1], band_str), 'w') as f:
+				f['R_kpc'] = np.array( R_mean )
+				f['cov_MX'] = np.array( cov_MX )
+				f['cor_MX'] = np.array( cor_MX )
+
+			plt.figure()
+			plt.imshow( cor_MX, origin = 'lower', cmap = 'bwr', vmin = -1, vmax = 1)
+			plt.savefig('/home/xkchen/%s_clust_Sat_all_%.2f-%.2fR200m_%s-band_ratio_cov_arr.png' 
+						% (cat_lis[ll], R_bins[tt], R_bins[tt + 1], band_str), dpi = 300)
+			plt.close()
 
 raise
 """
@@ -101,6 +224,8 @@ samp_name = ['Low $ M_{\\ast}^{\\mathrm{BCG}} \\mid \\lambda $', 'High $ M_{\\as
 
 #.
 color_s = ['b', 'g', 'r', 'm', 'k']
+line_s = ['--','-']
+line_c = ['b', 'r']
 
 #.
 fig_name = []
@@ -117,13 +242,13 @@ for dd in range( len(R_bins) - 1 ):
 
 
 ### === results comparison
-band_str = 'r'
+band_str = 'i'
 
 dpt_R, dpt_SB, dpt_err = [], [], []
 dpt_bg_R, dpt_bg_SB, dpt_bg_err = [], [], []
 dpt_nbg_R, dpt_nbg_SB, dpt_nbg_err = [], [], []
 
-#.
+##.
 for qq in range( 2 ):
 
 	##... sat SBs
@@ -211,7 +336,13 @@ for qq in range( 2 ):
 	ax1.set_xlabel('R [kpc]', fontsize = 12,)
 
 	ax1.annotate( s = samp_name[ qq ] + ', %s-band' % band_str, xy = (0.55, 0.03), xycoords = 'axes fraction', fontsize = 12,)
-	ax1.set_ylim( 1e-3, 5e0 )
+
+	if band_str == 'i':
+		ax1.set_ylim( 3e-3, 1e1 )
+
+	else:
+		ax1.set_ylim( 1e-3, 5e0 )
+
 	ax1.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
 	ax1.set_yscale('log')
 
@@ -220,8 +351,34 @@ for qq in range( 2 ):
 	plt.savefig('/home/xkchen/%s_clust_sat_%s-band_BG_compare.png' % (cat_lis[qq], band_str), dpi = 300)
 	plt.close()
 
+
 ##.
+dpt_eta_R, dpt_eta_V, dpt_eta_err = [], [], []
+
 for qq in range( 2 ):
+
+	##... sat SBs
+	tmp_R, tmp_eta, tmp_eta_err = [], [], []
+
+	for ll in range( len(R_bins) - 2 ):
+
+		dat = pds.read_csv( out_path + 
+					'%s_clust_%.2f-%.2fR200m_%s-band_aveg-jack_BG-sub_SB_ratio.csv'
+					% (cat_lis[qq], R_bins[ll], R_bins[ll + 1], band_str),)
+
+		tt_r = np.array( dat['R'] )
+		tt_eta = np.array( dat['ratio'] )
+		tt_err = np.array( dat['ratio_err'] )
+
+		#.
+		tmp_R.append( tt_r )
+		tmp_eta.append( tt_eta )
+		tmp_eta_err.append( tt_err )
+
+	#.
+	dpt_eta_R.append( tmp_R )
+	dpt_eta_V.append( tmp_eta )
+	dpt_eta_err.append( tmp_eta_err )
 
 	#.
 	fig = plt.figure( )
@@ -232,19 +389,15 @@ for qq in range( 2 ):
 	ax1.errorbar( dpt_nbg_R[qq][-1], dpt_nbg_SB[qq][-1], yerr = dpt_nbg_err[qq][-1], marker = '', ls = '-', color = 'k',
 		ecolor = 'k', mfc = 'none', mec = 'k', capsize = 1.5, alpha = 0.75, label = fig_name[-1],)
 
-	_kk_tmp_F = interp.interp1d( dpt_nbg_R[qq][-1], dpt_nbg_SB[qq][-1], kind = 'cubic', fill_value = 'extrapolate')
-
 	#.
 	for mm in range( len(R_bins) - 2 ):
 
 		ax1.errorbar( dpt_nbg_R[qq][mm], dpt_nbg_SB[qq][mm], yerr = dpt_nbg_err[qq][mm], marker = '', ls = '--', color = color_s[mm], 
 			ecolor = color_s[mm], mfc = 'none', mec = color_s[mm], capsize = 1.5, alpha = 0.75, label = fig_name[mm],)
 
-		_mm_SB = _kk_tmp_F( dpt_nbg_R[qq][mm] )
-
-		sub_ax1.plot( dpt_nbg_R[qq][mm], dpt_nbg_SB[qq][mm] / _mm_SB, ls = '--', color = color_s[mm], alpha = 0.75,)
-		sub_ax1.fill_between( dpt_nbg_R[qq][mm], y1 = (dpt_nbg_SB[qq][mm] - dpt_nbg_err[qq][mm]) / _mm_SB, 
-					y2 = (dpt_nbg_SB[qq][mm] + dpt_nbg_err[qq][mm]) / _mm_SB, color = color_s[mm], alpha = 0.15,)
+		sub_ax1.plot( tmp_R[mm], tmp_eta[mm], ls = '--', color = color_s[mm], alpha = 0.75,)
+		sub_ax1.fill_between( tmp_R[mm], y1 = tmp_eta[mm] - tmp_eta_err[mm], 
+					y2 = tmp_eta[mm] + tmp_eta_err[mm], color = color_s[mm], alpha = 0.15,)
 
 	ax1.annotate( s = samp_name[qq] + ', %s-band' % band_str, xy = (0.65, 0.85), xycoords = 'axes fraction', fontsize = 12,)
 
@@ -254,7 +407,12 @@ for qq in range( 2 ):
 	ax1.set_xscale('log')
 	ax1.set_xlabel('R [kpc]', fontsize = 12,)
 
-	ax1.set_ylim( 1e-3, 5e0 )
+	if band_str == 'i':
+		ax1.set_ylim( 3e-3, 1e1 )
+
+	else:
+		ax1.set_ylim( 1e-3, 5e0 )
+
 	ax1.set_ylabel('$\\mu \; [nanomaggy \, / \, arcsec^{2}]$', fontsize = 12,)
 	ax1.set_yscale('log')
 
@@ -273,3 +431,45 @@ for qq in range( 2 ):
 
 	plt.savefig('/home/xkchen/%s_clust_sat_%s-band_BG-sub_compare.png' % (cat_lis[qq], band_str), dpi = 300)
 	plt.close()
+
+
+##. ratio profiles difference
+fig = plt.figure( )
+ax1 = fig.add_axes([0.12, 0.12, 0.85, 0.80])
+
+for qq in range( 2 ):
+
+	for mm in range( len(R_bins) - 2 ):
+
+		#.
+		if qq == 0:
+			l1, = ax1.plot( dpt_eta_R[qq][mm], dpt_eta_V[qq][mm], ls = line_s[qq], color = color_s[mm], alpha = 0.75, label = fig_name[mm],)
+			ax1.fill_between( dpt_eta_R[qq][mm], y1 = (dpt_eta_V[qq][mm] - dpt_eta_err[qq][mm]), 
+						y2 = (dpt_eta_V[qq][mm] + dpt_eta_err[qq][mm]), color = color_s[mm], alpha = 0.15,)
+
+		else:
+			l2, = ax1.plot( dpt_eta_R[qq][mm], dpt_eta_V[qq][mm], ls = line_s[qq], color = color_s[mm], alpha = 0.75,)
+			ax1.fill_between( dpt_eta_R[qq][mm], y1 = (dpt_eta_V[qq][mm] - dpt_eta_err[qq][mm]), 
+						y2 = (dpt_eta_V[qq][mm] + dpt_eta_err[qq][mm]), color = color_s[mm], alpha = 0.15,)
+
+#.
+legend_0 = plt.legend( handles = [l1, l2], labels = [ samp_name[0], samp_name[1] ],
+			loc = 4, frameon = False, fontsize = 13, markerfirst = False,)
+
+ax1.legend( loc = 3, frameon = False, fontsize = 13, markerfirst = False,)
+ax1.add_artist( legend_0 )
+
+ax1.set_xlim( 1e0, 5e1 )
+ax1.set_xscale('log')
+ax1.set_xlabel('$R \; [kpc]$', fontsize = 12,)
+
+ax1.set_ylabel('$\\mu \; / \; \\mu \,$ (%s)' % fig_name[-1], labelpad = 10, fontsize = 12,)
+
+ax1.set_ylim( 0.2, 0.98 )
+
+ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
+ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
+
+plt.savefig('/home/xkchen/Sat_BCG_Mstar_%s-band_bin_ratio_compare.png' % band_str, dpi = 300)
+plt.close()
+

@@ -107,200 +107,6 @@ def power1_func( R, R0, alpha ):
 
 
 ### === ### data load
-def cumuL_resiL_estimate():
-
-	##. residual Lumi and out fitting function integration
-	BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGs/'
-	out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/'
-	path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_SBs/'
-
-	bin_rich = [ 20, 30, 50, 210 ]
-
-	R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
-
-	#.
-	list_order = 13
-	N_sample = 100
-
-	band_str = 'r'
-
-	##... BG-subtracted SBs
-	nbg_R, nbg_SB, nbg_err = [], [], []
-
-	for tt in range( len(R_bins) - 1 ):
-
-		dat = pds.read_csv( out_path + 'Extend_BCGM_gri-common_all_%.2f-%.2fR200m' % (R_bins[tt], R_bins[tt + 1]) 
-										+ '_%s-band_aveg-jack_BG-sub_SB.csv' % band_str,)
-
-		pt_r = np.array( dat['r'] )
-		pt_sb = np.array( dat['sb'] )
-		pt_err = np.array( dat['sb_err'] )
-
-		#.
-		nbg_R.append( pt_r )
-		nbg_SB.append( pt_sb )
-		nbg_err.append( pt_err )
-
-
-	##... interp the outer radius bin
-	cp_k_r = nbg_R[ -1 ]
-	cp_k_sb = nbg_SB[ -1 ]
-	cp_k_err = nbg_err[ -1 ]
-	tmp_F0 = interp.splrep( cp_k_r, cp_k_sb, s = 0)
-
-
-	##...
-	for tt in range( len(R_bins) - 2 ):
-
-		#.
-		kk_r = nbg_R[ tt ]
-		kk_sb = nbg_SB[ tt ]
-		kk_err = nbg_err[ tt ]
-
-		#.
-		Da_ref = Test_model.angular_diameter_distance( z_ref ).value  ## Mpc.
-		ang_r = rad2arcsec * kk_r / ( Da_ref * 1e3 )
-
-
-		#.
-		nbg_R.append( pt_r )
-		nbg_SB.append( pt_sb )
-		nbg_err.append( pt_err )
-
-		#. fitting parameters
-		dat = pds.read_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/trunF_mod/' + 
-					'sat_%.2f-%.2fR200m_%s-band_SB_trunF-model_fit.csv' % (R_bins[tt], R_bins[tt + 1], band_str),)
-
-		A0_fit = np.array( dat['A_Moffat'] )[0]
-		Rc0_fit = np.array( dat['Rd_Moffat'] )[0]
-		alpha_fit = np.array( dat['n_Moffat'] )[0]
-
-		Rc1_fit = np.array( dat['Rc'] )[0]
-		beta_fit = np.array( dat['beta'] )[0]
-
-		#.
-		_SB0_arr = interp.splev( kk_r, tmp_F0, der = 0)
-
-		mf0 = Moffat_func( kk_r, A0_fit, Rc0_fit, alpha_fit )
-		mf1 = power1_func( kk_r, Rc1_fit, beta_fit )
-
-		##...
-		tmp_R, tmp_trunL = [], []
-
-		for dd in range( N_sample ):
-
-			dat = pds.read_csv( out_path + 
-					'Extend_BCGM_gri-common_all_%.2f-%.2fR200m_%s-band_jack-sub-%d_BG-sub-SB-pro_z-ref.h5' 
-					% (R_bins[-2], R_bins[-1], band_str, dd),)
-
-			tt_r = np.array( dat['r'])
-			tt_sb = np.array( dat['sb'])
-
-			#.
-			id_nan = np.isnan( tt_sb )
-			dt_r, dt_sb = tt_r[ id_nan == False ], tt_sb[ id_nan == False ]
-
-			tmp_F = interp.interp1d( dt_r, dt_sb, kind = 'linear', fill_value = 'extrapolate')
-
-			cen_L = mf0 * tmp_F( kk_r )
-
-			cumu_lx = integ.cumtrapz( ang_r * cen_L, x = ang_r, initial = np.min( ang_r ) / 10 )
-			cumu_lx = cumu_lx * np.pi * 2
-
-			#.
-			tmp_R.append( ang_r )
-			tmp_trunL.append( cumu_lx )
-
-		#.
-		aveg_R, aveg_L, aveg_err, lim_R = arr_jack_func( tmp_trunL, tmp_R, N_sample )
-		keys = [ 'r', 'cumu_L', 'cumu_Lerr' ]
-		values = [ kk_r, aveg_L, aveg_err ]
-		fill = dict( zip( keys, values ) )
-		out_data = pds.DataFrame( fill )
-		out_data.to_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/trunF_mod/' + 
-					'Extend_BCGM_gri-common_all_%.2f-%.2fR200m_%s-band_BG-sub-SB_aveg_model-cen-cumu-L.csv'
-					% (R_bins[tt], R_bins[tt + 1], band_str),)
-
-		##...	
-		tmp_R, tmp_cumL = [], []
-
-		for dd in range( N_sample ):
-
-			dat = pds.read_csv( out_path + 
-					'Extend_BCGM_gri-common_all_%.2f-%.2fR200m_%s-band_jack-sub-%d_BG-sub-SB-pro_z-ref.h5' 
-					% (R_bins[-2], R_bins[-1], band_str, dd),)
-
-			tt_r = np.array( dat['r'])
-			tt_sb = np.array( dat['sb'])
-
-			#.
-			id_nan = np.isnan( tt_sb )
-			dt_r, dt_sb = tt_r[ id_nan == False ], tt_sb[ id_nan == False ]
-
-			tmp_F = interp.interp1d( dt_r, dt_sb, kind = 'linear', fill_value = 'extrapolate')
-
-			out_L = mf1 * tmp_F( kk_r )
-
-			cumu_lx = integ.cumtrapz( ang_r * out_L, x = ang_r, initial = np.min( ang_r ) / 10 )
-			cumu_lx = cumu_lx * np.pi * 2
-
-			#.
-			tmp_R.append( ang_r )
-			tmp_cumL.append( cumu_lx )
-
-		#.
-		aveg_R, aveg_L, aveg_err, lim_R = arr_jack_func( tmp_cumL, tmp_R, N_sample )
-		keys = [ 'r', 'cumu_L', 'cumu_Lerr' ]
-		values = [ kk_r, aveg_L, aveg_err ]
-		fill = dict( zip( keys, values ) )
-		out_data = pds.DataFrame( fill )
-		out_data.to_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/trunF_mod/' + 
-					'Extend_BCGM_gri-common_all_%.2f-%.2fR200m_%s-band_BG-sub-SB_aveg_model-out-cumu-L.csv'
-					% (R_bins[tt], R_bins[tt + 1], band_str),)
-
-		##... 
-		tmp_R, tmp_resL = [], []
-
-		for dd in range( N_sample ):
-
-			dat = pds.read_csv( out_path + 
-					'Extend_BCGM_gri-common_all_%.2f-%.2fR200m_%s-band_jack-sub-%d_BG-sub-SB-pro_z-ref.h5' 
-					% (R_bins[-2], R_bins[-1], band_str, dd),)
-
-			tt_r = np.array( dat['r'])
-			tt_sb = np.array( dat['sb'])
-
-			#.
-			id_nan = np.isnan( tt_sb )
-			dt_r, dt_sb = tt_r[ id_nan == False ], tt_sb[ id_nan == False ]
-
-			tmp_F = interp.interp1d( dt_r, dt_sb, kind = 'linear', fill_value = 'extrapolate')
-
-			#. resi_L
-			devi_L = tmp_F( kk_r ) - mf0 * _SB0_arr
-
-			cumu_lx = integ.cumtrapz( ang_r * devi_L, x = ang_r, initial = np.min( ang_r ) / 10 )
-			cumu_lx = cumu_lx * np.pi * 2
-
-			#.
-			tmp_R.append( ang_r )
-			tmp_resL.append( cumu_lx )
-
-		#.
-		aveg_R, aveg_L, aveg_err, lim_R = arr_jack_func( tmp_resL, tmp_R, N_sample )
-		keys = [ 'r', 'cumu_L', 'cumu_Lerr' ]
-		values = [ kk_r, aveg_L, aveg_err ]
-		fill = dict( zip( keys, values ) )
-		out_data = pds.DataFrame( fill )
-		out_data.to_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/trunF_mod/' + 
-					'Extend_BCGM_gri-common_all_%.2f-%.2fR200m_%s-band_BG-sub-SB_aveg_model-resi-cumu-L.csv'
-					% (R_bins[tt], R_bins[tt+1], band_str),)
-
-	return
-
-# cumuL_resiL_estimate()
-# raise
-
 
 ##. sat_img without BCG
 BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGs/'
@@ -309,7 +115,8 @@ path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_SBs/'
 
 bin_rich = [ 20, 30, 50, 210 ]
 
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 ##. background shuffle list order
 list_order = 13
@@ -410,6 +217,7 @@ for dd in range( len(R_bins) - 1 ):
 
 
 ### === ### figs of model fitting
+"""
 fig = plt.figure( figsize = (18.2, 4.8) )
 ax0 = fig.add_axes([0.04, 0.11, 0.29, 0.85])
 ax1 = fig.add_axes([0.37, 0.11, 0.29, 0.85])
@@ -507,7 +315,8 @@ ax2.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
 plt.savefig('/home/xkchen/Sat_%s-band_SB_ratio_model.png' % band_str, dpi = 300)
 plt.close()
 
-
+raise
+"""
 
 ### === ### figs of ratio profile indicated Rt compare
 ##.
@@ -658,7 +467,7 @@ for oo in ( 3, 4, 5 ):
 ##.. Rt estimate based on 'Fang+2016 Model'
 Rc = []
 
-pat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/' + 
+pat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/' + 
 		'Extend_BCGM_gri-common_Rs-bin_over-rich_sat_Rt.csv',)
 
 for dd in range( len( R_bins ) - 1 ):
@@ -731,7 +540,7 @@ ax0.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
 ##.. Rt estimate based on 'Fang+2016 Model'
 Rc = []
 
-pat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/' + 
+pat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/' + 
 		'Extend_BCGM_gri-common_Rs-bin_over-rich_sat_Rt.csv',)
 
 for dd in range( len( R_bins ) - 1 ):
@@ -822,7 +631,7 @@ ax0.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 13
 ##.. Rt estimate based on 'Fang+2016 Model'
 Rc = []
 
-pat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/' + 
+pat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/' + 
 		'Extend_BCGM_gri-common_Rs-bin_over-rich_sat_Rt.csv',)
 
 for dd in range( len( R_bins ) - 1 ):

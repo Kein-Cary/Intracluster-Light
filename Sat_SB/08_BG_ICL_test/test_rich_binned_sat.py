@@ -391,10 +391,7 @@ for kk in range( len(bin_rich) - 1 ):
 	p_Rsat = np.array( s_dat['R_cen'] )
 	p_R2Rv = np.array( s_dat['Rcen/Rv'] )
 
-	a_obs = 1 / (1 + bcg_z)
-
-	# p_Rsat = p_Rsat * 1e3 * a_ref / h  ##. physical radius
-	p_Rsat = p_Rsat * 1e3 * a_obs / h    ##. physical radius
+	p_Rsat = p_Rsat * 1e3 / h    ##. physical radius
 
 
 	##.

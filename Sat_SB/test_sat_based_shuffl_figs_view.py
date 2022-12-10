@@ -88,8 +88,7 @@ for tt in range( 3 ):
 		R_sat = np.array( pat['R_cen'] )
 		z_obs = np.array( pat['bcg_z'] )
 
-		a_obs = 1 / (z_obs + 1)
-		sdss_Rsat = R_sat * 1e3 * a_obs / h   ##. physical radius, kpc
+		sdss_Rsat = R_sat * 1e3 / h   ##. physical radius, kpc
 
 
 		##. shuffle list~(20 times for test)

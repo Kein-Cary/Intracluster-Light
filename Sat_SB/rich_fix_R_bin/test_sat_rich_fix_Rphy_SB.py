@@ -80,17 +80,24 @@ for ll in range( 3 ):
             sat_sb_file = ( path + 'Extend_BCGM_gri-common_%s_phyR_%d-%dkpc' % (sub_name[ll], R_bins[tt], R_bins[tt + 1]) + 
                             '_%s-band' % band_str + '_jack-sub-%d_SB-pro_z-ref.h5',)[0]
 
-            bg_sb_file = ( BG_path + 'Extend_BCGM_gri-common_%s_phyR_%d-%dkpc' % (sub_name[ll], R_bins[tt], R_bins[tt + 1]) + 
-                            '_%s-band_shufl-%d_BG' % (band_str, list_order) + '_Mean_jack_SB-pro_z-ref.h5',)[0]
-
             sub_out_file = ( out_path + 'Extend_BCGM_gri-common_%s_phyR_%d-%dkpc' % (sub_name[ll], R_bins[tt], R_bins[tt + 1]) + 
                             '_%s-band' % band_str + '_jack-sub-%d_BG-sub-SB-pro_z-ref.h5',)[0]
 
             out_file = ( out_path + 'Extend_BCGM_gri-common_%s_phyR_%d-%dkpc' % (sub_name[ll], R_bins[tt], R_bins[tt + 1]) + 
                         '_%s-band_aveg-jack_BG-sub_SB.csv' % band_str,)[0]
 
-            # stack_BG_sub_func( sat_sb_file, bg_sb_file, band[ kk ], N_sample, out_file )
-            stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, sub_out_file = sub_out_file )
+            #.
+            # bg_sb_file = ( BG_path + 'Extend_BCGM_gri-common_%s_phyR_%d-%dkpc' % (sub_name[ll], R_bins[tt], R_bins[tt + 1]) + 
+            #                 '_%s-band_shufl-%d_BG' % (band_str, list_order) + '_Mean_jack_SB-pro_z-ref.h5',)[0]
+
+            # stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, sub_out_file = sub_out_file )
+
+            #.
+            bg_sb_file = ( BG_path + 'Extend_BCGM_gri-common_%s_phyR_%d-%dkpc' % (sub_name[ll], R_bins[tt], R_bins[tt + 1]) + 
+                            '_%s-band_shufl-%d_BG' % (band_str, list_order) + '_jack-sub-%d_SB-pro_z-ref.h5',)[0]
+
+            stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, 
+                        sub_out_file = sub_out_file, is_subBG = True)
 
 raise
 """
@@ -257,22 +264,25 @@ for kk in range( 1 ):
         ecolor = color_s[-1], mfc = 'none', mec = color_s[-1], capsize = 1.5, alpha = 0.75, label = fig_name[-1],)
 
     _kk_tmp_F = interp.interp1d( nbg_R[-1][kk], nbg_SB[-1][kk], kind = 'cubic', fill_value = 'extrapolate',)
+    _kk_tmp_eF = interp.interp1d( nbg_R[-1][kk], nbg_err[-1][kk], kind = 'cubic', fill_value = 'extrapolate',)
 
-    # sub_ax1.plot( nbg_R[-1][kk], nbg_SB[-1][kk] / _kk_tmp_F( nbg_R[-1][kk] ), ls = '--', color = 'r', alpha = 0.75,)
-    # sub_ax1.fill_between( nbg_R[-1][kk], y1 = (nbg_SB[-1][kk] - nbg_err[-1][kk]) / _kk_tmp_F( nbg_R[-1][kk] ), 
-    #             y2 = (nbg_SB[-1][kk] + nbg_err[-1][kk]) / _kk_tmp_F( nbg_R[-1][kk] ), color = 'r', alpha = 0.12,)
-
+    #.
     for mm in range( len(R_bins) - 2 ):
 
         ax1.errorbar( nbg_R[mm][kk], nbg_SB[mm][kk], yerr = nbg_err[mm][kk], marker = '', ls = '--', color = color_s[mm], 
             ecolor = color_s[mm], mfc = 'none', mec = color_s[mm], capsize = 1.5, alpha = 0.75, label = fig_name[mm],)
 
-        sub_ax1.plot( nbg_R[mm][kk], nbg_SB[mm][kk] / _kk_tmp_F( nbg_R[mm][kk] ), ls = '--', color = color_s[mm], alpha = 0.75,)
-        sub_ax1.fill_between( nbg_R[mm][kk], y1 = (nbg_SB[mm][kk] - nbg_err[mm][kk]) / _kk_tmp_F( nbg_R[mm][kk] ), 
-                    y2 = (nbg_SB[mm][kk] + nbg_err[mm][kk]) / _kk_tmp_F( nbg_R[mm][kk] ), color = color_s[mm], alpha = 0.12,)
+        _cc_err = _kk_tmp_eF( nbg_R[mm][kk] )
+        _cc_SB = _kk_tmp_F( nbg_R[mm][kk] )
 
-    daa = nbg_SB[-2][kk] / _kk_tmp_F( nbg_R[-2][kk] )
+        p_err1 = ( nbg_err[mm][kk] / _cc_SB )**2
+        p_err2 = ( _cc_err * nbg_SB[mm][kk] / _cc_SB**2 )**2
 
+        _cc_eta_err = np.sqrt( p_err1 + p_err2 )        
+
+        sub_ax1.plot( nbg_R[mm][kk], nbg_SB[mm][kk] / _cc_SB, ls = '--', color = color_s[mm], alpha = 0.75,)
+        sub_ax1.fill_between( nbg_R[mm][kk], y1 = nbg_SB[mm][kk] / _cc_SB - _cc_eta_err, 
+                    y2 = nbg_SB[mm][kk] / _cc_SB + _cc_eta_err, color = color_s[mm], alpha = 0.12,)
 
     ax1.annotate( s = line_name[ll] + ', %s-band' % band[kk], xy = (0.65, 0.85), xycoords = 'axes fraction', fontsize = 12,)
     ax1.legend( loc = 3, frameon = False, fontsize = 12,)
@@ -298,4 +308,3 @@ for kk in range( 1 ):
 
     plt.savefig('/home/xkchen/%s_sat_%s-band_BG-sub_compare.png' % (sub_name[ ll ], band[kk]), dpi = 300)
     plt.close()
-

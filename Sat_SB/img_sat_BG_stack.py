@@ -82,6 +82,46 @@ def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, 
 		img_A = data_A[0].data
 		head = data_A[0].header
 
+		##.weight array~( array setting for mask )
+		if weit_img is not None:
+
+			w_file = weit_img % ( band, ra_g, dec_g, z_g, s_ra, s_dec )
+			w_array = fits.open( w_file )
+			w_img = w_array[0].data
+
+			##.
+			w_Ny, w_Nx = w_img.shape
+			g_Ny, g_Nx = img_A.shape
+
+			m_Ny = np.max( [ w_Ny, g_Ny ] )
+			m_Nx = np.max( [ w_Nx, g_Nx ] )
+
+			#.
+			sz = ( m_Ny - w_Ny, m_Nx - w_Nx )
+			copy_wimg = np.pad( w_img, 
+					( ( (sz[0] + 1 ) // 2, sz[0] // 2), ( (sz[1] + 1 ) // 2, sz[1] // 2) ), 
+					'constant', constant_values = np.nan,)
+
+			#.
+			sz = ( m_Ny - g_Ny, m_Nx - g_Nx )
+			copy_img = np.pad( img_A, 
+					( ( (sz[0] + 1 ) // 2, sz[0] // 2), ( (sz[1] + 1 ) // 2, sz[1] // 2) ), 
+					'constant', constant_values = np.nan,)
+
+			id_ux = np.isnan( copy_wimg )
+			copy_img[ id_ux ] = np.nan
+
+			img_A = copy_img + 0.
+
+		##.
+		if id_mean == 0:
+			img_add = img_A - 0.
+		if id_mean == 1:
+			img_add = img_A - np.nanmean(img_A)
+		if id_mean == 2:
+			img_add = img_A - np.nanmedian(img_A)
+
+		##.
 		if id_cen == 0:
 			la0 = np.int(y0 - yn)
 			la1 = np.int(y0 - yn + img_A.shape[0])
@@ -95,24 +135,7 @@ def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, 
 			lb0 = np.int(x0 - rnx)
 			lb1 = np.int(x0 - rnx + img_A.shape[1])
 
-		#.weight array~( array setting for mask )
-		if weit_img is not None:
-
-			w_file = weit_img % ( band, ra_g, dec_g, z_g, s_ra, s_dec )
-			w_array = fits.open( w_file )
-			w_img = w_array[0].data
-
-			id_ux = np.isnan( w_img )
-			img_A[ id_ux ] = np.nan
-
-		if id_mean == 0:
-			img_add = img_A - 0.
-		if id_mean == 1:
-			img_add = img_A - np.nanmean(img_A)
-		if id_mean == 2:
-			img_add = img_A - np.nanmedian(img_A)
-
-		#. effective pixels location count
+		##. effective pixels location count
 		idx = np.isnan(img_A)
 		idv = np.where(idx == False)
 
@@ -140,7 +163,7 @@ def stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_dec, 
 			p_count_A[id_fals] = p_count_A[id_fals] + Ng_weit[ jj ] * pm_weit[ jj ]
 			count_array_A[la0: la1, lb0: lb1][idv] = np.nan
 
-
+	##.
 	id_zero = p_count_A == 0
 	p_count_A[id_zero] = np.nan
 	sum_array_A[id_zero] = np.nan
@@ -253,6 +276,52 @@ def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_d
 		img_A[:, :N_edg] = np.nan
 		img_A[:, -N_edg:] = np.nan
 
+
+		##.weight array
+		if weit_img is not None:
+
+			w_file = weit_img % ( band, ra_g, dec_g, z_g, s_ra, s_dec )
+			w_array = fits.open( w_file )
+			w_img = w_array[0].data
+
+			## mask the edge region with N_edg
+			w_img[:N_edg, :] = np.nan
+			w_img[-N_edg:, :] = np.nan
+			w_img[:, :N_edg] = np.nan
+			w_img[:, -N_edg:] = np.nan
+
+			w_Ny, w_Nx = w_img.shape
+			g_Ny, g_Nx = img_A.shape
+
+			m_Ny = np.max( [ w_Ny, g_Ny ] )
+			m_Nx = np.max( [ w_Nx, g_Nx ] )
+
+			#.
+			sz = ( m_Ny - w_Ny, m_Nx - w_Nx )
+			copy_wimg = np.pad( w_img, 
+					( ( (sz[0] + 1 ) // 2, sz[0] // 2), ( (sz[1] + 1 ) // 2, sz[1] // 2) ), 
+					'constant', constant_values = np.nan,)
+
+			#.
+			sz = ( m_Ny - g_Ny, m_Nx - g_Nx )
+			copy_img = np.pad( img_A, 
+					( ( (sz[0] + 1 ) // 2, sz[0] // 2), ( (sz[1] + 1 ) // 2, sz[1] // 2) ), 
+					'constant', constant_values = np.nan,)
+
+			id_ux = np.isnan( copy_wimg )
+			copy_img[ id_ux ] = np.nan
+
+			img_A = copy_img + 0.
+
+		##.
+		if id_mean == 0:
+			img_add = img_A - 0.
+		if id_mean == 1:
+			img_add = img_A - np.nanmean(img_A)
+		if id_mean == 2:
+			img_add = img_A - np.nanmedian(img_A)
+
+		##.
 		if id_cen == 0:
 			la0 = np.int( y0 - yn )
 			la1 = np.int( y0 - yn + img_A.shape[0] )
@@ -266,30 +335,7 @@ def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_d
 			lb0 = np.int(x0 - rnx)
 			lb1 = np.int(x0 - rnx + img_A.shape[1])
 
-		#.weight array
-		if weit_img is not None:
-
-			w_file = weit_img % ( band, ra_g, dec_g, z_g, s_ra, s_dec )
-			w_array = fits.open( w_file )
-			w_img = w_array[0].data
-
-			## mask the edge region with N_edg
-			w_img[:N_edg, :] = np.nan
-			w_img[-N_edg:, :] = np.nan
-			w_img[:, :N_edg] = np.nan
-			w_img[:, -N_edg:] = np.nan
-
-			id_ux = np.isnan( w_img )
-			img_A[ id_ux ] = np.nan
-
-		if id_mean == 0:
-			img_add = img_A - 0.
-		if id_mean == 1:
-			img_add = img_A - np.nanmean(img_A)
-		if id_mean == 2:
-			img_add = img_A - np.nanmedian(img_A)
-
-		#. effective pixels location count
+		##. effective pixels location count
 		idx = np.isnan(img_A)
 		idv = np.where(idx == False)
 
@@ -309,7 +355,7 @@ def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_d
 			sum_array_A[la0: la1, lb0: lb1][idv] = sum_array_A[la0: la1, lb0: lb1][idv] + Ng_weit[ jj ] * img_add[idv] * pm_weit[ jj ]
 			count_array_A[la0: la1, lb0: lb1][idv] = img_add[idv]
 
-			## tmp array for rms
+			##. tmp array for rms
 			pix_f2[la0: la1, lb0: lb1][idv] = pix_f2[la0: la1, lb0: lb1][idv] + Ng_weit[ jj ] * img_add[idv]**2 * pm_weit[ jj ]
 
 			id_nan = np.isnan( count_array_A )
@@ -317,7 +363,7 @@ def cut_stack_func(d_file, out_file, z_set, ra_set, dec_set, band, sat_ra, sat_d
 			p_count_A[id_fals] = p_count_A[id_fals] + Ng_weit[ jj ] * pm_weit[ jj ]
 			count_array_A[la0: la1, lb0: lb1][idv] = np.nan
 
-
+	##.
 	id_zero = p_count_A == 0
 	p_count_A[id_zero] = np.nan
 	sum_array_A[id_zero] = np.nan

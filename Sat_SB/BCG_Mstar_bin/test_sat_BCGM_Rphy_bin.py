@@ -67,8 +67,7 @@ def sat_rich_phyR_bin():
 			p_R2Rv = np.array( s_dat['Rcen/Rv'] )
 			clus_IDs = np.array( s_dat['clus_ID'] )
 
-			a_obs = 1 / ( bcg_z + 1 )
-			cp_Rsat = p_Rsat * 1e3 * a_obs / h  ##. physical radius
+			cp_Rsat = p_Rsat * 1e3 / h  ##. physical radius
 
 
 			##. division
@@ -360,10 +359,9 @@ def sat_phyR_bin():
 
 ##.
 # sat_rich_phyR_bin()
-# sat_phyR_bin()
+sat_phyR_bin()
 
-# raise
-
+raise
 
 
 ##. figs 
@@ -396,11 +394,7 @@ for pp in range( 2 ):
 		p_ra, p_dec = np.array( s_dat['ra'] ), np.array( s_dat['dec'] )
 
 		p_Rsat = np.array( s_dat['R_cen'] )
-
-		a_obs = 1 / ( bcg_z + 1 )
-
-		# cp_Rsat = p_Rsat * 1e3 * a_ref / h  ##. physical radius
-		cp_Rsat = p_Rsat * 1e3 * a_obs / h  ##. physical radius
+		cp_Rsat = p_Rsat * 1e3 / h  ##. physical radius
 
 
 		#.

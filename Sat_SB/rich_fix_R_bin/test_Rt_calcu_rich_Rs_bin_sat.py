@@ -79,7 +79,7 @@ def err_fit_func( p, x, y, yerr ):
 
 ### === ### match for subsample
 cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/cat/'
-out_path = '/home/xkchen/figs_cp/theory_Rt/'
+out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/'
 
 ##. halo mass of satellites~( Li et al. 2016)
 ref_sub_Mh = [ 11.37, 11.92, 12.64 ]
@@ -90,9 +90,9 @@ ref_sat_Ms = [ 10.68, 10.72, 10.78 ]
 ref_R_edg = [ 0.1, 0.3, 0.6, 0.9 ]
 
 
-Li_dat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/Li_Mh2Mstar_data_point.csv')
-Li_xerr = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/Li_Mh2Mstar_data_Xerr.csv')
-Li_yerr = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/Li_Mh2Mstar_data_Yerr.csv')
+Li_dat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/Li_Mh2Mstar_data_point.csv')
+Li_xerr = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/Li_Mh2Mstar_data_Xerr.csv')
+Li_yerr = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/Li_Mh2Mstar_data_Yerr.csv')
 
 Li_R = np.array( Li_dat['R'] )
 
@@ -115,7 +115,7 @@ def Li_data_fit():
     values = [ a_fit, b_fit, c_fit ]
     fill = dict( zip( keys, values) )
     out_data = pds.DataFrame( fill, index = ['k', 'v'])
-    out_data.to_csv( '/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mh_fit_params.csv',)
+    out_data.to_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/R_Mh_fit_params.csv',)
 
 
     fig = plt.figure()
@@ -157,7 +157,7 @@ def Li_data_fit():
     values = [ sa_fit, sb_fit, sc_fit ]
     fill = dict( zip( keys, values) )
     out_data = pds.DataFrame( fill, index = ['k', 'v'])
-    out_data.to_csv( '/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mstar_fit_params.csv',)
+    out_data.to_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/R_Mstar_fit_params.csv',)
 
 
     fig = plt.figure()
@@ -218,10 +218,10 @@ def fig_mass_infer():
 
 
     ##. Li's data fit params
-    cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mh_fit_params.csv')
+    cat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/R_Mh_fit_params.csv')
     a_fit, b_fit, c_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
 
-    cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mstar_fit_params.csv')
+    cat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/R_Mstar_fit_params.csv')
     sa_fit, sb_fit, sc_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
 
     new_R = np.logspace( -2, 1, 50 )
@@ -347,10 +347,10 @@ for kk in range( 3 ):
 
 
 ##. Li's data fit params
-cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mh_fit_params.csv')
+cat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/R_Mh_fit_params.csv')
 a_fit, b_fit, c_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
 
-cat = pds.read_csv('/home/xkchen/figs_cp/theory_Rt/Li_data/R_Mstar_fit_params.csv')
+cat = pds.read_csv('/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/theory_Rt/Li_data/R_Mstar_fit_params.csv')
 sa_fit, sb_fit, sc_fit = np.array( cat['a'] )[0], np.array( cat['b'] )[0], np.array( cat['c'] )[0]
 
 
@@ -532,200 +532,3 @@ for ll in range( 3 ):
     plt.close()
 
     print( ll )
-
-
-
-
-### === Rt compare
-marks = ['s', '>', 'o']
-mark_size = [10, 25, 35]
-color_s = ['b', 'g', 'r', 'm']
-
-##.
-crit_eta = [ 0.05, 0.15, 0.25, 0.50, 0.75, 0.90, 0.95 ]
-
-for oo in range( len( crit_eta ) ):
-
-    id_set = oo
-
-    fig = plt.figure()
-    ax1 = fig.add_axes( [0.12, 0.11, 0.80, 0.85] )
-
-    for qq in range( 3 ):
-
-        ##. read sample catalog and get the average centric distance
-        R_aveg = []
-        R_sat_arr = []
-
-        for dd in range( len( R_bins ) - 1 ):
-
-            if R_str == 'phy':
-                cat = pds.read_csv( cat_path + 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem_cat.csv'
-                                % ( bin_rich[qq], bin_rich[qq + 1], R_bins[dd], R_bins[dd + 1]),)
-
-                x_Rc = np.array( cat['R_sat'] )   ## Mpc / h
-                cp_x_Rc = x_Rc * 1e3 * a_ref / h  ## kpc
-
-            if R_str == 'scale':
-                cat = pds.read_csv( cat_path + 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_cat.csv' 
-                                % ( bin_rich[qq], bin_rich[qq + 1], R_bins[dd], R_bins[dd + 1]),)
-
-                x_Rc = np.array( cat['R2Rv'] )   ## R / R200m
-                cp_x_Rc = x_Rc + 0
-
-            R_aveg.append( np.mean( cp_x_Rc) )
-            R_sat_arr.append( cp_x_Rc )
-
-        print( R_aveg )
-        print( [ len(ll) for ll in R_sat_arr ] )
-
-        ##. R_t and R_t_err 
-        Rc = []
-
-        pat = pds.read_csv( out_path + 
-            'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_Rscal-bin-sat_Rt.csv' % (bin_rich[qq], bin_rich[qq+1]),)
-
-        for dd in range( len(R_bins) - 1 ):
-
-            tt_Rc = np.array( pat[ fig_name[dd] ] )[0]
-
-            Rc.append( tt_Rc )
-
-
-        ##. estimate with ratio decrease
-        # pat = fits.open( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/' + 
-        #                 'Extend_BCGM_gri-common_%s_%s_r-band_smooth-exten_Rt_test.fits' % (sub_name[qq], R_str),)
-
-        pat = fits.open( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/' + 
-                        'Extend_BCGM_gri-common_%s_%s_r-band_polyfit_Rt_test.fits' % (sub_name[qq], R_str),)
-
-        p_table = pat[1].data
-
-        cp_Rc = []
-
-        for tt in range( len(R_bins) - 1 ):
-
-            Rt_arr = np.array( p_table[ fig_name[tt] ] )
-
-            cp_Rc.append( Rt_arr[ id_set ] )
-
-
-        ax1.plot( R_aveg, Rc, marker = marks[qq], ls = '-', color = color_s[qq], label = line_name[qq], alpha = 0.75,)
-
-        if qq == 0:
-            ax1.plot( R_aveg[:4], cp_Rc[:4], marker = marks[qq], ls = '--', color = color_s[qq], alpha = 0.45, label = 'Ratio decrease')
-
-        else:
-            ax1.plot( R_aveg[:4], cp_Rc[:4], marker = marks[qq], ls = '--', color = color_s[qq], alpha = 0.45,)
-
-    ax1.legend( loc = 2, frameon = False, fontsize = 12)
-    ax1.annotate( s = 'Decrease by %.2f' % crit_eta[ id_set ], xy = (0.60, 0.05), xycoords = 'axes fraction', fontsize = 12,)
-
-    ax1.set_ylabel('$ R_{t} \; [kpc \, / \, h]$', fontsize = 12,)
-    # ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
-    ax1.set_yscale('log')
-
-    ax1.set_xlabel('$\\bar{R}_{sat} \, / \, R_{200m}$', fontsize = 12,)
-    ax1.xaxis.set_minor_locator( ticker.AutoMinorLocator() )
-    ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
-
-    plt.savefig('/home/xkchen/%s_Rt_%.2f-ratio-decay_compare.png' % (R_str, crit_eta[id_set]), dpi = 300)
-    plt.close()
-
-raise
-
-
-##.
-fig = plt.figure()
-# fig = plt.figure( figsize = (5.8, 5.4) )
-ax1 = fig.add_axes( [0.15, 0.32, 0.83, 0.63] )
-sub_ax1 = fig.add_axes( [0.15, 0.11, 0.83, 0.21] )
-
-for qq in range( 3 ):
-
-    ##. read sample catalog and get the average centric distance
-    R_aveg = []
-    R_sat_arr = []
-
-    for dd in range( len( R_bins ) - 1 ):
-
-        if R_str == 'phy':
-            cat = pds.read_csv( cat_path + 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem_cat.csv'
-                            % ( bin_rich[qq], bin_rich[qq + 1], R_bins[dd], R_bins[dd + 1]),)
-
-            x_Rc = np.array( cat['R_sat'] )   ## Mpc / h
-            cp_x_Rc = x_Rc * 1e3 * a_ref / h  ## kpc
-
-        if R_str == 'scale':
-            cat = pds.read_csv( cat_path + 'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_cat.csv' 
-                            % ( bin_rich[qq], bin_rich[qq + 1], R_bins[dd], R_bins[dd + 1]),)
-
-            x_Rc = np.array( cat['R2Rv'] )   ## R / R200m
-            cp_x_Rc = x_Rc + 0
-
-        R_aveg.append( np.mean( cp_x_Rc) )
-        R_sat_arr.append( cp_x_Rc )
-
-    print( R_aveg )
-    print( [ len(ll) for ll in R_sat_arr ] )
-
-
-    ##. R_t and R_t_err 
-    Rc = []
-
-    pat = pds.read_csv( out_path + 
-        'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_Rscal-bin-sat_Rt.csv' % (bin_rich[qq], bin_rich[qq+1]),)
-
-    for dd in range( len(R_bins) - 1 ):
-
-        tt_Rc = np.array( pat[ fig_name[dd] ] )[0]
-
-        Rc.append( tt_Rc )
-
-    Rc = np.array( Rc )
-
-
-    ##. R_t for alpha = 1
-    mm_Rt = []
-
-    pat = pds.read_csv( out_path + 
-        'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_Rscal-bin-sat_Rt-alpha=1.csv' % (bin_rich[qq], bin_rich[qq+1]),)
-
-    for dd in range( len(R_bins) - 1 ):
-
-        tt_Rc = np.array( pat[ fig_name[dd] ] )[0]
-
-        mm_Rt.append( tt_Rc )
-
-    mm_Rt = np.array( mm_Rt )
-
-
-    ax1.plot( R_aveg, Rc, marker = marks[qq], ls = '-', color = color_s[qq], label = line_name[qq], alpha = 0.75,)
-
-    ax1.scatter( R_aveg, mm_Rt, marker = marks[qq], facecolors = 'none', edgecolors = color_s[qq],)
-    ax1.plot( R_aveg, mm_Rt, ls = '--', color = color_s[qq], label = line_name[qq] + ', $\\alpha{=}1$', alpha = 0.75,)
-
-    sub_ax1.plot( R_aveg, (mm_Rt - Rc) / mm_Rt, ls = '-', color = color_s[qq], alpha = 0.75,)
-
-ax1.legend( loc = 2, frameon = False, fontsize = 12)
-
-ax1.set_ylabel('$ R_{t} \; [kpc \, / \, h]$', fontsize = 12, labelpad = 12,)
-ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
-
-ax1.set_xlabel('$\\bar{R}_{sat} \, / \, R_{200m}$', fontsize = 12,)
-ax1.xaxis.set_minor_locator( ticker.AutoMinorLocator() )
-ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
-
-sub_ax1.set_ylabel('$ (R_{t, \; \\alpha{=}1 } - R_{t}) \, / \, R_{t, \; \\alpha{=}1 }$')
-sub_ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
-
-sub_ax1.set_xlim( ax1.get_xlim() )
-sub_ax1.set_xlabel('$\\bar{R}_{sat} \, / \, R_{200m}$', fontsize = 12,)
-sub_ax1.xaxis.set_minor_locator( ticker.AutoMinorLocator() )
-sub_ax1.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 12,)
-
-ax1.set_xticklabels( labels = [] )
-
-plt.savefig('/home/xkchen/%s_Rt_compare_to_alpha=1.png' % R_str, dpi = 300)
-plt.close()
-

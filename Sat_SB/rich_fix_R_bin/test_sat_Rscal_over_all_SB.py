@@ -20,9 +20,11 @@ from astropy.coordinates import SkyCoord
 from scipy.stats import binned_statistic as binned
 import scipy.interpolate as interp
 
+#.
+from light_measure import cov_MX_func
 from light_measure import light_measure_weit
 from img_sat_fig_out_mode import arr_jack_func
-from img_sat_BG_sub_SB import aveg_BG_sub_func, stack_BG_sub_func
+from img_sat_BG_sub_SB import stack_BG_sub_func
 
 
 ##### cosmology model
@@ -42,14 +44,14 @@ band = ['r', 'g', 'i']
 ### === ### data load
 
 ##. sat_img with BCG
-BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/BGs/'
-out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/noBG_SBs/'
-path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/SBs/'
+# BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/BGs/'
+# out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/noBG_SBs/'
+# path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/SBs/'
 
 ##. sat_img without BCG
-# BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGs/'
-# out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/'
-# path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_SBs/'
+BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGs/'
+out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/'
+path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_SBs/'
 
 
 # R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
@@ -60,8 +62,9 @@ N_sample = 100
 ##. background shuffle list order
 list_order = 13
 
-"""
+
 ##. background subtraction
+"""
 for tt in range( len(R_bins) - 1 ):
 
 	for kk in range( 1 ):
@@ -72,16 +75,133 @@ for tt in range( len(R_bins) - 1 ):
 		sat_sb_file = ( path + 'Extend_BCGM_gri-common_all_%.2f-%.2fR200m' % (R_bins[tt], R_bins[tt + 1]) + 
 								'_%s-band' % band_str + '_jack-sub-%d_SB-pro_z-ref.h5',)[0]
 
-		bg_sb_file = ( BG_path + 'Extend_BCGM_gri-common_all_%.2f-%.2fR200m' % (R_bins[tt], R_bins[tt + 1]) + 
-								'_%s-band_shufl-%d_BG' % (band_str, list_order) + '_Mean_jack_SB-pro_z-ref.h5',)[0]
-
 		sub_out_file = ( out_path + 'Extend_BCGM_gri-common_all_%.2f-%.2fR200m' % (R_bins[tt], R_bins[tt + 1]) + 
 								'_%s-band' % band_str + '_jack-sub-%d_BG-sub-SB-pro_z-ref.h5',)[0]
 
 		out_file = ( out_path + 'Extend_BCGM_gri-common_all_%.2f-%.2fR200m' % (R_bins[tt], R_bins[tt + 1]) + 
 								'_%s-band_aveg-jack_BG-sub_SB.csv' % band_str,)[0]
 
-		stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, sub_out_file = sub_out_file )
+		#.
+		# bg_sb_file = ( BG_path + 'Extend_BCGM_gri-common_all_%.2f-%.2fR200m' % (R_bins[tt], R_bins[tt + 1]) + 
+		# 						'_%s-band_shufl-%d_BG' % (band_str, list_order) + '_Mean_jack_SB-pro_z-ref.h5',)[0]
+
+		# stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, sub_out_file = sub_out_file )
+
+		#.
+		bg_sb_file = ( BG_path + 'Extend_BCGM_gri-common_all_%.2f-%.2fR200m' % (R_bins[tt], R_bins[tt + 1]) + 
+								'_%s-band_shufl-%d_BG' % (band_str, list_order) + '_jack-sub-%d_SB-pro_z-ref.h5',)[0]
+
+		stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, 
+							sub_out_file = sub_out_file, is_subBG = True)
+
+raise
+"""
+
+
+### === covMatrix and corMatrix
+##. cov-Matrix of BG-sub SBs
+"""
+for kk in range( 1 ):
+
+	band_str = band[ kk ]
+
+	for tt in range( len(R_bins) - 1 ):
+
+		tmp_R, tmp_SB = [], []
+
+		for dd in range( N_sample ):
+
+			dat = pds.read_csv(out_path + 
+					'Extend_BCGM_gri-common_all_%.2f-%.2fR200m_%s-band_jack-sub-%d_BG-sub-SB-pro_z-ref.h5' 
+					% (R_bins[tt], R_bins[tt + 1], band_str, dd),)
+
+			tt_r, tt_sb = np.array( dat['r'] ), np.array( dat['sb'] )
+
+			tmp_R.append( tt_r )
+			tmp_SB.append( tt_sb )
+
+		##.
+		R_mean, cov_MX, cor_MX = cov_MX_func( tmp_R, tmp_SB, id_jack = True )
+
+		#.
+		with h5py.File( out_path + 'Sat_all_%.2f-%.2fR200m_%s-band_BG-sub-SB_cov-arr.h5'
+			 % (R_bins[tt], R_bins[tt + 1], band_str), 'w') as f:
+			f['R_kpc'] = np.array( R_mean )
+			f['cov_MX'] = np.array( cov_MX )
+			f['cor_MX'] = np.array( cor_MX )
+
+		#.
+		fig = plt.figure()
+		ax = fig.add_axes([0.12, 0.11, 0.85, 0.80])
+
+		ax.imshow( cor_MX, origin = 'lower', cmap = 'bwr', vmin = -1, vmax = 1,)
+
+		plt.savefig('/home/xkchen/Sat_all_%.2f-%.2fR200m_%s-band_cormax.png'
+					% (R_bins[tt], R_bins[tt + 1], band_str), dpi = 300)
+		plt.close()
+
+
+##. aveg ratio profile
+for kk in range( 1 ):
+
+	band_str = band[ kk ]
+
+	for tt in range( len(R_bins) - 2 ):
+
+		#.
+		tmp_R, tmp_ratio = [], []
+
+		for dd in range( N_sample ):
+
+			#.
+			cc_dat = pds.read_csv( out_path + 
+					'Extend_BCGM_gri-common_all_%.2f-%.2fR200m_%s-band_jack-sub-%d_BG-sub-SB-pro_z-ref.h5' 
+					% (R_bins[-2], R_bins[-1], band_str, dd),)
+
+			cc_tt_r, cc_tt_sb = np.array( cc_dat['r'] ), np.array( cc_dat['sb'] )
+
+			id_nan = np.isnan( cc_tt_sb )
+			id_px = id_nan == False
+
+			_tt_tmp_F = interp.interp1d( cc_tt_r[ id_px ], cc_tt_sb[ id_px ], kind = 'cubic', fill_value = 'extrapolate',)
+
+
+			#.
+			dat = pds.read_csv(out_path + 
+					'Extend_BCGM_gri-common_all_%.2f-%.2fR200m_%s-band_jack-sub-%d_BG-sub-SB-pro_z-ref.h5' 
+					% (R_bins[tt], R_bins[tt + 1], band_str, dd),)
+
+			tt_r, tt_sb = np.array( dat['r'] ), np.array( dat['sb'] )
+			tt_eta = tt_sb / _tt_tmp_F( tt_r )
+
+			tmp_R.append( tt_r )
+			tmp_ratio.append( tt_eta )
+
+		#.
+		aveg_R_0, aveg_ratio, aveg_eta_err = arr_jack_func( tmp_ratio, tmp_R, N_sample )[:3]
+
+		keys = [ 'R', 'ratio', 'ratio_err' ]
+		values = [ aveg_R_0, aveg_ratio, aveg_eta_err ]
+		fill = dict( zip( keys, values ) )
+		data = pds.DataFrame( fill )
+		data.to_csv( out_path + 
+					'Extend_BCGM_gri-common_all_%.2f-%.2fR200m_%s-band_aveg-jack_BG-sub_SB_ratio.csv'
+					 % (R_bins[tt], R_bins[tt+1], band_str),)
+
+		#.
+		R_mean, cov_MX, cor_MX = cov_MX_func( tmp_R, tmp_ratio, id_jack = True )
+
+		#.
+		with h5py.File( out_path + 'Sat_all_%.2f-%.2fR200m_%s-band_BG-sub-SB_ratio_cov-arr.h5'
+			 % (R_bins[tt], R_bins[tt + 1], band_str), 'w') as f:
+			f['R_kpc'] = np.array( R_mean )
+			f['cov_MX'] = np.array( cov_MX )
+			f['cor_MX'] = np.array( cor_MX )
+
+		plt.figure()
+		plt.imshow( cor_MX, origin = 'lower', cmap = 'bwr', vmin = -1, vmax = 1)
+		plt.savefig('/home/xkchen/cov_arr_%d.png' % tt, dpi = 300)
+		plt.close()
 
 raise
 """
@@ -224,30 +344,29 @@ for kk in range( 1 ):
 
 for kk in range( 1 ):
 
-	fig = plt.figure( )
+	fig = plt.figure()
 	ax1 = fig.add_axes( [0.13, 0.32, 0.85, 0.63] )
 	sub_ax1 = fig.add_axes( [0.13, 0.11, 0.85, 0.21] )
 
 	ax1.errorbar( nbg_R[-1][kk], nbg_SB[-1][kk], yerr = nbg_err[-1][kk], marker = '', ls = '-', color = color_s[-1],
 		ecolor = color_s[-1], mfc = 'none', mec = color_s[-1], capsize = 1.5, alpha = 0.75, label = fig_name[-1],)
 
-	_kk_tmp_F = interp.interp1d( nbg_R[-1][kk], nbg_SB[-1][kk], kind = 'cubic', fill_value = 'extrapolate',)
-
-	# sub_ax1.plot( nbg_R[-1][kk], nbg_SB[-1][kk] / _kk_tmp_F( nbg_R[-1][kk] ), ls = '--', color = 'r', alpha = 0.75,)
-	# sub_ax1.fill_between( nbg_R[-1][kk], y1 = (nbg_SB[-1][kk] - nbg_err[-1][kk]) / _kk_tmp_F( nbg_R[-1][kk] ), 
-	#             y2 = (nbg_SB[-1][kk] + nbg_err[-1][kk]) / _kk_tmp_F( nbg_R[-1][kk] ), color = 'r', alpha = 0.12,)
-
 	for mm in range( len(R_bins) - 2 ):
 
 		ax1.errorbar( nbg_R[mm][kk], nbg_SB[mm][kk], yerr = nbg_err[mm][kk], marker = '', ls = '--', color = color_s[mm], 
 			ecolor = color_s[mm], mfc = 'none', mec = color_s[mm], capsize = 1.5, alpha = 0.75, label = fig_name[mm],)
 
-		sub_ax1.plot( nbg_R[mm][kk], nbg_SB[mm][kk] / _kk_tmp_F( nbg_R[mm][kk] ), ls = '--', color = color_s[mm], alpha = 0.75,)
-		sub_ax1.fill_between( nbg_R[mm][kk], y1 = (nbg_SB[mm][kk] - nbg_err[mm][kk]) / _kk_tmp_F( nbg_R[mm][kk] ), 
-					y2 = (nbg_SB[mm][kk] + nbg_err[mm][kk]) / _kk_tmp_F( nbg_R[mm][kk] ), color = color_s[mm], alpha = 0.12,)
+		#.
+		dat = pds.read_csv(out_path + 
+						'Extend_BCGM_gri-common_all_%.2f-%.2fR200m_%s-band_aveg-jack_BG-sub_SB_ratio.csv'
+						 % (R_bins[mm], R_bins[mm+1], band[kk]),)
 
-	daa = nbg_SB[-2][kk] / _kk_tmp_F( nbg_R[-2][kk] )
+		tt_R = np.array( dat['R'] )
+		tt_eta = np.array( dat['ratio'] )
+		tt_eta_err = np.array( dat['ratio_err'] )
 
+		sub_ax1.plot( tt_R, tt_eta, ls = '--', color = color_s[mm], alpha = 0.75,)
+		sub_ax1.fill_between( tt_R, y1 = tt_eta - tt_eta_err, y2 = tt_eta + tt_eta_err, color = color_s[mm], alpha = 0.12,)
 
 	ax1.annotate( s = '%s-band' % band[kk], xy = (0.65, 0.85), xycoords = 'axes fraction', fontsize = 12,)
 	ax1.legend( loc = 3, frameon = False, fontsize = 12,)

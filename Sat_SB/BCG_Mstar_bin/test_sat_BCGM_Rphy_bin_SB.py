@@ -59,6 +59,7 @@ list_order = 13
 
 R_bins = np.array( [0, 300, 2000] )
 
+
 ### === BG-sub SB profiles
 """
 ##. subsamples
@@ -74,16 +75,25 @@ for dd in range( 2 ):
 			sat_sb_file = ( path + '%s_clust_%d-%dkpc_%s-band' % (cat_lis[dd], R_bins[ll], R_bins[ll+1], band_str) 
 						+ '_jack-sub-%d_SB-pro_z-ref.h5',)[0]
 
-			bg_sb_file = ( BG_path + '%s_clust_%d-%dkpc_%s-band_shufl-%d_BG_Mean_jack_SB-pro_z-ref.h5' 
-						% (cat_lis[dd], R_bins[ll], R_bins[ll+1], band_str, list_order),)[0]
-
 			sub_out_file = ( out_path + '%s_clust_%d-%dkpc_%s-band' % (cat_lis[dd], R_bins[ll], R_bins[ll+1], band_str)  
 						+ '_jack-sub-%d_BG-sub-SB-pro_z-ref.h5',)[0]
 
 			out_file = ( out_path + '%s_clust_%d-%dkpc_%s-band_aveg-jack_BG-sub_SB.csv' 
 						% (cat_lis[dd], R_bins[ll], R_bins[ll+1], band_str),)[0]
 
-			stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, sub_out_file = sub_out_file )
+			#.
+			# bg_sb_file = ( BG_path + '%s_clust_%d-%dkpc_%s-band_shufl-%d_BG_Mean_jack_SB-pro_z-ref.h5' 
+			# 			% (cat_lis[dd], R_bins[ll], R_bins[ll+1], band_str, list_order),)[0]
+
+			# stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, sub_out_file = sub_out_file )
+
+			#.
+			bg_sb_file = ( BG_path + 
+					'%s_clust_%d-%dkpc_%s-band_shufl-%d_BG' % (cat_lis[dd], R_bins[ll], R_bins[ll+1], band_str, list_order) 
+					+ '_jack-sub-%d_SB-pro_z-ref.h5',)[0]
+
+			stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file, 
+							sub_out_file = sub_out_file, is_subBG = True)
 
 raise
 """
@@ -234,12 +244,23 @@ for mm in range( len(R_bins) - 1 ):
 	ax1.errorbar( dpt_nbg_R[0][mm], dpt_nbg_SB[0][mm], yerr = dpt_nbg_err[0][mm], marker = '', ls = '--', color = 'b', 
 		ecolor = 'b', mfc = 'none', mec = 'b', capsize = 1.5, alpha = 0.75, label = samp_name[0],)
 
-	_kk_tmp_F = interp.interp1d( dpt_nbg_R[1][mm], dpt_nbg_SB[1][mm], kind = 'cubic', fill_value = 'extrapolate')
-	_mm_SB = _kk_tmp_F( dpt_nbg_R[0][mm] )
+	#.
+	_kk_tmp_F = interp.interp1d( dpt_nbg_R[1][mm], dpt_nbg_SB[1][mm], kind = 'linear', fill_value = 'extrapolate')
+	_kk_tmp_eF = interp.interp1d( dpt_nbg_R[1][mm], dpt_nbg_err[1][mm], kind = 'linear', fill_value = 'extrapolate')
 
+	_mm_SB = _kk_tmp_F( dpt_nbg_R[0][mm] )
+	_mm_err = _kk_tmp_eF( dpt_nbg_R[0][mm] )
+
+	#. error of ratio
+	p_err1 = ( dpt_nbg_err[0][mm] / _mm_SB )**2
+	p_err2 = ( _mm_err * dpt_nbg_SB[0][mm] / _mm_SB**2 )**2
+
+	tmp_eta_err = np.sqrt( p_err1 + p_err2 )
+
+	#.
 	sub_ax1.plot( dpt_nbg_R[0][mm], dpt_nbg_SB[0][mm] / _mm_SB, ls = '--', color = 'b', alpha = 0.75,)
-	sub_ax1.fill_between( dpt_nbg_R[0][mm], y1 = (dpt_nbg_SB[0][mm] - dpt_nbg_err[0][mm]) / _mm_SB, 
-				y2 = (dpt_nbg_SB[0][mm] + dpt_nbg_err[0][mm]) / _mm_SB, color = 'b', alpha = 0.15,)
+	sub_ax1.fill_between( dpt_nbg_R[0][mm], y1 = dpt_nbg_SB[0][mm] / _mm_SB - tmp_eta_err, 
+				y2 = dpt_nbg_SB[0][mm] / _mm_SB + tmp_eta_err, color = 'b', alpha = 0.15,)
 
 	ax1.annotate( s = fig_name[mm] + ', %s-band' % band_str, xy = (0.03, 0.35), xycoords = 'axes fraction', fontsize = 12,)
 
@@ -270,7 +291,7 @@ for mm in range( len(R_bins) - 1 ):
 	sub_ax1.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
 	ax1.set_xticklabels( labels = [] )
 
-	plt.savefig('/home/xkchen/%s_clust_sat_%d-%dkpc_%s-band_BG-sub_compare.png' 
-				% (cat_lis[qq], R_bins[mm], R_bins[mm+1], band_str), dpi = 300)
+	plt.savefig('/home/xkchen/clust_sat_%d-%dkpc_%s-band_BG-sub_compare.png' 
+				% (R_bins[mm], R_bins[mm+1], band_str), dpi = 300)
 	plt.close()
 

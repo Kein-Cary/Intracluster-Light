@@ -147,7 +147,8 @@ path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_SBs/'
 
 bin_rich = [ 20, 30, 50, 210 ]
 
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 #. for figs
 color_s = ['b', 'g', 'r', 'm', 'k']
@@ -217,7 +218,7 @@ def inner_fit():
 
 
 		##.
-		R_lim = 20    ##. kpc
+		R_lim = 15   ##. 30, 25, 20, 10 kpc
 		id_R_lim = kk_r <= R_lim
 
 		fit_R = kk_r[ id_R_lim ]
@@ -240,11 +241,11 @@ def inner_fit():
 		po = [ A0, R_bk, ap_0 ]
 		bounds = [ [1e-4, 1e2], [5, 200], [-2.5, 2.5] ]
 
-		# E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_sb, inti_params, fit_sb_err), 
-		# 								method = 'L-BFGS-B', bounds = bounds,)
-
 		E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_sb, inti_params, fit_sb_err), 
-										method = 'Powell',)
+										method = 'L-BFGS-B', bounds = bounds,)
+
+		# E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_sb, inti_params, fit_sb_err), 
+		# 								method = 'Powell',)
 
 		print( E_return )
 		popt = E_return.x
@@ -253,6 +254,14 @@ def inner_fit():
 		print( popt )
 
 		A0_fit, Rc0_fit, alpha_fit = popt[:]
+
+		##.
+		keys = ['A_Moffat', 'Rd_Moffat', 'n_Moffat' ]
+		values = [ A0_fit, Rc0_fit, alpha_fit ]
+		fill = dict( zip( keys, values) )
+		out_data = pds.DataFrame( fill, index = ['k', 'v'])
+		out_data.to_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/trunF_mod/' + 
+					'sat_%.2f-%.2fR200m_%s-band_SB_inner-Moffat_fit.csv' % (R_bins[tt], R_bins[tt + 1], band_str),)
 
 
 		##.
@@ -382,17 +391,17 @@ def inner_fit():
 		plt.savefig('/home/xkchen/SB_ratio_fitting_%d.png' % tt, dpi = 300)
 		plt.close()
 
-	raise
-
 	return
 
-# inner_fit()
+inner_fit()
 
+raise
 
 
 ###... modelling for the sat SB profile with large radii bins
 
-for tt in range( len(R_bins) - 2 ):
+# for tt in range( len(R_bins) - 2 ):
+for tt in range( 1,2 ):
 
 	kk_r = nbg_R[ tt ]
 	kk_sb = nbg_SB[ tt ]
@@ -414,7 +423,9 @@ for tt in range( len(R_bins) - 2 ):
 
 
 	##.
-	R_lim = 80    ##. 80, 90, 100 kpc
+	# R_lim = 80    ##. 80, 90, 100 kpc
+	R_lim = 90    ##. 80, 90, 100 kpc
+
 	id_R_lim = kk_r <= R_lim
 
 	fit_R = kk_r[ id_R_lim ]

@@ -58,8 +58,11 @@ sub_name = ['low-rich', 'medi-rich', 'high-rich']
 ##... BG-sub SB(r) of sat. ( background stacking )
 N_sample = 50
 
+##...
 # R_bins = np.array( [0, 5e-2, 1e-1, 2e-1, 4e-1, 1] )   ### times R200m
-R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 
 ##.. shuffle order list
@@ -76,16 +79,16 @@ for ll in range( 3 ):
 			band_str = band[ kk ]
 
 			##.
-			sat_sb_file = ( path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			sat_sb_file = ( path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 							'_%s-band' % band_str + '_jack-sub-%d_SB-pro_z-ref.h5',)[0]
 
-			bg_sb_file = ( BG_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			bg_sb_file = ( BG_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 							'_%s-band_shufl-%d_BG' % (band_str, list_order) + '_Mean_jack_SB-pro_z-ref.h5',)[0]
 
-			sub_out_file = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			sub_out_file = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 							'_%s-band' % band_str + '_jack-sub-%d_BG-sub-SB-pro_z-ref.h5',)[0]
 
-			out_file = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			out_file = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band_aveg-jack_BG-sub_SB.csv' % band_str,)[0]
 
 			# stack_BG_sub_func( sat_sb_file, bg_sb_file, band[ kk ], N_sample, out_file )
@@ -137,7 +140,7 @@ for tt in range( len(R_bins) - 1 ):
 
 		band_str = band[ kk ]
 
-		with h5py.File( path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+		with h5py.File( path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band' % band_str + '_Mean_jack_SB-pro_z-ref.h5', 'r') as f:
 
 			tt_r = np.array(f['r'])
@@ -163,7 +166,7 @@ for tt in range( len(R_bins) - 1 ):
 
 		band_str = band[ kk ]
 
-		with h5py.File( BG_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+		with h5py.File( BG_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 				'_%s-band_shufl-%d_BG' % (band_str, list_order) + '_Mean_jack_SB-pro_z-ref.h5', 'r') as f:
 
 			tt_r = np.array(f['r'])
@@ -190,7 +193,7 @@ for tt in range( len(R_bins) - 1 ):
 
 		band_str = band[ kk ]
 
-		dat = pds.read_csv( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+		dat = pds.read_csv( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 							'_%s-band_aveg-jack_BG-sub_SB.csv' % band_str,)
 
 		tt_r, tt_sb, tt_sb_err = np.array( dat['r'] ), np.array( dat['sb'] ), np.array( dat['sb_err'] )

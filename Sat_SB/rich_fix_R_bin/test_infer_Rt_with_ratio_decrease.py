@@ -510,9 +510,7 @@ for qq in range( 3 ):
             x_Rv = x_Rsat / x_Rc    ## Mpc / h
 
             cp_x_Rc = x_Rc + 0
-
-            a_obs = 1 / ( 1 + z_obs )
-            cp_Rv = x_Rv * 1e3 * a_obs / h     ## kpc
+            cp_Rv = x_Rv * 1e3 / h     ## kpc
 
         R_aveg.append( np.mean( cp_x_Rc) )
         Rv_arr.append( np.mean( cp_Rv ) )

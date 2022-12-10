@@ -145,7 +145,6 @@ from img_sat_BG_jack_stack import aveg_stack_img
 from light_measure import jack_SB_func
 from light_measure import light_measure_Z0_weit, light_measure_weit
 from light_measure import light_measure_rn_Z0_weit, light_measure_rn_weit
-from light_measure import lim_SB_pros_func, zref_lim_SB_adjust_func
 
 
 id_cen = 0

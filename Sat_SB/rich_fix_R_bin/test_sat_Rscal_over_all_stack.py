@@ -73,15 +73,14 @@ bin_rich = [ 20, 30, 50, 210 ]
 # R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 ##. test for inner bins SB compare
-R_bins = np.array( [0, 0.126, 0.24, 0.50, 1] )   ### times R200m
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 
-for kk in range( 1 ):
+for kk in range( 1,3 ):
 
 	band_str = band[ kk ]
 
-	# for tt in range( len(R_bins) - 1 ):
-	for tt in range( 3 ):
+	for tt in range( len(R_bins) - 1 ):
 
 		bcg_ra, bcg_dec, bcg_z = np.array([]), np.array([]), np.array([])
 		sat_ra, sat_dec = np.array([]), np.array([])
@@ -159,15 +158,14 @@ bin_rich = [ 20, 30, 50, 210 ]
 # R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 ##. test for inner bins SB compare
-R_bins = np.array( [0, 0.126, 0.24, 0.50, 1] )   ### times R200m
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 
-for kk in range( 1 ):
+for kk in range( 1,3 ):
 
 	band_str = band[ kk ]
 
-	# for tt in range( len(R_bins) - 1 ):
-	for tt in range( 3 ):
+	for tt in range( len(R_bins) - 1 ):
 
 		bcg_ra, bcg_dec, bcg_z = np.array([]), np.array([]), np.array([])
 		sat_ra, sat_dec = np.array([]), np.array([])
@@ -245,5 +243,6 @@ for kk in range( 1 ):
 				rank, id_cut = True, N_edg = N_edg, id_Z0 = False, z_ref = z_ref, id_sub = False, Ng_weit = weit_Ng )
 
 print('%d-rank, Done' % rank )
+
 raise
 

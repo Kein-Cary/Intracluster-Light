@@ -221,26 +221,26 @@ for ll in range( 3 ):
 
 				# XXX
 				sub_img = ( out_path + 'Extend_BCGM_gri-common_%s_phyR_%d-%dkpc' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_sub-%d_img.h5',)[0]
+							'_%s-band_BG' % band_str + '_sub-%d_img.h5',)[0]
 				sub_pix_cont = ( out_path + 'Extend_BCGM_gri-common_%s_phyR_%d-%dkpc' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_sub-%d_pix-cont.h5',)[0]
+							'_%s-band_BG' % band_str + '_sub-%d_pix-cont.h5',)[0]
 				sub_sb = ( out_path + 'Extend_BCGM_gri-common_%s_phyR_%d-%dkpc' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_sub-%d_SB-pro.h5',)[0]
+							'_%s-band_BG' % band_str + '_sub-%d_SB-pro.h5',)[0]
 				# XXX
 
 				J_sub_img = ( out_path + 'Extend_BCGM_gri-common_%s_phyR_%d-%dkpc' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_jack-sub-%d_img_z-ref.h5',)[0]
+							'_%s-band_BG' % band_str + '_jack-sub-%d_img_z-ref.h5',)[0]
 				J_sub_pix_cont = ( out_path + 'Extend_BCGM_gri-common_%s_phyR_%d-%dkpc' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_jack-sub-%d_pix-cont_z-ref.h5',)[0]
+							'_%s-band_BG' % band_str + '_jack-sub-%d_pix-cont_z-ref.h5',)[0]
 				J_sub_sb = ( out_path + 'Extend_BCGM_gri-common_%s_phyR_%d-%dkpc' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_jack-sub-%d_SB-pro_z-ref.h5',)[0]
+							'_%s-band_BG' % band_str + '_jack-sub-%d_SB-pro_z-ref.h5',)[0]
 
 				jack_SB_file = ( out_path + 'Extend_BCGM_gri-common_%s_phyR_%d-%dkpc' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_Mean_jack_SB-pro_z-ref.h5',)[0]
+							'_%s-band_BG' % band_str + '_Mean_jack_SB-pro_z-ref.h5',)[0]
 				jack_img = ( out_path + 'Extend_BCGM_gri-common_%s_phyR_%d-%dkpc' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_Mean_jack_img_z-ref.h5',)[0]
+							'_%s-band_BG' % band_str + '_Mean_jack_img_z-ref.h5',)[0]
 				jack_cont_arr = ( out_path + 'Extend_BCGM_gri-common_%s_phyR_%d-%dkpc' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_Mean_jack_pix-cont_z-ref.h5',)[0]
+							'_%s-band_BG' % band_str + '_Mean_jack_pix-cont_z-ref.h5',)[0]
 
 				sat_img_fast_stack_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, img_x, img_y, d_file, band_str, id_cen, N_bin, n_rbins, 
 						sub_img, sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,
@@ -262,26 +262,26 @@ for ll in range( 3 ):
 
 				# XXX
 				sub_img = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_sub-%d_img.h5',)[0]
+							'_%s-band_BG' % band_str + '_sub-%d_img.h5',)[0]
 				sub_pix_cont = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_sub-%d_pix-cont.h5',)[0]
+							'_%s-band_BG' % band_str + '_sub-%d_pix-cont.h5',)[0]
 				sub_sb = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_sub-%d_SB-pro.h5',)[0]
+							'_%s-band_BG' % band_str + '_sub-%d_SB-pro.h5',)[0]
 				# XXX
 
 				J_sub_img = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_jack-sub-%d_img_z-ref.h5',)[0]
+							'_%s-band_BG' % band_str + '_jack-sub-%d_img_z-ref.h5',)[0]
 				J_sub_pix_cont = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_jack-sub-%d_pix-cont_z-ref.h5',)[0]
+							'_%s-band_BG' % band_str + '_jack-sub-%d_pix-cont_z-ref.h5',)[0]
 				J_sub_sb = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_jack-sub-%d_SB-pro_z-ref.h5',)[0]
+							'_%s-band_BG' % band_str + '_jack-sub-%d_SB-pro_z-ref.h5',)[0]
 
 				jack_SB_file = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_Mean_jack_SB-pro_z-ref.h5',)[0]
+							'_%s-band_BG' % band_str + '_Mean_jack_SB-pro_z-ref.h5',)[0]
 				jack_img = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_Mean_jack_img_z-ref.h5',)[0]
+							'_%s-band_BG' % band_str + '_Mean_jack_img_z-ref.h5',)[0]
 				jack_cont_arr = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
-							'_%s-band_BG_' % band_str + '_Mean_jack_pix-cont_z-ref.h5',)[0]
+							'_%s-band_BG' % band_str + '_Mean_jack_pix-cont_z-ref.h5',)[0]
 
 				sat_img_fast_stack_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, img_x, img_y, d_file, band_str, id_cen, N_bin, n_rbins, 
 						sub_img, sub_pix_cont, sub_sb, J_sub_img, J_sub_pix_cont, J_sub_sb, jack_SB_file, jack_img, jack_cont_arr,

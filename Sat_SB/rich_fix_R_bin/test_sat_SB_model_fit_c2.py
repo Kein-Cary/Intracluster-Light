@@ -15,6 +15,7 @@ import astropy.io.fits as fits
 import astropy.units as U
 import astropy.constants as C
 
+from astropy import modeling as Model
 from astropy.table import Table, QTable
 from astropy import cosmology as apcy
 from scipy import interpolate as interp
@@ -40,74 +41,54 @@ band = ['r', 'g', 'i']
 
 
 ### === ### func.s
-def sersic_func( R, n, Ie, Re ):
-	"""
-	for n > 0.36
-	"""
-	bc0 = 4 / (405 * n)
-	bc1 = 45 / (25515 * n**2)
-	bc2 = 131 / (1148175 * n**3)
-	bc3 = 2194697 / ( 30690717750 * n**4 )
-
-	b_n = 2 * n - 1/3 + bc0 + bc1 + bc2 - bc3
-	mf0 = -b_n * ( R / Re )**( 1 / n )
-	Ir = Ie * np.exp( mf0 + b_n )
-	return Ir
-
 ##. core-like funcs
 def Moffat_func(R, A0, R0, n):
 	mf = A0 / ( 1 + (R / R0)**2 )**n
 	return mf
 
-def Modi_Ferrer_func( R, A0, R_bk, belta, alpha):
+def KPA_func( R, A0, R_c0, R_c1 ):
 
-	mf0 = 1 - ( R / R_bk )**( 2 - belta)
-	mf = mf0**alpha
+	mod_F = Model.functional_models.KingProjectedAnalytic1D( amplitude = A0, r_core = R_c0, r_tide = R_c1)
+	mf = mod_F( R )
 
-	return mf * A0
-
-def Empi_King_func( R, A0, R_t, R_c, alpha):
-
-	mf0 = 1 + (R_t / R_c)**2
-	mf1 = mf0**( 1 / alpha )
-
-	mf2 = 1 / ( 1 - 1 / mf1 )**alpha
-
-	mf4 = 1 + ( R / R_c)**2
-	mf5 = mf4**( 1 / alpha )
-
-	mf6 = 1 / mf5 - 1 / mf1
-
-	mf = mf2 * mf6**alpha
-
-	return mf * A0
-
-def Nuker_func( R, A0, R_bk, alpha, belta, gamma):
-
-	mf0 = 2**( (belta - gamma) / alpha )
-	mf1 = mf0 / ( R / R_bk)**gamma
-
-	mf2 = 1 + ( R / R_bk  )**alpha
-	mf3 = mf2**( (gamma - belta) / alpha )
-
-	mf = mf1 * mf3
-
-	return mf * A0
+	return mf
 
 
 ### === 
-def power1_func( R, A0, R0, alpha, belta ):
-	mf = A0 * ( R / R0 + 1)**(-alpha) * ( R / R0)**(-belta)
-	return mf
+##... power-law funciton for large radii
+def power_func( R, R0, alpha ):
+	A0 = 1.
+	mf = A0 * ( (R / R0)**2.5 + 1)**alpha * 2**(-alpha)
+	return mf / mf[0] - 1
 
 def err_fit_func(p, x, y, params, yerr):
 
 	_SB0_arr = params[0]
 
 	#.
-	A0, Rc0, alpha, belta = p[:]
+	A0, Rc0, Rc1, a0, belta = p[:]
 
-	mf0 = power1_func( x, A0, Rc0, alpha, belta )
+	mf0 = KPA_func( x, A0, Rc0, Rc1 )
+	mf1 = power_func( x, a0, belta )
+
+	mf = mf0 * _SB0_arr + mf1 * _SB0_arr
+
+	delta = mf - y
+	chi2 = np.sum( delta**2 / yerr**2 )
+
+	if np.isfinite( chi2 ):
+		return chi2
+	return np.inf
+
+
+def cc_err_fit_func(p, x, y, params, yerr):
+
+	_SB0_arr = params[0]
+
+	#.
+	A0, Rc0, Rc1 = p[:]
+
+	mf0 = KPA_func( x, A0, Rc0, Rc1 )
 	mf = mf0 * _SB0_arr
 
 	delta = mf - y
@@ -118,15 +99,16 @@ def err_fit_func(p, x, y, params, yerr):
 	return np.inf
 
 
-
 ### === ### data load
 ##. sat_img without BCG
 BG_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGs/'
 out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_BGsub_SBs/'
 path = '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/nobcg_SBs/'
 
+##.
+# R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
-R_bins = np.array( [0, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 #. for figs
 color_s = ['b', 'g', 'r', 'm', 'k']
@@ -183,18 +165,21 @@ for tt in range( len(R_bins) - 2 ):
 	cp_k_err = nbg_err[ -1 ]
 
 	##.
-	# dd_mx = cp_k_r <= 90  ## kpc
-	# tmp_F = interp.interp1d( cp_k_r[ dd_mx ], cp_k_sb[ dd_mx ], kind = 'linear', fill_value = 'extrapolate')
-	# tmp_F = interp.splrep( cp_k_r[ dd_mx ], cp_k_sb[ dd_mx ], s = 0)
 	tmp_F = interp.splrep( cp_k_r, cp_k_sb, s = 0)
 
 	##.
-	tmp_eta = kk_sb / interp.splev( kk_r, tmp_F, der = 0)
-	tmp_eta_err = kk_err / interp.splev( kk_r, tmp_F, der = 0)
+	dat = pds.read_csv( out_path + 
+					'Extend_BCGM_gri-common_all_%.2f-%.2fR200m_%s-band_aveg-jack_BG-sub_SB_ratio.csv'
+					 % (R_bins[tt], R_bins[tt+1], band_str),)
+
+	tmp_r = np.array( dat['R'] )
+	tmp_eta = np.array( dat['ratio'] )
+	tmp_eta_err = np.array( dat['ratio_err'] )
 
 
 	##.
-	R_lim = 20    ##. kpc
+	R_lim = 80    ##. 30, 25, 20, 10 kpc
+
 	id_R_lim = kk_r <= R_lim
 
 	fit_R = kk_r[ id_R_lim ]
@@ -206,16 +191,59 @@ for tt in range( len(R_bins) - 2 ):
 	##.
 	R_bk = 10
 	A0 = 1.5
-	ap_0 = 0.5
-	bp_0 = 0.5
 
 	inti_params = [ fit_SB0 ]
 
 
-	### === 
-	po = [ A0, R_bk, ap_0, bp_0 ]
+	# ### === 
+	# po = [ A0, R_bk, 2 * R_bk ]
 
-	bounds = [ [1e-4, 1e2], [5, 50], [-5, 5], [-5, 5] ]
+	# bounds = [ [1e-4, 1e2], [0, 30], [5, 200] ]
+
+	# # E_return = optimize.minimize( cc_err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_sb, inti_params, fit_sb_err), 
+	# # 								method = 'L-BFGS-B', bounds = bounds,)
+
+	# E_return = optimize.minimize( cc_err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_sb, inti_params, fit_sb_err), 
+	# 								method = 'Powell',)
+
+	# print( E_return )
+	# popt = E_return.x
+
+	# print( '*' * 10 )
+	# print( popt )
+
+	# A0_fit, Rc0_fit, Rc1_fit = popt[:]
+
+	# #.
+	# new_r = np.logspace( -1, 2, 200 )
+
+	# _SB0_arr = interp.splev( new_r, tmp_F, der = 0)
+
+	# mf0 = KPA_func( new_r, A0_fit, Rc0_fit, Rc1_fit )
+	# mod_f = mf0 * _SB0_arr
+	# mod_eta = mod_f / _SB0_arr
+
+	# ##.
+	# dd_SB0 = interp.splev( fit_R, tmp_F, der = 0)
+	# dd_mf = KPA_func( fit_R, A0_fit, Rc0_fit, Rc1_fit )
+	# dd_sb = dd_mf * dd_SB0
+
+	# diff = dd_sb - fit_sb
+	# chi2 = np.sum( diff**2 / fit_sb_err**2 )
+	# chi2nv = chi2 / ( len( fit_sb ) - len( popt ) )
+
+	# ##. savefig the fitting results
+	# keys = [ 'A_power', 'R_core', 'R_tidal' ]
+	# values = [ A0_fit, Rc0_fit, Rc1_fit ]
+	# fill = dict( zip( keys, values) )
+	# out_data = pds.DataFrame( fill, index = ['k', 'v'])
+	# out_data.to_csv( '/home/xkchen/figs/extend_bcgM_cat_Sat/rich_R_rebin/trunF_mod/' + 
+	# 			'sat_%.2f-%.2fR200m_%s-band_SB_inner-KPA_fit.csv' % (R_bins[tt], R_bins[tt + 1], band_str),)
+
+
+	### === 
+	po = [ A0, R_bk, 2 * R_bk, R_bk, 0.5 ]
+	bounds = [ [1e-4, 1e2], [0, 30], [5, 200], [5, 500], [-3, 3] ]
 
 	# E_return = optimize.minimize( err_fit_func, x0 = np.array( po ), args = ( fit_R, fit_sb, inti_params, fit_sb_err), 
 	# 								method = 'L-BFGS-B', bounds = bounds,)
@@ -224,26 +252,30 @@ for tt in range( len(R_bins) - 2 ):
 									method = 'Powell',)
 
 	print( E_return )
-	popt = E_return.x
-
 	print( '*' * 10 )
-	print( popt )
 
-	A0_fit, Rc0_fit, alpha_fit, belta_fit = popt[:]
+	popt = E_return.x
+	A0_fit, Rc0_fit, Rc1_fit, Rc2_fit, belta_fit = popt[:]
 
-	#.
+	##.
 	new_r = np.logspace( -1, 2, 200 )
 
 	_SB0_arr = interp.splev( new_r, tmp_F, der = 0)
 
-	mf0 = power1_func( new_r, A0_fit, Rc0_fit, alpha_fit, belta_fit )
-	mod_f = mf0 * _SB0_arr
+	mf0 = KPA_func( new_r, A0_fit, Rc0_fit, Rc1_fit )
+	mf1 = power_func( new_r, Rc2_fit, belta_fit )
+
+	mod_f = mf0 * _SB0_arr + mf1 * _SB0_arr
+
 	mod_eta = mod_f / _SB0_arr
 
 	##.
 	dd_SB0 = interp.splev( fit_R, tmp_F, der = 0)
-	dd_mf = power1_func( fit_R, A0_fit, Rc0_fit, alpha_fit, belta_fit )
-	dd_sb = dd_mf * dd_SB0
+
+	dd_mf = KPA_func( fit_R, A0_fit, Rc0_fit, Rc1_fit )
+	dd_mf1 = power_func( fit_R, Rc2_fit, belta_fit )
+
+	dd_sb = dd_mf * dd_SB0 + dd_mf1 * dd_SB0
 
 	diff = dd_sb - fit_sb
 	chi2 = np.sum( diff**2 / fit_sb_err**2 )
@@ -270,7 +302,8 @@ for tt in range( len(R_bins) - 2 ):
 	hax.errorbar( cp_k_r, cp_k_sb, yerr = cp_k_err, marker = '.', ls = '-', color = 'r',
 		ecolor = 'r', mfc = 'none', mec = 'r', capsize = 1.5, alpha = 0.75, label = fig_name[ -1 ] + ' ($\\mu_{0}$)',)
 
-	hax.plot( new_r, mod_f, 'k:', alpha = 0.5, label = '$F_{trunc} \\times \\mu_{0}$', lw = 2.5,)
+	hax.plot( new_r, mf0 * _SB0_arr, 'k:', alpha = 0.5, label = '$F_{trunc} \\times \\mu_{0}$', lw = 2.5,)
+	hax.plot( new_r, mod_f, 'k--', alpha = 0.5, label = 'Model', lw = 2.5,)
 
 
 	hax.annotate( s = '$\\chi^{2} / \\nu = %.5f$' % chi2nv, color = 'k', xy = (0.55, 0.85),
@@ -290,10 +323,11 @@ for tt in range( len(R_bins) - 2 ):
 	hax.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 13,)
 
 
-	ax.plot( kk_r, tmp_eta, ls = '-', color = 'b', alpha = 0.75,)
-	ax.fill_between( kk_r, y1 = tmp_eta - tmp_eta_err, y2 = tmp_eta + tmp_eta_err, color = 'b', alpha = 0.12,)
+	ax.plot( tmp_r, tmp_eta, ls = '-', color = 'b', alpha = 0.75,)
+	ax.fill_between( tmp_r, y1 = tmp_eta - tmp_eta_err, y2 = tmp_eta + tmp_eta_err, color = 'b', alpha = 0.12,)
 
-	ax.plot( new_r, mod_eta, 'k:', alpha = 0.75,)
+	ax.plot( new_r, mod_eta, 'k--', alpha = 0.75,)
+	ax.plot( new_r, mf0, 'r--', label = '$F_{trunc}$')
 
 	ax.axvline( x = Rc0_fit, ls = ':', color = 'k', alpha = 0.25,)
 	ax.axvline( x = R_lim, ls = '-.', color = 'k', alpha = 0.25,)
@@ -305,11 +339,11 @@ for tt in range( len(R_bins) - 2 ):
 
 	ax.set_ylabel('$\\mu \; / \; \\mu \, (R \\geq %.2f \, R_{200m})$' % R_bins[-2], 
 						fontsize = 13, labelpad = 8)
-	ax.set_ylim( 0, 1.0 )
+	ax.set_ylim( 0.38, 1.0 )
 
 	ax.tick_params( axis = 'both', which = 'both', direction = 'in', labelsize = 13,)
 	ax.yaxis.set_minor_locator( ticker.AutoMinorLocator() )
 
-	plt.savefig('/home/xkchen/SB_ratio_fitting_%d.png' % tt, dpi = 300)
+	plt.savefig('/home/xkchen/SB_ratio_2funs_fit_%d.png' % tt, dpi = 300)
 	plt.close()
 

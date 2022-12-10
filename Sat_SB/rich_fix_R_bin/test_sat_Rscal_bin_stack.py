@@ -53,7 +53,7 @@ n_rbins = 35
 
 
 ### === ### subsample sample stacking
-
+"""
 ##. sat_img with BCG
 # img_path = '/home/xkchen/data/SDSS/member_files/sat_wBCG/resamp_img/'
 # d_file = img_path + 'Sat-tract_%s-band_clus_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_dec%.4f_resamp-img.fits'
@@ -69,8 +69,11 @@ bin_rich = [ 20, 30, 50, 210 ]
 
 ##. fixed R for all richness subsample
 # R_bins = np.array( [0, 5e-2, 1e-1, 2e-1, 4e-1, 1] )   ### times R200m
-R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
 
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+
+#.
 sub_name = ['low-rich', 'medi-rich', 'high-rich']
 
 for ll in range( 3 ):
@@ -92,26 +95,26 @@ for ll in range( 3 ):
 			print('N_sample = ', len( bcg_ra ) )
 
 			# XXX
-			sub_img = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			sub_img = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band' % band_str + '_sub-%d_img.h5',)[0]
-			sub_pix_cont = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			sub_pix_cont = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band' % band_str + '_sub-%d_pix-cont.h5',)[0]
-			sub_sb = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			sub_sb = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band' % band_str + '_sub-%d_SB-pro.h5',)[0]
 			# XXX
 
-			J_sub_img = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			J_sub_img = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band' % band_str + '_jack-sub-%d_img_z-ref.h5',)[0]
-			J_sub_pix_cont = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			J_sub_pix_cont = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band' % band_str + '_jack-sub-%d_pix-cont_z-ref.h5',)[0]
-			J_sub_sb = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			J_sub_sb = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band' % band_str + '_jack-sub-%d_SB-pro_z-ref.h5',)[0]
 
-			jack_SB_file = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			jack_SB_file = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band' % band_str + '_Mean_jack_SB-pro_z-ref.h5',)[0]
-			jack_img = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			jack_img = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band' % band_str + '_Mean_jack_img_z-ref.h5',)[0]
-			jack_cont_arr = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			jack_cont_arr = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band' % band_str + '_Mean_jack_pix-cont_z-ref.h5',)[0]
 
 			sat_img_fast_stack_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, img_x, img_y, d_file, band_str, id_cen, N_bin, n_rbins, 
@@ -120,7 +123,7 @@ for ll in range( 3 ):
 
 print('%d-rank, Done' % rank )
 raise
-
+"""
 
 
 ### === ### background stacking
@@ -134,7 +137,7 @@ d_file = img_path + 'clus_shufl-tract_%s-band_ra%.3f_dec%.3f_z%.3f_sat_ra%.4f_de
 
 
 #. medi-rich subsample
-list_order = 13    ##. 14,
+list_order = 13
 
 N_bin = 50   ## number of jackknife subsample
 
@@ -142,8 +145,11 @@ bin_rich = [ 20, 30, 50, 210 ]
 
 ##. fixed R for all richness subsample
 # R_bins = np.array( [0, 5e-2, 1e-1, 2e-1, 4e-1, 1] )   ### times R200m
-R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
+# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m
 
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+
+#.
 sub_name = ['low-rich', 'medi-rich', 'high-rich']
 
 for ll in range( 3 ):
@@ -184,32 +190,32 @@ for ll in range( 3 ):
 
 
 			# XXX
-			sub_img = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			sub_img = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band_shufl-%d_BG' % (band_str, list_order) + '_sub-%d_img.h5',)[0]
 
-			sub_pix_cont = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			sub_pix_cont = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band_shufl-%d_BG' % (band_str, list_order) + '_sub-%d_pix-cont.h5',)[0]
 
-			sub_sb = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			sub_sb = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band_shufl-%d_BG' % (band_str, list_order) + '_sub-%d_SB-pro.h5',)[0]
 
 			# XXX
-			J_sub_img = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			J_sub_img = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band_shufl-%d_BG' % (band_str, list_order) + '_jack-sub-%d_img_z-ref.h5',)[0]
 
-			J_sub_pix_cont = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			J_sub_pix_cont = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band_shufl-%d_BG' % (band_str, list_order) + '_jack-sub-%d_pix-cont_z-ref.h5',)[0]
 
-			J_sub_sb = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			J_sub_sb = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band_shufl-%d_BG' % (band_str, list_order) + '_jack-sub-%d_SB-pro_z-ref.h5',)[0]
 
-			jack_SB_file = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			jack_SB_file = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band_shufl-%d_BG' % (band_str, list_order) + '_Mean_jack_SB-pro_z-ref.h5',)[0]
 
-			jack_img = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			jack_img = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band_shufl-%d_BG' % (band_str, list_order) + '_Mean_jack_img_z-ref.h5',)[0]
 
-			jack_cont_arr = ( out_path + 'Extend_BCGM_gri-common_%s_%.2f-%.2fR200m' % (sub_name[ ll ], R_bins[tt], R_bins[tt + 1]) + 
+			jack_cont_arr = ( out_path + 'Extend_BCGM_gri-common_rich_%d-%d_%.2f-%.2fR200m' % (bin_rich[ll], bin_rich[ll + 1], R_bins[tt], R_bins[tt + 1]) + 
 						'_%s-band_shufl-%d_BG' % (band_str, list_order) + '_Mean_jack_pix-cont_z-ref.h5',)[0]
 
 			sat_BG_fast_stack_func( bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, img_x, img_y, d_file, band_str, id_cen, N_bin, n_rbins, 

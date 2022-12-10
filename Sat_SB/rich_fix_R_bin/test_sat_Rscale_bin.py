@@ -51,8 +51,8 @@ def sat_scaleR_binned():
 	# R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 	##. average shuffle test
-	# R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
-	R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m, for rich + sR bin
+	R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m, for rich + sR bin
 
 
 	##.
@@ -89,18 +89,19 @@ def sat_scaleR_binned():
 			out_R2Rv = p_R2Rv[ sub_N ]
 			out_clus_ID = clus_IDs[ sub_N ]
 
-			# print( len( out_c_ra ) )
+			print( len( out_c_ra ) )
 
-			keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'R_sat', 'R2Rv', 'clus_ID'] 
-			values = [ out_c_ra, out_c_dec, out_c_z, out_s_ra, out_s_dec, out_Rsat, out_R2Rv, out_clus_ID]
-			fill = dict( zip( keys, values ) )
-			data = pds.DataFrame( fill )
-			data.to_csv( out_path + 
-						'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_cat.csv' 
-						% ( bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1]),)
+			##.
+			# keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'R_sat', 'R2Rv', 'clus_ID'] 
+			# values = [ out_c_ra, out_c_dec, out_c_z, out_s_ra, out_s_dec, out_Rsat, out_R2Rv, out_clus_ID]
+			# fill = dict( zip( keys, values ) )
+			# data = pds.DataFrame( fill )
+			# data.to_csv( out_path + 
+			# 			'Extend-BCGM_rgi-common_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_cat.csv' 
+			# 			% ( bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1]),)
 
-	# 	print( '*' * 10 )
-	# raise
+		print( '*' * 10 )
+	raise
 
 	##... match the P_mem information
 	pre_cat = fits.open('/home/xkchen/mywork/ICL/data/redmapper/redmapper_dr8_public_v6.3_members.fits')

@@ -54,7 +54,7 @@ def BG_build_func( BG_R, BG_SB, zx, pix_size, R_max, out_file):
 
 	cen_x, cen_y = 0. , 0.
 
-	Nx = np.linspace( -R_pix, R_pix, 2 * R_pix + 1 )	
+	Nx = np.linspace( -R_pix, R_pix, 2 * R_pix + 1 )
 	Ny = np.linspace( -R_pix, R_pix, 2 * R_pix + 1 )
 
 	grid_x, grid_y = np.meshgrid( Nx, Ny )
