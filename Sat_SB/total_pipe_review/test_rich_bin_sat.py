@@ -55,7 +55,7 @@ def mem_match_func( img_cat_file, mem_cat_file, out_sat_file ):
 
 	bcg_ra, bcg_dec, bcg_z = np.array( s_dat['bcg_ra'] ), np.array( s_dat['bcg_dec'] ), np.array( s_dat['bcg_z'] )
 	p_ra, p_dec, p_zspec = np.array( s_dat['ra'] ), np.array( s_dat['dec'] ), np.array( s_dat['z_spec'])
-	R_sat, R_sat2Rv = np.array( s_dat['R_cen'] ), np.array( s_dat['Rcen/Rv'] )
+	R_sat, R_sat2Rv = np.array( s_dat['R_sat'] ), np.array( s_dat['Rsat/Rv'] )
 
 	p_gr, p_ri, p_gi = np.array( s_dat['g-r'] ), np.array( s_dat['r-i'] ), np.array( s_dat['g-i'] )
 	p_clus_ID = np.array( s_dat['clus_ID'] )
@@ -113,7 +113,6 @@ def mem_match_func( img_cat_file, mem_cat_file, out_sat_file ):
 
 	return
 
-
 ### === cluster catalog
 def cluster_binned():
 
@@ -144,7 +143,7 @@ def cluster_binned():
 		id_vx = ( rich >= bin_rich[ kk ] ) & ( rich <= bin_rich[ kk + 1 ] )
 		
 		sub_ra, sub_dec, sub_z = ra[ id_vx ], dec[ id_vx ], z[ id_vx ]
-		sub_rich, sub_lg_Mh, sub_Rv = rich[ id_vx ], lg_Mh[ id_vx ], R_vir[ id_vx ]
+		sub_rich, sub_lg_Mh, sub_Rv = rich[ id_vx ], lg_Mvir[ id_vx ], R_vir[ id_vx ]
 		sub_clus_ID = clust_ID[ id_vx ]
 
 		##.
@@ -187,8 +186,181 @@ def cluster_binned():
 
 	return
 
+### === cluster--member match
+def clust_member_match():
 
-### === ..
-cluster_binned()
+	cat_path = '/home/xkchen/Pictures/BG_calib_SBs/fixR_bin/cat/'
 
+	bin_rich = [ 20, 30, 50, 210 ]
+
+	##. cluster match to satellites
+	for kk in range( len(bin_rich) - 1 ):
+
+		img_cat_file = cat_path + 'clust_rich_%d-%d_cat.csv' % ( bin_rich[kk], bin_rich[kk + 1])
+		mem_cat_file = ( '/home/xkchen/Pictures/BG_calib_SBs/sat_cat_z02_03/' + 
+						'Extend-BCGM_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv',)[0]
+
+		out_sat_file = cat_path + 'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv' % ( bin_rich[kk], bin_rich[kk + 1])
+		mem_match_func( img_cat_file, mem_cat_file, out_sat_file )
+
+	### === tables for Background stacking
+	##. cluster member match with satellites position
+	for kk in range( len(bin_rich) - 1 ):
+
+		dat = pds.read_csv(cat_path + 
+				'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
+
+		bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
+		sat_ra, sat_dec = np.array( dat['ra'] ), np.array( dat['dec'] )
+		clus_IDs = np.array( dat['clus_ID'] )
+
+		sub_coord = SkyCoord( ra = sat_ra * U.deg, dec = sat_dec * U.deg )
+
+		for tt in range( 3 ):
+
+			band_str = band[ tt ]
+
+			pat = pds.read_csv( '/home/xkchen/Pictures/BG_calib_SBs/sat_cat_z02_03/' + 
+				'Extend-BCGM_rgi-common_frame-limit_exlu-BCG_Sat_%s-band_origin-img_position.csv' % band_str )
+
+			kk_ra, kk_dec = np.array( pat['sat_ra'] ), np.array( pat['sat_dec'] )
+			kk_bcg_x, kk_bcg_y = np.array( pat['bcg_x'] ), np.array( pat['bcg_y'] )
+			kk_sat_x, kk_sat_y = np.array( pat['sat_x'] ), np.array( pat['sat_y'] )
+			kk_PA = np.array( pat['sat_PA2bcg'] )
+
+			kk_coord = SkyCoord( ra = kk_ra * U.deg, dec = kk_dec * U.deg )
+
+			#. match P_mem cut sample
+			idx, sep, d3d = sub_coord.match_to_catalog_sky( kk_coord )
+			id_lim = sep.value < 2.7e-4
+
+			#. satellite information (for check)
+			mp_ra, mp_dec = kk_ra[ idx[ id_lim ] ], kk_dec[ idx[ id_lim ] ]
+			mp_bcg_x, mp_bcg_y = kk_bcg_x[ idx[ id_lim ] ], kk_bcg_y[ idx[ id_lim ] ]
+			mp_sat_x, mp_sat_y = kk_sat_x[ idx[ id_lim ] ], kk_sat_y[ idx[ id_lim ] ]
+			mp_sat_PA = kk_PA[ idx[ id_lim ] ]
+
+			#. save
+			keys = pat.columns[1:]
+			mp_arr = [ bcg_ra, bcg_dec, bcg_z, mp_ra, mp_dec, mp_bcg_x, mp_bcg_y, 
+										mp_sat_x, mp_sat_y, mp_sat_PA, clus_IDs ]
+			fill = dict( zip( keys, mp_arr ) )
+			out_data = pds.DataFrame( fill )
+			out_data.to_csv( cat_path + 
+				'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_sat_%s-band_origin-img_position.csv' 
+				% (bin_rich[kk], bin_rich[kk + 1], band_str),)
+
+
+	##. cluster member match with the cutout information at z_obs and z-ref
+	for kk in range( len(bin_rich) - 1 ):
+
+		dat = pds.read_csv(cat_path + 
+				'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
+
+		bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
+		sat_ra, sat_dec = np.array( dat['ra'] ), np.array( dat['dec'] )
+		clus_IDs = np.array( dat['clus_ID'] )
+
+		sub_coord = SkyCoord( ra = sat_ra * U.deg, dec = sat_dec * U.deg )
+
+		for tt in range( 3 ):
+
+			band_str = band[ tt ]
+
+			##. satellite location and cutout at z_obs
+			dat = pds.read_csv('/home/xkchen/Pictures/BG_calib_SBs/sat_cat_z02_03/' + 
+					'Extend-BCGM_rgi-common_frame-limit_member_%s-band_pos.csv' % band_str,)
+			kk_ra, kk_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
+			kk_imgx, kk_imgy = np.array( dat['cut_cx'] ), np.array( dat['cut_cy'] )
+
+			kk_coord = SkyCoord( ra = kk_ra * U.deg, dec = kk_dec * U.deg )
+
+			idx, sep, d3d = sub_coord.match_to_catalog_sky( kk_coord )
+			id_lim = sep.value < 2.7e-4
+
+			mp_ra, mp_dec = kk_ra[ idx[ id_lim ] ], kk_dec[ idx[ id_lim ] ]
+			mp_imgx, mp_imgy = kk_imgx[ idx[ id_lim ] ], kk_imgy[ idx[ id_lim ] ]
+
+			keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'cut_cx', 'cut_cy']
+			values = [ bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, mp_imgx, mp_imgy ]
+			fill = dict( zip( keys, values ) )
+			data = pds.DataFrame( fill )
+			data.to_csv( cat_path + 
+				'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_sat_%s-band_member_pos.csv' 
+				% (bin_rich[kk], bin_rich[kk + 1], band_str),)
+
+
+			##. satellite location and cutout at z_ref
+			dat = pds.read_csv('/home/xkchen/Pictures/BG_calib_SBs/sat_cat_z02_03/' + 
+					'Extend-BCGM_rgi-common_frame-limit_member_%s-band_pos_z-ref.csv' % band[kk] )
+			kk_ra, kk_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
+			kk_imgx, kk_imgy = np.array( dat['sat_x'] ), np.array( dat['sat_y'] )
+
+			kk_coord = SkyCoord( ra = kk_ra * U.deg, dec = kk_dec * U.deg )
+
+			idx, sep, d3d = sub_coord.match_to_catalog_sky( kk_coord )
+			id_lim = sep.value < 2.7e-4
+
+			mp_ra, mp_dec = kk_ra[ idx[ id_lim ] ], kk_dec[ idx[ id_lim ] ]
+			mp_imgx, mp_imgy = kk_imgx[ idx[ id_lim ] ], kk_imgy[ idx[ id_lim ] ]
+
+			keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'sat_x', 'sat_y']
+			values = [ bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, mp_imgx, mp_imgy ]
+			fill = dict( zip( keys, values ) )
+			data = pds.DataFrame( fill )
+			data.to_csv( cat_path + 
+				'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_sat_%s-band_member_pos-zref.csv' 
+				% (bin_rich[kk], bin_rich[kk + 1], band_str),)
+
+	return
+
+### === cluster member counts
+def count_N_sat():
+
+	cat_path = '/home/xkchen/Pictures/BG_calib_SBs/fixR_bin/cat/'
+
+	bin_rich = [ 20, 30, 50, 210 ]
+
+	#... number count for the entire sample
+	for kk in range( 3 ):
+		
+		##. entire all sample
+		dat = pds.read_csv( cat_path + 'clust_rich_%d-%d_cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
+		clus_IDs = np.array( dat['clust_ID'] )
+		clus_IDs = clus_IDs.astype( int )
+
+		N_w = len( clus_IDs )
+
+
+		##. member table
+		dat = pds.read_csv(cat_path + 
+				'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
+
+		bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
+		cp_clus_IDs = np.array( dat['clus_ID'] )
+		cp_clus_IDs = cp_clus_IDs.astype( int )
+
+		N_g = np.zeros( len(bcg_ra),)
+
+		for tt in range( N_w ):
+			sub_IDs = clus_IDs[ tt ]
+
+			id_vx = cp_clus_IDs == sub_IDs
+			N_g[ id_vx ] = np.sum( id_vx )
+
+		#. save N_g for BG_img stacking weight
+		keys = ['ra', 'dec', 'z', 'N_g']
+		values = [ bcg_ra, bcg_dec, bcg_z, N_g ]
+		fill = dict( zip( keys, values ) )
+		data = pds.DataFrame( fill )
+		data.to_csv( cat_path + 
+				'clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_sat-Ng.csv' % ( bin_rich[kk], bin_rich[kk + 1]),)
+
+	return
+
+
+### === ...
+# cluster_binned()
+# clust_member_match()
+# count_N_sat()
 

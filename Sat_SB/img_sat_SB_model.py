@@ -63,10 +63,12 @@ def Nuker_func( R, A0, R_bk, alpha, belta, gamma):
 	mf = mf1 * mf3
 	return mf * A0
 
-##. model ratio profile with " power1_func + Moffat_func or Nuker_func "
-def power1_func( R, R0, alpha ):
 
+##... power-law funciton for large radii
+##... model ratio profile with " power1_func + Moffat_func or Nuker_func "
+def power_func( R, R0, alpha ):
 	A0 = 1.
 	mf = A0 * ( (R / R0)**2.5 + 1)**alpha * 2**(-alpha)
+
 	return mf / mf[0] - 1
 

@@ -157,9 +157,53 @@ def stack_BG_sub_func( sat_sb_file, bg_sb_file, band_str, N_sample, out_file = N
 
 
 ### === color profiles
-def sub_color_func():
+def ratio_err_func(arr_0, arr_1, err_0, err_1):
+	"""
+	eta = arr_0 / arr_1
+	"""
+	mf = arr_0 / arr_1
+	p_err_0 = (err_0 / arr_1)**2
+	p_err_1 = (err_1 * arr_0 / arr_1**2 )**2
+	mf_err = np.sqrt( p_err_0 + p_err_1 )
 
-	return
+	return mf, mf_err
 
-### === mass profile infer
+def absMag_to_Lumi_func( absM_arr, band_str ):
 
+	t_dex = band.index( band_str )
+
+	Mag_dot = Mag_sun[ t_dex ]
+
+	L_obs = 10**( 0.4 * ( Mag_dot - absM_arr ) )
+
+	return L_obs
+
+def SB_to_Lumi_func( sb_arr, obs_z, band_str):
+	"""
+	sb_arr : need in terms of absolute magnitude, in AB system
+	--------------------------------------------
+	use for surface brightness profiles only
+	"""
+
+	t_dex = band.index( band_str )
+
+	Mag_dot = Mag_sun[ t_dex ]
+
+	# luminosity, in unit of  L_sun / pc^2
+	Lumi = 10**( -0.4 * (sb_arr - Mag_dot + 21.572 - 10 * np.log10( obs_z + 1 ) ) )
+
+	return Lumi
+
+def color_func( flux_arr_0, flux_err_0, flux_arr_1, flux_err_1):
+
+	mag_arr_0 = 22.5 - 2.5 * np.log10( flux_arr_0 )
+	mag_arr_1 = 22.5 - 2.5 * np.log10( flux_arr_1 )
+
+	color_pros = mag_arr_0 - mag_arr_1
+
+	sigma_0 = 2.5 * flux_err_0 / (np.log(10) * flux_arr_0 )
+	sigma_1 = 2.5 * flux_err_1 / (np.log(10) * flux_arr_1 )
+
+	color_err = np.sqrt( sigma_0**2 + sigma_1**2 )
+
+	return color_pros, color_err

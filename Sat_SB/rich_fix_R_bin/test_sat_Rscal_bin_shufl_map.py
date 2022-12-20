@@ -195,8 +195,8 @@ bin_rich = [ 20, 30, 50, 210 ]
 # R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
 
 ##. average shuffle test
-# R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
-R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m, for rich + sR bin
+R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+# R_bins = np.array( [0, 1e-1, 2e-1, 3e-1, 4.5e-1, 1] )   ### times R200m, for rich + sR bin
 
 
 for pp in range( 3 ):

@@ -30,17 +30,24 @@ rad2arcsec = U.rad.to( U.arcsec )
 
 
 #### === ### no-alignment
-def no_alin_shufl_func( clust_cat, member_sat_cat, out_file, pixel = 0.396):
+def no_alin_shufl_func( clust_cat, member_sat_cat, out_file, pixel = 0.396, id_fixRs = False):
 	"""
 	clust_cat : .csv file, including cluster ( ra, dec, z, and ID in SDSS redMaPPer )
 	member_sat_cat : .csv file, mapping SDSS redMapper catalog(have applied sample selection)
 					to member catalog
 	out_file : .csv file
 	pixel : pixel size (unit : arcsec), by default is 0.396~( SDSS )
+
+	----------------------------------------------------------------
+	id_fixRs : fixed the distance of R_sat / R_v or not~( False, default case)
 	"""
 
 	##. cluster catalog
 	cat = pds.read_csv( clust_cat )
+
+	set_Rv = np.array( cat['R_vir'] )  ##. Mpc / h, physical
+	set_Rv = set_Rv * 1e3 / h          ##. kpc
+
 	set_IDs = np.array( cat['clust_ID'] )
 	set_IDs = set_IDs.astype( int )
 
@@ -81,9 +88,12 @@ def no_alin_shufl_func( clust_cat, member_sat_cat, out_file, pixel = 0.396):
 		sat_Rpix = np.sqrt( (x_sat - x_cen)**2 + (y_sat - y_cen)**2 )  ### in pixel number
 		sat_theta = np.arctan2( (y_sat - y_cen), (x_sat - x_cen) )
 
+		#.
 		Da_obs = Test_model.angular_diameter_distance( z_g ).value
 		qq_R_sat = sat_Rpix * pixel * Da_obs * 1e3 / rad2arcsec     ##. kpc
 		pre_R_sat[ qq ] = qq_R_sat
+		pre_R_vir = set_Rv[ set_IDs == clus_IDs[ qq ] ][ 0 ]
+
 
 		##. random select cluster and do a map between satellite and the 'selected' cluster
 		qq_ID = clus_IDs[ qq ]
@@ -102,11 +112,21 @@ def no_alin_shufl_func( clust_cat, member_sat_cat, out_file, pixel = 0.396):
 		rand_ID = copy_IDs[ rand_arr ][0]
 
 		id_ux = clus_IDs == rand_ID
-		cp_ra_g, cp_dec_g, cp_z_g = bcg_ra[ id_ux ][0], bcg_dec[ id_ux ][0], bcg_z[ id_ux ][0]			
+		cp_ra_g, cp_dec_g, cp_z_g = bcg_ra[ id_ux ][0], bcg_dec[ id_ux ][0], bcg_z[ id_ux ][0]
+
+		cp_R_vir = set_Rv[ set_IDs == rand_ID ][0]
 
 		cp_Da = Test_model.angular_diameter_distance( cp_z_g ).value
 
-		cp_sat_Rpix = ( ( qq_R_sat / 1e3 / cp_Da ) * rad2arcsec ) / pixel
+		#.
+		if id_fixRs:
+
+			_r_ratio = qq_R_sat / pre_R_vir
+			_cp_R_sat = cp_R_vir * _r_ratio
+			cp_sat_Rpix = ( ( _cp_R_sat / 1e3 / cp_Da ) * rad2arcsec ) / pixel
+
+		else:
+			cp_sat_Rpix = ( ( qq_R_sat / 1e3 / cp_Da ) * rad2arcsec ) / pixel
 
 
 		##. randomly select Position Angle between (-pi, pi)
@@ -156,18 +176,25 @@ def no_alin_shufl_func( clust_cat, member_sat_cat, out_file, pixel = 0.396):
 
 
 ### === ### align with BCG
-def BCG_align_shufl_func( clust_cat, member_sat_cat, out_file, pixel = 0.396):
+def BCG_align_shufl_func( clust_cat, member_sat_cat, out_file, pixel = 0.396, id_fixRs = False):
 	"""
 	clust_cat : .csv file, including cluster ( ra, dec, z, and ID in SDSS redMaPPer )
 	member_sat_cat : .csv file, mapping SDSS redMapper catalog(have applied sample selection)
 					to member catalog
 	out_file : .csv file
 	pixel : pixel size (unit : arcsec), by default is 0.396~( SDSS )
+
+	----------------------------------------------------------------
+	id_fixRs : fixed the distance of R_sat / R_v or not~( False, default case)
 	"""
 
 	##. cluster catalog
 	cat = pds.read_csv( clust_cat )
-	set_IDs = np.array( cat['clust_ID'] )	
+
+	set_Rv = np.array( cat['R_vir'] )  ##. Mpc / h, physical
+	set_Rv = set_Rv * 1e3 / h          ##. kpc
+
+	set_IDs = np.array( cat['clust_ID'] )
 	set_IDs = set_IDs.astype( int )
 
 
@@ -225,7 +252,9 @@ def BCG_align_shufl_func( clust_cat, member_sat_cat, out_file, pixel = 0.396):
 
 		Da_obs = Test_model.angular_diameter_distance( z_g ).value
 		qq_R_sat = sat_Rpix * pixel * Da_obs * 1e3 / rad2arcsec     ##. kpc
+
 		pre_R_sat[ qq ] = qq_R_sat
+		pre_R_vir = set_Rv[ set_IDs == clus_IDs[ qq ] ][ 0 ]
 
 
 		##. random select cluster and do a map between satellite and the 'selected' cluster
@@ -250,13 +279,22 @@ def BCG_align_shufl_func( clust_cat, member_sat_cat, out_file, pixel = 0.396):
 			rand_ID = copy_IDs[ rand_arr[ id_loop ] ]
 
 			id_ux = clus_IDs == rand_ID
-			cp_ra_g, cp_dec_g, cp_z_g = bcg_ra[ id_ux ][0], bcg_dec[ id_ux ][0], bcg_z[ id_ux ][0]			
+			cp_ra_g, cp_dec_g, cp_z_g = bcg_ra[ id_ux ][0], bcg_dec[ id_ux ][0], bcg_z[ id_ux ][0]
 
 			cp_bcg_PA = bcg_PAs[ id_ux ][0]
+			cp_R_vir = set_Rv[ set_IDs == rand_ID ][0]
 
 			cp_Da = Test_model.angular_diameter_distance( cp_z_g ).value
 
-			cp_sat_Rpix = ( ( qq_R_sat / 1e3 / cp_Da ) * rad2arcsec ) / pixel
+			#.
+			if id_fixRs:
+
+				_r_ratio = qq_R_sat / pre_R_vir
+				_cp_R_sat = cp_R_vir * _r_ratio
+				cp_sat_Rpix = ( ( _cp_R_sat / 1e3 / cp_Da ) * rad2arcsec ) / pixel
+
+			else:
+				cp_sat_Rpix = ( ( qq_R_sat / 1e3 / cp_Da ) * rad2arcsec ) / pixel
 
 			#.
 			off_x = cp_sat_Rpix * np.cos( delt_chi + cp_bcg_PA )
@@ -361,18 +399,26 @@ def BCG_align_shufl_func( clust_cat, member_sat_cat, out_file, pixel = 0.396):
 
 
 ### === ### align with frame
-def frame_align_shufll_func(  clust_cat, member_sat_cat, out_file, pixel = 0.396):
+def frame_align_shufll_func(  clust_cat, member_sat_cat, out_file, pixel = 0.396, id_fixRs = False):
 	"""
 	clust_cat : .csv file, including cluster ( ra, dec, z, and ID in SDSS redMaPPer )
 	member_sat_cat : .csv file, mapping SDSS redMapper catalog(have applied sample selection)
 					to member catalog
 	out_file : .csv file
 	pixel : pixel size (unit : arcsec), by default is 0.396~( SDSS )
+
+	----------------------------------------------------------------
+	id_fixRs : fixed the distance of R_sat / R_v or not~( False, default case)
 	"""
 
 	##. cluster catalog
+	##. cluster catalog
 	cat = pds.read_csv( clust_cat )
-	set_IDs = np.array( cat['clust_ID'] )	
+
+	set_Rv = np.array( cat['R_vir'] )  ##. Mpc / h, physical
+	set_Rv = set_Rv * 1e3 / h          ##. kpc
+
+	set_IDs = np.array( cat['clust_ID'] )
 	set_IDs = set_IDs.astype( int )
 
 
@@ -419,7 +465,9 @@ def frame_align_shufll_func(  clust_cat, member_sat_cat, out_file, pixel = 0.396
 
 		Da_obs = Test_model.angular_diameter_distance( z_g ).value
 		qq_R_sat = sat_Rpix * pixel * Da_obs * 1e3 / rad2arcsec     ##. kpc
+
 		pre_R_sat[ qq ] = qq_R_sat
+		pre_R_vir = set_Rv[ set_IDs == clus_IDs[ qq ] ][ 0 ]
 
 
 		##. random select cluster and do a map between satellite and the 'selected' cluster
@@ -446,12 +494,21 @@ def frame_align_shufll_func(  clust_cat, member_sat_cat, out_file, pixel = 0.396
 			id_ux = clus_IDs == rand_ID
 			cp_ra_g, cp_dec_g, cp_z_g = bcg_ra[ id_ux ][0], bcg_dec[ id_ux ][0], bcg_z[ id_ux ][0]			
 
+			cp_R_vir = set_Rv[ set_IDs == rand_ID ][0]
 			cp_Da = Test_model.angular_diameter_distance( cp_z_g ).value
 
-			cp_sat_Rpix = ( ( qq_R_sat / 1e3 / cp_Da ) * rad2arcsec ) / pixel
+			#.
+			if id_fixRs:
 
+				_r_ratio = qq_R_sat / pre_R_vir
+				_cp_R_sat = cp_R_vir * _r_ratio
+				cp_sat_Rpix = ( ( _cp_R_sat / 1e3 / cp_Da ) * rad2arcsec ) / pixel
+
+			else:
+				cp_sat_Rpix = ( ( qq_R_sat / 1e3 / cp_Da ) * rad2arcsec ) / pixel
+
+			#.
 			off_x, off_y = cp_sat_Rpix * np.cos( sat_theta ), cp_sat_Rpix * np.sin( sat_theta )
-
 			cp_cx, cp_cy = bcg_x[ id_ux ][0], bcg_y[ id_ux ][0]
 
 			cp_sx, cp_sy = cp_cx + off_x, cp_cy + off_y   ## new satellite location
@@ -528,7 +585,6 @@ def frame_align_shufll_func(  clust_cat, member_sat_cat, out_file, pixel = 0.396
 					id_live = id_live - 1
 					break
 
-
 	##. save table	
 	keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'orin_cID', 'orin_Rsat_phy', 
 			'shufl_cID', 'cp_sx', 'cp_sy', 'cp_PA', 'cp_Rpix', 'cp_Rsat_phy', 'is_symP',
@@ -538,6 +594,66 @@ def frame_align_shufll_func(  clust_cat, member_sat_cat, out_file, pixel = 0.396
 			shufl_IDs, shufl_sx, shufl_sy, shufl_PA, shufl_Rpix, shufl_R_phy, id_symP,
 			shufl_ra, shufl_dec, shufl_z ]
 
+	fill = dict( zip( keys, values ) )
+	out_data = pds.DataFrame( fill )
+	out_data.to_csv( out_file )
+
+	return
+
+
+### === ### satellite number counts for shuffle mapping catalog
+##.. i.e. once a satellite is stacked, we say that the cluster image is used once,
+##.. Now we need to make sure the 'times of cluster images used' is the same for 
+##.. satellite image stacking and background stacking
+def N_shufl_count_func( shufl_cat, clust_cat, out_file ):
+	"""
+	shufl_cat : the shuffle mapping catalog
+	clust_cat : all clusters whose satellites are list in the shufl_cat above
+	out_file : output file~(.csv)
+	"""
+
+	##. member cat.
+	dat = pds.read_csv( shufl_cat )
+
+	bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
+	sat_ra, sat_dec = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] )
+
+	orin_IDs = np.array( dat['orin_cID'] )
+	rand_IDs = np.array( dat['shufl_cID'] )
+
+	orin_IDs = orin_IDs.astype( int )
+	rand_IDs = rand_IDs.astype( int )
+
+
+	##. cluster cat.
+	dat = pds.read_csv( clust_cat )
+
+	clus_IDs = np.array( dat['clust_ID'] )
+	clus_IDs = clus_IDs.astype( int )
+
+	N_w = len( clus_IDs )
+	N_ss = len( bcg_ra )
+
+	##.
+	pre_Ng = np.zeros( N_ss, )
+	shufl_Ng = np.zeros( N_ss, )
+
+	#.
+	for mm in range( N_w ):
+
+		sub_IDs = clus_IDs[ mm ]
+
+		id_vx = orin_IDs == sub_IDs
+		pre_Ng[ id_vx ] = np.sum( id_vx )
+
+		id_ux = rand_IDs == sub_IDs
+		shufl_Ng[ id_ux ] = np.sum( id_ux )
+
+		print( np.sum( id_vx ) )
+
+	##. save
+	keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'orin_Ng', 'shufl_Ng']
+	values = [ bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, pre_Ng, shufl_Ng ]
 	fill = dict( zip( keys, values ) )
 	out_data = pds.DataFrame( fill )
 	out_data.to_csv( out_file )
@@ -555,9 +671,11 @@ def zref_cut_func( shuffle_list, out_file, cut_size = 320, z_ref = 0.25, pixel =
 	cut_size : the cut_img size, by default is 320~(~500kpc)
 
 	--------------------------------------------------------
-	z_ref : reference redshift of galaxy images, by default is 0.25~(roughly the median of cluster sample)
+	z_ref : reference redshift of galaxy images, by default is 0.25
+			(roughly the median of cluster sample)
 	pixel : pixel size (unit:arcsec) of image, by default is 0.396~(SDSS)
 	"""
+
 	##.
 	cat = pds.read_csv( shuffle_list )
 
@@ -571,7 +689,16 @@ def zref_cut_func( shuffle_list, out_file, cut_size = 320, z_ref = 0.25, pixel =
 
 
 	##. satellite shuffle information
-	cp_sx, cp_sy, cp_PA = np.array( cat['cp_sx'] ), np.array( cat['cp_sy'] ), np.array( cat['cp_PA'] )
+	cp_sx, cp_sy = np.array( cat['cp_sx'] ), np.array( cat['cp_sy'] )
+
+	##. Position angle relative to BCG in image frame
+	try:
+		cp_PA = np.array( cat['cp_PA'] )
+
+	except:
+		cp_PA = np.array( cat['cp_PA2bcg'] )
+
+	#.
 	cp_Rpix, cp_Rsat_phy = np.array( cat['cp_Rpix'] ), np.array( cat['cp_Rsat_phy'] )
 
 	cp_bcg_ra, cp_bcg_dec = np.array( cat['cp_bcg_ra'] ), np.array( cat['cp_bcg_dec'] )
@@ -581,7 +708,7 @@ def zref_cut_func( shuffle_list, out_file, cut_size = 320, z_ref = 0.25, pixel =
 
 
 	##. refer to information at z_ref
-	R_cut = 320
+	R_cut = cut_size
 
 	Da_z = Test_model.angular_diameter_distance( cp_bcg_z ).value
 	Da_ref = Test_model.angular_diameter_distance( z_ref ).value
@@ -615,9 +742,72 @@ def zref_cut_func( shuffle_list, out_file, cut_size = 320, z_ref = 0.25, pixel =
 
 ### %%%%%%%%%%%%%%%%%%%%%%%% ###
 ##. control galaxy shuffle mapping
-def field_galaxy_shufl_func():
+def field_galaxy_shufl_func(random_map_cat, contrl_galx_cat, N_shufl, out_file, 
+							np_x = 2048, np_y = 1489):
+	"""
+	random_map_cat : the catalog of control galaxy < -- > map to random catalog in RedMaPPer
+				(we use the images of random catalog as the observation of field galaxy)
+	
+	contrl_galx_cat : the entire catalog of mapped field galaxy with 
+				the "5-band magnitude + (g-r) + (r-i) + (u-g)" space
+
+	out_file : output the shuffle catalog (*.csv)
+
+	N_shufl : times of randomly mapping field galaxies and images of random catalog in RedMaPPer
+
+	np_x, np_y : columns and rows of image frame, for SDSS, np_x = 2048, np_y = 1489
+	"""
+
+	##.
+	dat = pds.read_csv( random_map_cat )
+
+	bcg_ra, bcg_dec, bcg_z = np.array( dat['bcg_ra'] ), np.array( dat['bcg_dec'] ), np.array( dat['bcg_z'] )
+	sat_ra, sat_dec, sat_z = np.array( dat['sat_ra'] ), np.array( dat['sat_dec'] ), np.array( dat['sat_z'] )
+
+	sat_x, sat_y = np.array( dat['sat_x'] ), np.array( dat['sat_y'] )
+
+	coord_sat = SkyCoord( ra = sat_ra * U.deg, dec = sat_dec * U.deg )
 
 
+	##.
+	ref_cat = pds.read_csv( contrl_galx_cat )
+
+	cp_s_ra, cp_s_dec, cp_s_z = np.array( ref_cat['ra'] ), np.array( ref_cat['dec'] ), np.array( ref_cat['z'] )
+	cp_clus_z = np.array( ref_cat['map_clus_z'] )
+
+	cp_coord_sat = SkyCoord( ra = cp_s_ra * U.deg, dec = cp_s_dec * U.deg )
+
+	idx, d2d, d3d = coord_sat.match_to_catalog_sky( cp_coord_sat )
+	id_lim = d2d.value < 2.7e-4
+
+	##. use for resampling ~ (save as 'z_bg' in shuffle catalog )
+	ref_clus_z = cp_clus_z[ idx[id_lim] ]
+
+
+	N_s = len( sat_ra )
+
+	for dd in range( N_shufl ):
+
+		##. 
+		rand_dex = np.random.choice( N_s, N_s, replace = False )
+
+		mp_ra, mp_dec, mp_z = bcg_ra[ rand_dex ], bcg_dec[ rand_dex ], bcg_z[ rand_dex ]
+		mp_bg_z = ref_clus_z[ rand_dex ]
+
+		##. use the symmetry points of origin image frame
+		mp_gx = np_x - sat_x
+		mp_gy = np_y - sat_y
+
+
+		##.
+		keys = ['bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'sat_z', 'orin_x', 'orin_y',
+				'shfl_bcg_ra', 'shfl_bcg_dec', 'shfl_bcg_z', 'shfl_x', 'shfl_y', 'z_bg']
+		values = [ bcg_ra, bcg_dec, bcg_z, sat_ra, sat_dec, sat_z, sat_x, sat_y, 
+				mp_ra, mp_dec, mp_z, mp_gx, mp_gy, mp_bg_z ]
+
+		fill = dict( zip( keys, values ) )
+		out_data = pds.DataFrame( fill )
+		out_data.to_csv( out_file % dd )
 
 	return
 

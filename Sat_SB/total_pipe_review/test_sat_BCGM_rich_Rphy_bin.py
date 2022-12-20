@@ -33,17 +33,15 @@ a_ref = 1 / (z_ref + 1)
 
 
 ### === 
-def sat_phyR_binned():
+def sat_rich_phyR_bin():
 
 	#.
-	cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/BCG_Mstar_bin/cat/'
-	out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/BCG_Mstar_bin/cat/'
-
+	cat_path = '/home/xkchen/Pictures/BG_calib_SBs/BCG_M_bin/cat/'
+	out_path = '/home/xkchen/Pictures/BG_calib_SBs/BCG_M_bin/cat_Rbin/'
 
 	##. R_cut in the central 300kpc only
 	R_bins = np.array( [0, 300, 2000] )
 	R_bins = [ R_bins ] * 3
-
 
 	bin_rich = [ 20, 30, 50, 210 ]
 	cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
@@ -61,14 +59,11 @@ def sat_phyR_binned():
 			bcg_ra, bcg_dec, bcg_z = np.array( s_dat['bcg_ra'] ), np.array( s_dat['bcg_dec'] ), np.array( s_dat['bcg_z'] )
 			p_ra, p_dec = np.array( s_dat['ra'] ), np.array( s_dat['dec'] )
 
-			p_Rsat = np.array( s_dat['R_cen'] )
-			p_R2Rv = np.array( s_dat['Rcen/Rv'] )
+			p_Rsat = np.array( s_dat['R_sat'] )
+			p_R2Rv = np.array( s_dat['Rsat/Rv'] )
 			clus_IDs = np.array( s_dat['clus_ID'] )
 
-			a_obs = 1 / ( bcg_z + 1 )
-
-			# cp_Rsat = p_Rsat * 1e3 * a_ref / h  ##. physical radius
-			cp_Rsat = p_Rsat * 1e3 * a_obs / h  ##. physical radius
+			cp_Rsat = p_Rsat * 1e3 / h  ##. physical radius
 
 
 			##. division
@@ -94,9 +89,8 @@ def sat_phyR_binned():
 				data.to_csv( out_path + '%s_clust_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem_cat.csv' % 
 							(cat_lis[pp], bin_rich[kk], bin_rich[kk + 1], R_bins[kk][nn], R_bins[kk][nn + 1]),)
 
-
 	##... match with stacked information
-	pos_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/'
+	pos_path = '/home/xkchen/Pictures/BG_calib_SBs/sat_cat_z02_03/'
 
 	for dd in range( 2 ):
 
@@ -137,12 +131,13 @@ def sat_phyR_binned():
 
 	return
 
+
 ##. binned satellite with radius only
-def cp_sat_phyR_bin():
+def sat_phyR_bin():
 
 	#.
-	cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/BCG_Mstar_bin/cat/'
-	out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/BCG_Mstar_bin/cat/'
+	cat_path = '/home/xkchen/Pictures/BG_calib_SBs/BCG_M_bin/cat/'
+	out_path = '/home/xkchen/Pictures/BG_calib_SBs/BCG_M_bin/cat_Rbin/'
 
 	##. R_cut in the central 300kpc only
 	R_bins = np.array( [0, 300, 2000] )
@@ -151,7 +146,7 @@ def cp_sat_phyR_bin():
 
 	cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
 
-
+	##.
 	for pp in range( 2 ):
 
 		##. radius binned satellite
@@ -166,7 +161,7 @@ def cp_sat_phyR_bin():
 			clust_ID = np.array( dat['clus_ID'] )
 
 
-			for kk in range( 1,3 ):
+			for kk in range( 3 ):
 
 				dat = pds.read_csv( out_path + '%s_clust_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem_cat.csv' 
 								% (cat_lis[pp], bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1]),)
@@ -191,9 +186,8 @@ def cp_sat_phyR_bin():
 			data.to_csv( out_path + '%s_clust_frame-lim_Pm-cut_phyR_%d-%dkpc_mem_cat.csv' 
 						% (cat_lis[pp], R_bins[nn], R_bins[nn + 1]),)
 
-
 	##... match with stacked information
-	pos_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/'
+	pos_path = '/home/xkchen/Pictures/BG_calib_SBs/sat_cat_z02_03/'
 
 	for dd in range( 2 ):
 
@@ -231,7 +225,6 @@ def cp_sat_phyR_bin():
 				data.to_csv( out_path + '%s_clust_frame-lim_Pm-cut_phyR_%d-%dkpc_mem_%s-band_pos-zref.csv' 
 							% (cat_lis[dd], R_bins[tt], R_bins[tt + 1], band[kk]),)
 
-
 	##... shuffle list mapping
 	list_order = 13
 
@@ -244,8 +237,9 @@ def cp_sat_phyR_bin():
 			##...
 			for nn in range( len( R_bins ) - 1 ):
 
-				dat = pds.read_csv( out_path + '%s_clust_frame-lim_Pm-cut_rich_20-30_phyR_%d-%dkpc_mem_%s-band_sat-shufl-%d_cat.csv' 
-							% (cat_lis[pp], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
+				dat = pds.read_csv( out_path + 
+						'%s_clust_frame-lim_Pm-cut_rich_20-30_phyR_%d-%dkpc_mem_%s-band_sat_fixRs-shufl-%d_cat.csv'
+						% (cat_lis[pp], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
 
 				keys = dat.columns[1:]
 				N_ks = len( keys )
@@ -262,8 +256,8 @@ def cp_sat_phyR_bin():
 				for kk in range( 1,3 ):
 
 					dat = pds.read_csv( out_path + 
-									'%s_clust_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem_%s-band_sat-shufl-%d_cat.csv' 
-									% (cat_lis[pp], bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
+							'%s_clust_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem_%s-band_sat_fixRs-shufl-%d_cat.csv'
+							% (cat_lis[pp], bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
 
 					for mm in range( N_ks ):
 
@@ -274,16 +268,15 @@ def cp_sat_phyR_bin():
 				##. save
 				fill = dict( zip( keys, tmp_arr ) )
 				data = pds.DataFrame( fill )
-				data.to_csv( out_path + '%s_clust_frame-lim_Pm-cut_phyR_%d-%dkpc_mem_%s-band_sat-shufl-%d_cat.csv' 
+				data.to_csv( out_path + '%s_clust_frame-lim_Pm-cut_phyR_%d-%dkpc_mem_%s-band_sat_fixRs-shufl-%d_cat.csv' 
 							% ( cat_lis[pp], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
-
 
 			##...
 			for nn in range( len( R_bins ) - 1 ):
 
 				##.
 				dat = pds.read_csv( out_path + 
-							'%s_clust_frame-lim_Pm-cut_rich_20-30_phyR_%d-%dkpc_mem_%s-band_sat-shufl-%d_origin-img_position.csv'
+							'%s_clust_frame-lim_Pm-cut_rich_20-30_phyR_%d-%dkpc_mem_%s-band_sat_fixRs-shufl-%d_shufl-Ng.csv'
 							% (cat_lis[pp], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
 
 				keys = dat.columns[1:]
@@ -301,7 +294,7 @@ def cp_sat_phyR_bin():
 				for kk in range( 1,3 ):
 
 					dat = pds.read_csv( out_path + 
-								'%s_clust_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem_%s-band_sat-shufl-%d_origin-img_position.csv'
+								'%s_clust_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem_%s-band_sat_fixRs-shufl-%d_shufl-Ng.csv' 
 								% (cat_lis[pp], bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
 
 					for mm in range( N_ks ):
@@ -314,59 +307,20 @@ def cp_sat_phyR_bin():
 				fill = dict( zip( keys, tmp_arr ) )
 				data = pds.DataFrame( fill )
 				data.to_csv( out_path + 
-							'%s_clust_frame-lim_Pm-cut_phyR_%d-%dkpc_mem_%s-band_sat-shufl-%d_origin-img_position.csv' 
-							% ( cat_lis[pp], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
-
-			##...
-			for nn in range( len( R_bins ) - 1 ):
-
-				##.
-				dat = pds.read_csv( out_path + 
-							'%s_clust_frame-lim_Pm-cut_rich_20-30_phyR_%d-%dkpc_mem_%s-band_sat-shufl-%d_shufl-Ng.csv'
-							% (cat_lis[pp], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
-
-				keys = dat.columns[1:]
-				N_ks = len( keys )
-
-				tmp_arr = []
-
-				for mm in range( N_ks ):
-
-					sub_arr = np.array( dat[ keys[ mm ] ] )
-
-					tmp_arr.append( sub_arr )
-
-				#.
-				for kk in range( 1,3 ):
-
-					dat = pds.read_csv( out_path + 
-								'%s_clust_frame-lim_Pm-cut_rich_%d-%d_phyR_%d-%dkpc_mem_%s-band_sat-shufl-%d_shufl-Ng.csv'
-								% (cat_lis[pp], bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
-
-					for mm in range( N_ks ):
-
-						sub_arr = np.array( dat[ keys[ mm ] ] )
-
-						tmp_arr[ mm ] = np.r_[ tmp_arr[ mm ], sub_arr ]
-
-				##. save
-				fill = dict( zip( keys, tmp_arr ) )
-				data = pds.DataFrame( fill )
-				data.to_csv( out_path + 
-							'%s_clust_frame-lim_Pm-cut_phyR_%d-%dkpc_mem_%s-band_sat-shufl-%d_shufl-Ng.csv' 
+							'%s_clust_frame-lim_Pm-cut_phyR_%d-%dkpc_mem_%s-band_sat_fixRs-shufl-%d_shufl-Ng.csv' 
 							% ( cat_lis[pp], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
 
 	return
 
-# sat_phyR_binned()
-# cp_sat_phyR_bin()
+##.
+# sat_rich_phyR_bin()
+sat_phyR_bin()
 
-# raise
-
+raise
 
 
 ##. figs 
-cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/BCG_Mstar_bin/cat/'
+cat_path = '/home/xkchen/Pictures/BG_calib_SBs/BCG_M_bin/cat/'
 
 cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
 
@@ -374,8 +328,7 @@ bin_rich = [ 20, 30, 50, 210 ]
 line_name = ['$\\lambda \\leq 30$', '$30 \\leq \\lambda \\leq 50$', '$\\lambda \\geq 50$']
 line_c = ['b', 'g', 'r']
 
-
-
+#.
 for pp in range( 2 ):
 
 	fig = plt.figure()
@@ -394,12 +347,8 @@ for pp in range( 2 ):
 		bcg_ra, bcg_dec, bcg_z = np.array( s_dat['bcg_ra'] ), np.array( s_dat['bcg_dec'] ), np.array( s_dat['bcg_z'] )
 		p_ra, p_dec = np.array( s_dat['ra'] ), np.array( s_dat['dec'] )
 
-		p_Rsat = np.array( s_dat['R_cen'] )
-
-		a_obs = 1 / ( bcg_z + 1 )
-
-		# cp_Rsat = p_Rsat * 1e3 * a_ref / h  ##. physical radius
-		cp_Rsat = p_Rsat * 1e3 * a_obs / h  ##. physical radius
+		p_Rsat = np.array( s_dat['R_sat'] )
+		cp_Rsat = p_Rsat * 1e3 / h  ##. physical radius
 
 
 		#.

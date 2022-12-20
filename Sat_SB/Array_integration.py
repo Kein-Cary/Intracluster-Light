@@ -80,42 +80,6 @@ def arr_romber_integ_func( x_arr, y_arr, a, b, eps = 1e-8 ):
 	return
 
 
-### === ### integration for 2D mass dinstribution
-def cumu_mass_func( Rp, surf_m, N_grid = 7 ):
-	"""
-	Rp, sutf_m : projected distance and surface mass density to be integrated
-	N_grid : number of grid points for varables
-	"""
-	NR = len( Rp )
-
-	tkf = interp.splrep( Rp, surf_m, s = 0)
-
-	cumu_y = np.zeros( NR, )
-
-	for ii in range( NR ):
-
-		if ii == 0:
-			tp_R = np.logspace( np.log10( Rp[ii] / 1000 ), np.log10( Rp[ ii ] ), N_grid )
-			pre_SM = 0.
-
-		else:
-			tp_R = np.logspace( np.log10( Rp[ ii-1] ), np.log10( Rp[ ii ] ), N_grid )
-
-		tpf = interp.splev( tp_R, tkf, der = 0 )
-
-		mid_R = 0.5 * ( tp_R[1:] + tp_R[:-1] )
-
-		d_lgR = np.diff( np.log10( tp_R ) )
-
-		mid_M = interp.splev( mid_R, tkf, der = 0 )
-
-		cumu_y[ ii ] = pre_SM + integ.simps( mid_R**2 * np.log(10) * mid_M * 2 * np.pi, np.log10( mid_R ) )
-
-		pre_SM = cumu_y[ ii ] + 0.
-
-	return cumu_y
-
-
 ### === ### any type function integration
 ##. trapezoidal rule
 def sum_fun_xk( xk, func ):

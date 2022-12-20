@@ -1,6 +1,3 @@
-"""
-rebinned satellite with BCG stellar mass
-"""
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
@@ -39,15 +36,17 @@ a_ref = 1 / (z_ref + 1)
 def sat_rich_Rscal_bin():
 
 	#.
-	cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/BCG_Mstar_bin/cat/'
-	out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/BCG_Mstar_bin/cat/'
+	cat_path = '/home/xkchen/Pictures/BG_calib_SBs/BCG_M_bin/cat/'
+	out_path = '/home/xkchen/Pictures/BG_calib_SBs/BCG_M_bin/cat_Rbin/'
 
 	#.
 	bin_rich = [ 20, 30, 50, 210 ]
 	cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
 
 	##. fixed R for all richness subsample
-	R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	# R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 0.6139, 1] )
+
 
 	##. radius binned satellite
 	for pp in range( 2 ):
@@ -61,8 +60,8 @@ def sat_rich_Rscal_bin():
 			bcg_ra, bcg_dec, bcg_z = np.array( s_dat['bcg_ra'] ), np.array( s_dat['bcg_dec'] ), np.array( s_dat['bcg_z'] )
 			p_ra, p_dec = np.array( s_dat['ra'] ), np.array( s_dat['dec'] )
 
-			p_Rsat = np.array( s_dat['R_cen'] )
-			p_R2Rv = np.array( s_dat['Rcen/Rv'] )
+			p_Rsat = np.array( s_dat['R_sat'] )
+			p_R2Rv = np.array( s_dat['Rsat/Rv'] )
 			clus_IDs = np.array( s_dat['clus_ID'] )
 
 			##. division
@@ -81,16 +80,23 @@ def sat_rich_Rscal_bin():
 				out_clus_ID = clus_IDs[ sub_N ]
 
 				##.
-				keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'R_sat', 'R2Rv', 'clus_ID'] 
-				values = [ out_c_ra, out_c_dec, out_c_z, out_s_ra, out_s_dec, out_Rsat, out_R2Rv, out_clus_ID]
-				fill = dict( zip( keys, values ) )
-				data = pds.DataFrame( fill )
-				data.to_csv( out_path + '%s_clust_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_cat.csv' % 
-							(cat_lis[pp], bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1]),)
+				# keys = [ 'bcg_ra', 'bcg_dec', 'bcg_z', 'sat_ra', 'sat_dec', 'R_sat', 'R2Rv', 'clus_ID'] 
+				# values = [ out_c_ra, out_c_dec, out_c_z, out_s_ra, out_s_dec, out_Rsat, out_R2Rv, out_clus_ID]
+				# fill = dict( zip( keys, values ) )
+				# data = pds.DataFrame( fill )
+				# data.to_csv( out_path + '%s_clust_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_cat.csv' % 
+				# 			(cat_lis[pp], bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1]),)
 
+				print( len(out_c_ra) )
+
+			print( '*' * 10 )
+
+		print('*' * 20)
+
+	raise
 
 	##... match with stacked information
-	pos_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/'
+	pos_path = '/home/xkchen/Pictures/BG_calib_SBs/sat_cat_z02_03/'
 
 	for dd in range( 2 ):
 
@@ -136,11 +142,12 @@ def sat_rich_Rscal_bin():
 def sat_Rscal_bin():
 
 	#.
-	cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/BCG_Mstar_bin/cat/'
-	out_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/BCG_Mstar_bin/cat/'
+	cat_path = '/home/xkchen/Pictures/BG_calib_SBs/BCG_M_bin/cat/'
+	out_path = '/home/xkchen/Pictures/BG_calib_SBs/BCG_M_bin/cat_Rbin/'
 
 	##. fixed R for all richness subsample
-	R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	# R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+	R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 0.6139, 1] )
 
 	#.
 	bin_rich = [ 20, 30, 50, 210 ]
@@ -162,7 +169,7 @@ def sat_Rscal_bin():
 			clust_ID = np.array( dat['clus_ID'] )
 
 			#.
-			for kk in range( 1,3 ):
+			for kk in range( 3 ):
 
 				dat = pds.read_csv( out_path + '%s_clust_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_cat.csv' 
 								% (cat_lis[pp], bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1]),)
@@ -188,7 +195,7 @@ def sat_Rscal_bin():
 						% (cat_lis[pp], R_bins[nn], R_bins[nn + 1]),)
 
 	##... match with stacked information
-	pos_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/pos_cat/'
+	pos_path = '/home/xkchen/Pictures/BG_calib_SBs/sat_cat_z02_03/'
 
 	for dd in range( 2 ):
 
@@ -226,6 +233,7 @@ def sat_Rscal_bin():
 				data.to_csv( out_path + '%s_clust_frame-lim_Pm-cut_%.2f-%.2fR200m_mem_%s-band_pos-zref.csv' 
 							% (cat_lis[dd], R_bins[tt], R_bins[tt + 1], band[kk]),)
 
+
 	##... shuffle list mapping
 	list_order = 13
 
@@ -238,46 +246,9 @@ def sat_Rscal_bin():
 			##...
 			for nn in range( len( R_bins ) - 1 ):
 
-				dat = pds.read_csv( out_path + '%s_clust_frame-lim_Pm-cut_rich_20-30_%.2f-%.2fR200m_mem_%s-band_sat-shufl-%d_cat.csv' 
-							% (cat_lis[pp], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
-
-				keys = dat.columns[1:]
-				N_ks = len( keys )
-
-				tmp_arr = []
-
-				for mm in range( N_ks ):
-
-					sub_arr = np.array( dat[ keys[ mm ] ] )
-
-					tmp_arr.append( sub_arr )
-
-				#.
-				for kk in range( 1,3 ):
-
-					dat = pds.read_csv( out_path + 
-									'%s_clust_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_%s-band_sat-shufl-%d_cat.csv' 
-									% (cat_lis[pp], bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
-
-					for mm in range( N_ks ):
-
-						sub_arr = np.array( dat[ keys[ mm ] ] )
-
-						tmp_arr[ mm ] = np.r_[ tmp_arr[ mm ], sub_arr ]
-
-				##. save
-				fill = dict( zip( keys, tmp_arr ) )
-				data = pds.DataFrame( fill )
-				data.to_csv( out_path + '%s_clust_frame-lim_Pm-cut_%.2f-%.2fR200m_mem_%s-band_sat-shufl-%d_cat.csv' 
-							% ( cat_lis[pp], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
-
-			##...
-			for nn in range( len( R_bins ) - 1 ):
-
-				##.
 				dat = pds.read_csv( out_path + 
-							'%s_clust_frame-lim_Pm-cut_rich_20-30_%.2f-%.2fR200m_mem_%s-band_sat-shufl-%d_origin-img_position.csv'
-							% (cat_lis[pp], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
+						'%s_clust_frame-lim_Pm-cut_rich_20-30_%.2f-%.2fR200m_mem_%s-band_sat_fixRs-shufl-%d_cat.csv'
+						% (cat_lis[pp], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
 
 				keys = dat.columns[1:]
 				N_ks = len( keys )
@@ -294,8 +265,8 @@ def sat_Rscal_bin():
 				for kk in range( 1,3 ):
 
 					dat = pds.read_csv( out_path + 
-								'%s_clust_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_%s-band_sat-shufl-%d_origin-img_position.csv'
-								% (cat_lis[pp], bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
+							'%s_clust_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_%s-band_sat_fixRs-shufl-%d_cat.csv'
+							% (cat_lis[pp], bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
 
 					for mm in range( N_ks ):
 
@@ -307,16 +278,17 @@ def sat_Rscal_bin():
 				fill = dict( zip( keys, tmp_arr ) )
 				data = pds.DataFrame( fill )
 				data.to_csv( out_path + 
-							'%s_clust_frame-lim_Pm-cut_%.2f-%.2fR200m_mem_%s-band_sat-shufl-%d_origin-img_position.csv' 
-							% ( cat_lis[pp], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
+						'%s_clust_frame-lim_Pm-cut_%.2f-%.2fR200m_mem_%s-band_sat_fixRs-shufl-%d_cat.csv' 
+						% ( cat_lis[pp], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
+
 
 			##...
 			for nn in range( len( R_bins ) - 1 ):
 
 				##.
 				dat = pds.read_csv( out_path + 
-							'%s_clust_frame-lim_Pm-cut_rich_20-30_%.2f-%.2fR200m_mem_%s-band_sat-shufl-%d_shufl-Ng.csv'
-							% (cat_lis[pp], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
+						'%s_clust_frame-lim_Pm-cut_rich_20-30_%.2f-%.2fR200m_mem_%s-band_sat_fixRs-shufl-%d_shufl-Ng.csv'
+						% (cat_lis[pp], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
 
 				keys = dat.columns[1:]
 				N_ks = len( keys )
@@ -333,8 +305,8 @@ def sat_Rscal_bin():
 				for kk in range( 1,3 ):
 
 					dat = pds.read_csv( out_path + 
-								'%s_clust_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_%s-band_sat-shufl-%d_shufl-Ng.csv'
-								% (cat_lis[pp], bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
+							'%s_clust_frame-lim_Pm-cut_rich_%d-%d_%.2f-%.2fR200m_mem_%s-band_sat_fixRs-shufl-%d_shufl-Ng.csv'
+							% (cat_lis[pp], bin_rich[kk], bin_rich[kk + 1], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
 
 					for mm in range( N_ks ):
 						sub_arr = np.array( dat[ keys[ mm ] ] )
@@ -344,7 +316,7 @@ def sat_Rscal_bin():
 				fill = dict( zip( keys, tmp_arr ) )
 				data = pds.DataFrame( fill )
 				data.to_csv( out_path + 
-							'%s_clust_frame-lim_Pm-cut_%.2f-%.2fR200m_mem_%s-band_sat-shufl-%d_shufl-Ng.csv' 
+							'%s_clust_frame-lim_Pm-cut_%.2f-%.2fR200m_mem_%s-band_sat_fixRs-shufl-%d_shufl-Ng.csv' 
 							% ( cat_lis[pp], R_bins[nn], R_bins[nn + 1], band_str, list_order),)
 
 	return
@@ -352,13 +324,14 @@ def sat_Rscal_bin():
 
 ##.
 sat_rich_Rscal_bin()
+
+##. after shuffle catalog map.
 # sat_Rscal_bin()
 raise
 
 
-
-##. figs 
-cat_path = '/home/xkchen/figs/extend_bcgM_cat_Sat/BCG_Mstar_bin/cat/'
+##. figs
+cat_path = '/home/xkchen/Pictures/BG_calib_SBs/BCG_M_bin/cat/'
 
 cat_lis = ['low_BCG_star-Mass', 'high_BCG_star-Mass']
 
@@ -378,7 +351,8 @@ for pp in range( 2 ):
 	for kk in range( 3 ):
 
 		##. fixed R for all richness subsample
-		R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+		# R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 1] )   ### times R200m
+		R_bins = np.array( [0, 0.126, 0.24, 0.40, 0.56, 0.6139, 1] )
 
 		##.
 		s_dat = pds.read_csv( cat_path + '%s_clust_rich_%d-%d_rgi-common_frame-lim_Pm-cut_exlu-BCG_member-cat.csv' % 
@@ -387,8 +361,8 @@ for pp in range( 2 ):
 		bcg_ra, bcg_dec, bcg_z = np.array( s_dat['bcg_ra'] ), np.array( s_dat['bcg_dec'] ), np.array( s_dat['bcg_z'] )
 		p_ra, p_dec = np.array( s_dat['ra'] ), np.array( s_dat['dec'] )
 
-		p_Rsat = np.array( s_dat['R_cen'] )
-		p_R2Rv = np.array( s_dat['Rcen/Rv'] )
+		p_Rsat = np.array( s_dat['R_sat'] )
+		p_R2Rv = np.array( s_dat['Rsat/Rv'] )
 
 		#.
 		for qq in range( len(R_bins) - 1 ):
